@@ -1,0 +1,66 @@
+﻿with fee as ( 
+    select
+        r.seq as receipt_seq
+        , rg.seq as receipt_group_seq
+        , sum( 
+            case 
+                when r.tax_type = '0' 
+                or rd.tax_target = '0' 
+                    then (rd.fee - rd.discount_fee) * rd.quantity - round( 
+                    (rd.fee - rd.discount_fee) * rd.quantity * rd.discount_rate / 100.0 + 0.4999
+                    , 0
+                ) 
+                else 0 
+                end
+        ) as intax_fee
+        , sum( 
+            case 
+                when r.tax_type = '1' 
+                and rd.tax_target = '1' 
+                    then (rd.fee - rd.discount_fee) * rd.quantity - round( 
+                    (rd.fee - rd.discount_fee) * rd.quantity * rd.discount_rate / 100.0 + 0.4999
+                    , 0
+                ) 
+                else 0 
+                end
+        ) as outtax_fee 
+    from
+        t_receipts r 
+        left join t_receipt_groups rg 
+            on rg.receipt_seq = r.seq 
+        left join t_receipt_details rd 
+            on rd.receipt_seq = rg.receipt_seq 
+            and rd.group_seq = rg.seq 
+    group by
+        r.seq
+        , rg.seq
+) 
+select
+    strftime('%Y/%m', r.date) as 年月
+    , gc.name as 分類
+    , sum(f.intax_fee + round( 
+        f.outtax_fee * (1 + tr.rate / 100.0) - 0.4999
+        , 0
+    )) as 金額
+    , gc.code
+    , gc.seq 
+from
+    fee f 
+    left join t_receipts r 
+        on r.seq = f.receipt_seq 
+    left join t_receipt_groups rg 
+        on rg.receipt_seq = f.receipt_seq 
+        and rg.seq = f.receipt_group_seq 
+    left join m_group_classification gc 
+        on gc.code = rg.group_classification_code 
+    left join m_tax_rate tr 
+        on tr.code = rg.tax 
+group by
+    strftime('%Y/%m', r.date)
+    , gc.name 
+order by
+    1
+    , 2
+    , gc.seq
+    , gc.code
+

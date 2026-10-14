@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<columns>
+	<column name="code">コード</column>
+	<column name="rate">税率（%）</column>
+	<column name="start_date">適用開始日付</column>
+</columns>

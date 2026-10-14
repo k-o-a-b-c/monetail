@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<columns>
+	<column name="code">コード</column>
+	<column name="name">名前</column>
+	<column name="seq">表示順</column>
+	<column name="default_group_classification_code">初期選択分類</column>
+	<column name="user">使用者</column>
+</columns>

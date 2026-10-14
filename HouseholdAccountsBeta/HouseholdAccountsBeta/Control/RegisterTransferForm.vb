@@ -1,0 +1,186 @@
+﻿Public Class RegisterTransferForm
+
+    Public Property DataAccess As DataAccess
+
+    Public Property Transfer As Transfer
+
+    Public Property FromPaymentClassification As PaymentClassification
+    Public Property ToPaymentClassification As PaymentClassification
+
+    Private Sub TransferForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        NameComboBox.DataSource = DataAccess.GetTransferNameList()
+        FromPaymentClassificationComboBox.DataSource = DataAccess.PaymentClassificationList
+        ToPaymentClassificationComboBox.DataSource = DataAccess.PaymentClassificationList.ToList()
+
+        If Transfer Is Nothing Then
+            Transfer = New Transfer()
+            NameComboBox.SelectedIndex = -1
+            FromPaymentClassificationComboBox.SelectedIndex = -1
+            ToPaymentClassificationComboBox.SelectedIndex = -1
+            TransferDateTextBox.Value = DateTime.Today
+            TransferTimeTextBox.Value = DateTime.Today
+            CopyButton.Visible = False
+            DeleteButton.Visible = False
+        Else
+            SetTransferData()
+            RegiserButton.Text = "更新"
+        End If
+
+    End Sub
+
+#Region "値の設定"
+
+    Private Sub SetTransferData()
+        SeqLabel.Text = Transfer.Seq.ToString()
+        TransferDateTextBox.Value = Transfer.Date
+        TransferTimeTextBox.Value = Transfer.Date
+        NameComboBox.Text = Transfer.Name
+        FeeTextBox.Text = Transfer.Fee.ToString()
+        FromPaymentClassificationComboBox.SelectedValue = Transfer.FromPaymentClassification.Code
+        ToPaymentClassificationComboBox.SelectedValue = Transfer.ToPaymentClassification.Code
+        TransferTagTextBox.Text = Transfer.Tag
+
+        FromPaymentClassification = DirectCast(FromPaymentClassificationComboBox.SelectedItem, PaymentClassification)
+        ToPaymentClassification = DirectCast(ToPaymentClassificationComboBox.SelectedItem, PaymentClassification)
+    End Sub
+
+    Private Sub UpdateState()
+        Dim registerCheck As Boolean = True
+        registerCheck = registerCheck AndAlso Not String.IsNullOrEmpty(NameComboBox.Text)
+        registerCheck = registerCheck AndAlso (FromPaymentClassificationComboBox.SelectedIndex <> -1)
+        registerCheck = registerCheck AndAlso (ToPaymentClassificationComboBox.SelectedIndex <> -1)
+        registerCheck = registerCheck AndAlso Integer.TryParse(FeeTextBox.Text, Nothing)
+
+        RegiserButton.Enabled = registerCheck
+    End Sub
+
+#End Region
+
+#Region "入力支援"
+
+    Private Sub NameComboBox_Validated(sender As Object, e As EventArgs) Handles NameComboBox.Validated
+
+        If FromPaymentClassificationComboBox.SelectedIndex = -1 Then
+            Dim paymentClassificationCode As Integer = DataAccess.GetTransferFromPaymentClassification(NameComboBox.Text)
+            If paymentClassificationCode > 0 Then
+                FromPaymentClassificationComboBox.SelectedValue = paymentClassificationCode
+            End If
+        End If
+
+    End Sub
+
+#End Region
+
+    Private Sub NameComboBox_TextChanged(sender As Object, e As EventArgs) Handles NameComboBox.TextChanged
+        UpdateState()
+    End Sub
+
+    Private Sub FromPaymentClassificationComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles FromPaymentClassificationComboBox.SelectedIndexChanged
+        UpdateState()
+
+        If ToPaymentClassificationComboBox.SelectedIndex = -1 AndAlso FromPaymentClassificationComboBox.SelectedIndex >= 0 Then
+            Dim paymentClassificationCode As Integer = DataAccess.GetTransferToPaymentClassification(DirectCast(FromPaymentClassificationComboBox.SelectedValue, Integer), NameComboBox.Text)
+            If paymentClassificationCode > 0 Then
+                ToPaymentClassificationComboBox.SelectedValue = paymentClassificationCode
+            End If
+        End If
+
+    End Sub
+
+    Private Sub ToPaymentClassificationComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ToPaymentClassificationComboBox.SelectedIndexChanged
+        UpdateState()
+    End Sub
+
+    Private Sub FeeTextBox_TextChanged(sender As Object, e As EventArgs) Handles FeeTextBox.TextChanged
+        UpdateState()
+    End Sub
+
+    Private Sub CloseButton_Click(sender As Object, e As EventArgs) Handles CloseButton.Click
+        Me.Close()
+    End Sub
+
+    Private Sub RegiserButton_Click(sender As Object, e As EventArgs) Handles RegiserButton.Click
+        RegisterTransfer(False)
+    End Sub
+
+    Private Sub CopyButton_Click(sender As Object, e As EventArgs) Handles CopyButton.Click
+        RegisterTransfer(True)
+    End Sub
+
+    Public Sub RegisterTransfer(ByVal isCopy As Boolean)
+
+        If DirectCast(FromPaymentClassificationComboBox.SelectedValue, Integer) = DirectCast(ToPaymentClassificationComboBox.SelectedValue, Integer) Then
+            MessageBox.Show("移動元と移動先が同一です。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Return
+        End If
+
+        If TransferTimeTextBox.Value.TimeOfDay = TimeSpan.FromTicks(0) AndAlso MessageBox.Show("時刻を設定していません。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
+            Return
+        End If
+
+        If isCopy Then
+            If MessageBox.Show("流用登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+                Return
+            End If
+            Transfer.Seq = 0
+        Else
+            If Transfer.Seq <> 0 Then
+                If MessageBox.Show("登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+                    Return
+                End If
+                If Transfer.Date.Date <> TransferDateTextBox.Value.Date AndAlso MessageBox.Show("日付が変更されています。本当によろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
+                    Return
+                End If
+            End If
+        End If
+
+        Transfer.Date = TransferDateTextBox.Value.Date + New TimeSpan(TransferTimeTextBox.Value.TimeOfDay.Hours, TransferTimeTextBox.Value.TimeOfDay.Minutes, TransferTimeTextBox.Value.TimeOfDay.Seconds)
+        Transfer.Name = NameComboBox.Text
+        Transfer.Fee = Integer.Parse(FeeTextBox.Text)
+        Transfer.FromPaymentClassification = DataAccess.PaymentClassification(DirectCast(FromPaymentClassificationComboBox.SelectedValue, Integer))
+        Transfer.ToPaymentClassification = DataAccess.PaymentClassification(DirectCast(ToPaymentClassificationComboBox.SelectedValue, Integer))
+        Transfer.Tag = TransferTagTextBox.Text
+
+        If Transfer.Seq = 0 Then
+            DataAccess.RegisterTransfer(Transfer)
+        Else
+            DataAccess.UpdateTransfer(Transfer)
+        End If
+
+        FromPaymentClassification = DirectCast(FromPaymentClassificationComboBox.SelectedItem, PaymentClassification)
+        ToPaymentClassification = DirectCast(ToPaymentClassificationComboBox.SelectedItem, PaymentClassification)
+
+        Me.DialogResult = DialogResult.OK
+
+        Me.Close()
+
+    End Sub
+
+    Private Sub DeleteButton_Click(sender As Object, e As EventArgs) Handles DeleteButton.Click
+
+        If MessageBox.Show("削除します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
+            Return
+        End If
+
+        DataAccess.DeleteTransfer(Transfer)
+
+        Me.DialogResult = DialogResult.OK
+
+        Me.Close()
+
+    End Sub
+
+    Private Sub TransferForm_KeyDown(sender As Object, e As KeyEventArgs) Handles Me.KeyDown
+        Select Case e.KeyData
+            Case Keys.Enter Or Keys.Control
+                RegiserButton.PerformClick()
+                e.SuppressKeyPress = True
+        End Select
+        Select Case e.KeyCode
+            Case Keys.Escape
+                'Me.Close()
+        End Select
+    End Sub
+
+End Class

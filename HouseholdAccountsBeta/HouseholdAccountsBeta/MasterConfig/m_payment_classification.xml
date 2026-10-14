@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<columns>
+	<column name="code">コード</column>
+	<column name="name">名前</column>
+	<column name="seq">表示順</column>
+	<column name="user">支払い者</column>
+</columns>

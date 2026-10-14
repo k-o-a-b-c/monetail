@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8" ?> 
+<masterTables>
+	<table db_name="m_group_classification">分類</table>
+	<table db_name="m_payment_classification">支払い方法</table>
+	<table db_name="m_shop">店</table>
+	<table db_name="m_tax_rate">税率</table>
+</masterTables>
