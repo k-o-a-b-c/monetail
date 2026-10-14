@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.271
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "HouseholdAccountsBeta", "HouseholdAccountsBeta\HouseholdAccountsBeta.vbproj", "{9E1F4361-01CE-4A69-AC27-D3AE7F186810}"
+EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "OriginalControls", "OriginalControls\OriginalControls.vbproj", "{6E77EEFF-5CEA-4C18-9733-2E750EF14266}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9E1F4361-01CE-4A69-AC27-D3AE7F186810}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9E1F4361-01CE-4A69-AC27-D3AE7F186810}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9E1F4361-01CE-4A69-AC27-D3AE7F186810}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9E1F4361-01CE-4A69-AC27-D3AE7F186810}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6E77EEFF-5CEA-4C18-9733-2E750EF14266}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6E77EEFF-5CEA-4C18-9733-2E750EF14266}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6E77EEFF-5CEA-4C18-9733-2E750EF14266}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6E77EEFF-5CEA-4C18-9733-2E750EF14266}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {725C916D-387A-486D-A700-94F4E15FF478}
+	EndGlobalSection
+EndGlobal
