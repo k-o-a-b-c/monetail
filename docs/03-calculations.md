@@ -77,6 +77,10 @@
 5. 同一時点の残高・取引境界の扱い、および年跨ぎ推算。
 6. `Int32` の金額上限と為替換算時の精度。
 
+## 改修予定の仕様案（現行とは別）
+
+店舗別の端数処理（切り捨て／四捨五入、丸め対象単位）と、整数の分子・分母による3/103割引を新たな改修要件として整理した。**どちらも現行コードには未実装**。詳しくは [08-requested-enhancements.md](08-requested-enhancements.md)。
+
 ## 根拠
 
 [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)

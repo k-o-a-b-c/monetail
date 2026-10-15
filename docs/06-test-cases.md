@@ -58,6 +58,10 @@
 
 **注意**: `Math.Floor`、`Math.Ceiling`、`Double`、VBの`Convert.ToInt32`を含むため、新実装側でSQL側の`ROUND`や一般的な四捨五入へ安易に置換しない。
 
+## B-2. 追加予定の店舗別端数・分数割引テスト
+
+ユーザー要望を [08-requested-enhancements.md](08-requested-enhancements.md) に整理。新規テスト **RND-001〜005 / DSC-001〜005** を受け入れ条件として追加する。特に税率10%・19円×2品の粒度差と、3/103割引100円×2個の数量処理を実レシートで確認したうえで自動化する。**現行コードでは未実装・未実行。**
+
 ## C. 自動テスト整備の順序
 
 1. DBを使わない純粋計算の試験: C-001〜C-008 をユニットテストに移す。`Receipt.Total`、`Incomes`、`Expenses`、`GroupCalculatedFee`、`DetailCalculatedFee`。
