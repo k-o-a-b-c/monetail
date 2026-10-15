@@ -10,6 +10,8 @@
 1. 店ごとに、消費税等の端数が**四捨五入**か**切り捨て**かを設定して記録したい。
 2. **オーケー（オーケークラブ）の3/103割引**を、通常の「何%引き」と区別して正しく計算したい（利用店舗はユーザー確認済み）。
 
+**実SQLite DDLとの照合（2026-10-16）**: `m_shop` には端数設定列がなく、`t_receipts` は店名の文字列しか持たない。`t_receipt_details.discount_rate` は `INTEGER NOT NULL`。会員割引用の個別設定・適用フラグもまだない。詳しくは [02-database.md](02-database.md)。
+
 現在の `Receipt.Total`、`Calculation.GroupCalculatedFee`、`Calculation.DetailCalculatedFee` は概ね `Math.Floor` を固定使用する。割引率は `Double` で持ち、`Math.Ceiling` によって割引額を丸める実装がある。**店ごとの税端数モードや分子・分母の割引率は未実装**である。
 
 ## 2. 店舗別の端数処理（LEG-019）
