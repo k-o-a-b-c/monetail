@@ -308,7 +308,7 @@
 | `m_payment_classification` | `valid_from DATE`、`valid_to DATE` はNULL許容 | 支払い方法の有効期間機能が使われているか確認する |
 | `t_receipt_details.discount_rate` | **INTEGER NOT NULL** | VBの `ReceiptDetail.DiscountRate` は `Double`。読込処理の `GetInt32` と併せ小数率の往復確認が必要 |
 | `t_receipt_groups.tax` | **INTEGER NOT NULL DEFAULT 8**、`m_tax_rate` へのFKなし | VB側は税率マスタの**コード**として解釈。実データのコード対応を確認 |
-| `t_receipts` | 店名・店舗は文字列。`shop_code` なし。`total INTEGER` はNULL許容 | 店舗別の丸め設定には明確な紐付けが必要。保存合計と明細再計算の一致も検証 |
+| `t_receipts` | 店名・店舗は文字列。`shop_code` なし。`total INTEGER` はNULL許容 | **丸め方式をレシート自体へ保存するため店舗マスタへのFKは不要**。保存合計と明細再計算の一致も検証 |
 | 削除の整合性 | レシート→グループ→明細→対象者にFKがあるがCASCADEなし | 現行コードは**親から先にDELETE**。FK検証有効なら失敗し得る |
 | インデックス | DDLに追加インデックスの定義なし | 複合主キーインデックスはあるが、月別・支払方法別検索の効率を実データで検証 |
 
@@ -327,8 +327,8 @@
 
 - `m_shop` に**税率別合算後の税額端数方式**（切捨／四捨五入）の既定設定を追加する案。
 - `t_receipts` に登録時点の丸め方式を保存し、店舗設定変更後も**過去の伝票の金額を変えない**ようにする案。
-- `t_receipts` には現状 `m_shop.code` がないため、店舗名と設定の紐付け方式は別途設計する。
-- 既存レシートは従来の切り捨てとして扱う移行方法を、実DBのバックアップ・試験を前提に決定する。
+- **レシート自体を計算方式の正本**とし、マスタ未登録店でも端数方式を自由に選べるようにする。店舗マスタは明示選択した新規レシートの**初期値だけ**。`t_receipts.shop_code`は追加せず、店舗マスタへのFKは不要。
+- 追加する列は **`m_shop.tax_rounding_mode`と`t_receipts.tax_rounding_mode`の2つだけ**。旧レシートは`floor`を保持し、実データの再計算や店舗コードの自動付与をしない。[詳細設計](15-shop-tax-rounding-design.md)、[移行SQL案](migrations/20261017_01_shop_tax_rounding.sql)参照。
 - **オーケー3/103割引の新しいDB列や子テーブルは追加しない**。今までどおり`t_receipt_details.discount_fee`相当の既存「割引額」を手入力する。これは単価あたりの割引なので、割引合計をまとめて入れる明細は原則`quantity=1`とする。
 
 関連: [08 要件と具体例](08-requested-enhancements.md) / [05 課題](05-issues.md) / [06 テスト](06-test-cases.md)。

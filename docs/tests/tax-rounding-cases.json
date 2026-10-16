@@ -1,0 +1,219 @@
+{
+  "format_version": 1,
+  "test_target": "Receipt.Total",
+  "status": "proposed_expectations_not_executed",
+  "description": "明細 net_amount_yen は単価値引と率値引を適用済みの整数円。tax_type 1=税抜、0=税込。税率単位に集計して丸める。",
+  "rounding_modes": [
+    "floor",
+    "half_up"
+  ],
+  "cases": [
+    {
+      "id": "TAX-001-F",
+      "description": "10%の異なる分類グループを合算して切捨",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "lines": [
+        {
+          "group": "food-a",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 19
+        },
+        {
+          "group": "food-b",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 19
+        }
+      ],
+      "expected_total_yen": 41
+    },
+    {
+      "id": "TAX-001-H",
+      "description": "10%の異なる分類グループを合算して四捨五入",
+      "tax_type": 1,
+      "rounding_mode": "half_up",
+      "lines": [
+        {
+          "group": "food-a",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 19
+        },
+        {
+          "group": "food-b",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 19
+        }
+      ],
+      "expected_total_yen": 42
+    },
+    {
+      "id": "TAX-002-F",
+      "description": "8%課税7円を切捨",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "lines": [
+        {
+          "group": "g1",
+          "tax_rate_percent": 8,
+          "taxable": true,
+          "net_amount_yen": 7
+        }
+      ],
+      "expected_total_yen": 7
+    },
+    {
+      "id": "TAX-002-H",
+      "description": "8%課税7円を四捨五入",
+      "tax_type": 1,
+      "rounding_mode": "half_up",
+      "lines": [
+        {
+          "group": "g1",
+          "tax_rate_percent": 8,
+          "taxable": true,
+          "net_amount_yen": 7
+        }
+      ],
+      "expected_total_yen": 8
+    },
+    {
+      "id": "TAX-003-F",
+      "description": "10%課税5円のちょうど0.5円を切捨",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "lines": [
+        {
+          "group": "g1",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 5
+        }
+      ],
+      "expected_total_yen": 5
+    },
+    {
+      "id": "TAX-003-H",
+      "description": "10%課税5円のちょうど0.5円を四捨五入",
+      "tax_type": 1,
+      "rounding_mode": "half_up",
+      "lines": [
+        {
+          "group": "g1",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 5
+        }
+      ],
+      "expected_total_yen": 6
+    },
+    {
+      "id": "TAX-004-F",
+      "description": "税率8%と10%を分離して切捨",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "lines": [
+        {
+          "group": "g8",
+          "tax_rate_percent": 8,
+          "taxable": true,
+          "net_amount_yen": 19
+        },
+        {
+          "group": "g10",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 5
+        }
+      ],
+      "expected_total_yen": 25
+    },
+    {
+      "id": "TAX-004-H",
+      "description": "税率8%と10%を分離して四捨五入",
+      "tax_type": 1,
+      "rounding_mode": "half_up",
+      "lines": [
+        {
+          "group": "g8",
+          "tax_rate_percent": 8,
+          "taxable": true,
+          "net_amount_yen": 19
+        },
+        {
+          "group": "g10",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 5
+        }
+      ],
+      "expected_total_yen": 27
+    },
+    {
+      "id": "TAX-005-H",
+      "description": "非課税3円は税計算せず加算",
+      "tax_type": 1,
+      "rounding_mode": "half_up",
+      "lines": [
+        {
+          "group": "g8",
+          "tax_rate_percent": 8,
+          "taxable": true,
+          "net_amount_yen": 7
+        },
+        {
+          "group": "g8",
+          "tax_rate_percent": 8,
+          "taxable": false,
+          "net_amount_yen": 3
+        }
+      ],
+      "expected_total_yen": 11
+    },
+    {
+      "id": "TAX-011-F",
+      "description": "税込入力は端数方式に依存しない（切捨）",
+      "tax_type": 0,
+      "rounding_mode": "floor",
+      "lines": [
+        {
+          "group": "g10",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 110
+        },
+        {
+          "group": "g8",
+          "tax_rate_percent": 8,
+          "taxable": true,
+          "net_amount_yen": 108
+        }
+      ],
+      "expected_total_yen": 218
+    },
+    {
+      "id": "TAX-011-H",
+      "description": "税込入力は端数方式に依存しない（四捨五入）",
+      "tax_type": 0,
+      "rounding_mode": "half_up",
+      "lines": [
+        {
+          "group": "g10",
+          "tax_rate_percent": 10,
+          "taxable": true,
+          "net_amount_yen": 110
+        },
+        {
+          "group": "g8",
+          "tax_rate_percent": 8,
+          "taxable": true,
+          "net_amount_yen": 108
+        }
+      ],
+      "expected_total_yen": 218
+    }
+  ]
+}

@@ -52,7 +52,7 @@ Windows デスクトップアプリ
 1. WindowsとVisual Studio（.NET Framework 4.8用の開発機能）が必要。
 2. `.sln` を開きNuGetパッケージを復元してビルドする。**手順はソース上の構成から推定したもので、実際のビルド確認は未実施**。
 3. `My.Settings.ConnectionString` はSQLiteのファイルパス。`App.config` と `Settings.settings` には**異なるドライブの絶対パス**が入っており、別環境でそのまま起動できない可能性が高い。作業用DBのパスを必ず確認する。
-4. レポジトリにSQLiteの実DBファイルとスキーマ初期化DDLは確認できなかった。新規環境はDBの複製またはDDLの用意が必要。
+4. SQLiteの実データファイルはレポジトリにない。ユーザー提供の実DDLを [docs/schema/monetail_schema.sql](schema/monetail_schema.sql) に保存済み。ただし新規環境で必要な**マスタ初期データ**は別途用意する。
 5. 実データはGitHubにコミットしない。設定の汎用化・サンプルDBの匿名化が必要。
 6. Windowsログイン名 `Environment.UserName` で個人識別を一部行う。アプリ認証・家計ごとの権限チェックとは異なる。
 7. テストプロジェクト／CIワークフローは調査時点のツリーでは確認できない。

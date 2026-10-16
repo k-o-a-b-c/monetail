@@ -108,10 +108,10 @@ RegisterPaymentMemoForm → DataAccess.RegisterPaymentMemo
 
 以下のDB拡張は**税端数に関する設計案のみ**。
 
-- 店舗別に**税率ごとに合算した後の切捨／四捨五入**を設定する。
-- 店舗の設定変更で過去のレシートを再計算しない。伝票に適用時の丸め方式を保存する。
-- `t_receipts`には店コードがないため、店舗マスタとの照合方法を決める。
-- 旧レシートは旧計算のまま維持する。カラム／移行SQLはまだ未確定・未適用。
+- **`t_receipts.tax_rounding_mode`は各レシートで選択・保存する正本**。税率ごとに合算した後に切捨／四捨五入。
+- `m_shop.tax_rounding_mode`は**マスタ登録済み店舗を明示選択した新規入力の初期値だけ**。未登録の店でもレシート側で選べる。
+- **店舗マスタとのFK・`shop_code`は追加しない**。履歴だけの店・自由入力の店でも使用可能。
+- 旧レシートは旧計算のまま維持する。カラム追加の[移行SQL案](migrations/20261017_01_shop_tax_rounding.sql)は**未適用**。[15 詳細設計](15-shop-tax-rounding-design.md)参照。
 - **オーケー割引は新しい計算機能・DB列を設けず、既存の`discount_fee`への手入力を継続**。まとめ明細で合計割引を入れる場合は`quantity=1`に注意。[08](08-requested-enhancements.md)参照。
 
 **根拠**: [実SQLite DDL](schema/monetail_schema.sql)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)

@@ -29,12 +29,15 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [12 計算互換性](docs/12-calculation-contract.md) | 税率別集計、収支・按分・残高のコード上の計算契約 |
 | [13 用語・意思決定](docs/13-glossary-decisions.md) | 現行用語、未決定事項、変更時の判断記録 |
 | [14 確定した運用方針](docs/14-decisions-2026-10-16.md) | 税率別合算・店舗別端数・概算按分・オーケーは従来どおり手入力 |
+| [15 レシート単位の税端数・詳細設計](docs/15-shop-tax-rounding-design.md) | 店舗マスタは任意の初期値、各レシートへ設定を保存 |
+| [移行SQL案](docs/migrations/20261017_01_shop_tax_rounding.sql) | `m_shop`と`t_receipts`に2列追加（未適用） |
+| [税計算テストデータ](docs/tests/tax-rounding-cases.json) | 税率別合算・切捨／四捨五入の期待値（アプリ未実行） |
 
 ### 読む順番
 
 - **通常の操作・現状確認**: [09 操作ガイド](docs/09-user-guide.md) → [01 機能一覧](docs/01-features.md)
 - **DBとデータ保全**: [02 DB仕様](docs/02-database.md) → [10 データフロー](docs/10-data-flow.md) → [11 DB検査](docs/11-db-audit.md)
-- **計算・改修**: [03 計算仕様](docs/03-calculations.md) → [12 計算互換性](docs/12-calculation-contract.md) → [08 改修要件](docs/08-requested-enhancements.md) → [14 決定事項](docs/14-decisions-2026-10-16.md) → [06 テスト](docs/06-test-cases.md)
+- **計算・改修**: [03 計算仕様](docs/03-calculations.md) → [12 計算互換性](docs/12-calculation-contract.md) → [08 改修要件](docs/08-requested-enhancements.md) → [14 決定事項](docs/14-decisions-2026-10-16.md) → [15 詳細設計](docs/15-shop-tax-rounding-design.md) → [06 テスト](docs/06-test-cases.md)
 - **開発の進め方**: [05 課題](docs/05-issues.md) → [13 未決定事項](docs/13-glossary-decisions.md) → [07 ロードマップ](docs/07-roadmap.md)
 
 ### ドキュメントの位置付け

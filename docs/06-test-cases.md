@@ -90,6 +90,12 @@
 
 [14 決定記録](14-decisions-2026-10-16.md) と [08 改修要件](08-requested-enhancements.md) に**現行のdiscount_fee入力、数量への乗算、収入誤計上・二重割引の回避**の回帰テストを定義した。新規に実装するのは**店舗別税端数**だけ。オーケーの専用欄・分数計算は作らない。
 
+## B-5. レシート単位の端数処理（設計追加）
+
+[15 詳細設計](15-shop-tax-rounding-design.md)の**RT-001〜012**を受け入れ条件とする。とくに**マスタ未登録店で設定可能**、マスタの値は初期値のみ、編集したレシートの設定が独立して保存されることを確認する。
+
+計算の仕様上の期待値は[JSON](tests/tax-rounding-cases.json)に収録。**現行VB.NETアプリで実行済みという意味ではない**。
+
 ## C. 自動テスト整備の順序
 
 1. DBを使わない純粋計算の試験: C-001〜C-008 をユニットテストに移す。`Receipt.Total`、`Incomes`、`Expenses`、`GroupCalculatedFee`、`DetailCalculatedFee`。
