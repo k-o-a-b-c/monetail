@@ -104,14 +104,14 @@ RegisterPaymentMemoForm → DataAccess.RegisterPaymentMemo
 
 `Calculation.AutoBalance` と `DataAccess.GetAutoBalance` にほぼ同内容の計算がある。最新の登録残高を起点として `-レシートTotal -出金振替 +入金振替` を計算する。重複実装は将来的な差異リスク。
 
-## 5. 店舗設定とオーケー会員割引への変更点
+## 5. 店舗別税端数への変更点・オーケーの継続運用
 
-以下は**将来の機能設計案**。
+以下のDB拡張は**税端数に関する設計案のみ**。
 
-- 店舗マスタのIDをレシートに結びつけるか、明示的な店舗別ルール識別子をレシートへ保存する。
-- 税端数のルールと計算単位、分数割引（`3/103`）は**別パラメータ**にする。
-- 店舗の現在の設定だけから過去レシートを再計算してはならない。レシート側に適用時点のルール・確定値を記録。
-- 既存レシートはレガシー計算のまま維持し、追加時点から新ルールを選択できるようにする。
-- 新方式の具体的なカラム／移行SQLは**未確定で未適用**。[08-requested-enhancements.md](08-requested-enhancements.md)参照。
+- 店舗別に**税率ごとに合算した後の切捨／四捨五入**を設定する。
+- 店舗の設定変更で過去のレシートを再計算しない。伝票に適用時の丸め方式を保存する。
+- `t_receipts`には店コードがないため、店舗マスタとの照合方法を決める。
+- 旧レシートは旧計算のまま維持する。カラム／移行SQLはまだ未確定・未適用。
+- **オーケー割引は新しい計算機能・DB列を設けず、既存の`discount_fee`への手入力を継続**。まとめ明細で合計割引を入れる場合は`quantity=1`に注意。[08](08-requested-enhancements.md)参照。
 
 **根拠**: [実SQLite DDL](schema/monetail_schema.sql)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)

@@ -130,6 +130,6 @@ balance = （起点となる登録残高。なければ0）
 - **CAL-004**: 対象者0人、1人、2人、完全一致／部分一致／人数按分。
 - **CAL-005**: 月末残高・同日取引・振替・データなし`Nothing`。
 - **CAL-006**: 為替なし月・月末近傍のデータ・負数換算。
-- **CAL-007**: オーケークラブ3/103割引（**新仕様**）は既存と混同せず別テストとして追加。
+- **CAL-007**: オーケーの会員割引は**新規3/103自動計算をしない**。現行`discount_fee`に手入力し、**数量倍される計算**・税率別合算・収支への影響を既存コードの回帰テストで確認する。
 
 参照: [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)
