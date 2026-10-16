@@ -23,6 +23,18 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [06 テスト](docs/06-test-cases.md) | 手動E2Eテスト、計算のゴールデンケース |
 | [07 ロードマップ](docs/07-roadmap.md) | レガシー版の完成からオンライン版再設計へ |
 | [08 改修要件](docs/08-requested-enhancements.md) | 店舗別の端数処理と3/103割引（要件案・未実装） |
+| [09 操作ガイド](docs/09-user-guide.md) | 日々の入力・編集・集計操作、画面の色分けと入力補助 |
+| [10 DBリレーション・処理フロー](docs/10-data-flow.md) | Mermaid ER図、保存・読込・削除フロー、更新境界 |
+| [11 DB検査・バックアップ](docs/11-db-audit.md) | 実データを表示しない集計SQL、整合性検査と復旧リハーサル |
+| [12 計算互換性](docs/12-calculation-contract.md) | 税率別集計、収支・按分・残高のコード上の計算契約 |
+| [13 用語・意思決定](docs/13-glossary-decisions.md) | 現行用語、未決定事項、変更時の判断記録 |
+
+### 読む順番
+
+- **通常の操作・現状確認**: [09 操作ガイド](docs/09-user-guide.md) → [01 機能一覧](docs/01-features.md)
+- **DBとデータ保全**: [02 DB仕様](docs/02-database.md) → [10 データフロー](docs/10-data-flow.md) → [11 DB検査](docs/11-db-audit.md)
+- **計算・改修**: [03 計算仕様](docs/03-calculations.md) → [12 計算互換性](docs/12-calculation-contract.md) → [08 改修要件](docs/08-requested-enhancements.md) → [06 テスト](docs/06-test-cases.md)
+- **開発の進め方**: [05 課題](docs/05-issues.md) → [13 未決定事項](docs/13-glossary-decisions.md) → [07 ロードマップ](docs/07-roadmap.md)
 
 ### ドキュメントの位置付け
 

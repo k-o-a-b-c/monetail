@@ -71,6 +71,12 @@ Web / スマートフォン / デスクトップ
 
 レガシー版のUIから計算ルール・永続化条件を切り離し、[03-calculations.md](03-calculations.md) と [06-test-cases.md](06-test-cases.md) を移植時の契約として使う。
 
+## 関連する詳細資料
+
+- [09 操作ガイド](09-user-guide.md) — 画面の入出力・利用者の操作
+- [10 DBリレーション・データフロー](10-data-flow.md) — ER図、SQL読込・保存・更新・削除
+- [11 DB検査・バックアップ](11-db-audit.md) — 調査用SQLと安全な確認手順
+
 ## 根拠
 
 [ソリューション](../HouseholdAccountsBeta/HouseholdAccountsBeta.sln)、[プロジェクト](../HouseholdAccountsBeta/HouseholdAccountsBeta/HouseholdAccountsBeta.vbproj)、[設定](../HouseholdAccountsBeta/HouseholdAccountsBeta/App.config)、[依存パッケージ](../HouseholdAccountsBeta/HouseholdAccountsBeta/packages.config)
