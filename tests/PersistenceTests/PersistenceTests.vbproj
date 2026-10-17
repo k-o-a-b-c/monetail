@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace></RootNamespace>
+    <OptionStrict>On</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.1" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Import Include="System.Windows.Forms" />
+    <Import Include="System.Drawing" />
+    <ProjectReference Include="../OriginalControls.TestBuild/OriginalControls.TestBuild.vbproj" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/**/*.vb" Link="Production/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/*.vb" Link="Production/%(Filename)%(Extension)" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb" Link="Production/Calculation.vb" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm*.vb" Link="Production/%(Filename)%(Extension)" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/MasterMaintenanceForm*.vb" Link="Production/%(Filename)%(Extension)" />
+    <Compile Include="../Shared/Assertions.vb" Link="Assertions.vb" />
+    <Compile Include="../Shared/ReceiptFixtures.vb" Link="ReceiptFixtures.vb" />
+    <None Include="../../docs/schema/monetail_schema.sql" Link="monetail_schema.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../docs/migrations/20261017_01_shop_tax_rounding.sql" Link="tax_rounding.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

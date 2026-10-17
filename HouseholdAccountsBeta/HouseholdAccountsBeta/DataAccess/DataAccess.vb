@@ -183,7 +183,7 @@ Public Class DataAccess
         End If
         _ShopList = New List(Of Shop)()
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select s.code, s.name, s.default_point_code, s.default_group_classification_code from m_shop s left join m_user u on u.code = s.user_code where u.account_name = :account_name or s.user_code is null order by s.seq, s.code"
+            command.CommandText = "select s.code, s.name, s.default_point_code, s.default_group_classification_code, s.tax_rounding_mode from m_shop s left join m_user u on u.code = s.user_code where u.account_name = :account_name or s.user_code is null order by s.seq, s.code"
             command.Parameters.AddWithValue("account_name", Environment.UserName)
             Using reader As SQLiteDataReader = command.ExecuteReader()
                 While reader.Read()
@@ -191,7 +191,8 @@ Public Class DataAccess
                         .Code = reader.GetInt32(0),
                         .Name = reader.GetString(1),
                         .DefaultPointCode = If(reader.IsDBNull(2), 0, reader.GetInt32(2)),
-                        .DefaultGroupClassificationCode = If(reader.IsDBNull(3), 0, reader.GetInt32(3))
+                        .DefaultGroupClassificationCode = If(reader.IsDBNull(3), 0, reader.GetInt32(3)),
+                        .TaxRoundingMode = reader.GetString(4)
                     }
                     _ShopList.Add(shop)
                 End While
@@ -207,13 +208,33 @@ Public Class DataAccess
                         .Code = reader.GetInt32(0),
                         .Name = reader.GetString(1),
                         .DefaultPointCode = If(reader.IsDBNull(2), 0, reader.GetInt32(2)),
-                        .DefaultGroupClassificationCode = If(reader.IsDBNull(3), 0, reader.GetInt32(3))
+                        .DefaultGroupClassificationCode = If(reader.IsDBNull(3), 0, reader.GetInt32(3)),
+                        .TaxRoundingMode = "floor"
                     }
                     _ShopList.Add(shop)
                 End While
             End Using
         End Using
 
+    End Sub
+
+    Public Sub UpdateShopTaxRoundingMode(ByVal shopCode As Integer, ByVal taxRoundingMode As String)
+        If shopCode <= 0 Then
+            Throw New ArgumentOutOfRangeException(NameOf(shopCode), "登録済みの店舗を指定してください。")
+        End If
+        Calculation.ValidateTaxRoundingMode(taxRoundingMode)
+
+        Using command As SQLiteCommand = Connection.CreateCommand()
+            command.CommandText = "update m_shop set tax_rounding_mode = :tax_rounding_mode where code = :code and (user_code is null or user_code in (select code from m_user where account_name = :account_name))"
+            command.Parameters.AddWithValue("tax_rounding_mode", taxRoundingMode)
+            command.Parameters.AddWithValue("code", shopCode)
+            command.Parameters.AddWithValue("account_name", Environment.UserName)
+            If command.ExecuteNonQuery() <> 1 Then
+                Throw New InvalidOperationException("指定した店舗は存在しないか、編集できません。")
+            End If
+        End Using
+
+        _ShopList = Nothing
     End Sub
 
     Private _TaxRateList As List(Of TaxRate)
@@ -458,7 +479,7 @@ Public Class DataAccess
         End If
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag from t_receipts where date between :date_from and :date_to and (payment_classification_code = :payment_classification_code or :payment_classification_code = -1) order by date desc, seq desc"
+            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode from t_receipts where date between :date_from and :date_to and (payment_classification_code = :payment_classification_code or :payment_classification_code = -1) order by date desc, seq desc"
             command.Parameters.AddWithValue("date_from", New Date(Year, MonthFrom, 1))
             command.Parameters.AddWithValue("date_to", New Date(Year, MonthTo, Date.DaysInMonth(Year, MonthTo), 23, 59, 59))
             command.Parameters.AddWithValue("payment_classification_code", PaymentCode)
@@ -472,7 +493,8 @@ Public Class DataAccess
                         .ShopLocation = reader.GetString(3),
                         .TaxType = reader.GetInt32(4),
                         .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = reader.GetString(6)
+                        .Tag = reader.GetString(6),
+                        .TaxRoundingMode = reader.GetString(7)
                     }
                     LoadReceiptGroupData(receipt, GroupCode)
                     receiptList.Add(receipt)
@@ -704,7 +726,7 @@ Public Class DataAccess
         Dim receiptList As New List(Of Receipt)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag from t_receipts where date between :date_from and :date_to and payment_classification_code = :payment_classification_code"
+            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode from t_receipts where date between :date_from and :date_to and payment_classification_code = :payment_classification_code"
             command.Parameters.AddWithValue("date_from", dateFrom)
             command.Parameters.AddWithValue("date_to", dateTo)
             command.Parameters.AddWithValue("payment_classification_code", payment.Code)
@@ -718,7 +740,8 @@ Public Class DataAccess
                         .ShopLocation = reader.GetString(3),
                         .TaxType = reader.GetInt32(4),
                         .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = reader.GetString(6)
+                        .Tag = reader.GetString(6),
+                        .TaxRoundingMode = reader.GetString(7)
                     }
                     LoadReceiptGroupData(receipt)
                     receiptList.Add(receipt)
@@ -790,6 +813,8 @@ Public Class DataAccess
 
     Public Sub RegisterReceipt(ByVal receipt As Receipt)
 
+        Calculation.ValidateTaxRoundingMode(receipt.TaxRoundingMode)
+
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
@@ -802,12 +827,13 @@ Public Class DataAccess
             SetChildSequence(receipt)
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "insert into t_receipts (seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, update_user, update_datetime, total) values (:seq, :date, :shop_name, :shop_location, :tax_type, :payment_classification_code, :tag, :update_user, :update_datetime, :total)"
+                command.CommandText = "insert into t_receipts (seq, date, shop_name, shop_location, tax_type, tax_rounding_mode, payment_classification_code, tag, update_user, update_datetime, total) values (:seq, :date, :shop_name, :shop_location, :tax_type, :tax_rounding_mode, :payment_classification_code, :tag, :update_user, :update_datetime, :total)"
                 command.Parameters.AddWithValue("seq", receipt.Seq)
                 command.Parameters.AddWithValue("date", receipt.Date)
                 command.Parameters.AddWithValue("shop_name", receipt.ShopName)
                 command.Parameters.AddWithValue("shop_location", receipt.ShopLocation)
                 command.Parameters.AddWithValue("tax_type", receipt.TaxType)
+                command.Parameters.AddWithValue("tax_rounding_mode", receipt.TaxRoundingMode)
                 command.Parameters.AddWithValue("payment_classification_code", receipt.PaymentClassification.Code)
                 command.Parameters.AddWithValue("tag", receipt.Tag)
                 command.Parameters.AddWithValue("update_user", Environment.UserName)
@@ -894,6 +920,8 @@ Public Class DataAccess
 
     Public Sub UpdateReceipt(ByVal receipt As Receipt)
 
+        Calculation.ValidateTaxRoundingMode(receipt.TaxRoundingMode)
+
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
@@ -902,12 +930,13 @@ Public Class DataAccess
             SetChildSequence(receipt)
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "update t_receipts set date = :date, shop_name = :shop_name, shop_location = :shop_location, tax_type = :tax_type, payment_classification_code = :payment_classification_code, tag = :tag, update_user = :update_user, update_datetime = :update_datetime, total = :total where seq = :seq"
+                command.CommandText = "update t_receipts set date = :date, shop_name = :shop_name, shop_location = :shop_location, tax_type = :tax_type, tax_rounding_mode = :tax_rounding_mode, payment_classification_code = :payment_classification_code, tag = :tag, update_user = :update_user, update_datetime = :update_datetime, total = :total where seq = :seq"
                 command.Parameters.AddWithValue("seq", receipt.Seq)
                 command.Parameters.AddWithValue("date", receipt.Date)
                 command.Parameters.AddWithValue("shop_name", receipt.ShopName)
                 command.Parameters.AddWithValue("shop_location", receipt.ShopLocation)
                 command.Parameters.AddWithValue("tax_type", receipt.TaxType)
+                command.Parameters.AddWithValue("tax_rounding_mode", receipt.TaxRoundingMode)
                 command.Parameters.AddWithValue("payment_classification_code", receipt.PaymentClassification.Code)
                 command.Parameters.AddWithValue("tag", receipt.Tag)
                 command.Parameters.AddWithValue("update_user", Environment.UserName)

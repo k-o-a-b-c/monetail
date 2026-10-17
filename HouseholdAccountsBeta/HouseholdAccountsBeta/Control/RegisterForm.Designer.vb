@@ -27,6 +27,9 @@ Partial Class RegisterForm
         Me.Label2 = New System.Windows.Forms.Label()
         Me.Label4 = New System.Windows.Forms.Label()
         Me.Label5 = New System.Windows.Forms.Label()
+        Me.TaxRoundingModeLabel = New System.Windows.Forms.Label()
+        Me.TaxRoundingModeComboBox = New OriginalControls.OriginalComboBox()
+        Me.TaxRoundingCopyNoteLabel = New System.Windows.Forms.Label()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.DetailPanel = New System.Windows.Forms.Panel()
         Me.Label18 = New System.Windows.Forms.Label()
@@ -132,6 +135,37 @@ Partial Class RegisterForm
         Me.Label5.Size = New System.Drawing.Size(31, 15)
         Me.Label5.TabIndex = 12
         Me.Label5.Text = "合計"
+        '
+        'TaxRoundingModeLabel
+        '
+        Me.TaxRoundingModeLabel.AutoSize = True
+        Me.TaxRoundingModeLabel.Location = New System.Drawing.Point(400, 88)
+        Me.TaxRoundingModeLabel.Name = "TaxRoundingModeLabel"
+        Me.TaxRoundingModeLabel.Size = New System.Drawing.Size(43, 15)
+        Me.TaxRoundingModeLabel.TabIndex = 11
+        Me.TaxRoundingModeLabel.Text = "税端数"
+        '
+        'TaxRoundingModeComboBox
+        '
+        Me.TaxRoundingModeComboBox.AccessibleName = "消費税の端数処理"
+        Me.TaxRoundingModeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.TaxRoundingModeComboBox.FormattingEnabled = True
+        Me.TaxRoundingModeComboBox.Items.AddRange(New Object() {"切り捨て", "四捨五入"})
+        Me.TaxRoundingModeComboBox.Location = New System.Drawing.Point(449, 85)
+        Me.TaxRoundingModeComboBox.Name = "TaxRoundingModeComboBox"
+        Me.TaxRoundingModeComboBox.Size = New System.Drawing.Size(154, 23)
+        Me.TaxRoundingModeComboBox.TabIndex = 12
+        Me.HelpToolTip.SetToolTip(Me.TaxRoundingModeComboBox, "このレシートに適用する税端数処理。店舗マスタ未登録でも変更できます。")
+        '
+        'TaxRoundingCopyNoteLabel
+        '
+        Me.TaxRoundingCopyNoteLabel.AutoSize = True
+        Me.TaxRoundingCopyNoteLabel.Location = New System.Drawing.Point(213, 9)
+        Me.TaxRoundingCopyNoteLabel.Name = "TaxRoundingCopyNoteLabel"
+        Me.TaxRoundingCopyNoteLabel.Size = New System.Drawing.Size(277, 15)
+        Me.TaxRoundingCopyNoteLabel.TabIndex = 27
+        Me.TaxRoundingCopyNoteLabel.Text = "流用は税端数を切り捨てから選び直します。"
+        Me.TaxRoundingCopyNoteLabel.Visible = False
         '
         'GroupBox1
         '
@@ -503,6 +537,7 @@ Partial Class RegisterForm
         Me.CopyButton.TabIndex = 21
         Me.CopyButton.Text = "流用"
         Me.CopyButton.UseVisualStyleBackColor = True
+        Me.HelpToolTip.SetToolTip(Me.CopyButton, "新規レシートとして入力し直します。税端数は切り捨てから選び直します。")
         '
         'Label7
         '
@@ -743,6 +778,9 @@ Partial Class RegisterForm
         Me.AutoScaleDimensions = New System.Drawing.SizeF(96.0!, 96.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi
         Me.ClientSize = New System.Drawing.Size(627, 610)
+        Me.Controls.Add(Me.TaxRoundingModeLabel)
+        Me.Controls.Add(Me.TaxRoundingModeComboBox)
+        Me.Controls.Add(Me.TaxRoundingCopyNoteLabel)
         Me.Controls.Add(Me.HelpLabel)
         Me.Controls.Add(Me.TotalTextBox2)
         Me.Controls.Add(Me.Label7)
@@ -789,6 +827,9 @@ Partial Class RegisterForm
     Friend WithEvents Label2 As Label
     Friend WithEvents Label4 As Label
     Friend WithEvents Label5 As Label
+    Friend WithEvents TaxRoundingModeLabel As Label
+    Friend WithEvents TaxRoundingModeComboBox As OriginalControls.OriginalComboBox
+    Friend WithEvents TaxRoundingCopyNoteLabel As Label
     Friend WithEvents GroupBox1 As GroupBox
     Friend WithEvents Label14 As Label
     Friend WithEvents Label10 As Label

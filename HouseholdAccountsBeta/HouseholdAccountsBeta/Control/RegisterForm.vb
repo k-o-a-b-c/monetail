@@ -12,13 +12,36 @@ Public Class RegisterForm
 
     Public PaymentClassification As PaymentClassification
 
+    Private InitializingReceiptControls As Boolean = True
+
+    Private UpdatingTaxRoundingMode As Boolean
+
+    Private TaxRoundingModeManuallyChanged As Boolean
+
+    Private OriginalReceipt As Receipt
+
+    Private OriginalTaxRoundingMode As String
+
     Private Sub RegisterForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        InitializingReceiptControls = True
+        If Receipt IsNot Nothing AndAlso Receipt.Seq > 0 Then
+            OriginalReceipt = Receipt
+            OriginalTaxRoundingMode = Receipt.TaxRoundingMode
+        End If
+        Dim isNewReceipt As Boolean = Receipt Is Nothing OrElse Receipt.Seq = 0
+        If Receipt Is Nothing Then
+            Receipt = New Receipt()
+        End If
+        If isNewReceipt Then
+            Receipt.TaxRoundingMode = "floor"
+        End If
+        SetTaxRoundingMode(Receipt.TaxRoundingMode)
 
         ShopNameComboBox.DataSource = DataAccess.ShopList()
         PaymentClassificationComboBox.DataSource = DataAccess.PaymentClassificationList
 
-        If Receipt Is Nothing Then
-            Receipt = New Receipt()
+        If isNewReceipt Then
             ShopNameComboBox.SelectedIndex = -1
             PaymentClassificationComboBox.SelectedIndex = -1
             ReceiptDateTextBox.Value = DateTime.Today
@@ -46,6 +69,9 @@ Public Class RegisterForm
         PointClassificationColumn.DataSource = pointClassificationList
         PointClassificationColumn.DisplayMember = "Name"
         PointClassificationColumn.ValueMember = "Code"
+
+        InitializingReceiptControls = False
+        UpdateState()
 
     End Sub
 
@@ -105,6 +131,10 @@ Public Class RegisterForm
 
     Private Sub UpdateState()
 
+        If InitializingReceiptControls OrElse Receipt Is Nothing Then
+            Return
+        End If
+
         If TaxInclusiveRadioButton.Checked OrElse TaxExclusiveRadioButton.Checked Then
             TotalTextBox.Text = Receipt.Total.ToString()
         Else
@@ -126,7 +156,29 @@ Public Class RegisterForm
 
 #Region "入力支援"
 
+    Private Sub ShopNameComboBox_SelectionChangeCommitted(sender As Object, e As EventArgs) Handles ShopNameComboBox.SelectionChangeCommitted
+        If InitializingReceiptControls OrElse Receipt Is Nothing OrElse Receipt.Seq > 0 OrElse TaxRoundingModeManuallyChanged Then
+            Return
+        End If
+
+        '店名の一致やバインド時の自動選択ではなく、マスタ候補の明示選択だけを初期値に使う。
+        Dim shop As Shop = TryCast(ShopNameComboBox.SelectedItem, Shop)
+        SetTaxRoundingMode(If(shop IsNot Nothing AndAlso shop.Code > 0, shop.TaxRoundingMode, "floor"))
+    End Sub
+
+    Private Sub ShopNameComboBox_TextUpdate(sender As Object, e As EventArgs) Handles ShopNameComboBox.TextUpdate
+        If InitializingReceiptControls OrElse Receipt Is Nothing OrElse Receipt.Seq > 0 OrElse TaxRoundingModeManuallyChanged Then
+            Return
+        End If
+
+        '自由入力へ戻した場合は、直前のマスタ候補の初期値を引き継がない。
+        SetTaxRoundingMode("floor")
+    End Sub
+
     Private Sub ShopNameComboBox_Validated(sender As Object, e As EventArgs) Handles ShopNameComboBox.Validated
+        If InitializingReceiptControls OrElse Receipt Is Nothing Then
+            Return
+        End If
 
         'Location
         Dim beforeLocation As String = ShopLocationComboBox.Text
@@ -189,7 +241,31 @@ Public Class RegisterForm
 
 #Region "再計算"
 
+    Private Sub SetTaxRoundingMode(ByVal mode As String)
+        UpdatingTaxRoundingMode = True
+        Try
+            Receipt.TaxRoundingMode = mode
+            TaxRoundingModeComboBox.SelectedIndex = If(mode = "half_up", 1, 0)
+        Finally
+            UpdatingTaxRoundingMode = False
+        End Try
+        UpdateState()
+    End Sub
+
+    Private Sub TaxRoundingModeComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles TaxRoundingModeComboBox.SelectedIndexChanged, TaxRoundingModeComboBox.SelectionChangeCommitted
+        If InitializingReceiptControls OrElse UpdatingTaxRoundingMode OrElse Receipt Is Nothing OrElse TaxRoundingModeComboBox.SelectedIndex < 0 Then
+            Return
+        End If
+
+        Receipt.TaxRoundingMode = If(TaxRoundingModeComboBox.SelectedIndex = 1, "half_up", "floor")
+        TaxRoundingModeManuallyChanged = True
+        UpdateState()
+    End Sub
+
     Private Sub TaxRadioButton_CheckedChanged(sender As Object, e As EventArgs) Handles TaxInclusiveRadioButton.CheckedChanged, TaxExclusiveRadioButton.CheckedChanged
+        If InitializingReceiptControls OrElse Receipt Is Nothing Then
+            Return
+        End If
         Receipt.TaxType = If(TaxExclusiveRadioButton.Checked, 1, 0)
         UpdateState()
     End Sub
@@ -413,32 +489,83 @@ Public Class RegisterForm
     End Sub
 
     Private Sub RegisertButton_Click(sender As Object, e As EventArgs) Handles RegiserButton.Click
-        RegisterReceipt(False)
+        RegisterReceipt()
     End Sub
 
     Private Sub CopyButton_Click(sender As Object, e As EventArgs) Handles CopyButton.Click
-        RegisterReceipt(True)
+        If MessageBox.Show("入力内容を新規レシートとして流用します。税端数は切り捨てから選び直します。", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+            Return
+        End If
+        BeginCopyRegistration()
     End Sub
 
-    Private Sub RegisterReceipt(ByVal isCopy As Boolean)
+    Private Sub BeginCopyRegistration()
+        '流用元の伝票や明細を変更せず、保存前に新規のモードと合計を確認できるようにする。
+        Dim copiedReceipt As New Receipt() With {
+            .Date = Receipt.Date,
+            .ShopName = ShopNameComboBox.Text,
+            .ShopLocation = ShopLocationComboBox.Text,
+            .TaxType = Receipt.TaxType,
+            .TaxRoundingMode = "floor",
+            .PaymentClassification = Receipt.PaymentClassification,
+            .Tag = ReceiptTagTextBox.Text
+        }
+        For Each group As ReceiptGroup In Receipt.Groups
+            Dim copiedGroup As New ReceiptGroup() With {
+                .GroupClassification = group.GroupClassification,
+                .TaxRate = group.TaxRate,
+                .Tag = group.Tag
+            }
+            For Each detail As ReceiptDetail In group.Details
+                copiedGroup.Details.Add(New ReceiptDetail() With {
+                    .Name = detail.Name,
+                    .Fee = detail.Fee,
+                    .Quantity = detail.Quantity,
+                    .TaxTarget = detail.TaxTarget,
+                    .DiscountFee = detail.DiscountFee,
+                    .DiscountRate = detail.DiscountRate,
+                    .Tag = detail.Tag,
+                    .Users = New List(Of User)(detail.Users)
+                })
+            Next
+            copiedReceipt.Groups.Add(copiedGroup)
+        Next
+        For Each point As ReceiptPoint In Receipt.Points
+            copiedReceipt.Points.Add(New ReceiptPoint() With {
+                .Point = point.Point,
+                .Rate = point.Rate,
+                .FixedPoints = point.FixedPoints,
+                .TotalPoint = point.TotalPoint
+            })
+        Next
+
+        Receipt = copiedReceipt
+        SelectedGroup = Nothing
+        Detail = Nothing
+        TaxRoundingModeManuallyChanged = False
+        SetTaxRoundingMode("floor")
+        SeqLabel.Text = "新規（流用）"
+        RegiserButton.Text = "登録"
+        CopyButton.Visible = False
+        DeleteButton.Visible = False
+        TaxRoundingCopyNoteLabel.Visible = True
+        SetGroupListView()
+        UpdateAddGroupButton()
+        TaxRoundingModeComboBox.Focus()
+    End Sub
+
+    Private Sub RegisterReceipt()
 
         If ReceiptTimeTextBox.Value.TimeOfDay = TimeSpan.FromTicks(0) AndAlso MessageBox.Show("時刻を設定していません。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
             Return
         End If
 
-        If isCopy Then
-            If MessageBox.Show("流用登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+        If Receipt.Seq <> 0 Then
+            If MessageBox.Show("登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
                 Return
             End If
-            Receipt.Seq = 0
-        Else
-            If Receipt.Seq <> 0 Then
-                If MessageBox.Show("登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
-                    Return
-                End If
-                If Receipt.Date.Date <> ReceiptDateTextBox.Value.Date AndAlso MessageBox.Show("日付が変更されています。本当によろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
-                    Return
-                End If
+            If Receipt.Date.Date <> ReceiptDateTextBox.Value.Date AndAlso MessageBox.Show("日付が変更されています。本当によろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
+                Return
             End If
         End If
 
@@ -478,8 +605,12 @@ Public Class RegisterForm
 
     End Sub
 
-    Private Sub RegisterForm_Closed(sender As Object, e As EventArgs) Handles Me.Closed
-        Me.Close()
+    Private Sub RegisterForm_FormClosed(sender As Object, e As FormClosedEventArgs) Handles Me.FormClosed
+        '一覧と共有する元伝票には、キャンセルや流用先の設定を残さない。
+        If OriginalReceipt IsNot Nothing AndAlso
+           (Me.DialogResult <> DialogResult.OK OrElse Not Object.ReferenceEquals(Receipt, OriginalReceipt)) Then
+            OriginalReceipt.TaxRoundingMode = OriginalTaxRoundingMode
+        End If
     End Sub
 
     Private Sub RegisterForm_KeyDown(sender As Object, e As KeyEventArgs) Handles Me.KeyDown

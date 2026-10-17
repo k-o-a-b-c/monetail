@@ -1,0 +1,164 @@
+Imports System.Collections.Generic
+Imports System.IO
+Imports System.Linq
+Imports System.Text.Json
+
+Module Program
+    Function Main() As Integer
+        CheckJsonExpectations()
+        Check("default and validated modes", AddressOf ModesAreValidated)
+        Check("legacy floor snapshots including signed binary boundary", AddressOf LegacyFloorSnapshots)
+        Check("manual discount_fee and Ceiling percentage discount", AddressOf ExistingDiscounts)
+        Check("receipt tax aggregation is authoritative over group estimates", AddressOf ReceiptVsGroups)
+        Check("income and expense signs remain separate", AddressOf IncomeAndExpenseSigns)
+        Check("negative half_up tax and mixed refunds", AddressOf Refunds)
+        Check("user allocation is a rounded estimate", AddressOf UserEstimates)
+        Check("balance estimation uses receipt mode", AddressOf BalanceEstimation)
+        Return Finish()
+    End Function
+
+    Private Sub CheckJsonExpectations()
+        Using document = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "tax-rounding-cases.json")))
+            For Each testCase In document.RootElement.GetProperty("cases").EnumerateArray()
+                Dim item = testCase
+                Check(item.GetProperty("id").GetString(),
+                    Sub()
+                        Dim receipt = MakeReceipt(item.GetProperty("rounding_mode").GetString())
+                        receipt.TaxType = item.GetProperty("tax_type").GetInt32()
+                        Dim groups As New Dictionary(Of String, ReceiptGroup)
+                        For Each line In item.GetProperty("lines").EnumerateArray()
+                            Dim key = line.GetProperty("group").GetString()
+                            If Not groups.ContainsKey(key) Then
+                                groups.Add(key, Group(line.GetProperty("tax_rate_percent").GetInt32()))
+                                receipt.Groups.Add(groups(key))
+                            End If
+                            groups(key).Details.Add(Detail(line.GetProperty("net_amount_yen").GetInt32(), line.GetProperty("taxable").GetBoolean()))
+                        Next
+                        Equal(item.GetProperty("expected_total_yen").GetInt32(), receipt.Total)
+                    End Sub)
+            Next
+        End Using
+    End Sub
+
+    Private Sub ModesAreValidated()
+        Dim receipt As New Receipt
+        Dim shop As New Shop
+        Equal("floor", receipt.TaxRoundingMode)
+        Equal("floor", shop.TaxRoundingMode)
+        receipt.TaxRoundingMode = "half_up"
+        shop.TaxRoundingMode = "half_up"
+        For Each mode In New String() {Nothing, "", "HALF_UP", "truncate"}
+            Dim invalid = mode
+            Throws(Of ArgumentException)(Sub() receipt.TaxRoundingMode = invalid)
+            Throws(Of ArgumentException)(Sub() shop.TaxRoundingMode = invalid)
+            Equal("half_up", receipt.TaxRoundingMode)
+            Equal("half_up", shop.TaxRoundingMode)
+        Next
+        Equal(0, MakeReceipt("half_up").Total)
+    End Sub
+
+    Private Sub LegacyFloorSnapshots()
+        ' Frozen outputs of the old Math.Floor(Double gross) calculation. In particular,
+        ' -100 at 10% was -111; converting legacy receipts to Decimal would change it.
+        Dim amounts = {-1000, -575, -100, -50, -25, -5, -1, 0, 1, 5, 19, 25, 50, 100, 575, 1000}
+        Dim expected8 = {-1080, -621, -108, -54, -27, -6, -2, 0, 1, 5, 20, 27, 54, 108, 621, 1080}
+        Dim expected10 = {-1100, -633, -111, -56, -28, -6, -2, 0, 1, 5, 20, 27, 55, 110, 632, 1100}
+        For index = 0 To amounts.Length - 1
+            Equal(expected8(index), MakeReceipt("floor", Group(8, Detail(amounts(index)))).Total, "8% " & amounts(index))
+            Equal(expected10(index), MakeReceipt("floor", Group(10, Detail(amounts(index)))).Total, "10% " & amounts(index))
+        Next
+        Dim mixed = MakeReceipt("floor", Group(8, Detail(19), Detail(3, False)), Group(10, Detail(19)), Group(10, Detail(19)))
+        Equal(64, mixed.Total)
+        mixed.TaxType = 0
+        Equal(60, mixed.Total)
+    End Sub
+
+    Private Sub ExistingDiscounts()
+        ' The manual three-yen discount remains an amount, not an automatic 3/103 rule.
+        For Each mode In New String() {"floor", "half_up"}
+            Equal(108, MakeReceipt(mode, Group(8, Detail(103, discountFee:=3))).Total)
+        Next
+        ' (103 - 3) * 2 - Ceiling(200 * 2.6 / 100) = 194.
+        Equal(209, MakeReceipt("floor", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6))).Total)
+        Equal(210, MakeReceipt("half_up", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6))).Total)
+        Equal(-211, MakeReceipt("floor", Group(8, Detail(-103, quantity:=2, discountFee:=-3, discountRate:=2.6))).Total)
+    End Sub
+
+    Private Sub ReceiptVsGroups()
+        Dim receipt = MakeReceipt("floor", Group(10, Detail(19)), Group(10, Detail(19)))
+        Equal(41, receipt.Total)
+        Equal(40, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
+        Equal(40, receipt.GetGroupStatisticsList(New List(Of User), False, False).Sum(Function(s) s.Fee))
+        receipt.TaxRoundingMode = "half_up"
+        Equal(42, receipt.Total)
+        Equal(42, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
+        Equal(21, Calculation.DetailCalculatedFee(receipt, receipt.Groups(0), receipt.Groups(0).Details(0)))
+        ' Two rounded group estimates must not replace one tax-rate aggregate.
+        receipt = MakeReceipt("half_up", Group(10, Detail(15)), Group(10, Detail(15)))
+        Equal(33, receipt.Total)
+        Equal(34, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
+        Equal(34, receipt.GetGroupStatisticsList(New List(Of User), False, False).Sum(Function(s) s.Fee))
+        Dim nonTax = Detail(15, False)
+        receipt.Groups(0).Details.Add(nonTax)
+        Equal(15, Calculation.DetailCalculatedFee(receipt, receipt.Groups(0), nonTax))
+        Equal(48, receipt.Total)
+    End Sub
+
+    Private Sub IncomeAndExpenseSigns()
+        Dim receipt = MakeReceipt("floor", Group(10, Detail(5), Detail(-1)))
+        Equal(4, receipt.Total)
+        Equal(5, receipt.Expenses)
+        Equal(-2, receipt.Incomes)
+        receipt.TaxRoundingMode = "half_up"
+        Equal(4, receipt.Total)
+        Equal(6, receipt.Expenses)
+        Equal(-1, receipt.Incomes)
+        receipt.TaxType = 0
+        Equal(4, receipt.Total)
+        Equal(5, receipt.Expenses)
+        Equal(-1, receipt.Incomes)
+    End Sub
+
+    Private Sub Refunds()
+        Equal(-6, MakeReceipt("half_up", Group(10, Detail(-5))).Total)
+        Equal(-110, MakeReceipt("half_up", Group(10, Detail(-100))).Total)
+        Equal(6, MakeReceipt("half_up", Group(10, Detail(5))).Total)
+        Equal(15, MakeReceipt("half_up", Group(10, Detail(19), Detail(-5))).Total)
+        Equal(-15, MakeReceipt("half_up", Group(10, Detail(-19), Detail(5))).Total)
+    End Sub
+
+    Private Sub UserEstimates()
+        Dim first = New User With {.Code = 1}
+        Dim second = New User With {.Code = 2}
+        Dim line = Detail(5)
+        line.Users.AddRange({first, second})
+        Dim receipt = MakeReceipt("half_up", Group(10, line))
+        Dim users As New List(Of User) From {first}
+        Equal(3, receipt.GetGroupStatisticsList(users, False, True).Single().Fee)
+        Equal(6, receipt.Total)
+        Equal(0, receipt.GetGroupStatisticsList(users, True, True).Single().Fee)
+        receipt.TaxType = 0
+        Equal(3, receipt.GetGroupStatisticsList(users, False, True).Single().Fee)
+        Equal(5, receipt.Total)
+        receipt.TaxRoundingMode = "floor"
+        Equal(2, receipt.GetGroupStatisticsList(users, False, True).Single().Fee)
+    End Sub
+
+    Private Sub BalanceEstimation()
+        Dim receipt = MakeReceipt("half_up", Group(10, Detail(19), Detail(19)))
+        Dim payment = receipt.PaymentClassification
+        Dim data As New DataAccess With {
+            .LastBalance = New Balance With {
+                .Date = receipt.Date.AddDays(-1),
+                .Groups = New List(Of BalanceGroup) From {New BalanceGroup With {.PaymentClassification = payment, .Balance = 1000}}
+            }
+        }
+        data.Receipts.Add(receipt)
+        Calculation.DataAccess = data
+        Equal(958, Calculation.AutoBalance(receipt.Date, payment).Value)
+        receipt.TaxRoundingMode = "floor"
+        Equal(959, Calculation.AutoBalance(receipt.Date, payment).Value)
+        Calculation.DataAccess = New DataAccess
+        Equal(False, Calculation.AutoBalance(receipt.Date, payment).HasValue)
+    End Sub
+End Module
