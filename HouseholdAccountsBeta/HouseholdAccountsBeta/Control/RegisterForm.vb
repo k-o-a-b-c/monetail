@@ -157,13 +157,16 @@ Public Class RegisterForm
 #Region "入力支援"
 
     Private Sub ShopNameComboBox_SelectionChangeCommitted(sender As Object, e As EventArgs) Handles ShopNameComboBox.SelectionChangeCommitted
+        ApplyShopTaxRoundingMode()
+    End Sub
+
+    Private Sub ApplyShopTaxRoundingMode()
         If InitializingReceiptControls OrElse Receipt Is Nothing OrElse Receipt.Seq > 0 OrElse TaxRoundingModeManuallyChanged Then
             Return
         End If
 
-        '店名の一致やバインド時の自動選択ではなく、マスタ候補の明示選択だけを初期値に使う。
-        Dim shop As Shop = TryCast(ShopNameComboBox.SelectedItem, Shop)
-        SetTaxRoundingMode(If(shop IsNot Nothing AndAlso shop.Code > 0, shop.TaxRoundingMode, "floor"))
+        '登録済み店舗・履歴候補・自由入力のいずれも、店名に対応する直近レシートを初期値に使う。
+        SetTaxRoundingMode(DataAccess.GetTaxRoundingMode(ShopNameComboBox.Text))
     End Sub
 
     Private Sub ShopNameComboBox_TextUpdate(sender As Object, e As EventArgs) Handles ShopNameComboBox.TextUpdate
@@ -171,7 +174,7 @@ Public Class RegisterForm
             Return
         End If
 
-        '自由入力へ戻した場合は、直前のマスタ候補の初期値を引き継がない。
+        '入力中は直前の店舗設定を引き継がず、入力確定時にだけ履歴を参照する。
         SetTaxRoundingMode("floor")
     End Sub
 
@@ -179,6 +182,8 @@ Public Class RegisterForm
         If InitializingReceiptControls OrElse Receipt Is Nothing Then
             Return
         End If
+
+        ApplyShopTaxRoundingMode()
 
         'Location
         Dim beforeLocation As String = ShopLocationComboBox.Text
@@ -493,7 +498,7 @@ Public Class RegisterForm
     End Sub
 
     Private Sub CopyButton_Click(sender As Object, e As EventArgs) Handles CopyButton.Click
-        If MessageBox.Show("入力内容を新規レシートとして流用します。税端数は切り捨てから選び直します。", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+        If MessageBox.Show("入力内容を新規レシートとして流用します。税端数は店舗の直近レシートの設定を初期値にします（履歴がなければ切り捨て）。", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
             Return
         End If
         BeginCopyRegistration()
@@ -543,7 +548,7 @@ Public Class RegisterForm
         SelectedGroup = Nothing
         Detail = Nothing
         TaxRoundingModeManuallyChanged = False
-        SetTaxRoundingMode("floor")
+        ApplyShopTaxRoundingMode()
         SeqLabel.Text = "新規（流用）"
         RegiserButton.Text = "登録"
         CopyButton.Visible = False

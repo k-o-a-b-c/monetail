@@ -1169,7 +1169,7 @@ Partial Class ViewForm
         Me.MasterMaintenanceButton.TabIndex = 11
         Me.MasterMaintenanceButton.Text = "設定"
         Me.MasterMaintenanceButton.UseVisualStyleBackColor = True
-        Me.MasterMaintenanceButton.Visible = True
+        Me.MasterMaintenanceButton.Visible = False
         '
         'HelpLabel
         '

@@ -20,7 +20,6 @@
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/*.vb" Link="Production/%(Filename)%(Extension)" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb" Link="Production/Calculation.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm*.vb" Link="Production/%(Filename)%(Extension)" />
-    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/MasterMaintenanceForm*.vb" Link="Production/%(Filename)%(Extension)" />
     <Compile Include="../Shared/Assertions.vb" Link="Assertions.vb" />
     <Compile Include="../Shared/ReceiptFixtures.vb" Link="ReceiptFixtures.vb" />
     <None Include="../../docs/schema/monetail_schema.sql" Link="monetail_schema.sql" CopyToOutputDirectory="PreserveNewest" />

@@ -47,6 +47,24 @@ Friend Class DatabaseFixture
         End Using
     End Function
 
+    Public Sub AddReceipt(seq As Integer, shopName As String, mode As String, receiptDate As DateTime,
+                          Optional paymentCode As Integer = 1)
+        Using connection As New SQLiteConnection(ConnectionString)
+            connection.Open()
+            Using command = connection.CreateCommand()
+                command.CommandText = "INSERT INTO t_receipts " &
+                    "(seq,date,shop_name,shop_location,tax_type,tax_rounding_mode,payment_classification_code,tag,update_user,update_datetime,total) " &
+                    "VALUES (@seq,@date,@shop,'',1,@mode,@payment,'','test',@date,0)"
+                command.Parameters.AddWithValue("seq", seq)
+                command.Parameters.AddWithValue("date", receiptDate)
+                command.Parameters.AddWithValue("shop", shopName)
+                command.Parameters.AddWithValue("mode", mode)
+                command.Parameters.AddWithValue("payment", paymentCode)
+                command.ExecuteNonQuery()
+            End Using
+        End Using
+    End Sub
+
     Public Sub Dispose() Implements IDisposable.Dispose
         Data.Dispose()
         File.Delete(databasePath)

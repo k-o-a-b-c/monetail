@@ -218,25 +218,6 @@ Public Class DataAccess
 
     End Sub
 
-    Public Sub UpdateShopTaxRoundingMode(ByVal shopCode As Integer, ByVal taxRoundingMode As String)
-        If shopCode <= 0 Then
-            Throw New ArgumentOutOfRangeException(NameOf(shopCode), "登録済みの店舗を指定してください。")
-        End If
-        Calculation.ValidateTaxRoundingMode(taxRoundingMode)
-
-        Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "update m_shop set tax_rounding_mode = :tax_rounding_mode where code = :code and (user_code is null or user_code in (select code from m_user where account_name = :account_name))"
-            command.Parameters.AddWithValue("tax_rounding_mode", taxRoundingMode)
-            command.Parameters.AddWithValue("code", shopCode)
-            command.Parameters.AddWithValue("account_name", Environment.UserName)
-            If command.ExecuteNonQuery() <> 1 Then
-                Throw New InvalidOperationException("指定した店舗は存在しないか、編集できません。")
-            End If
-        End Using
-
-        _ShopList = Nothing
-    End Sub
-
     Private _TaxRateList As List(Of TaxRate)
     Private ReadOnly Property TaxRate(ByVal code As Integer) As TaxRate
         Get
@@ -338,6 +319,19 @@ Public Class DataAccess
             command.Parameters.AddWithValue("shop_name", shopName)
             command.Parameters.AddWithValue("account_name", Environment.UserName)
             Return Convert.ToInt32(command.ExecuteScalar())
+        End Using
+
+    End Function
+
+    Public Function GetTaxRoundingMode(ByVal shopName As String) As String
+
+        Using command As SQLiteCommand = Connection.CreateCommand()
+            command.CommandText = "select r.tax_rounding_mode from t_receipts r left join m_payment_classification p on p.code = r.payment_classification_code left join m_user u on u.code = p.user_code where r.shop_name = :shop_name and u.account_name = :account_name order by r.date desc, r.seq desc limit 1"
+            command.Parameters.AddWithValue("shop_name", shopName)
+            command.Parameters.AddWithValue("account_name", Environment.UserName)
+
+            Dim result As Object = command.ExecuteScalar()
+            Return If(result Is Nothing, "floor", Convert.ToString(result))
         End Using
 
     End Function
