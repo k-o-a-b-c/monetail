@@ -54,7 +54,10 @@ Friend Class DatabaseFixture
             Using command = connection.CreateCommand()
                 command.CommandText = "INSERT INTO t_receipts " &
                     "(seq,date,shop_name,shop_location,tax_type,tax_rounding_mode,payment_classification_code,tag,update_user,update_datetime,total) " &
-                    "VALUES (@seq,@date,@shop,'',1,@mode,@payment,'','test',@date,0)"
+                    "VALUES (@seq,@date,@shop,'',1,@mode,@payment,'','test',@date,0);" &
+                    "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tax,tag) VALUES(@seq,1,1,5,'');" &
+                    "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag) " &
+                    "VALUES(@seq,1,1,'history item',0,1,0,0,1,'')"
                 command.Parameters.AddWithValue("seq", seq)
                 command.Parameters.AddWithValue("date", receiptDate)
                 command.Parameters.AddWithValue("shop", shopName)

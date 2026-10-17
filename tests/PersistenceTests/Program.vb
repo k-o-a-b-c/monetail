@@ -127,6 +127,7 @@ Module Program
         Using fixture As New DatabaseFixture
             fixture.AddReceipt(2, "registered shop", "half_up", New Date(2026, 10, 17))
             fixture.AddReceipt(3, "free text store", "half_up", New Date(2026, 10, 17))
+            fixture.AddReceipt(4, "history shop", "half_up", New Date(2026, 10, 17))
             Using form As New RegisterForm With {.DataAccess = fixture.Data}
                 OpenForm(form)
                 Equal("floor", form.Receipt.TaxRoundingMode)
@@ -134,7 +135,7 @@ Module Program
                 Equal("half_up", form.Receipt.TaxRoundingMode)
                 CommitShop(form, "history shop")
                 Equal(0, DirectCast(form.ShopNameComboBox.SelectedItem, Shop).Code)
-                Equal("floor", form.Receipt.TaxRoundingMode)
+                Equal("half_up", form.Receipt.TaxRoundingMode)
                 ValidateTypedShop(form, "free text store")
                 Equal("half_up", form.Receipt.TaxRoundingMode)
                 ValidateTypedShop(form, "never used store")
