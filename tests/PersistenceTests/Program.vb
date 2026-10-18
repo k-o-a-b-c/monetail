@@ -14,8 +14,8 @@ Module Program
         Check("history uses own payment account and deterministic newest row", AddressOf HistoryOrderingAndOwnership)
         Check("failed receipt update rolls mode and total back together", AddressOf TransactionRollback)
         Check("new receipt defaults and manual override UI", AddressOf NewReceiptUi)
-        Check("edit cancel restores tax type and rounding; save keeps both", AddressOf EditUi)
-        Check("canceling copy confirmation keeps form open without inserting", AddressOf CancelCopyUi)
+        Check("edit previews tax choices without changing receipt until confirmed save", AddressOf EditUi)
+        Check("declined confirmations leave receipt unchanged and keep form open", AddressOf CancelCopyUi)
         Check("copy confirmation immediately saves visible mode and closes", AddressOf ImmediateCopyUi)
         Return Finish()
     End Function
@@ -115,36 +115,51 @@ Module Program
     End Sub
 
     Private Sub CommitShop(form As RegisterForm, shopName As String)
+        Dim taxType = form.Receipt.TaxType
+        Dim mode = form.Receipt.TaxRoundingMode
+        Dim total = form.Receipt.Total
         Dim shops = DirectCast(form.ShopNameComboBox.DataSource, System.Collections.Generic.List(Of Shop))
         Dim index = shops.FindIndex(Function(s) s.Name = shopName)
         If index < 0 Then Throw New Exception("Missing shop candidate: " & shopName)
         form.ShopNameComboBox.SelectedIndex = index
         InvokeEvent(form, "ShopNameComboBox_SelectionChangeCommitted", form.ShopNameComboBox, EventArgs.Empty)
+        AssertReceiptTaxState(form.Receipt, taxType, mode, total)
     End Sub
 
     Private Sub ValidateTypedShop(form As RegisterForm, shopName As String)
+        Dim taxType = form.Receipt.TaxType
+        Dim mode = form.Receipt.TaxRoundingMode
+        Dim total = form.Receipt.Total
         form.ShopNameComboBox.Text = shopName
         InvokeEvent(form, "ShopNameComboBox_TextUpdate", form.ShopNameComboBox, EventArgs.Empty)
+        AssertReceiptTaxState(form.Receipt, taxType, mode, total)
         InvokeEvent(form, "ShopNameComboBox_Validated", form.ShopNameComboBox, EventArgs.Empty)
+        AssertReceiptTaxState(form.Receipt, taxType, mode, total)
     End Sub
 
     Private Sub AssertRoundingSelection(form As RegisterForm, mode As String)
-        Equal(mode, form.Receipt.TaxRoundingMode)
         Equal(mode = "floor", form.TaxRoundingFloorRadioButton.Checked)
         Equal(mode = "half_up", form.TaxRoundingHalfUpRadioButton.Checked)
     End Sub
 
     Private Sub AssertTaxControls(form As RegisterForm, taxType As Integer, mode As String, total As Integer)
-        Equal(taxType, form.Receipt.TaxType)
         Equal(taxType = 0, form.TaxInclusiveRadioButton.Checked)
         Equal(taxType = 1, form.TaxExclusiveRadioButton.Checked)
         AssertRoundingSelection(form, mode)
-        Equal(total, form.Receipt.Total)
         Equal(total, Convert.ToInt32(form.TotalTextBox.Text))
+        Equal(total, Convert.ToInt32(form.TotalTextBox2.Text))
+    End Sub
+
+    Private Sub AssertReceiptTaxState(receipt As Receipt, taxType As Integer, mode As String, total As Integer)
+        Equal(taxType, receipt.TaxType)
+        Equal(mode, receipt.TaxRoundingMode)
+        Equal(total, receipt.Total)
     End Sub
 
     Private Sub SelectRounding(form As RegisterForm, mode As String)
         Dim taxType = form.Receipt.TaxType
+        Dim originalMode = form.Receipt.TaxRoundingMode
+        Dim total = form.Receipt.Total
         Dim inclusiveChecked = form.TaxInclusiveRadioButton.Checked
         Dim exclusiveChecked = form.TaxExclusiveRadioButton.Checked
         If mode = "half_up" Then
@@ -153,22 +168,25 @@ Module Program
             form.TaxRoundingFloorRadioButton.PerformClick()
         End If
         AssertRoundingSelection(form, mode)
-        Equal(taxType, form.Receipt.TaxType)
+        AssertReceiptTaxState(form.Receipt, taxType, originalMode, total)
         Equal(inclusiveChecked, form.TaxInclusiveRadioButton.Checked)
         Equal(exclusiveChecked, form.TaxExclusiveRadioButton.Checked)
     End Sub
 
     Private Sub SelectTaxType(form As RegisterForm, taxType As Integer)
-        Dim mode = form.Receipt.TaxRoundingMode
+        Dim originalTaxType = form.Receipt.TaxType
+        Dim originalMode = form.Receipt.TaxRoundingMode
+        Dim total = form.Receipt.Total
+        Dim selectedMode = If(form.TaxRoundingHalfUpRadioButton.Checked, "half_up", "floor")
         If taxType = 0 Then
             form.TaxInclusiveRadioButton.PerformClick()
         Else
             form.TaxExclusiveRadioButton.PerformClick()
         End If
-        Equal(taxType, form.Receipt.TaxType)
+        AssertReceiptTaxState(form.Receipt, originalTaxType, originalMode, total)
         Equal(taxType = 0, form.TaxInclusiveRadioButton.Checked)
         Equal(taxType = 1, form.TaxExclusiveRadioButton.Checked)
-        AssertRoundingSelection(form, mode)
+        AssertRoundingSelection(form, selectedMode)
     End Sub
 
     Private Sub NewReceiptUi()
@@ -178,6 +196,7 @@ Module Program
             fixture.AddReceipt(4, "history shop", "half_up", New Date(2026, 10, 17))
             Using form As New RegisterForm With {.DataAccess = fixture.Data}
                 OpenForm(form)
+                AssertReceiptTaxState(form.Receipt, 0, "floor", 0)
                 AssertRoundingSelection(form, "floor")
                 CommitShop(form, "registered shop")
                 AssertRoundingSelection(form, "half_up")
@@ -195,11 +214,13 @@ Module Program
                 SelectRounding(form, "half_up")
                 CommitShop(form, "history shop")
                 ValidateTypedShop(form, "never used store")
-                Equal("half_up", form.Receipt.TaxRoundingMode)
+                AssertRoundingSelection(form, "half_up")
                 SelectRounding(form, "floor")
                 CommitShop(form, "registered shop")
-                Equal("floor", form.Receipt.TaxRoundingMode)
+                AssertRoundingSelection(form, "floor")
+                AssertReceiptTaxState(form.Receipt, 0, "floor", 0)
                 form.Close()
+                AssertReceiptTaxState(form.Receipt, 0, "floor", 0)
             End Using
             Using form As New RegisterForm With {.DataAccess = fixture.Data}
                 OpenForm(form)
@@ -208,8 +229,29 @@ Module Program
                 SelectRounding(form, "half_up")
                 ValidateTypedShop(form, "never used store")
                 AssertRoundingSelection(form, "half_up")
+                AssertReceiptTaxState(form.Receipt, 0, "floor", 0)
                 form.Close()
+                AssertReceiptTaxState(form.Receipt, 0, "floor", 0)
             End Using
+            ' History choices are pending screen values even when the new receipt has details.
+            Dim receipt = MakeReceipt("floor", Group(10, Detail(19)), Group(10, Detail(19)))
+            receipt.TaxType = 0
+            Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
+                OpenForm(form)
+                ValidateTypedShop(form, "registered shop")
+                AssertTaxControls(form, 1, "half_up", 42)
+                Equal(True, Object.ReferenceEquals(receipt, form.Receipt))
+                AssertReceiptTaxState(receipt, 0, "floor", 38)
+                form.ReceiptDateTextBox.Value = New Date(2026, 10, 16)
+                form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
+                form.RegiserButton.PerformClick()
+                Equal(DialogResult.OK, form.DialogResult)
+                Equal(5, receipt.Seq)
+                AssertReceiptTaxState(receipt, 1, "half_up", 42)
+            End Using
+            Dim saved = fixture.Data.GetReceipts(2026, 10).Single(Function(r) r.Seq = receipt.Seq)
+            AssertReceiptTaxState(saved, 1, "half_up", 42)
+            Equal(42L, Convert.ToInt64(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=5")))
         End Using
     End Sub
 
@@ -234,6 +276,8 @@ Module Program
                     SelectTaxType(form, changedTaxType)
                     SelectRounding(form, changedMode)
                     AssertTaxControls(form, changedTaxType, changedMode, changedTotal)
+                    Equal(True, Object.ReferenceEquals(receipt, form.Receipt))
+                    AssertReceiptTaxState(receipt, originalTaxType, originalMode, originalTotal)
                     form.Close()
                     Equal(originalTaxType, receipt.TaxType)
                     Equal(originalMode, receipt.TaxRoundingMode)
@@ -255,7 +299,19 @@ Module Program
                     form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
                     SelectTaxType(form, changedTaxType)
                     SelectRounding(form, changedMode)
-                    ClickAndAnswer(form.RegiserButton, DialogResult.Yes, "Register")
+                    AssertTaxControls(form, changedTaxType, changedMode, changedTotal)
+                    AssertReceiptTaxState(receipt, originalTaxType, originalMode, originalTotal)
+                    ClickAndAnswer(form.RegiserButton, DialogResult.No, "Decline register",
+                                   Sub() AssertReceiptTaxState(receipt, originalTaxType, originalMode, originalTotal))
+                    Equal(False, closed)
+                    Equal(True, form.Visible)
+                    AssertTaxControls(form, changedTaxType, changedMode, changedTotal)
+                    AssertReceiptTaxState(receipt, originalTaxType, originalMode, originalTotal)
+                    Equal(originalTaxType, Convert.ToInt32(fixture.Scalar("SELECT tax_type FROM t_receipts WHERE seq=1")))
+                    Equal(originalMode, Convert.ToString(fixture.Scalar("SELECT tax_rounding_mode FROM t_receipts WHERE seq=1")))
+                    Equal(originalTotal, Convert.ToInt32(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=1")))
+                    ClickAndAnswer(form.RegiserButton, DialogResult.Yes, "Register",
+                                   Sub() AssertReceiptTaxState(receipt, originalTaxType, originalMode, originalTotal))
                     Equal(True, closed)
                     Equal(DialogResult.OK, form.DialogResult)
                     Equal(changedTaxType, receipt.TaxType)
@@ -280,21 +336,29 @@ Module Program
             Dim receipt = fixture.Data.GetReceipts(2026, 10).Single()
             Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
                 OpenForm(form)
-                form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
                 SelectTaxType(form, 0)
                 SelectRounding(form, "half_up")
-                ClickAndAnswer(form.CopyButton, DialogResult.No, "Copy")
+                AssertTaxControls(form, 0, "half_up", 38)
+                AssertReceiptTaxState(receipt, 1, "floor", 41)
+                ' The earliest confirmation must also leave pending choices off the model.
+                form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16)
+                ClickAndAnswer(form.CopyButton, DialogResult.No, "Unset time",
+                               Sub() AssertReceiptTaxState(receipt, 1, "floor", 41))
+                AssertReceiptTaxState(receipt, 1, "floor", 41)
+                form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
+                ClickAndAnswer(form.CopyButton, DialogResult.No, "Copy",
+                               Sub() AssertReceiptTaxState(receipt, 1, "floor", 41))
                 Equal(1L, Convert.ToInt64(fixture.Scalar("SELECT count(*) FROM t_receipts")))
                 Equal(1, receipt.Seq)
                 Equal(True, form.Visible)
-                Equal(0, receipt.TaxType)
-                Equal("half_up", receipt.TaxRoundingMode)
+                AssertTaxControls(form, 0, "half_up", 38)
+                Equal(True, Object.ReferenceEquals(receipt, form.Receipt))
+                AssertReceiptTaxState(receipt, 1, "floor", 41)
+                Equal(1, Convert.ToInt32(fixture.Scalar("SELECT tax_type FROM t_receipts WHERE seq=1")))
                 Equal("floor", Convert.ToString(fixture.Scalar("SELECT tax_rounding_mode FROM t_receipts WHERE seq=1")))
                 Equal(41L, Convert.ToInt64(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=1")))
                 form.Close()
-                Equal(1, receipt.TaxType)
-                Equal("floor", receipt.TaxRoundingMode)
-                Equal(41, receipt.Total)
+                AssertReceiptTaxState(receipt, 1, "floor", 41)
             End Using
         End Using
     End Sub
@@ -311,24 +375,29 @@ Module Program
                     OpenForm(form)
                     CommitShop(form, "registered shop")
                     form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
+                    Dim visibleTaxType = If(visibleMode = "half_up", 1, 0)
+                    Dim visibleTotal = If(visibleTaxType = 1, 42, 38)
+                    SelectTaxType(form, visibleTaxType)
                     SelectRounding(form, visibleMode)
-                    Equal(visibleMode, receipt.TaxRoundingMode)
+                    AssertTaxControls(form, visibleTaxType, visibleMode, visibleTotal)
+                    Equal(True, Object.ReferenceEquals(receipt, form.Receipt))
+                    AssertReceiptTaxState(receipt, 1, "floor", 41)
                     Equal(historyMode, fixture.Data.GetTaxRoundingMode("registered shop"))
-                    ClickAndAnswer(form.CopyButton, DialogResult.Yes, "Copy")
+                    ClickAndAnswer(form.CopyButton, DialogResult.Yes, "Copy",
+                                   Sub() AssertReceiptTaxState(receipt, 1, "floor", 41))
                     ' No subsequent Register click: the actual Copy handler must save and close.
                     Equal(True, closed)
                     Equal(DialogResult.OK, form.DialogResult)
                     Equal(3L, Convert.ToInt64(fixture.Scalar("SELECT count(*) FROM t_receipts")))
                     Equal(3, receipt.Seq)
+                    AssertReceiptTaxState(receipt, visibleTaxType, visibleMode, visibleTotal)
                     Dim persisted = fixture.Data.GetReceipts(2026, 10)
                     Dim source = persisted.Single(Function(r) r.Seq = 1)
-                    Equal("floor", source.TaxRoundingMode)
-                    Equal(41, source.Total)
+                    AssertReceiptTaxState(source, 1, "floor", 41)
                     Equal("history shop", source.ShopName)
                     Dim copy = persisted.Single(Function(r) r.Seq = 3)
-                    Equal(visibleMode, copy.TaxRoundingMode)
+                    AssertReceiptTaxState(copy, visibleTaxType, visibleMode, visibleTotal)
                     Equal("registered shop", copy.ShopName)
-                    Equal(If(visibleMode = "half_up", 42, 41), copy.Total)
                     Equal(copy.Total, Convert.ToInt32(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=3")))
                     Equal(2, copy.Groups.Count)
                     Equal(1, copy.Groups(0).Details(0).Users.Count)
@@ -384,8 +453,10 @@ Module Program
         Return result
     End Function
 
-    Private Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String)
+    Private Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
+                               Optional beforeAnswer As Action = Nothing)
         Dim answered As Integer
+        Dim assertionFailure As Exception = Nothing
         Dim watch = Stopwatch.StartNew()
         Using responder As New System.Windows.Forms.Timer With {.Interval = 50}
             AddHandler responder.Tick,
@@ -395,8 +466,16 @@ Module Program
                     End If
                     Dim dialog = FindOwnConfirmation()
                     If dialog = IntPtr.Zero Then Return
+                    If answered = 0 AndAlso beforeAnswer IsNot Nothing Then
+                        Try
+                            beforeAnswer()
+                        Catch ex As Exception
+                            ' Decline and close the dialog before surfacing an assertion failure.
+                            assertionFailure = ex
+                        End Try
+                    End If
                     ' An unexpected extra confirmation is declined, then reported after the handler returns.
-                    Dim button = GetDlgItem(dialog, If(answered = 0 AndAlso answer = DialogResult.Yes, 6, 7))
+                    Dim button = GetDlgItem(dialog, If(answered = 0 AndAlso answer = DialogResult.Yes AndAlso assertionFailure Is Nothing, 6, 7))
                     If button = IntPtr.Zero Then Return
                     answered += 1
                     SendMessage(button, &HF5UI, IntPtr.Zero, IntPtr.Zero) ' BM_CLICK
@@ -408,6 +487,7 @@ Module Program
                 responder.Stop()
             End Try
         End Using
+        If assertionFailure IsNot Nothing Then Throw assertionFailure
         Equal(1, answered, operation & " must show exactly one confirmation")
     End Sub
 End Module

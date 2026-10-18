@@ -11,6 +11,7 @@ Module Program
         Check("manual discount_fee and Ceiling percentage discount", AddressOf ExistingDiscounts)
         Check("receipt tax aggregation is authoritative over group estimates", AddressOf ReceiptVsGroups)
         Check("income and expense signs remain separate", AddressOf IncomeAndExpenseSigns)
+        Check("preview tax settings leave receipt and saved totals unchanged", AddressOf PreviewDoesNotMutateReceipt)
         Check("negative half_up tax and mixed refunds", AddressOf Refunds)
         Check("user allocation is a rounded estimate", AddressOf UserEstimates)
         Check("balance estimation uses receipt mode", AddressOf BalanceEstimation)
@@ -51,6 +52,7 @@ Module Program
             Dim invalid = mode
             Throws(Of ArgumentException)(Sub() receipt.TaxRoundingMode = invalid)
             Throws(Of ArgumentException)(Sub() shop.TaxRoundingMode = invalid)
+            Throws(Of ArgumentException)(Sub() receipt.GetTotal(1, invalid))
             Equal("half_up", receipt.TaxRoundingMode)
             Equal("half_up", shop.TaxRoundingMode)
         Next
@@ -117,6 +119,34 @@ Module Program
         Equal(4, receipt.Total)
         Equal(5, receipt.Expenses)
         Equal(-1, receipt.Incomes)
+    End Sub
+
+    Private Sub PreviewDoesNotMutateReceipt()
+        ' 10% is split across groups; preview must aggregate 19 + 19 before rounding.
+        ' 8%, non-taxable items and refunds still use the same calculation as saved totals.
+        For Each mode In New String() {"floor", "half_up"}
+            For Each taxType In New Integer() {0, 1}
+                Dim receipt = MakeReceipt(mode, Group(10, Detail(19)), Group(10, Detail(19)),
+                                          Group(8, Detail(19), Detail(-5), Detail(3, False)))
+                receipt.TaxType = taxType
+                Dim originalTotal = receipt.Total
+                Dim originalIncomes = receipt.Incomes
+                Dim originalExpenses = receipt.Expenses
+                Equal(If(taxType = 0, 55, If(mode = "floor", 59, 60)), originalTotal)
+                Equal(If(taxType = 0, -5, If(mode = "floor", -6, -5)), originalIncomes)
+                Equal(If(taxType = 0, 60, If(mode = "floor", 64, 66)), originalExpenses)
+
+                For Each previewMode In New String() {"floor", "half_up"}
+                    Equal(55, receipt.GetTotal(0, previewMode))
+                    Equal(If(previewMode = "floor", 59, 60), receipt.GetTotal(1, previewMode))
+                    Equal(taxType, receipt.TaxType)
+                    Equal(mode, receipt.TaxRoundingMode)
+                    Equal(originalTotal, receipt.Total)
+                    Equal(originalIncomes, receipt.Incomes)
+                    Equal(originalExpenses, receipt.Expenses)
+                Next
+            Next
+        Next
     End Sub
 
     Private Sub Refunds()

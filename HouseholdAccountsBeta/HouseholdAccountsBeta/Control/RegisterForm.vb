@@ -18,28 +18,14 @@ Public Class RegisterForm
 
     Private TaxRoundingModeManuallyChanged As Boolean
 
-    Private OriginalReceipt As Receipt
-
-    Private OriginalTaxRoundingMode As String
-
-    Private OriginalTaxType As Integer
-
     Private Sub RegisterForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
         InitializingReceiptControls = True
-        If Receipt IsNot Nothing AndAlso Receipt.Seq > 0 Then
-            OriginalReceipt = Receipt
-            OriginalTaxRoundingMode = Receipt.TaxRoundingMode
-            OriginalTaxType = Receipt.TaxType
-        End If
         Dim isNewReceipt As Boolean = Receipt Is Nothing OrElse Receipt.Seq = 0
         If Receipt Is Nothing Then
             Receipt = New Receipt()
         End If
-        If isNewReceipt Then
-            Receipt.TaxRoundingMode = "floor"
-        End If
-        SetTaxRoundingMode(Receipt.TaxRoundingMode)
+        SetTaxRoundingMode(If(isNewReceipt, "floor", Receipt.TaxRoundingMode))
 
         ShopNameComboBox.DataSource = DataAccess.ShopList()
         PaymentClassificationComboBox.DataSource = DataAccess.PaymentClassificationList
@@ -139,7 +125,7 @@ Public Class RegisterForm
         End If
 
         If TaxInclusiveRadioButton.Checked OrElse TaxExclusiveRadioButton.Checked Then
-            TotalTextBox.Text = Receipt.Total.ToString()
+            TotalTextBox.Text = Receipt.GetTotal(If(TaxExclusiveRadioButton.Checked, 1, 0), SelectedTaxRoundingMode).ToString()
         Else
             TotalTextBox.Text = String.Empty
         End If
@@ -249,10 +235,16 @@ Public Class RegisterForm
 
 #Region "再計算"
 
+    Private ReadOnly Property SelectedTaxRoundingMode As String
+        Get
+            Return If(TaxRoundingHalfUpRadioButton.Checked, "half_up", "floor")
+        End Get
+    End Property
+
     Private Sub SetTaxRoundingMode(ByVal mode As String)
+        Calculation.ValidateTaxRoundingMode(mode)
         UpdatingTaxRoundingMode = True
         Try
-            Receipt.TaxRoundingMode = mode
             TaxRoundingFloorRadioButton.Checked = (mode = "floor")
             TaxRoundingHalfUpRadioButton.Checked = (mode = "half_up")
         Finally
@@ -270,7 +262,6 @@ Public Class RegisterForm
             Return
         End If
 
-        Receipt.TaxRoundingMode = If(selectedRadioButton Is TaxRoundingHalfUpRadioButton, "half_up", "floor")
         TaxRoundingModeManuallyChanged = True
         UpdateState()
     End Sub
@@ -279,7 +270,6 @@ Public Class RegisterForm
         If InitializingReceiptControls OrElse Receipt Is Nothing Then
             Return
         End If
-        Receipt.TaxType = If(TaxExclusiveRadioButton.Checked, 1, 0)
         UpdateState()
     End Sub
 
@@ -534,7 +524,8 @@ Public Class RegisterForm
         Receipt.Date = ReceiptDateTextBox.Value.Date + New TimeSpan(ReceiptTimeTextBox.Value.TimeOfDay.Hours, ReceiptTimeTextBox.Value.TimeOfDay.Minutes, ReceiptTimeTextBox.Value.TimeOfDay.Seconds)
         Receipt.ShopName = ShopNameComboBox.Text
         Receipt.ShopLocation = ShopLocationComboBox.Text
-        'Receipt.TaxType = If(TaxExclusiveRadioButton.Checked, 1, 0)
+        Receipt.TaxType = If(TaxExclusiveRadioButton.Checked, 1, 0)
+        Receipt.TaxRoundingMode = SelectedTaxRoundingMode
         Receipt.PaymentClassification = DataAccess.PaymentClassification(DirectCast(PaymentClassificationComboBox.SelectedValue, Integer))
         Receipt.Tag = ReceiptTagTextBox.Text
 
@@ -565,14 +556,6 @@ Public Class RegisterForm
 
         Me.Close()
 
-    End Sub
-
-    Private Sub RegisterForm_FormClosed(sender As Object, e As FormClosedEventArgs) Handles Me.FormClosed
-        'キャンセル時は、一覧と共有する元伝票の内税／外税と端数方式を戻す。
-        If OriginalReceipt IsNot Nothing AndAlso Me.DialogResult <> DialogResult.OK Then
-            OriginalReceipt.TaxRoundingMode = OriginalTaxRoundingMode
-            OriginalReceipt.TaxType = OriginalTaxType
-        End If
     End Sub
 
     Private Sub RegisterForm_KeyDown(sender As Object, e As KeyEventArgs) Handles Me.KeyDown

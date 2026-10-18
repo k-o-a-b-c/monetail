@@ -70,7 +70,7 @@
 
     Public ReadOnly Property Total As Integer
         Get
-            Return CalculateTotal(0)
+            Return GetTotal(TaxType, TaxRoundingMode)
         End Get
     End Property
 
@@ -79,7 +79,7 @@
     ''' </summary>
     Public ReadOnly Property Incomes As Integer
         Get
-            Return CalculateTotal(-1)
+            Return CalculateTotal(-1, TaxType, TaxRoundingMode)
         End Get
     End Property
 
@@ -88,13 +88,22 @@
     ''' </summary>
     Public ReadOnly Property Expenses As Integer
         Get
-            Return CalculateTotal(1)
+            Return CalculateTotal(1, TaxType, TaxRoundingMode)
         End Get
     End Property
 
+    ''' <summary>
+    ''' 指定した税区分・端数処理で合計を計算する。レシートの保存値は変更しない。
+    ''' </summary>
+    Public Function GetTotal(ByVal taxType As Integer, ByVal taxRoundingMode As String) As Integer
+        Return CalculateTotal(0, taxType, taxRoundingMode)
+    End Function
+
     ' signFilter: 0 = 全明細、-1 = 収入、1 = 支出。
     ' 同じ税率の全グループを合算してから、一度だけ税端数を処理する。
-    Private Function CalculateTotal(ByVal signFilter As Integer) As Integer
+    Private Function CalculateTotal(ByVal signFilter As Integer, ByVal taxType As Integer,
+                                    ByVal taxRoundingMode As String) As Integer
+        Calculation.ValidateTaxRoundingMode(taxRoundingMode)
         Dim groupTaxFee As New Dictionary(Of Integer, Double)()
         Dim groupNoTaxFee As New Dictionary(Of Integer, Double)()
         For Each group As ReceiptGroup In Groups
@@ -126,7 +135,7 @@
 
         Dim subTotals As Double = 0
         For Each taxRate As Integer In groupTaxFee.Keys
-            subTotals += Calculation.TaxRateSubtotal(groupTaxFee(taxRate), groupNoTaxFee(taxRate), taxRate, TaxType, TaxRoundingMode)
+            subTotals += Calculation.TaxRateSubtotal(groupTaxFee(taxRate), groupNoTaxFee(taxRate), taxRate, taxType, taxRoundingMode)
         Next
         Return Convert.ToInt32(subTotals)
     End Function
