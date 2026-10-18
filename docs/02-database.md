@@ -1,13 +1,15 @@
 # 02 現行SQLiteデータベース仕様（実DDL照合済み）
 
-更新日: 2026-10-16。対象: `monetail-legacy`、VB.NET / .NET Framework 4.8 / SQLite。
+更新日: 2026-10-18。対象: `monetail-legacy`、VB.NET / .NET Framework 4.8 / SQLite。
 
 > **一次資料**: 利用者が実SQLiteから抽出した `monetail_schema.sql`。[元のDDL](schema/monetail_schema.sql) を保存した。ここで「確定」とするのは提出されたDDLに記載された宣言である。**実レコード、実行時PRAGMA、データ整合性、SQLiteの物理ファイル内の追加構造は未検証**。宣言型と実値の格納型はSQLiteでは必ずしも同じではない。
+
+> **提出時DDLと実装後の区別**: 第1～3節は提出時のDDLスナップショット（16表・90列・17外部キー）を記録しており、原本は変更していない。現在のアプリには税端数方式の2列が必要で、[移行SQL](migrations/20261017_01_shop_tax_rounding.sql)を適用したテストDBは16表・92列・17外部キーとなる。追加列は第6節に記載する。利用者の実DBへの適用状況は未確認。
 
 ## 1. 全体
 
 - テーブル: **16**（マスタ6、取引・履歴10）。ソース解析のみで以前把握した15表から、`t_receipt_points` が追加確認された。
-- DDLに宣言された外部キー制約: **17件**（複合FKは1件）。
+- DDLに宣言された外部キー制約: **17件**（複合FKは2件）。
 - 明示的な `CREATE INDEX`、`CREATE VIEW`、`CREATE TRIGGER` は提出SQLに含まれていない（主キーの内部インデックスを除く）。
 - 外部キーには `ON DELETE CASCADE` 等の宣言がなく、デフォルトの `NO ACTION`。ただし、実際に制約が検証されるかは**接続ごとの `PRAGMA foreign_keys` に依存**する。
 - 日付の宣言型は `TEXT` と `DATE` が混在する。DDLには利用データが一切含まれない。
@@ -303,7 +305,7 @@
 
 | 対象 | DDLで確定した事実 | 影響・検証事項 |
 | --- | --- | --- |
-| 総数 | 15表 → **16表** | `t_receipt_points` はDBに存在する。`ReceiptPoint` モデルもあるが保存・読込の業務実装は未確認 |
+| 総数 | 15表 → **16表** | `t_receipt_points` は提出DDLに存在する。`ReceiptPoint` モデルもあるが、DataAccessでの保存・読込は未実装 |
 | `t_receipt_points` | `receipt_seq` はNOT NULL、**主キーは `seq` 単独**、ポイント種別へのFKのみ | **`t_receipts(seq)` へのFKなし**。孤児行・連番使用方法を調べる |
 | `m_payment_classification` | `valid_from DATE`、`valid_to DATE` はNULL許容 | 支払い方法の有効期間機能が使われているか確認する |
 | `t_receipt_details.discount_rate` | **INTEGER NOT NULL** | VBの `ReceiptDetail.DiscountRate` は `Double`。読込処理の `GetInt32` と併せ小数率の往復確認が必要 |
@@ -317,18 +319,24 @@
 - レシート・振替・残高の`seq`は現行コードが `MAX(seq)+1` で採番している。複数クライアント同時入力には競合リスク。
 - 親子データはレシート登録時にトランザクションを用いる。**レシート更新では子データを削除・再登録**。
 - `DataAccess.DeleteReceiptGroups` は **明細対象者 → 明細 → グループ** の順で削除し、`DeleteReceipt` はその後にレシート親を削除する。2026-10-18に旧来の親からの削除順を修正した。既存のトランザクション内で更新・削除し、途中失敗時はDBの変更全体を戻す。接続時のFK設定とDB定義は変更しない。
-- `t_receipts.total` を保存するが `GetReceipts` のSELECTから合計列を読まないため、表示・集計額は`Receipt`の計算結果と異なり得る。
+- レシートのNULL許容文字列4列（`t_receipts.shop_location`、`t_receipts.tag`、`t_receipt_groups.tag`、`t_receipt_details.tag`）は、`IsDBNull`で空文字へ正規化して読み込む。一覧・残高用の両読込経路と子データ再読込を対応済み。読込・画面の取消だけではDBのNULLや金額・対象者割当を変更せず、明示保存時は既存処理に従い空文字を保存する。他のエンティティのNULL許容文字列まで対応を広げたものではない。
+- `t_receipts.total` を保存するが `GetReceipts` のSELECTから合計列を読まないため、DBに保存された`total`と、`Receipt.Total`で再計算する表示・集計額が異なり得る。
 - `t_receipt_points.receipt_seq` にFKがなく、`t_receipt_groups.tax` に税率マスタのFKがない点は、移行前の整合性検証対象。
 - SQLite接続に `PRAGMA foreign_keys` を明示設定するVBコードは `DataAccess.vb` 冒頭で確認できない。接続文字列・プロバイダー既定値による動作は現状不明。
 
-## 6. 店舗別の消費税端数処理（未実装・設計案）とオーケーの現行運用
+## 6. 店舗別の消費税端数処理（実装済み）とオーケーの現行運用
 
-**現行DDLは未変更。以下の新カラムは未作成。**
+アプリ実装と自動テストは完了している。提出時DDL原本は維持し、次の2列を移行SQLで追加する。利用者の実DBでの移行・動作確認は未確認。
 
-- `m_shop` に**税率別合算後の税額端数方式**（切捨／四捨五入）の既定設定を追加する案。
-- `t_receipts` に登録時点の丸め方式を保存し、店舗設定変更後も**過去の伝票の金額を変えない**ようにする案。
-- **レシート自体を計算方式の正本**とし、マスタ未登録店でも端数方式を自由に選べるようにする。店舗マスタは明示選択した新規レシートの**初期値だけ**。`t_receipts.shop_code`は追加せず、店舗マスタへのFKは不要。
-- 追加する列は **`m_shop.tax_rounding_mode`と`t_receipts.tax_rounding_mode`の2つだけ**。旧レシートは`floor`を保持し、実データの再計算や店舗コードの自動付与をしない。[詳細設計](15-shop-tax-rounding-design.md)、[移行SQL案](migrations/20261017_01_shop_tax_rounding.sql)参照。
+| 追加列 | 宣言・既定値 | 現在の用途 |
+| --- | --- | --- |
+| `t_receipts.tax_rounding_mode` | `TEXT NOT NULL DEFAULT 'floor' CHECK (tax_rounding_mode IN ('floor', 'half_up'))` | 保存済みレシートの税額計算方式の正本 |
+| `m_shop.tax_rounding_mode` | 同上 | 既存の移行設計との互換性のため保持。モデルへ読み込むが、入力の初期選択には使用しない |
+
+- 税抜レシートは**税率ごとに課税額を合算してから**、レシートの方式で税額を切り捨て／四捨五入する。税込入力の合計は方式に依存しない。旧`floor`は従来の計算を維持し、`half_up`の負の税額は`AwayFromZero`で丸める。
+- 新規入力の初期選択は、**同じ店舗名・現在の利用者の直近レシート**から取得する。支払方法の利用者を`Environment.UserName`で絞り、`date DESC, seq DESC`の先頭を採用する。履歴がなければ`floor`。店舗マスタ未登録の自由入力でも同じ動作とし、手動選択後や既存レシートの編集では自動上書きしない。マスタメンテナンス画面は追加していない。
+- 内税／外税・端数方式は画面側で編集中の値を保持し、合計のプレビューへ渡す。登録確認後だけReceiptへ転記し、キャンセルでは元の両設定を変更しない。流用は従来どおり確認後に即時保存して閉じ、追加の登録操作なしで画面の選択値を引き継ぐ。
+- 旧レシートは`floor`を保持し、移行SQLで保存`total`・既存明細・対象者割当を更新しない。店舗コードの自動付与や`t_receipts.shop_code`、店舗マスタへのFKも追加しない。`foreign_keys`・`user_version`も変更しない。[詳細設計](15-shop-tax-rounding-design.md)、[移行SQL](migrations/20261017_01_shop_tax_rounding.sql)、[自動テストと画面確認手順](../tests/README.md)参照。
 - **オーケー3/103割引の新しいDB列や子テーブルは追加しない**。今までどおり`t_receipt_details.discount_fee`相当の既存「割引額」を手入力する。これは単価あたりの割引なので、割引合計をまとめて入れる明細は原則`quantity=1`とする。
 
 関連: [08 要件と具体例](08-requested-enhancements.md) / [05 課題](05-issues.md) / [06 テスト](06-test-cases.md)。

@@ -1,4 +1,8 @@
 ﻿with fee as ( 
+-- 旧分類集計SQLの検討メモ。現行アプリの会計合計の実装・仕様としては使用しない。
+-- このSQLは分類グループ単位の旧丸め式で、レシートの tax_rounding_mode を参照しない。
+-- 現行の会計合計は Receipt/Calculation の税率別合算と floor/half_up を使用する。
+-- 仕様は docs/03-calculations.md と docs/12-calculation-contract.md を参照（2026-10-18）。
     select
         r.seq as receipt_seq
         , rg.seq as receipt_group_seq
