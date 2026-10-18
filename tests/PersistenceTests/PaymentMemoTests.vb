@@ -11,9 +11,9 @@ Friend Module PaymentMemoTests
                 SeedMemos(fixture)
                 Dim unrelated = MemoRows(fixture, 4)
                 Dim changes As New List(Of PaymentMemo) From {
-                    Memo(1, New Date(2026, 10, 20, 13, 14, 15), "メモ '引用'" & vbCrLf & "2行目"),
-                    Memo(2, Nothing, String.Empty),
-                    Memo(3, New Date(2026, 10, 21, 9, 8, 7), Nothing)
+                    MakeMemo(1, New Date(2026, 10, 20, 13, 14, 15), "メモ '引用'" & vbCrLf & "2行目"),
+                    MakeMemo(2, Nothing, String.Empty),
+                    MakeMemo(3, New Date(2026, 10, 21, 9, 8, 7), Nothing)
                 }
                 fixture.Data.RegisterPaymentMemo(changes)
                 AssertSaved(fixture, changes)
@@ -46,9 +46,9 @@ Friend Module PaymentMemoTests
                             "VALUES(3,NULL,'original last memo');")
                     End If
                     Dim changes As New List(Of PaymentMemo) From {
-                        Memo(1, Nothing, "changed first memo"),
-                        Memo(2, New Date(2026, 10, 23, 14, 15, 16), "inserted middle memo"),
-                        Memo(3, New Date(2026, 10, 24, 17, 18, 19), "changed last memo")
+                        MakeMemo(1, Nothing, "changed first memo"),
+                        MakeMemo(2, New Date(2026, 10, 23, 14, 15, 16), "inserted middle memo"),
+                        MakeMemo(3, New Date(2026, 10, 24, 17, 18, 19), "changed last memo")
                     }
                     ' 末尾行へのINSERT/UPDATE時点で、先行する更新と追加が実行済みと保証する。
                     fixture.Execute("CREATE TRIGGER fail_last_memo BEFORE " & If(failUpdate, "UPDATE", "INSERT") &
@@ -86,7 +86,7 @@ Friend Module PaymentMemoTests
                 Equal(before, MemoRows(fixture), "空リストで既存のメモを変更しない")
                 AssertForeignKeys(fixture, foreignKeys)
 
-                Dim changes As New List(Of PaymentMemo) From {Memo(2, Nothing, "after empty batch")}
+                Dim changes As New List(Of PaymentMemo) From {MakeMemo(2, Nothing, "after empty batch")}
                 fixture.Data.RegisterPaymentMemo(changes)
                 AssertSaved(fixture, changes)
                 Equal(3L, Convert.ToInt64(fixture.Scalar("SELECT count(*) FROM t_payment_memo")))
@@ -102,7 +102,7 @@ Friend Module PaymentMemoTests
             "(4,'2026-10-15 04:05:06','unrelated memo');")
     End Sub
 
-    Private Function Memo(code As Integer, checkDate As Date?, tag As String) As PaymentMemo
+    Private Function MakeMemo(code As Integer, checkDate As Date?, tag As String) As PaymentMemo
         Return New PaymentMemo With {
             .PaymentClassification = New PaymentClassification With {.Code = code},
             .CheckDate = checkDate,
