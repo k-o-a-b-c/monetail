@@ -16,7 +16,8 @@
 - **税端数**: 税率別合算後の`floor`／`half_up`をレシート単位で保存する。新規入力は同じ店舗・現在の利用者の直近レシートを初期値とし、店舗マスタ列は互換性のため残すが初期選択に使わない。移行テストでは既存行・金額・対象者割当、既定値・制約、PRAGMAの保持と再実行拒否を確認済み。
 - **外部キー**: 更新・削除は明細対象者 → 明細 → グループ → レシートの順で削除する（更新ではレシート親を削除せず子を再登録）。既存トランザクション内で処理し、テスト用接続のFK ON/OFF双方で成功と途中失敗時のDB復元を確認済み。製品接続のFK設定やDB定義を一律変更したものではない。`t_receipt_points.receipt_seq`へのFK追加・ポイント保存読込は未対応。
 - **残高削除**: `t_balance_groups` → `t_balances`の順へ変更し、既存トランザクション・製品のFK設定・DDL・画面操作は維持する。FK ON/OFFで削除成功（子0／2件）、親DELETE失敗時の復元と同じDataAccessでの再削除（子2件）、他の残高と無関係な全テーブルの保持を一時DBで確認済み（LEG-027）。
-- **NULL文字列**: 所在地・レシートタグ・グループタグ・明細タグはNULLを空文字として読み込む。一覧・残高の両経路、子の再読込、編集取消・再表示で、DBのNULL・金額・対象者割当を変えないことを確認済み。明示保存では従来の保存処理に従い空文字を保存する。他のエンティティのNULL許容文字列や実データ全体の健全性は別途確認が必要。
+- **レシートのNULL文字列**: 所在地・レシートタグ・グループタグ・明細タグはNULLを空文字として読み込む。一覧・残高の両経路、子の再読込、編集取消・再表示で、DBのNULL・金額・対象者割当を変えないことを確認済み。明示保存では従来の保存処理に従い空文字を保存する（LEG-024）。
+- **残高・振替のNULLタグ**: `t_balances.tag`・`t_balance_groups.tag`・`t_transfers.tag`の3列・6読込箇所もNULLだけを空文字として読み込む（LEG-028）。非NULLの空文字・通常文字・日本語／引用符・空白、日時・金額・NULLを含む評価額・支払方法と保存済みNULLを保持し、全NULL時の両AutoBalanceも比較する。保存SQL・DDL・計算・画面操作は維持し、DBの一括更新は行わない。全表・全列のNULL対応や実データ全体の健全性確認ではない。
 - **小数割引率**: REAL値の旧`GetInt32`読込例外を実SQLiteで再現し、共通処理を`GetDouble`へ修正。新規・更新、整数率・小数率、両端数方式と一覧・残高・子再読込で率と合計の保持、読込によるDB不変を自動検証済み。INTEGER宣言や保存値を一括変更する移行は不要。
 - **支払メモ一括保存**: 既存UPSERT全体を1つのトランザクションで処理し、全件成功時だけ確定、失敗時は先行する追加・更新も巻き戻して例外を再送出する。FK ON/OFFの一時DBで、成功・末尾INSERT／UPDATE失敗時の全件復元と同じDataAccessでの再保存・空リストを確認済み。NULL日付／タグと空文字、対象外行、読込時の保存値も保持する。保存SQL・DDL・画面の確認操作は変更していない。
 
@@ -94,12 +95,15 @@ SELECT COUNT(*) AS ambiguously_named_receipts
 FROM t_receipts r
 WHERE (SELECT COUNT(*) FROM m_shop s WHERE s.name = r.shop_name) > 1;
 
--- 読込時に空文字へ正規化する4列のNULL件数（NULL自体は異常ではない）
+-- レシート4列・残高と振替3列のNULL件数（NULL自体は異常ではない）
 SELECT 't_receipts.shop_location' AS column_name, COUNT(*) AS null_rows
 FROM t_receipts WHERE shop_location IS NULL
 UNION ALL SELECT 't_receipts.tag', COUNT(*) FROM t_receipts WHERE tag IS NULL
 UNION ALL SELECT 't_receipt_groups.tag', COUNT(*) FROM t_receipt_groups WHERE tag IS NULL
-UNION ALL SELECT 't_receipt_details.tag', COUNT(*) FROM t_receipt_details WHERE tag IS NULL;
+UNION ALL SELECT 't_receipt_details.tag', COUNT(*) FROM t_receipt_details WHERE tag IS NULL
+UNION ALL SELECT 't_balances.tag', COUNT(*) FROM t_balances WHERE tag IS NULL
+UNION ALL SELECT 't_balance_groups.tag', COUNT(*) FROM t_balance_groups WHERE tag IS NULL
+UNION ALL SELECT 't_transfers.tag', COUNT(*) FROM t_transfers WHERE tag IS NULL;
 ```
 
 **判断上の注意**:
@@ -108,7 +112,7 @@ UNION ALL SELECT 't_receipt_details.tag', COUNT(*) FROM t_receipt_details WHERE 
 - 税率コード不一致があれば、現行`TaxRate(code)`呼出しでNullになる可能性があるため、実データを保全したまま原因分析。
 - `discount_rate`は`INTEGER`宣言でも小数率をREALで保存でき、現行アプリは`GetDouble`で読み込む。REALの件数だけで不整合と判断しない。INTEGER／REAL以外の格納型や、実際の値の妥当性は別途確認する。
 - 店舗の同名・名称不一致は**マスタ運用の仕様確認が先**で、機械的な削除・修正をしてはいけない。
-- 上記4列はNULL許容で、アプリでは空欄として扱う。件数を理由に一括で空文字へ書き換えない。読込・取消だけでは保存内容は変わらない。
+- 上記7列はNULL許容で、アプリでは空欄として扱う。件数を理由に一括で空文字へ書き換えない。読込・取消だけでは保存内容は変わらない。
 
 ## 3. DBバックアップ・復元のリハーサル（本番を直接触らない）
 

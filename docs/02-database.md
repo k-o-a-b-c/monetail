@@ -320,7 +320,8 @@
 - 親子データはレシート登録時にトランザクションを用いる。**レシート更新では子データを削除・再登録**。
 - `DataAccess.DeleteReceiptGroups` は **明細対象者 → 明細 → グループ** の順で削除し、`DeleteReceipt` はその後にレシート親を削除する。2026-10-18に旧来の親からの削除順を修正した。既存のトランザクション内で更新・削除し、途中失敗時はDBの変更全体を戻す。接続時のFK設定とDB定義は変更しない。
 - `DataAccess.DeleteBalance` は **`t_balance_groups` → `t_balances`** の順に削除する（LEG-027）。FK ON/OFFで削除成功（子0／2件）と、既存トランザクション内の親削除失敗からの復元・同じDataAccessでの再削除（子2件）を検証済み。製品の接続設定・DDL・画面操作は維持する。
-- レシートのNULL許容文字列4列（`t_receipts.shop_location`、`t_receipts.tag`、`t_receipt_groups.tag`、`t_receipt_details.tag`）は、`IsDBNull`で空文字へ正規化して読み込む。一覧・残高用の両読込経路と子データ再読込を対応済み。読込・画面の取消だけではDBのNULLや金額・対象者割当を変更せず、明示保存時は既存処理に従い空文字を保存する。他のエンティティのNULL許容文字列まで対応を広げたものではない。
+- レシートのNULL許容文字列4列（`t_receipts.shop_location`、`t_receipts.tag`、`t_receipt_groups.tag`、`t_receipt_details.tag`）は、`IsDBNull`で空文字へ正規化して読み込む。一覧・残高用の両読込経路と子データ再読込を対応済み。読込・画面の取消だけではDBのNULLや金額・対象者割当を変更せず、明示保存時は既存処理に従い空文字を保存する（LEG-024）。
+- 残高・支払方法別残高・振替の`tag`3列も、NULLだけを空文字として読み込む（LEG-028）。`GetBalances`・`GetLastBalance`・`GetLastValuationAmount`のヘッダー3箇所と共通の`LoadBalanceGroupData`、振替の`GetTransfers`・`GetPaymentTransfers`の計6箇所に限定する。DBのNULLや日時・金額・NULLを含む評価額・支払方法は読込で変更せず、既存の非NULL文字列・保存SQL・DDL・計算式・画面操作を維持する。全表・全列のNULL対応ではない。
 - 小数割引率の旧`GetInt32`読込は、製品と同じSQLiteプロバイダーで`InvalidCastException`になることを再現した。共通の`LoadReceiptDetailData`で`GetDouble`を使い、整数率・小数率の両方をモデルへ読み込む。DDLの`INTEGER`は変更せず、既存DBの移行や率・保存合計の一括更新は行わない。[検証範囲](06-test-cases.md)参照。
 - `RegisterPaymentMemo`は、入力リスト全体の既存UPSERTを1つのトランザクションで処理し、全件成功時にCommit、失敗時にRollbackして例外を再送出する。空リストでは開始前に戻る。FK ON/OFFで成功・末尾INSERT／UPDATE失敗時の全件復元・同じDataAccessでの再保存・空リストを自動検証済み。`t_payment_memo`のDDL、保存順、日付・タグのNULL保存仕様は維持する。
 - `t_receipts.total` を保存するが `GetReceipts` のSELECTから合計列を読まないため、DBに保存された`total`と、`Receipt.Total`で再計算する表示・集計額が異なり得る。

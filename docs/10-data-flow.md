@@ -119,6 +119,8 @@ RegisterPaymentMemoForm → DataAccess.RegisterPaymentMemo
   └── t_payment_memo （支払方法ごとの最終チェック日・メモ）
 ```
 
+**残高・振替のNULLタグ（LEG-028）**: `t_balances.tag`・`t_balance_groups.tag`・`t_transfers.tag`は6箇所の読込でNULLだけを空文字へ変換し、日時・金額・評価額・支払方法・保存済みNULLと既存の保存SQL・計算・画面操作を維持する。
+
 **残高削除（LEG-027）**: `DataAccess.DeleteBalance`は既存トランザクション内で**`t_balance_groups` → `t_balances`**の順に対象残高の子・親を削除する。親DELETEが失敗した場合は先行する子DELETEもRollbackし、例外を呼出元へ伝える。変更はDELETE順だけで、製品のFK設定・DDL・画面操作は維持する。
 
 実際のDataAccessと製品と同じSQLiteの一時DBで、FK ON/OFFの削除成功（子0／2件）、テスト専用トリガーによる親削除失敗からの全件復元と同じDataAccessでの再削除（子2件）を自動検証済み。他の残高と無関係な全テーブルが不変であることも確認する。残高の登録・更新や画面の確認操作を網羅したという意味ではない。
