@@ -484,10 +484,10 @@ Public Class DataAccess
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
                         .ShopName = reader.GetString(2),
-                        .ShopLocation = reader.GetString(3),
+                        .ShopLocation = If(reader.IsDBNull(3), String.Empty, reader.GetString(3)),
                         .TaxType = reader.GetInt32(4),
                         .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = reader.GetString(6),
+                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
                         .TaxRoundingMode = reader.GetString(7)
                     }
                     LoadReceiptGroupData(receipt, GroupCode)
@@ -519,7 +519,7 @@ Public Class DataAccess
                     receiptGroup.Seq = groupReader.GetInt32(1)
                     receiptGroup.GroupClassification = GroupClassification(groupReader.GetInt32(2))
                     receiptGroup.TaxRate = TaxRate(groupReader.GetInt32(3))
-                    receiptGroup.Tag = groupReader.GetString(4)
+                    receiptGroup.Tag = If(groupReader.IsDBNull(4), String.Empty, groupReader.GetString(4))
                     LoadReceiptDetailData(receiptGroup)
                     receipt.Groups.Add(receiptGroup)
                 End While
@@ -547,7 +547,7 @@ Public Class DataAccess
                     receiptDetail.DiscountFee = detailReader.GetInt32(6)
                     receiptDetail.DiscountRate = detailReader.GetInt32(7)
                     receiptDetail.TaxTarget = (detailReader.GetInt32(8) = 1)
-                    receiptDetail.Tag = detailReader.GetString(9)
+                    receiptDetail.Tag = If(detailReader.IsDBNull(9), String.Empty, detailReader.GetString(9))
                     LoadReceiptDetailUsersData(receiptDetail)
                     receiptGroup.Details.Add(receiptDetail)
                 End While
@@ -731,10 +731,10 @@ Public Class DataAccess
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
                         .ShopName = reader.GetString(2),
-                        .ShopLocation = reader.GetString(3),
+                        .ShopLocation = If(reader.IsDBNull(3), String.Empty, reader.GetString(3)),
                         .TaxType = reader.GetInt32(4),
                         .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = reader.GetString(6),
+                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
                         .TaxRoundingMode = reader.GetString(7)
                     }
                     LoadReceiptGroupData(receipt)
