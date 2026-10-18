@@ -63,11 +63,12 @@ flowchart TD
     F --> I
 ```
 
-**現行の物理削除順に注意**:
+**物理削除順（2026-10-18修正）**:
 
-- `UpdateReceipt`: 親UPDATE → `DeleteReceiptGroups`（**グループ → 明細 → 対象者**）→ 再INSERT。
-- `DeleteReceipt`: **レシート親DELETE** → `DeleteReceiptGroups`（上記の順）。
-- 物理FK制約に `CASCADE` がない。`PRAGMA foreign_keys=ON` の接続では削除順が不適切なため、実行時エラーになり得る。**確認・改修なしに `PRAGMA foreign_keys=ON` だけを本番へ適用しない。**
+- `UpdateReceipt`: 親UPDATE → `DeleteReceiptGroups`（**対象者割当 → 明細 → グループ**）→ グループ・明細・対象者割当を再INSERT。
+- `DeleteReceipt`: `DeleteReceiptGroups`（上記の順）→ **レシート親DELETE**。
+- 更新・削除とも既存のトランザクション内で行い、途中のDELETE・INSERTや親DELETEが失敗するとDB全体の変更をRollbackする。物理FK制約に `CASCADE` は追加しない。
+- テスト用DBではFK ON/OFFの両方で成功・巻き戻し・別レシートの保持を検証する。アプリの接続設定や `PRAGMA foreign_keys` の既定値は変更しない。既存の実データ整合性や、他の更新経路のFK対応を検証済みとは扱わない。
 - `t_receipt_points` はこれらの削除処理に登場しない。実データがあれば別途取り扱いが必要。
 
 ## 3. レシートの読み込みフロー

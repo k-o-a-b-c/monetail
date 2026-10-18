@@ -309,14 +309,14 @@
 | `t_receipt_details.discount_rate` | **INTEGER NOT NULL** | VBの `ReceiptDetail.DiscountRate` は `Double`。読込処理の `GetInt32` と併せ小数率の往復確認が必要 |
 | `t_receipt_groups.tax` | **INTEGER NOT NULL DEFAULT 8**、`m_tax_rate` へのFKなし | VB側は税率マスタの**コード**として解釈。実データのコード対応を確認 |
 | `t_receipts` | 店名・店舗は文字列。`shop_code` なし。`total INTEGER` はNULL許容 | **丸め方式をレシート自体へ保存するため店舗マスタへのFKは不要**。保存合計と明細再計算の一致も検証 |
-| 削除の整合性 | レシート→グループ→明細→対象者にFKがあるがCASCADEなし | 現行コードは**親から先にDELETE**。FK検証有効なら失敗し得る |
+| 削除の整合性 | レシート→グループ→明細→対象者にFKがあるがCASCADEなし | 2026-10-18に子から削除する順序へ修正。FK ON/OFFの更新・削除・巻き戻しを自動テスト |
 | インデックス | DDLに追加インデックスの定義なし | 複合主キーインデックスはあるが、月別・支払方法別検索の効率を実データで検証 |
 
 ## 5. 現行コードとの整合性・リスク
 
 - レシート・振替・残高の`seq`は現行コードが `MAX(seq)+1` で採番している。複数クライアント同時入力には競合リスク。
 - 親子データはレシート登録時にトランザクションを用いる。**レシート更新では子データを削除・再登録**。
-- `DataAccess.DeleteReceiptGroups` の削除順は **グループ → 明細 → 明細対象者**、`DeleteReceipt` はその前にレシート親を削除する。上記FKが**有効**ならこの順序は制約違反になり得る。正しい順序は **明細対象者 → 明細 → グループ → レシート親**。
+- `DataAccess.DeleteReceiptGroups` は **明細対象者 → 明細 → グループ** の順で削除し、`DeleteReceipt` はその後にレシート親を削除する。2026-10-18に旧来の親からの削除順を修正した。既存のトランザクション内で更新・削除し、途中失敗時はDBの変更全体を戻す。接続時のFK設定とDB定義は変更しない。
 - `t_receipts.total` を保存するが `GetReceipts` のSELECTから合計列を読まないため、表示・集計額は`Receipt`の計算結果と異なり得る。
 - `t_receipt_points.receipt_seq` にFKがなく、`t_receipt_groups.tax` に税率マスタのFKがない点は、移行前の整合性検証対象。
 - SQLite接続に `PRAGMA foreign_keys` を明示設定するVBコードは `DataAccess.vb` 冒頭で確認できない。接続文字列・プロバイダー既定値による動作は現状不明。

@@ -14,7 +14,7 @@
 | LEG-001 | P1 | 実装欠落 | マスタメンテナンス画面が空 | `MasterMaintenanceForm.vb` はプロパティのみ、Designerは空フォーム。分類・支払方法・店・税率の編集機能を実装するか方針確定 |
 | LEG-002 | P1 | 一部実装 | ポイント計算・保存が未完成 | **`t_receipt_points` は実DBに存在**。`ReceiptPoint`、ポイントマスタ取得とUI部品もあるが、イベントの一部がコメントアウト、`DataAccess` にレシートポイント読込／保存SQLを確認できない |
 | LEG-003 | P0 | コード上のリスク | 同時採番競合 | レシート・振替・残高の `MAX(seq)+1`。複数起動／複数端末の同時書込試験が必要 |
-| LEG-004 | P0 | **DDLで制約確認・実機未再現** | DB外部キー制約と削除順が不整合 | 複合FK・親子FKが実DDLで確認済み。DBはCASCADEなし。一方 `DeleteReceiptGroups` はグループ→明細→対象者、`DeleteReceipt` はその前に親をDELETE。**FK ONで失敗する可能性**。アプリ接続の `PRAGMA foreign_keys` と実行テストが必要 |
+| LEG-004 | P0 | **修正済み・自動テスト追加** | レシート更新・削除の外部キー対応 | `DeleteReceiptGroups` を対象者割当→明細→グループ、`DeleteReceipt` を子削除→親DELETEへ変更。既存トランザクションを維持し、FK ON/OFFで更新・削除・途中失敗時のDB復元を検証。接続設定・DDL・ポイント処理は変更しない。実データの検査は別途 |
 | LEG-005 | P1 | **DDL確認・実機未検証** | 割引率のDB型・読込 | **`t_receipt_details.discount_rate INTEGER NOT NULL`**、モデルは `Double`、読込は `GetInt32(7)`。SQLiteの型親和性で実値が小数REALになり得るため往復テストが必要 |
 | LEG-006 | P1 | 要仕様判断 | 端数処理の不一致 | レシート合計は税率単位で床関数、グループ／明細詳細は別粒度で床関数。総額不一致の例がある |
 | LEG-007 | P1 | コード上のリスク | 接続文字列が環境依存 | `App.config` と `Settings.settings` に異なる絶対ドライブパス。初回セットアップ不可の可能性 |
