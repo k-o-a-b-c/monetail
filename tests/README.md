@@ -8,10 +8,10 @@
 | --- | ---: | --- |
 | 計算（JSONの11ケース＋VBの9チェック） | 20 | 成功 |
 | SQLite移行 | 5 | 成功 |
-| Windowsの実SQLite・画面（従来8＋レシートFK4＋NULL3＋小数率2＋支払メモ3＋残高削除2） | 22 | 成功 |
-| 合計 | 47 | 成功 |
+| Windowsの実SQLite・画面（従来8＋レシートFK4＋レシートNULL3＋小数率2＋支払メモ3＋残高削除2＋残高・振替NULL3） | 25 | 成功 |
+| 合計 | 50 | 成功 |
 
-既存ソリューションのNuGet復元・Windowsビルドも成功しています。[残高削除改修ブランチのTests実行一覧](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fbalance-delete-foreign-keys)。実データは使用していません。以下の手動手順を利用者のWindows環境・実DBで実施した結果ではありません。
+既存ソリューションのNuGet復元・Windowsビルドも成功しています。[残高・振替タグの修正後CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39167959156)。実データは使用していません。以下の手動手順を利用者のWindows環境・実DBで実施した結果ではありません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -35,6 +35,10 @@ dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
 残高削除は、成功と親DELETE失敗からの復元・再削除の2論理チェックです。実際の`DataAccess.DeleteBalance`と製品と同じSQLiteのFK ON/OFFで、削除成功は子0／2件、親DELETE失敗からの復元・再削除は子2件を検証します。対象の親子だけが消えること、他の残高と無関係な全テーブルが変わらないことを確認します。テスト専用トリガーで親DELETEを失敗させ、先行する子DELETEもRollbackされること、トリガー解除後に同じDataAccessで再削除できることを確認します。製品修正は`t_balance_groups`→`t_balances`へのDELETE順変更だけで、既存トランザクション・製品のFK設定・DDL・画面操作を維持します。残高の登録・更新や、確認ダイアログ・エラー後の画面状態・実DBの復旧を検証したものではありません（LEG-027）。
 
 NULL文字列の回帰テストでは、レシートの所在地・タグ、グループと明細のタグを個別にNULLへ設定します。一覧・残高の両読込経路、子の再読込、画面の取消・同じレシートの再表示を実行し、NULLを空文字で扱えること、既存の空文字・日本語・空白や金額・対象者割当が保持されることを確認します。読込・画面取消ではDBのNULLを更新しません。後で明示的に保存した場合は、既存の保存処理により画面上の空文字が保存されます。
+
+残高・振替のNULLタグ回帰は、残高ヘッダー、支払方法別残高、振替の3チェックに成功しました（LEG-028）。対象は`t_balances.tag`・`t_balance_groups.tag`・`t_transfers.tag`の3列・6読込箇所です。`GetBalances`・`GetLastBalance`・`GetLastValuationAmount`と`GetTransfers`・`GetPaymentTransfers`で、NULLだけを空文字へ変換し、空文字・通常文字・日本語／引用符・タブ／全角空白を保持することを確認します。最新残高と最新評価額が異なる2履歴、評価額NULL／負額、振替の出金／入金・別口座・翌月行も使い、日時・金額・支払方法・関連8表の全保存行が読込前後で変わらないことを比較します。対象の文字列がすべてNULLの統合では、両AutoBalanceが口座ごとに1114円／−214円／9円となることも固定します。DB移行・保存処理・金額計算・画面操作は変更しません。
+
+[残高・振替タグの修正前CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39167506376)では、既存22件がPASSし、追加3チェックだけがSQL NULLの`GetString`による`InvalidCastException`で失敗しました。非NULL入力の失敗はありませんでした。[PR #8](https://github.com/k-o-a-b-c/monetail-legacy/pull/8)。
 
 小数割引率の回帰は新規・更新の2チェックです。率0%／3%／2.5%／2.6%、`floor`／`half_up`それぞれで、単価103円・単価値引3円・数量2・外税8%を保存し、一覧・残高・子再読込の3経路で率と合計を検証します。整数率はINTEGER、小数率はREALで格納され、読込では率・値引・数量・保存合計等を更新しないことも確認します。旧`GetInt32`がREAL値で`InvalidCastException`になることは、[修正前CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39125787720)で再現しています。製品修正は共通読込の`GetDouble`への変更だけで、DDL・保存・計算・入力操作は従来どおりです。[PR #5](https://github.com/k-o-a-b-c/monetail-legacy/pull/5)。
 

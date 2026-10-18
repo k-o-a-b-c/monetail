@@ -19,7 +19,7 @@
 | LEG-006 | P1 | **仕様を整理・回帰テスト追加** | 会計合計と参考額の端数差 | 会計合計は税率別合算後に保存したfloor/half_upを適用。分類・明細・個人別は参考範囲ごとの計算で、合計の一致を保証しない。既存floorは維持し、half_upの個人別最終端数は四捨五入。対象者0人など残る確認はLEG-011 |
 | LEG-007 | P1 | コード上のリスク | 接続文字列が環境依存 | `App.config` と `Settings.settings` に異なる絶対ドライブパス。初回セットアップ不可の可能性 |
 | LEG-008 | P1 | **DDL取得済み・データ未検証** | 既存DBの物理構造・初期データの確認 | ユーザー提供の実DDLを `docs/schema/monetail_schema.sql` に保存。元DDLの**16テーブル／90列／17FK**を確認。税端数移行後の一時DBは92列。実DBの初期データ・既存行・FK有効状態・実インデックスのチェックは残る |
-| LEG-009 | P1 | **整備済み・CI成功** | 自動テスト・Windowsビルド | 計算20件・SQLite移行5件・Windows実SQLite／画面22件の計47件と、既存ソリューションのNuGet復元・Windowsビルドが成功。実行方法は[tests/README](../tests/README.md)。全手動ケースや実DBを検証済みという意味ではない |
+| LEG-009 | P1 | **整備済み・CI成功** | 自動テスト・Windowsビルド | 計算20件・SQLite移行5件・Windows実SQLite／画面25件の計50件と、既存ソリューションのNuGet復元・Windowsビルドが成功。実行方法は[tests/README](../tests/README.md)。全手動ケースや実DBを検証済みという意味ではない |
 | LEG-010 | P1 | コード上のリスク | 業務データとWindowsアカウントの結合 | `Environment.UserName` をマスタ候補・更新者に利用。マシン移転や家族共有時に要検証 |
 | LEG-011 | P1 | 一部決定・残課題 | 対象者なし・人数按分 | **配分額は参考値**。実装は既存floorの参考集計を維持し、half_upの個人別最終端数を四捨五入する。対象者0人の明細が按分モードで除外される現行動作は別途確認 |
 | LEG-012 | P2 | **修正済み・CI成功** | 支払メモ一括保存の途中失敗 | 旧処理はFK ONの末尾INSERT失敗時に先行する更新・追加が残ることを実SQLiteで再現。既存UPSERT全体をトランザクション化し、全件成功時だけCommit、失敗時はRollback・例外再送出。FK ON/OFFで成功・末尾INSERT／UPDATE失敗時の全件復元と同じDataAccessでの再保存・空リストを自動検証済み。SQL・保存順・NULL仕様・画面操作は維持 |
@@ -38,6 +38,7 @@
 | LEG-025 | P2 | **コード確認** | 残高推算ロジックの重複 | `Calculation.AutoBalance` と `DataAccess.GetAutoBalance` にほぼ同じ処理がある。ルール変更時に計算の食い違いが生じるリスク |
 | LEG-026 | P2 | **コード上の性能リスク** | レシート階層のN+1 SELECT | `GetReceipts` 後にグループ→明細→対象者を個別問い合わせ。年次集計で件数増加時にSQL発行回数・応答時間を計測する |
 | LEG-027 | P0 | **修正済み・CI成功** | 残高削除の外部キー対応 | `DeleteBalance`のDELETE順を`t_balance_groups`→`t_balances`へ変更。既存トランザクションを維持し、FK ON/OFFで削除成功（子0／2件）・親削除失敗時の全件復元と同じDataAccessでの再削除（子2件）、他の残高・無関係な全テーブルの保持を自動検証済み。製品のFK設定・DDL・画面操作は変更しない。レシートのLEG-004とは別の対象範囲 |
+| LEG-028 | P1 | **修正済み・CI成功** | 残高・振替の任意タグのNULL読込 | 製品と同じSQLiteで旧コードのSQL NULLの`GetString`例外を再現。`t_balances.tag`・`t_balance_groups.tag`・`t_transfers.tag`の3列・6読込箇所でNULLだけをモデルの空文字へ変換。残高の3読込と振替の2読込、全NULL時の両AutoBalanceを3チェックに追加。非NULL文字列・日時・金額・評価額・支払方法と保存済みNULLを保持する。DB移行・保存SQL・計算・必須文字列・画面操作は変更せず、レシートのLEG-024とは別の対象範囲 |
 
 ## 合意した前提と2026-10-18時点の実装状況
 

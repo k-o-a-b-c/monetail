@@ -591,7 +591,7 @@ Public Class DataAccess
                         .Fee = reader.GetInt32(3),
                         .FromPaymentClassification = PaymentClassification(reader.GetInt32(4)),
                         .ToPaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = reader.GetString(6)
+                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6))
                     }
                     transferList.Add(transfer)
                 End While
@@ -616,7 +616,7 @@ Public Class DataAccess
                     Dim balance As New Balance() With {
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
-                        .Tag = reader.GetString(2)
+                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2))
                     }
                     LoadBalanceGroupData(balance)
                     balanceList.Add(balance)
@@ -641,7 +641,7 @@ Public Class DataAccess
                         .BalanceSeq = groupReader.GetInt32(0),
                         .PaymentClassification = PaymentClassification(groupReader.GetInt32(1)),
                         .Balance = groupReader.GetInt32(2),
-                        .Tag = groupReader.GetString(4)
+                        .Tag = If(groupReader.IsDBNull(4), String.Empty, groupReader.GetString(4))
                     }
                     If groupReader.IsDBNull(3) Then
                         balanceGroup.ValuationAmount = Nothing
@@ -680,7 +680,7 @@ Public Class DataAccess
                     balance = New Balance() With {
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
-                        .Tag = reader.GetString(2)
+                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2))
                     }
                     LoadBalanceGroupData(balance)
                 End While
@@ -704,7 +704,7 @@ Public Class DataAccess
                     balance = New Balance() With {
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
-                        .Tag = reader.GetString(2)
+                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2))
                     }
                     LoadBalanceGroupData(balance)
                 End While
@@ -766,7 +766,7 @@ Public Class DataAccess
                         .Fee = reader.GetInt32(3),
                         .FromPaymentClassification = PaymentClassification(reader.GetInt32(4)),
                         .ToPaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = reader.GetString(6)
+                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6))
                     }
                     transferList.Add(transfer)
                 End While

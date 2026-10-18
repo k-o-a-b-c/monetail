@@ -2,7 +2,7 @@
 
 - 作成: 2026-10-17
 - 更新: 2026-10-18 / 店舗履歴による初期選択、ラジオボタン、登録確定までReceiptの両税設定を変更しない方式を反映
-- 状態: **税端数処理はmainへ反映済み。現行コード全体は計算20件・移行5件・Windows保存／画面22件の計47件と既存Windowsビルドが成功。手動のWindows画面確認・実データでの検証は未実施。実行方法は [tests/README.md](../tests/README.md)**
+- 状態: **税端数処理はmainへ反映済み。現行コード全体は計算20件・移行5件・Windows保存／画面25件の計50件と既存Windowsビルドが成功。手動のWindows画面確認・実データでの検証は未実施。実行方法は [tests/README.md](../tests/README.md)**
 - 対象: WinForms / VB.NET / SQLite
 - 関連: `LEG-019`・[08 改修要件](08-requested-enhancements.md)・[14 決定記録](14-decisions-2026-10-16.md)
 
