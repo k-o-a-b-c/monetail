@@ -10,6 +10,8 @@ Module Program
     <STAThread>
     Function Main() As Integer
         Check("actual SQLite receipt insert/update and both read paths", AddressOf ReceiptPersistence)
+        Check("discount rates survive receipt insert and all three read paths", AddressOf FractionalDiscountTests.InsertRoundTrips)
+        Check("discount rates survive receipt update and all three read paths", AddressOf FractionalDiscountTests.UpdateRoundTrips)
         Check("latest receipt history overrides unused master setting", AddressOf HistoryDefaults)
         Check("history uses own payment account and deterministic newest row", AddressOf HistoryOrderingAndOwnership)
         Check("failed receipt update rolls mode and total back together", AddressOf TransactionRollback)
