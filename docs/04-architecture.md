@@ -44,6 +44,7 @@ Windows デスクトップアプリ
 4. レシート参照: `GetReceipts` → `LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData` の順に読み込む。
 5. 集計: 画面内で年次データを取得し、`Receipt` の計算プロパティと `Calculation` で集約。
 6. 振替／残高: 専用フォームから `DataAccess` の各登録メソッドを呼ぶ。
+7. 支払メモ: `RegisterPaymentMemoForm`から全行を`RegisterPaymentMemo`へ渡す。既存のUPSERTループ全体を1つのトランザクションで処理し、全件成功時にCommit、例外時にRollback・再送出し、Finallyで破棄する。空リストはトランザクション開始前に戻る。
 
 税端数はレシートの `TaxRoundingMode`（`floor` / `half_up`）が正本で、同税率の明細を合算してから処理する。新規画面の初期選択だけを、同店・現在のWindows利用者が所有する支払方法の直近レシートから取得する。店舗マスタの端数値は参照せず、マスタメンテナンス画面も追加していない。流用は従来どおり確認直後の新規保存・画面終了で、画面上の税設定を保存する。
 
@@ -65,9 +66,9 @@ Windows デスクトップアプリ
 
 ## 自動検証
 
-[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxで.NET 8の計算テスト20件とPython標準SQLiteの移行テスト5件、Windowsで.NET Framework 4.8の永続化・画面テスト17件を実行する。合計42件と、既存ソリューションのNuGet復元・Windowsビルドが成功済み（2026-10-18時点）。
+[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxで.NET 8の計算テスト20件とPython標準SQLiteの移行テスト5件、Windowsで.NET Framework 4.8の永続化・画面テスト20件を実行する。合計45件と、既存ソリューションのNuGet復元・Windowsビルドが成功済み（2026-10-18時点）。
 
-Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFの更新／削除と失敗時DB復元、任意文字列のNULL読込・画面取消、小数割引率の新規・更新と3読込経路を検証する。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
+Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFの更新／削除と失敗時DB復元、任意文字列のNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
 
 ## オンライン化に向けた境界
 
