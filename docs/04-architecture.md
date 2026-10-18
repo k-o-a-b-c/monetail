@@ -50,6 +50,8 @@ Windows デスクトップアプリ
 
 更新・削除では、対象者割当→明細→グループ→（削除時のみ）レシート親の順で削除し、既存トランザクションでDB変更を確定・巻き戻す。外部キーON/OFFをテスト用接続で検証しているが、製品の外部キー設定は変更していない。
 
+残高削除は`DataAccess.DeleteBalance`で`t_balance_groups`→`t_balances`の順に行う。既存トランザクション・DDL・画面操作を維持し、FK ON/OFFで成功と親削除失敗時の巻き戻し・同じDataAccessでの再削除を検証する（LEG-027）。
+
 所在地とレシート／グループ／明細タグのNULLは読込時だけ `String.Empty` に変換する。一覧・残高の両ヘッダー読込と子の読込が対象で、読込・取消はDBのNULLを保存し直さない。後から明示的に保存した場合は、従来の保存SQLで空文字を書き込む。
 
 明細の割引率は共通の`LoadReceiptDetailData`で`GetDouble`により読み込む。SQLiteの`INTEGER`宣言でも小数はREALとして保存され、旧`GetInt32`は読込例外となった。読込型だけをモデルの`Double`へ合わせ、保存・計算・画面操作は変更していない。
@@ -66,9 +68,9 @@ Windows デスクトップアプリ
 
 ## 自動検証
 
-[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxで.NET 8の計算テスト20件とPython標準SQLiteの移行テスト5件、Windowsで.NET Framework 4.8の永続化・画面テスト20件を実行する。合計45件と、既存ソリューションのNuGet復元・Windowsビルドが成功済み（2026-10-18時点）。
+[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxで.NET 8の計算テスト20件とPython標準SQLiteの移行テスト5件、Windowsで.NET Framework 4.8の永続化・画面テスト22件を実行する。合計47件と、既存ソリューションのNuGet復元・Windowsビルドが成功済み（2026-10-18時点）。
 
-Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFの更新／削除と失敗時DB復元、任意文字列のNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
+Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFのレシート更新／削除と失敗時DB復元、残高削除の成功・巻き戻しと再削除、任意文字列のNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
 
 ## オンライン化に向けた境界
 

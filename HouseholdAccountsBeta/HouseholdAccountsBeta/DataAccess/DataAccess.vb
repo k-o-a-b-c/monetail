@@ -1225,13 +1225,13 @@ Public Class DataAccess
         Try
             trans = Connection.BeginTransaction()
 
+            DeleteBalanceGroups(balance)
+
             Using command As SQLiteCommand = Connection.CreateCommand()
                 command.CommandText = "delete from t_balances where seq = :seq"
                 command.Parameters.AddWithValue("seq", balance.Seq)
                 command.ExecuteNonQuery()
             End Using
-
-            DeleteBalanceGroups(balance)
 
             trans.Commit()
 
