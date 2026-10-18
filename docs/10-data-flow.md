@@ -98,7 +98,12 @@ ViewForm → DataAccess.GetReceipts(年月/年)
 
 - 両ヘッダー読込の `shop_location`・`tag`、グループの `tag`、明細の `tag` の計6箇所で、`IsDBNull` によりSQLのNULLだけを `String.Empty` に変換する。既存の空文字・日本語・空白はそのまま保持する。
 - 読込、子の再読込、画面取消・再表示では、DBのNULL、金額、対象者割当を更新しないことを一時DBで自動検証済み。明示的な登録／更新時は既存保存SQLが画面上の空文字を保存する。
-- 必須の店名・品名等や数値列の読込、DB定義は変更していない。小数の割引率を `GetInt32` で読み込む既存処理は未改修。
+- このNULL対応では、必須の店名・品名等や数値列の読込、DB定義は変更していない。
+
+**小数割引率の読込（LEG-005）**:
+
+- 一覧・残高・子再読込から共通で呼ぶ`LoadReceiptDetailData`の`DiscountRate`を`GetDouble(7)`で取得する。SQLiteのREAL値に旧`GetInt32(7)`を使うと`InvalidCastException`になるため、モデルの`Double`へ合わせた。
+- `discount_rate INTEGER NOT NULL`の宣言と保存SQLは維持する。小数率はREAL、整数率はINTEGERとして格納できる。新規・更新と3読込経路の回帰で、率と合計が保持され、読込で保存済みの率・単価値引・数量・合計等を更新しないことを自動検証済み。
 
 ## 4. 振替・残高のフロー
 
