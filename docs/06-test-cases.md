@@ -42,7 +42,7 @@
 | ID | 手順 | 期待・確認点 |
 | --- | --- | --- |
 | DB-001 | コピーDBで `PRAGMA foreign_keys`, `PRAGMA foreign_key_check`, `PRAGMA integrity_check` | FK有効状態と既存行の不整合を把握（データを変更しない） |
-| DB-002 | FK有効接続でレシート明細編集・レシート削除 | 親子のDELETE順が制約に適合する。現行コードは失敗する可能性があり修正要 |
+| DB-002 | FK有効接続でレシート明細編集・レシート削除 | 親子のDELETE順が制約に適合する。Windows自動回帰テストでFK ON/OFFの更新・削除・途中失敗時のDB復元・別レシートの保持を検証 |
 | DB-003 | `t_receipt_points` と `t_receipts` を照合 | `receipt_seq` 孤児・主キー `seq` の競合がないか確認 |
 | DB-004 | `t_receipt_groups.tax` と `m_tax_rate.code` を照合 | 税率マスタ参照を失ったグループがないか確認 |
 | DB-005 | 小数 `discount_rate` を保存→再読込 | 宣言型INTEGERとVBのDouble／GetInt32による損失・例外の有無を記録 |

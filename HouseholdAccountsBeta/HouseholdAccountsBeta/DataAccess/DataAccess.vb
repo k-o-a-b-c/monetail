@@ -964,13 +964,14 @@ Public Class DataAccess
         Using command As SQLiteCommand = Connection.CreateCommand()
             command.Parameters.AddWithValue("receipt_seq", receipt.Seq)
 
-            command.CommandText = "delete from t_receipt_groups where receipt_seq = :receipt_seq"
+            '外部キーの参照元から順に削除する。
+            command.CommandText = "delete from t_receipt_detail_users where receipt_seq = :receipt_seq"
             command.ExecuteNonQuery()
 
             command.CommandText = "delete from t_receipt_details where receipt_seq = :receipt_seq"
             command.ExecuteNonQuery()
 
-            command.CommandText = "delete from t_receipt_detail_users where receipt_seq = :receipt_seq"
+            command.CommandText = "delete from t_receipt_groups where receipt_seq = :receipt_seq"
             command.ExecuteNonQuery()
         End Using
 
@@ -982,13 +983,13 @@ Public Class DataAccess
         Try
             trans = Connection.BeginTransaction()
 
+            DeleteReceiptGroups(receipt)
+
             Using command As SQLiteCommand = Connection.CreateCommand()
                 command.CommandText = "delete from t_receipts where seq = :seq"
                 command.Parameters.AddWithValue("seq", receipt.Seq)
                 command.ExecuteNonQuery()
             End Using
-
-            DeleteReceiptGroups(receipt)
 
             trans.Commit()
 

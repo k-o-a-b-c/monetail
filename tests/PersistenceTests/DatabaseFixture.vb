@@ -1,5 +1,6 @@
 Imports System.Data.SQLite
 Imports System.IO
+Imports System.Reflection
 
 Friend Class DatabaseFixture
     Implements IDisposable
@@ -8,8 +9,9 @@ Friend Class DatabaseFixture
     Public ReadOnly ConnectionString As String
     Public ReadOnly Data As DataAccess
 
-    Public Sub New()
+    Public Sub New(Optional foreignKeys As Boolean? = Nothing)
         ConnectionString = "Data Source=" & databasePath & ";Version=3;Pooling=False;"
+        If foreignKeys.HasValue Then ConnectionString &= "Foreign Keys=" & foreignKeys.Value.ToString() & ";"
         Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "monetail_schema.sql")))
         Execute("INSERT INTO m_user(code,name,account_name,seq) VALUES(1,'test',@account,1);", Environment.UserName)
         Execute("INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(1,'cash',1,1);" &
@@ -25,6 +27,13 @@ Friend Class DatabaseFixture
         Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "tax_rounding.sql")))
         Data = New DataAccess(ConnectionString)
     End Sub
+
+    ' PRAGMA settings are connection-specific: inspect the connection used by production methods.
+    Public ReadOnly Property ActualDataConnection As SQLiteConnection
+        Get
+            Return DirectCast(GetType(DataAccess).GetField("Connection", BindingFlags.Instance Or BindingFlags.NonPublic).GetValue(Data), SQLiteConnection)
+        End Get
+    End Property
 
     Public Sub Execute(sql As String, Optional account As String = Nothing)
         Using connection As New SQLiteConnection(ConnectionString)
