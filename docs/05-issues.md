@@ -37,7 +37,7 @@
 | LEG-022 | P2 | **DDL確認・データ未検証** | 税率コードの参照整合性 | `t_receipt_groups.tax` は **DEFAULT 8**、`m_tax_rate.code` をソースは参照するが物理FKがない。実データの税率コード対応を検査 |
 | LEG-023 | P2 | **DDL確認・機能未確認** | 支払方法の有効期間 | `m_payment_classification` に `valid_from DATE` と `valid_to DATE` がある。既存UI・DBアクセスでの利用は未確認 |
 
-| LEG-024 | P1 | **DDL確認・コード上のリスク** | NULL許容の文字列と`GetString`の不整合 | `t_receipts.shop_location/tag`, `t_receipt_groups.tag`, `t_receipt_details.tag` はNULL可。一方 `DataAccess.GetReceipts` 系では `reader.GetString` をNULL判定なしで呼ぶ箇所がある。実データのNULL件数と例外を検証 |
+| LEG-024 | P1 | **修正済み・自動テスト追加** | レシートの任意文字列のNULL読込 | 製品と同じSQLiteでNULLの`GetString`が`InvalidCastException`になることをテストDBで再現。`shop_location`とレシート・グループ・明細の`tag`を読込時だけ空文字へ変換。一覧・残高・子再読込・画面取消を検証し、金額と保存済みNULLを維持。DB定義・必須文字列の読込・保存処理は変更しない |
 | LEG-025 | P2 | **コード確認** | 残高推算ロジックの重複 | `Calculation.AutoBalance` と `DataAccess.GetAutoBalance` にほぼ同じ処理がある。ルール変更時に計算の食い違いが生じるリスク |
 | LEG-026 | P2 | **コード上の性能リスク** | レシート階層のN+1 SELECT | `GetReceipts` 後にグループ→明細→対象者を個別問い合わせ。年次集計で件数増加時にSQL発行回数・応答時間を計測する |
 
