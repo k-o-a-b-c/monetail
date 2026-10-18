@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>OriginalControls</RootNamespace>
+    <OptionStrict>Off</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Import Include="System.Windows.Forms" />
+    <Import Include="System.Drawing" />
+    <Compile Include="../../HouseholdAccountsBeta/OriginalControls/*.vb" Link="Production/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

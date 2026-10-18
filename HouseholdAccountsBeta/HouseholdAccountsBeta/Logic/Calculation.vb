@@ -1,8 +1,32 @@
-﻿Imports System.Windows.Forms.VisualStyles.VisualStyleElement.ListView
-
-Public Class Calculation
+﻿Public Class Calculation
 
     Public Shared DataAccess As DataAccess
+
+    Public Shared Sub ValidateTaxRoundingMode(ByVal mode As String)
+        If mode <> "floor" AndAlso mode <> "half_up" Then
+            Throw New ArgumentException("税端数処理は floor または half_up を指定してください。", NameOf(mode))
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 同一税率で合算済みの課税額・非課税額から税込額を求める。
+    ''' </summary>
+    Public Shared Function TaxRateSubtotal(ByVal taxFee As Double, ByVal nonTaxFee As Double,
+                                           ByVal taxRate As Integer, ByVal taxType As Integer,
+                                           ByVal taxRoundingMode As String) As Double
+        ValidateTaxRoundingMode(taxRoundingMode)
+        If taxType <> 1 Then
+            Return Math.Floor(taxFee + nonTaxFee)
+        End If
+        If taxRoundingMode = "floor" Then
+            ' 負額や浮動小数点の境界を含め、既存レシートの計算式を維持する。
+            Return Math.Floor(taxFee * (1 + taxRate / 100) + nonTaxFee)
+        End If
+
+        ' half_up は税額を Decimal で求め、負の中間値もゼロから遠い側へ丸める。
+        Dim tax As Decimal = Math.Round(CDec(taxFee) * taxRate / 100D, 0, MidpointRounding.AwayFromZero)
+        Return Decimal.ToDouble(CDec(taxFee) + tax + CDec(nonTaxFee))
+    End Function
 
     Public Shared Function AutoBalance(ByVal BaseDate As DateTime, ByVal PaymentClassification As PaymentClassification) As Nullable(Of Integer)
         Dim balance As Integer = 0
@@ -52,7 +76,7 @@ Public Class Calculation
             End If
         Next
         If Receipt.TaxType = 1 Then
-            taxFee = Math.Floor(taxFee * (1 + Group.TaxRate.Rate / 100))
+            taxFee = TaxRateSubtotal(taxFee, 0, Group.TaxRate.Rate, Receipt.TaxType, Receipt.TaxRoundingMode)
         End If
         Return Convert.ToInt32(taxFee + nonTaxFee)
     End Function
@@ -63,7 +87,7 @@ Public Class Calculation
         fee *= Detail.Quantity
         fee -= Math.Ceiling(fee * Detail.DiscountRate / 100)
         If Detail.TaxTarget AndAlso Receipt.TaxType = 1 Then
-            fee = Math.Floor(fee * (1 + Group.TaxRate.Rate / 100))
+            fee = TaxRateSubtotal(fee, 0, Group.TaxRate.Rate, Receipt.TaxType, Receipt.TaxRoundingMode)
         End If
         Return Convert.ToInt32(fee)
     End Function

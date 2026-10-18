@@ -27,6 +27,10 @@ Partial Class RegisterForm
         Me.Label2 = New System.Windows.Forms.Label()
         Me.Label4 = New System.Windows.Forms.Label()
         Me.Label5 = New System.Windows.Forms.Label()
+        Me.TaxRoundingModeLabel = New System.Windows.Forms.Label()
+        Me.TaxRoundingModePanel = New System.Windows.Forms.Panel()
+        Me.TaxRoundingFloorRadioButton = New OriginalControls.OriginalRadioButton()
+        Me.TaxRoundingHalfUpRadioButton = New OriginalControls.OriginalRadioButton()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.DetailPanel = New System.Windows.Forms.Panel()
         Me.Label18 = New System.Windows.Forms.Label()
@@ -91,6 +95,7 @@ Partial Class RegisterForm
         Me.ShopNameComboBox = New OriginalControls.OriginalComboBox()
         Me.TotalTextBox = New OriginalControls.OriginalTextBox()
         Me.UserListBox = New OriginalControls.OriginalListBox()
+        Me.TaxRoundingModePanel.SuspendLayout()
         Me.GroupBox1.SuspendLayout()
         Me.DetailPanel.SuspendLayout()
         Me.GroupPanel.SuspendLayout()
@@ -132,6 +137,51 @@ Partial Class RegisterForm
         Me.Label5.Size = New System.Drawing.Size(31, 15)
         Me.Label5.TabIndex = 12
         Me.Label5.Text = "合計"
+        '
+        'TaxRoundingModeLabel
+        '
+        Me.TaxRoundingModeLabel.AutoSize = True
+        Me.TaxRoundingModeLabel.Location = New System.Drawing.Point(383, 88)
+        Me.TaxRoundingModeLabel.Name = "TaxRoundingModeLabel"
+        Me.TaxRoundingModeLabel.Size = New System.Drawing.Size(43, 15)
+        Me.TaxRoundingModeLabel.TabIndex = 11
+        Me.TaxRoundingModeLabel.Text = "税端数"
+        '
+        'TaxRoundingModePanel
+        '
+        Me.TaxRoundingModePanel.AccessibleName = "消費税の端数処理"
+        Me.TaxRoundingModePanel.Controls.Add(Me.TaxRoundingFloorRadioButton)
+        Me.TaxRoundingModePanel.Controls.Add(Me.TaxRoundingHalfUpRadioButton)
+        Me.TaxRoundingModePanel.Location = New System.Drawing.Point(430, 83)
+        Me.TaxRoundingModePanel.Name = "TaxRoundingModePanel"
+        Me.TaxRoundingModePanel.Size = New System.Drawing.Size(185, 27)
+        Me.TaxRoundingModePanel.TabIndex = 12
+        '
+        'TaxRoundingFloorRadioButton
+        '
+        Me.TaxRoundingFloorRadioButton.AccessibleName = "税端数：切り捨て"
+        Me.TaxRoundingFloorRadioButton.AutoSize = True
+        Me.TaxRoundingFloorRadioButton.Location = New System.Drawing.Point(3, 3)
+        Me.TaxRoundingFloorRadioButton.Name = "TaxRoundingFloorRadioButton"
+        Me.TaxRoundingFloorRadioButton.Size = New System.Drawing.Size(73, 19)
+        Me.TaxRoundingFloorRadioButton.TabIndex = 0
+        Me.TaxRoundingFloorRadioButton.TabStop = True
+        Me.TaxRoundingFloorRadioButton.Text = "切り捨て"
+        Me.TaxRoundingFloorRadioButton.UseVisualStyleBackColor = True
+        Me.HelpToolTip.SetToolTip(Me.TaxRoundingFloorRadioButton, "このレシートに適用する税端数処理。新規入力では店舗の直近レシートの設定を初期値にします。")
+        '
+        'TaxRoundingHalfUpRadioButton
+        '
+        Me.TaxRoundingHalfUpRadioButton.AccessibleName = "税端数：四捨五入"
+        Me.TaxRoundingHalfUpRadioButton.AutoSize = True
+        Me.TaxRoundingHalfUpRadioButton.Location = New System.Drawing.Point(86, 3)
+        Me.TaxRoundingHalfUpRadioButton.Name = "TaxRoundingHalfUpRadioButton"
+        Me.TaxRoundingHalfUpRadioButton.Size = New System.Drawing.Size(73, 19)
+        Me.TaxRoundingHalfUpRadioButton.TabIndex = 1
+        Me.TaxRoundingHalfUpRadioButton.TabStop = True
+        Me.TaxRoundingHalfUpRadioButton.Text = "四捨五入"
+        Me.TaxRoundingHalfUpRadioButton.UseVisualStyleBackColor = True
+        Me.HelpToolTip.SetToolTip(Me.TaxRoundingHalfUpRadioButton, "このレシートに適用する税端数処理。新規入力では店舗の直近レシートの設定を初期値にします。")
         '
         'GroupBox1
         '
@@ -743,6 +793,8 @@ Partial Class RegisterForm
         Me.AutoScaleDimensions = New System.Drawing.SizeF(96.0!, 96.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi
         Me.ClientSize = New System.Drawing.Size(627, 610)
+        Me.Controls.Add(Me.TaxRoundingModeLabel)
+        Me.Controls.Add(Me.TaxRoundingModePanel)
         Me.Controls.Add(Me.HelpLabel)
         Me.Controls.Add(Me.TotalTextBox2)
         Me.Controls.Add(Me.Label7)
@@ -774,6 +826,8 @@ Partial Class RegisterForm
         Me.Name = "RegisterForm"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
         Me.Text = "登録"
+        Me.TaxRoundingModePanel.ResumeLayout(False)
+        Me.TaxRoundingModePanel.PerformLayout()
         Me.GroupBox1.ResumeLayout(False)
         Me.DetailPanel.ResumeLayout(False)
         Me.DetailPanel.PerformLayout()
@@ -789,6 +843,10 @@ Partial Class RegisterForm
     Friend WithEvents Label2 As Label
     Friend WithEvents Label4 As Label
     Friend WithEvents Label5 As Label
+    Friend WithEvents TaxRoundingModeLabel As Label
+    Friend WithEvents TaxRoundingModePanel As Panel
+    Friend WithEvents TaxRoundingFloorRadioButton As OriginalControls.OriginalRadioButton
+    Friend WithEvents TaxRoundingHalfUpRadioButton As OriginalControls.OriginalRadioButton
     Friend WithEvents GroupBox1 As GroupBox
     Friend WithEvents Label14 As Label
     Friend WithEvents Label10 As Label

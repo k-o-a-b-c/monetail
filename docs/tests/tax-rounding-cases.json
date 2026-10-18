@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "test_target": "Receipt.Total",
-  "status": "proposed_expectations_not_executed",
+  "status": "executed_by_tests/CalculationTests",
   "description": "明細 net_amount_yen は単価値引と率値引を適用済みの整数円。tax_type 1=税抜、0=税込。税率単位に集計して丸める。",
   "rounding_modes": [
     "floor",

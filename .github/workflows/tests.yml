@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  calculations-and-migration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet run --project tests/CalculationTests/CalculationTests.vbproj
+      - run: python3 -m unittest discover -s tests -p 'test_migration.py' -v
+
+  windows-persistence-and-ui:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
+      - uses: NuGet/setup-nuget@v2
+      - uses: microsoft/setup-msbuild@v2
+      - run: nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln
+      - run: msbuild HouseholdAccountsBeta/HouseholdAccountsBeta.sln /p:Configuration=Debug /p:Platform="Any CPU" /verbosity:minimal

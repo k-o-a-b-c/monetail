@@ -4,6 +4,18 @@
     Public Property ShopName As String
     Public Property ShopLocation As String
     Public Property TaxType As Integer
+
+    Private _taxRoundingMode As String = "floor"
+
+    Public Property TaxRoundingMode As String
+        Get
+            Return _taxRoundingMode
+        End Get
+        Set(ByVal value As String)
+            Calculation.ValidateTaxRoundingMode(value)
+            _taxRoundingMode = value
+        End Set
+    End Property
     Public Property PaymentClassification As PaymentClassification
     Public Property Tag As String
 
@@ -58,152 +70,75 @@
 
     Public ReadOnly Property Total As Integer
         Get
-            Dim groupTaxFee As New Dictionary(Of Integer, Double)()
-            Dim groupNoTaxFee As New Dictionary(Of Integer, Double)()
-            For Each group As ReceiptGroup In Groups
-                'If group.GroupClassification.Code = 98 Then
-                '    Continue For
-                'End If
-                Dim taxFee As Double = 0
-                Dim nonTaxFee As Double = 0
-                For Each detail As ReceiptDetail In group.Details
-                    Dim fee As Double = detail.Fee
-                    fee -= detail.DiscountFee
-                    fee *= detail.Quantity
-                    fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
-                    If detail.TaxTarget Then
-                        taxFee += fee
-                    Else
-                        nonTaxFee += fee
-                    End If
-                Next
-                If groupTaxFee.ContainsKey(group.TaxRate.Rate) Then
-                    groupTaxFee(group.TaxRate.Rate) += taxFee
-                    groupNoTaxFee(group.TaxRate.Rate) += nonTaxFee
-                Else
-                    groupTaxFee.Add(group.TaxRate.Rate, taxFee)
-                    groupNoTaxFee.Add(group.TaxRate.Rate, nonTaxFee)
-                End If
-            Next
-
-            Dim subTotals As Double = 0
-            For Each taxRate As Integer In groupTaxFee.Keys
-                If TaxType = 1 Then
-                    subTotals += Math.Floor(groupTaxFee(taxRate) * (1 + taxRate / 100) + groupNoTaxFee(taxRate))
-                Else
-                    subTotals += Math.Floor(groupTaxFee(taxRate) + groupNoTaxFee(taxRate))
-                End If
-            Next
-
-            Return Convert.ToInt32(subTotals)
+            Return GetTotal(TaxType, TaxRoundingMode)
         End Get
     End Property
 
     ''' <summary>
-    ''' 収入合計
+    ''' 収入合計。値引き後の明細が負の場合を収入とみなす。
     ''' </summary>
-    ''' <remarks>
-    ''' 分類毎に収入と支出を分けて計算する。明細の金額が負の場合を収入とみなす。
-    ''' </remarks>
-    ''' <returns></returns>
     Public ReadOnly Property Incomes As Integer
         Get
-            Dim groupTaxFee As New Dictionary(Of Integer, Double)()
-            Dim groupNoTaxFee As New Dictionary(Of Integer, Double)()
-            For Each group As ReceiptGroup In Groups
-                'If group.GroupClassification.Code = 98 Then
-                '    Continue For
-                'End If
-                Dim taxFee As Double = 0
-                Dim nonTaxFee As Double = 0
-                For Each detail As ReceiptDetail In group.Details
-                    Dim fee As Double = detail.Fee
-                    fee -= detail.DiscountFee
-                    fee *= detail.Quantity
-                    fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
-                    If fee >= 0 Then
-                        Continue For
-                    End If
-                    If detail.TaxTarget Then
-                        taxFee += fee
-                    Else
-                        nonTaxFee += fee
-                    End If
-                Next
-                If groupTaxFee.ContainsKey(group.TaxRate.Rate) Then
-                    groupTaxFee(group.TaxRate.Rate) += taxFee
-                    groupNoTaxFee(group.TaxRate.Rate) += nonTaxFee
-                Else
-                    groupTaxFee.Add(group.TaxRate.Rate, taxFee)
-                    groupNoTaxFee.Add(group.TaxRate.Rate, nonTaxFee)
-                End If
-            Next
-
-            Dim subTotals As Double = 0
-            For Each taxRate As Integer In groupTaxFee.Keys
-                If TaxType = 1 Then
-                    subTotals += Math.Floor(groupTaxFee(taxRate) * (1 + taxRate / 100) + groupNoTaxFee(taxRate))
-                Else
-                    subTotals += Math.Floor(groupTaxFee(taxRate) + groupNoTaxFee(taxRate))
-                End If
-            Next
-
-            Return Convert.ToInt32(subTotals)
+            Return CalculateTotal(-1, TaxType, TaxRoundingMode)
         End Get
     End Property
 
     ''' <summary>
-    ''' 支出合計
+    ''' 支出合計。値引き後の明細が正の場合を支出とみなす。
     ''' </summary>
-    ''' <remarks>
-    ''' 分類毎に収入と支出を分けて計算する。明細の金額が正の場合を支出とみなす。
-    ''' </remarks>
-    ''' <returns></returns>
     Public ReadOnly Property Expenses As Integer
         Get
-            Dim groupTaxFee As New Dictionary(Of Integer, Double)()
-            Dim groupNoTaxFee As New Dictionary(Of Integer, Double)()
-            For Each group As ReceiptGroup In Groups
-                'If group.GroupClassification.Code = 98 Then
-                '    Continue For
-                'End If
-                Dim taxFee As Double = 0
-                Dim nonTaxFee As Double = 0
-                For Each detail As ReceiptDetail In group.Details
-                    Dim fee As Double = detail.Fee
-                    fee -= detail.DiscountFee
-                    fee *= detail.Quantity
-                    fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
-                    If fee <= 0 Then
-                        Continue For
-                    End If
-                    If detail.TaxTarget Then
-                        taxFee += fee
-                    Else
-                        nonTaxFee += fee
-                    End If
-                Next
-                If groupTaxFee.ContainsKey(group.TaxRate.Rate) Then
-                    groupTaxFee(group.TaxRate.Rate) += taxFee
-                    groupNoTaxFee(group.TaxRate.Rate) += nonTaxFee
-                Else
-                    groupTaxFee.Add(group.TaxRate.Rate, taxFee)
-                    groupNoTaxFee.Add(group.TaxRate.Rate, nonTaxFee)
-                End If
-            Next
-
-            Dim subTotals As Double = 0
-            For Each taxRate As Integer In groupTaxFee.Keys
-                If TaxType = 1 Then
-                    subTotals += Math.Floor(groupTaxFee(taxRate) * (1 + taxRate / 100) + groupNoTaxFee(taxRate))
-                Else
-                    subTotals += Math.Floor(groupTaxFee(taxRate) + groupNoTaxFee(taxRate))
-                End If
-            Next
-
-            Return Convert.ToInt32(subTotals)
+            Return CalculateTotal(1, TaxType, TaxRoundingMode)
         End Get
     End Property
+
+    ''' <summary>
+    ''' 指定した税区分・端数処理で合計を計算する。レシートの保存値は変更しない。
+    ''' </summary>
+    Public Function GetTotal(ByVal taxType As Integer, ByVal taxRoundingMode As String) As Integer
+        Return CalculateTotal(0, taxType, taxRoundingMode)
+    End Function
+
+    ' signFilter: 0 = 全明細、-1 = 収入、1 = 支出。
+    ' 同じ税率の全グループを合算してから、一度だけ税端数を処理する。
+    Private Function CalculateTotal(ByVal signFilter As Integer, ByVal taxType As Integer,
+                                    ByVal taxRoundingMode As String) As Integer
+        Calculation.ValidateTaxRoundingMode(taxRoundingMode)
+        Dim groupTaxFee As New Dictionary(Of Integer, Double)()
+        Dim groupNoTaxFee As New Dictionary(Of Integer, Double)()
+        For Each group As ReceiptGroup In Groups
+            Dim taxFee As Double = 0
+            Dim nonTaxFee As Double = 0
+            For Each detail As ReceiptDetail In group.Details
+                Dim fee As Double = detail.Fee
+                fee -= detail.DiscountFee
+                fee *= detail.Quantity
+                fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
+                If (signFilter < 0 AndAlso fee >= 0) OrElse
+                   (signFilter > 0 AndAlso fee <= 0) Then
+                    Continue For
+                End If
+                If detail.TaxTarget Then
+                    taxFee += fee
+                Else
+                    nonTaxFee += fee
+                End If
+            Next
+            If groupTaxFee.ContainsKey(group.TaxRate.Rate) Then
+                groupTaxFee(group.TaxRate.Rate) += taxFee
+                groupNoTaxFee(group.TaxRate.Rate) += nonTaxFee
+            Else
+                groupTaxFee.Add(group.TaxRate.Rate, taxFee)
+                groupNoTaxFee.Add(group.TaxRate.Rate, nonTaxFee)
+            End If
+        Next
+
+        Dim subTotals As Double = 0
+        For Each taxRate As Integer In groupTaxFee.Keys
+            subTotals += Calculation.TaxRateSubtotal(groupTaxFee(taxRate), groupNoTaxFee(taxRate), taxRate, taxType, taxRoundingMode)
+        Next
+        Return Convert.ToInt32(subTotals)
+    End Function
 
     Public Function GetGroupStatisticsList(ByVal users As List(Of User), ByVal IsAnd As Boolean, ByVal IsOnlyPerson As Boolean) As List(Of GroupStatistics)
 
@@ -246,10 +181,16 @@
                 .GroupCode = group.GroupClassification.Code,
                 .YearMonth = Me.Date
             }
-            If Me.TaxType = 1 Then
-                GroupStatistics.Fee = Convert.ToInt32(Math.Floor(taxFee * (1 + group.TaxRate.Rate / 100) + nonTaxFee))
+            ' 分類・個人別の参考額。レシートの会計合計には使用しない。
+            Dim calculatedFee As Double = Calculation.TaxRateSubtotal(taxFee, nonTaxFee, group.TaxRate.Rate, TaxType, TaxRoundingMode)
+            If IsOnlyPerson AndAlso TaxRoundingMode = "half_up" Then
+                If TaxType <> 1 Then
+                    calculatedFee = taxFee + nonTaxFee
+                End If
+                GroupStatistics.Fee = Convert.ToInt32(Math.Round(calculatedFee, 0, MidpointRounding.AwayFromZero))
             Else
-                GroupStatistics.Fee = Convert.ToInt32(Math.Floor(taxFee + nonTaxFee))
+                ' 既存 floor レシートの分類・個人別参考額も従来どおり維持する。
+                GroupStatistics.Fee = Convert.ToInt32(calculatedFee)
             End If
 
             GroupStatisticsList.Add(GroupStatistics)
