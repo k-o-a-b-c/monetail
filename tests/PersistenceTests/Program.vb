@@ -293,7 +293,7 @@ Module Program
                 Equal(originalMode, Convert.ToString(fixture.Scalar("SELECT tax_rounding_mode FROM t_receipts WHERE seq=1")))
                 Equal(originalTotal, Convert.ToInt32(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=1")))
                 Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
-                    Dim closed As Boolean
+                    Dim closed As Boolean = False
                     AddHandler form.FormClosed, Sub(sender, args) closed = True
                     OpenForm(form)
                     form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
@@ -301,6 +301,7 @@ Module Program
                     SelectRounding(form, changedMode)
                     AssertTaxControls(form, changedTaxType, changedMode, changedTotal)
                     AssertReceiptTaxState(receipt, originalTaxType, originalMode, originalTotal)
+                    Equal(False, closed)
                     ClickAndAnswer(form.RegiserButton, DialogResult.No, "Decline register",
                                    Sub() AssertReceiptTaxState(receipt, originalTaxType, originalMode, originalTotal))
                     Equal(False, closed)
@@ -370,7 +371,7 @@ Module Program
                 fixture.AddReceipt(2, "registered shop", historyMode, New Date(2026, 10, 17))
                 Dim receipt = fixture.Data.GetReceipts(2026, 10).Single(Function(r) r.Seq = 1)
                 Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
-                    Dim closed As Boolean
+                    Dim closed As Boolean = False
                     AddHandler form.FormClosed, Sub(sender, args) closed = True
                     OpenForm(form)
                     CommitShop(form, "registered shop")
