@@ -1263,16 +1263,39 @@ Public Class DataAccess
 
     Public Sub RegisterPaymentMemo(ByVal PaymentMemoList As List(Of PaymentMemo))
 
-        Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "insert into t_payment_memo(payment_classification_code, check_date, tag) values (:payment_classification_code, :check_date, :tag) on conflict(payment_classification_code) do update set check_date = :check_date, tag = :tag"
-            For Each PaymentMemo As PaymentMemo In PaymentMemoList
-                command.Parameters.Clear()
-                command.Parameters.AddWithValue("payment_classification_code", PaymentMemo.PaymentClassification.Code)
-                command.Parameters.AddWithValue("check_date", PaymentMemo.CheckDate)
-                command.Parameters.AddWithValue("tag", PaymentMemo.Tag)
-                command.ExecuteNonQuery()
-            Next
-        End Using
+        If PaymentMemoList.Count = 0 Then
+            Return
+        End If
+
+        Dim trans As SQLiteTransaction = Nothing
+        Try
+            trans = Connection.BeginTransaction()
+
+            Using command As SQLiteCommand = Connection.CreateCommand()
+                command.CommandText = "insert into t_payment_memo(payment_classification_code, check_date, tag) values (:payment_classification_code, :check_date, :tag) on conflict(payment_classification_code) do update set check_date = :check_date, tag = :tag"
+                For Each PaymentMemo As PaymentMemo In PaymentMemoList
+                    command.Parameters.Clear()
+                    command.Parameters.AddWithValue("payment_classification_code", PaymentMemo.PaymentClassification.Code)
+                    command.Parameters.AddWithValue("check_date", PaymentMemo.CheckDate)
+                    command.Parameters.AddWithValue("tag", PaymentMemo.Tag)
+                    command.ExecuteNonQuery()
+                Next
+            End Using
+
+            trans.Commit()
+
+        Catch ex As Exception
+            If trans IsNot Nothing Then
+                trans.Rollback()
+            End If
+            Throw
+
+        Finally
+            If trans IsNot Nothing Then
+                trans.Dispose()
+            End If
+
+        End Try
 
     End Sub
 
