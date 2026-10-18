@@ -29,7 +29,6 @@ Partial Class RegisterForm
         Me.Label5 = New System.Windows.Forms.Label()
         Me.TaxRoundingModeLabel = New System.Windows.Forms.Label()
         Me.TaxRoundingModeComboBox = New OriginalControls.OriginalComboBox()
-        Me.TaxRoundingCopyNoteLabel = New System.Windows.Forms.Label()
         Me.GroupBox1 = New System.Windows.Forms.GroupBox()
         Me.DetailPanel = New System.Windows.Forms.Panel()
         Me.Label18 = New System.Windows.Forms.Label()
@@ -156,16 +155,6 @@ Partial Class RegisterForm
         Me.TaxRoundingModeComboBox.Size = New System.Drawing.Size(154, 23)
         Me.TaxRoundingModeComboBox.TabIndex = 12
         Me.HelpToolTip.SetToolTip(Me.TaxRoundingModeComboBox, "このレシートに適用する税端数処理。新規入力では店舗の直近レシートの設定を初期値にします。")
-        '
-        'TaxRoundingCopyNoteLabel
-        '
-        Me.TaxRoundingCopyNoteLabel.AutoSize = True
-        Me.TaxRoundingCopyNoteLabel.Location = New System.Drawing.Point(213, 9)
-        Me.TaxRoundingCopyNoteLabel.Name = "TaxRoundingCopyNoteLabel"
-        Me.TaxRoundingCopyNoteLabel.Size = New System.Drawing.Size(258, 15)
-        Me.TaxRoundingCopyNoteLabel.TabIndex = 27
-        Me.TaxRoundingCopyNoteLabel.Text = "流用：税端数は店舗の直近設定が初期値です。"
-        Me.TaxRoundingCopyNoteLabel.Visible = False
         '
         'GroupBox1
         '
@@ -537,7 +526,6 @@ Partial Class RegisterForm
         Me.CopyButton.TabIndex = 21
         Me.CopyButton.Text = "流用"
         Me.CopyButton.UseVisualStyleBackColor = True
-        Me.HelpToolTip.SetToolTip(Me.CopyButton, "新規レシートとして入力し直します。税端数は店舗の直近レシートの設定（履歴がなければ切り捨て）を初期値にします。")
         '
         'Label7
         '
@@ -780,7 +768,6 @@ Partial Class RegisterForm
         Me.ClientSize = New System.Drawing.Size(627, 610)
         Me.Controls.Add(Me.TaxRoundingModeLabel)
         Me.Controls.Add(Me.TaxRoundingModeComboBox)
-        Me.Controls.Add(Me.TaxRoundingCopyNoteLabel)
         Me.Controls.Add(Me.HelpLabel)
         Me.Controls.Add(Me.TotalTextBox2)
         Me.Controls.Add(Me.Label7)
@@ -829,7 +816,6 @@ Partial Class RegisterForm
     Friend WithEvents Label5 As Label
     Friend WithEvents TaxRoundingModeLabel As Label
     Friend WithEvents TaxRoundingModeComboBox As OriginalControls.OriginalComboBox
-    Friend WithEvents TaxRoundingCopyNoteLabel As Label
     Friend WithEvents GroupBox1 As GroupBox
     Friend WithEvents Label14 As Label
     Friend WithEvents Label10 As Label

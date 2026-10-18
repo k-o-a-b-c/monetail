@@ -494,83 +494,32 @@ Public Class RegisterForm
     End Sub
 
     Private Sub RegisertButton_Click(sender As Object, e As EventArgs) Handles RegiserButton.Click
-        RegisterReceipt()
+        RegisterReceipt(False)
     End Sub
 
     Private Sub CopyButton_Click(sender As Object, e As EventArgs) Handles CopyButton.Click
-        If MessageBox.Show("入力内容を新規レシートとして流用します。税端数は店舗の直近レシートの設定を初期値にします（履歴がなければ切り捨て）。", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
-            Return
-        End If
-        BeginCopyRegistration()
+        RegisterReceipt(True)
     End Sub
 
-    Private Sub BeginCopyRegistration()
-        '流用元の伝票や明細を変更せず、保存前に新規のモードと合計を確認できるようにする。
-        Dim copiedReceipt As New Receipt() With {
-            .Date = Receipt.Date,
-            .ShopName = ShopNameComboBox.Text,
-            .ShopLocation = ShopLocationComboBox.Text,
-            .TaxType = Receipt.TaxType,
-            .TaxRoundingMode = "floor",
-            .PaymentClassification = Receipt.PaymentClassification,
-            .Tag = ReceiptTagTextBox.Text
-        }
-        For Each group As ReceiptGroup In Receipt.Groups
-            Dim copiedGroup As New ReceiptGroup() With {
-                .GroupClassification = group.GroupClassification,
-                .TaxRate = group.TaxRate,
-                .Tag = group.Tag
-            }
-            For Each detail As ReceiptDetail In group.Details
-                copiedGroup.Details.Add(New ReceiptDetail() With {
-                    .Name = detail.Name,
-                    .Fee = detail.Fee,
-                    .Quantity = detail.Quantity,
-                    .TaxTarget = detail.TaxTarget,
-                    .DiscountFee = detail.DiscountFee,
-                    .DiscountRate = detail.DiscountRate,
-                    .Tag = detail.Tag,
-                    .Users = New List(Of User)(detail.Users)
-                })
-            Next
-            copiedReceipt.Groups.Add(copiedGroup)
-        Next
-        For Each point As ReceiptPoint In Receipt.Points
-            copiedReceipt.Points.Add(New ReceiptPoint() With {
-                .Point = point.Point,
-                .Rate = point.Rate,
-                .FixedPoints = point.FixedPoints,
-                .TotalPoint = point.TotalPoint
-            })
-        Next
-
-        Receipt = copiedReceipt
-        SelectedGroup = Nothing
-        Detail = Nothing
-        TaxRoundingModeManuallyChanged = False
-        ApplyShopTaxRoundingMode()
-        SeqLabel.Text = "新規（流用）"
-        RegiserButton.Text = "登録"
-        CopyButton.Visible = False
-        DeleteButton.Visible = False
-        TaxRoundingCopyNoteLabel.Visible = True
-        SetGroupListView()
-        UpdateAddGroupButton()
-        TaxRoundingModeComboBox.Focus()
-    End Sub
-
-    Private Sub RegisterReceipt()
+    Private Sub RegisterReceipt(ByVal isCopy As Boolean)
 
         If ReceiptTimeTextBox.Value.TimeOfDay = TimeSpan.FromTicks(0) AndAlso MessageBox.Show("時刻を設定していません。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
             Return
         End If
 
-        If Receipt.Seq <> 0 Then
-            If MessageBox.Show("登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+        If isCopy Then
+            If MessageBox.Show("流用登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
                 Return
             End If
-            If Receipt.Date.Date <> ReceiptDateTextBox.Value.Date AndAlso MessageBox.Show("日付が変更されています。本当によろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
-                Return
+            Receipt.Seq = 0
+        Else
+            If Receipt.Seq <> 0 Then
+                If MessageBox.Show("登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+                    Return
+                End If
+                If Receipt.Date.Date <> ReceiptDateTextBox.Value.Date AndAlso MessageBox.Show("日付が変更されています。本当によろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
+                    Return
+                End If
             End If
         End If
 
@@ -611,9 +560,8 @@ Public Class RegisterForm
     End Sub
 
     Private Sub RegisterForm_FormClosed(sender As Object, e As FormClosedEventArgs) Handles Me.FormClosed
-        '一覧と共有する元伝票には、キャンセルや流用先の設定を残さない。
-        If OriginalReceipt IsNot Nothing AndAlso
-           (Me.DialogResult <> DialogResult.OK OrElse Not Object.ReferenceEquals(Receipt, OriginalReceipt)) Then
+        'キャンセル時は、一覧と共有する元伝票の端数方式を戻す。
+        If OriginalReceipt IsNot Nothing AndAlso Me.DialogResult <> DialogResult.OK Then
             OriginalReceipt.TaxRoundingMode = OriginalTaxRoundingMode
         End If
     End Sub

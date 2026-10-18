@@ -1,6 +1,9 @@
 Imports System.Data.SQLite
+Imports System.Diagnostics
 Imports System.Linq
 Imports System.Reflection
+Imports System.Runtime.InteropServices
+Imports System.Text
 Imports System.Windows.Forms
 
 Module Program
@@ -11,7 +14,9 @@ Module Program
         Check("history uses own payment account and deterministic newest row", AddressOf HistoryOrderingAndOwnership)
         Check("failed receipt update rolls mode and total back together", AddressOf TransactionRollback)
         Check("new receipt defaults and manual override UI", AddressOf NewReceiptUi)
-        Check("edit cancel, successful edit, and copy preserve source UI", AddressOf EditAndCopyUi)
+        Check("edit cancel restores mode and successful edit keeps mode", AddressOf EditUi)
+        Check("canceling copy confirmation keeps form open without inserting", AddressOf CancelCopyUi)
+        Check("copy confirmation immediately saves visible mode and closes", AddressOf ImmediateCopyUi)
         Return Finish()
     End Function
 
@@ -152,7 +157,7 @@ Module Program
         End Using
     End Sub
 
-    Private Sub EditAndCopyUi()
+    Private Sub EditUi()
         Using fixture As New DatabaseFixture
             fixture.AddReceipt(2, "registered shop", "half_up", New Date(2026, 10, 17))
             Dim receipt = fixture.Data.GetReceipts(2026, 10).Single(Function(r) r.Seq = 1)
@@ -172,35 +177,138 @@ Module Program
                 form.Close()
                 Equal("half_up", receipt.TaxRoundingMode)
             End Using
-            For Each result In New DialogResult() {DialogResult.Cancel, DialogResult.OK}
-                receipt.TaxRoundingMode = "floor"
-                Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
-                    OpenForm(form)
-                    CommitShop(form, "registered shop")
-                    form.TaxRoundingModeComboBox.SelectedIndex = 1
-                    InvokeEvent(form, "BeginCopyRegistration")
-                    Equal(False, Object.ReferenceEquals(receipt, form.Receipt))
-                    Equal(0, form.Receipt.Seq)
-                    Equal("half_up", form.Receipt.TaxRoundingMode)
-                    Equal(False, Object.ReferenceEquals(receipt.Groups(0).Details(0), form.Receipt.Groups(0).Details(0)))
-                    form.Receipt.Groups(0).Details(0).Fee = 999
-                    Equal(19, receipt.Groups(0).Details(0).Fee)
-                    form.DialogResult = result
-                    form.Close()
-                    Equal("floor", receipt.TaxRoundingMode)
-                    Equal(1, receipt.Seq)
-                End Using
-            Next
-            receipt.TaxRoundingMode = "half_up"
+        End Using
+    End Sub
+
+    Private Sub CancelCopyUi()
+        Using fixture As New DatabaseFixture
+            Dim receipt = fixture.Data.GetReceipts(2026, 10).Single()
             Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
                 OpenForm(form)
-                ValidateTypedShop(form, "no history copy")
+                form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
+                form.TaxRoundingModeComboBox.SelectedIndex = 1
+                ClickCopyAndAnswer(form, DialogResult.No)
+                Equal(1L, Convert.ToInt64(fixture.Scalar("SELECT count(*) FROM t_receipts")))
+                Equal(1, receipt.Seq)
+                Equal(True, form.Visible)
                 Equal("half_up", receipt.TaxRoundingMode)
-                InvokeEvent(form, "BeginCopyRegistration")
-                Equal("floor", form.Receipt.TaxRoundingMode)
+                Equal("floor", Convert.ToString(fixture.Scalar("SELECT tax_rounding_mode FROM t_receipts WHERE seq=1")))
+                Equal(41L, Convert.ToInt64(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=1")))
                 form.Close()
-                Equal("half_up", receipt.TaxRoundingMode)
+                Equal("floor", receipt.TaxRoundingMode)
             End Using
         End Using
+    End Sub
+
+    Private Sub ImmediateCopyUi()
+        For Each visibleMode In New String() {"half_up", "floor"}
+            Using fixture As New DatabaseFixture
+                Dim historyMode = If(visibleMode = "half_up", "floor", "half_up")
+                fixture.AddReceipt(2, "registered shop", historyMode, New Date(2026, 10, 17))
+                Dim receipt = fixture.Data.GetReceipts(2026, 10).Single(Function(r) r.Seq = 1)
+                Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
+                    Dim closed As Boolean
+                    AddHandler form.FormClosed, Sub(sender, args) closed = True
+                    OpenForm(form)
+                    CommitShop(form, "registered shop")
+                    form.ReceiptTimeTextBox.Value = New Date(2026, 10, 16, 12, 0, 0)
+                    form.TaxRoundingModeComboBox.SelectedIndex = If(visibleMode = "half_up", 1, 0)
+                    Equal(visibleMode, receipt.TaxRoundingMode)
+                    Equal(historyMode, fixture.Data.GetTaxRoundingMode("registered shop"))
+                    ClickCopyAndAnswer(form, DialogResult.Yes)
+                    ' No subsequent Register click: the actual Copy handler must save and close.
+                    Equal(True, closed)
+                    Equal(DialogResult.OK, form.DialogResult)
+                    Equal(3L, Convert.ToInt64(fixture.Scalar("SELECT count(*) FROM t_receipts")))
+                    Equal(3, receipt.Seq)
+                    Dim persisted = fixture.Data.GetReceipts(2026, 10)
+                    Dim source = persisted.Single(Function(r) r.Seq = 1)
+                    Equal("floor", source.TaxRoundingMode)
+                    Equal(41, source.Total)
+                    Equal("history shop", source.ShopName)
+                    Dim copy = persisted.Single(Function(r) r.Seq = 3)
+                    Equal(visibleMode, copy.TaxRoundingMode)
+                    Equal("registered shop", copy.ShopName)
+                    Equal(If(visibleMode = "half_up", 42, 41), copy.Total)
+                    Equal(copy.Total, Convert.ToInt32(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=3")))
+                    Equal(2, copy.Groups.Count)
+                    Equal(1, copy.Groups(0).Details(0).Users.Count)
+                End Using
+            End Using
+        Next
+    End Sub
+
+    ' Native MessageBox buttons have stable IDs, independent of Windows display language.
+    ' Only a confirmation dialog owned by this test process is eligible for interaction.
+    Private Delegate Function EnumWindowCallback(window As IntPtr, parameter As IntPtr) As Boolean
+
+    <DllImport("user32.dll")>
+    Private Function EnumWindows(callback As EnumWindowCallback, parameter As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
+    Private Function GetWindowText(window As IntPtr, text As StringBuilder, capacity As Integer) As Integer
+    End Function
+
+    <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
+    Private Function GetClassName(window As IntPtr, className As StringBuilder, capacity As Integer) As Integer
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function GetWindowThreadProcessId(window As IntPtr, ByRef processId As UInteger) As UInteger
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function GetDlgItem(dialog As IntPtr, controlId As Integer) As IntPtr
+    End Function
+
+    <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
+    Private Function SendMessage(window As IntPtr, message As UInteger, wParam As IntPtr, lParam As IntPtr) As IntPtr
+    End Function
+
+    Private Function FindOwnConfirmation() As IntPtr
+        Dim result As IntPtr
+        Dim ownProcessId = CUInt(Process.GetCurrentProcess().Id)
+        EnumWindows(
+            Function(window, parameter)
+                Dim processId As UInteger
+                GetWindowThreadProcessId(window, processId)
+                If processId <> ownProcessId Then Return True
+                Dim title As New StringBuilder(128)
+                Dim className As New StringBuilder(128)
+                GetWindowText(window, title, title.Capacity)
+                GetClassName(window, className, className.Capacity)
+                If title.ToString() <> "確認" OrElse className.ToString() <> "#32770" Then Return True
+                result = window
+                Return False
+            End Function, IntPtr.Zero)
+        Return result
+    End Function
+
+    Private Sub ClickCopyAndAnswer(form As RegisterForm, answer As DialogResult)
+        Dim answered As Integer
+        Dim watch = Stopwatch.StartNew()
+        Using responder As New System.Windows.Forms.Timer With {.Interval = 50}
+            AddHandler responder.Tick,
+                Sub(sender, args)
+                    If watch.Elapsed > TimeSpan.FromSeconds(15) Then
+                        Environment.FailFast("Copy confirmation did not complete within 15 seconds.")
+                    End If
+                    Dim dialog = FindOwnConfirmation()
+                    If dialog = IntPtr.Zero Then Return
+                    ' An unexpected extra confirmation is declined, then reported after the handler returns.
+                    Dim button = GetDlgItem(dialog, If(answered = 0 AndAlso answer = DialogResult.Yes, 6, 7))
+                    If button = IntPtr.Zero Then Return
+                    answered += 1
+                    SendMessage(button, &HF5UI, IntPtr.Zero, IntPtr.Zero) ' BM_CLICK
+                End Sub
+            responder.Start()
+            Try
+                form.CopyButton.PerformClick()
+            Finally
+                responder.Stop()
+            End Try
+        End Using
+        Equal(1, answered, "Copy must show exactly one confirmation")
     End Sub
 End Module
