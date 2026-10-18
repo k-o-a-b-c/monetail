@@ -1,6 +1,6 @@
 # 03 金額・税・按分・残高の計算仕様（現行コードの挙動）
 
-更新日: 2026-10-15 / ソースからの静的解析。動作テストは未実施。
+更新日: 2026-10-18 / 税端数処理の実装と自動回帰テストを反映。計算・保存テストの範囲は [06-test-cases.md](06-test-cases.md) を参照。実データでの検証と手動E2Eは未実施。
 
 ## 1. 明細の基礎金額
 
@@ -12,28 +12,46 @@
 税計算前 = 基礎金額 - 値引額(率)
 ```
 
-率値引は `Math.Ceiling` を使用。負数・小数率を含めた挙動は現行コードを正としてテストで固定する必要がある。
+率値引は従来どおり `Double` と `Math.Ceiling` を使用する。手入力値引・数量への乗算・小数率の計算を自動テストで確認済み。ただし、小数率をDBへ保存・再読込する処理は `GetInt32` が残っており、別課題（LEG-005）。
+
+オーケーの3/103会員割引は `discount_fee` への手入力を継続する。専用の自動計算・UI・DB列は追加していない。`discount_fee` は数量を掛ける前に引くため、まとめた会員割引合計を入力する場合は原則数量1の明細を用いる。
 
 ## 2. 税の扱い
 
-- `Receipt.TaxType=0`: 税込。上記「税計算前」をそのまま集計。
-- `Receipt.TaxType=1`: 税抜。`TaxTarget=True` の金額にだけ `(1 + 税率/100)` を掛ける。
+- `Receipt.TaxType=0`: 税込。税額を追加せず、端数方式を変えてもレシート合計は変わらない。
+- `Receipt.TaxType=1`: 税抜。`TaxTarget=True` の金額にだけ税額を加える。
 - 税率はレシート**グループ**の `TaxRate.Rate`。分類／グループで異なる税率を指定できる。
-- `Receipt.Total` は各グループの課税分／非課税分を **税率別に合算**し、税率ごとに `Math.Floor` した額を総和する。
-- 明細表示 `DetailCalculatedFee` は**明細ごとに** `Math.Floor`。グループ表示 `GroupCalculatedFee` は**グループごとに** `Math.Floor`。そのため「明細表示を単純合計した値」が保存合計と一致するとは限らない。
+- `Receipt.Total` は課税額・非課税額を**レシート内の税率ごとに合算**し、各税率の税込額を `Calculation.TaxRateSubtotal` で計算して総和する。分類が違っても税率が同じなら先に合算する。
+- 方式は各レシートの `TaxRoundingMode`（`floor`／`half_up`）で保持し、`t_receipts.tax_rounding_mode` に保存する。移行済みの既存レシートは `floor`。
+
+税率 `r` の課税額合計を `T`、非課税額合計を `N` とした税抜入力の実装式は次のとおり。
+
+```text
+floor:   Math.Floor(T * (1 + r / 100) + N)       ← 従来のDouble式を保持
+half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
+```
+
+`floor` は負額・二進浮動小数点の境界も含め既存結果を維持する。単に税額だけをDecimalで切り捨てる式へ置き換えない。`half_up` は税額をDecimalで計算し、ちょうど半分の負額もゼロから遠い側へ丸める（税額−0.5円→−1円）。
+
+明細表示 `DetailCalculatedFee` は**明細ごと**、グループ表示 `GroupCalculatedFee` と分類集計は**グループごと**に当該レシートの方式を適用する参考額。その合計で会計上の `Receipt.Total` を上書きしない。
 
 例：税抜・10%、課税明細19円×2件、値引0の場合。
-- レシート合計: `Floor((19+19)×1.10)=41円`
-- 明細の個別表示: `Floor(19×1.10)×2=40円`
-これは**計算粒度による差**。意図した仕様か確認が必要。
+
+| 表示・設定 | 金額 |
+| --- | ---: |
+| レシート合計・`floor` | `Floor((19+19)×1.10)=41円` |
+| 明細の個別表示の合計・`floor` | `Floor(19×1.10)×2=40円` |
+| レシート合計・`half_up` | `38+Round(3.8)=42円` |
+
+この粒度の差は回帰テストで固定している。`half_up` でも15円を別の10%グループに分けると、レシート合計33円に対しグループ表示の合計は34円になる。
 
 ## 3. 収入・支出
 
-`Receipt.Incomes` は税計算前の明細金額が**負**のものだけを収集し、通常は負数で返す。`Receipt.Expenses` は**正**のものだけを収集する。各々で税率別・グループ別の集約処理を行う。
+`Receipt.Incomes` は税計算前の明細金額が**負**のものだけを収集し、通常は負数で返す。`Receipt.Expenses` は**正**のものだけを収集する。`Total` と共通の処理で税率ごとに合算し、レシートの方式で端数処理する。
 
 - `Receipt.Total` は同一レシート内の正負を相殺した合計。
 - 月次収支画面はレシートごとに `Incomes` と `Expenses` を集計して表示。
-- 収入だけ、支出だけを対象にした場合の端数差は、各メソッド単位でテストする。
+- 正負を分離すると丸めの対象額が変わるため、税抜では `Total = Incomes + Expenses` を保証しない。両方式の正負混在を自動テストで確認している。
 
 ## 4. 人別分類集計
 
@@ -42,10 +60,11 @@
 - `users` が空の通常条件では対象者を指定せず集計。ただし `IsAnd=True` かつ選択者0の場合は、対象者の設定がない明細だけを採用する。
 - `IsAnd=True` かつ選択者あり: 指定者集合と明細対象者集合が**完全一致**した明細のみ。
 - `IsAnd=False` かつ選択者あり: 指定した人物のいずれかが含まれる明細。
-- `IsOnlyPerson=True`: 対象者数で明細金額を等分して分類集計に算入する。税・丸めの順序にも影響する。
-- 明細に対象者が0人の場合、`IsOnlyPerson=True` では `personNumber=0` となり、その明細の額は加算されない。
+- `IsOnlyPerson=True`: 対象者数で明細金額を等分して分類集計に算入し、グループごとに税計算する。
+- 明細に対象者が0人の場合、`IsOnlyPerson=True` では0除算せず、その明細の額を加算しない。
+- 個人配分は参考額。`half_up` では最終端数を `AwayFromZero` で四捨五入する。既存 `floor` の分類・個人別参考額は従来の切り捨てを維持する。
 
-**未確定**: 購入者（支払者）と費用帰属者のどちらを優先すべきか、割り切れない額の端数を誰が負担するか。オンライン版の移植前に確定する。
+個人配分の合計が会計総額と一致しなくても、レシート合計を変更しない。購入者（支払者）と費用帰属者の優先順位や、差額を特定の人へ配賦する厳密な端数配分は未実装。
 
 ## 5. 残高の推算
 
@@ -61,30 +80,33 @@
 - 基準残高がない場合は0から開始。
 - 基準残高も取引もない場合は `Nothing`（不明）を返す。
 - 直前残高の検索条件は `date < 対象日`。時刻境界に注意。
+- 残高用の `GetPaymentReceipts` でも保存済みの端数方式を読む。`half_up` と `floor` のレシートを残高推算へ反映する自動テストがある。
 - 残高の `valuation_amount` は実残高と別の評価額（任意）。月次画面では評価額表示切替に使用する。
 - 月次残高の推算値には背景色と「自動計算による予測残高」の注記を付ける。
 
 ## 6. USD換算
 
-年度ごと `t_exchange_rates` から `USD/JPY` の月末に近い `middle_rate` を1件選ぶ。残高集計値を `JPY金額 / rate` として、小数第2位で `MidpointRounding.AwayFromZero` 丸めする。月のレートがなければ換算値を空欄にする。
+年度ごと `t_exchange_rates` から `USD/JPY` の月末に近い `middle_rate` を1件選ぶ。残高集計値を `JPY金額 / rate` として、小数第2位で `MidpointRounding.AwayFromZero` 丸めする。月のレートがなければ換算値を空欄にする。為替の回帰テストは未整備。
 
 ## 7. 未確定・リスク
 
-1. 合計・グループ・明細の丸め位置が異なり、画面間の合計が一致しないケース。
-2. `Double` での率計算と小数率DB読込（`GetInt32`）に関する再現性。
-3. 負額、割引率100%超、単価値引が単価を上回るケース。
+1. 合計・グループ・明細の丸め粒度の差は維持している。画面の参考額と会計総額を混同しない。
+2. `Double` での率計算と小数率DB読込（`GetInt32`）に関する再現性（LEG-005）。
+3. 割引率100%超、単価値引が単価を上回るケースの業務上の許容範囲。負額の税端数計算自体は両方式で回帰テスト済み。
 4. 2019-10-01 を境とするデフォルト税率選択と将来の税率改定への対応。
 5. 同一時点の残高・取引境界の扱い、および年跨ぎ推算。
 6. `Int32` の金額上限と為替換算時の精度。
 
+## 入力画面と保存値
+
+内税／外税と端数方式の編集中の値は画面のラジオボタンに保持する。合計プレビューは `Receipt.GetTotal(taxType, taxRoundingMode)` に選択値を渡し、`Receipt` の両設定・`Total`・`Incomes`・`Expenses` を変更しない。登録確認後に店名などと同じタイミングで転記するため、キャンセル時の設定復元処理は不要。編集用Receiptのディープコピーは導入していない。明細などの既存編集処理まで非破壊に変えたものではない。
+
+新規入力の端数方式は同じ店名・現在の利用者の直近レシート（日付降順、同日時はseq降順）から初期選択し、履歴なしは `floor`。店舗マスタの列は移行互換性のため残すが初期選択には使用せず、マスタ編集画面は追加していない。保存済みレシートと手動選択は履歴で上書きしない。流用は画面の設定で確認後に即時新規保存し、追加操作はない。
+
 ## 計算互換性の追加資料
 
-レシート・分類グループ・明細で異なる税端数粒度、**正負金額を同じ税率で計上したときの合計差**、対象者按分と将来の言語移植で固定したい処理順序を、[12-calculation-contract.md](12-calculation-contract.md) に詳述した。**新しい店別丸め方式とは区別して扱う。**
-
-## 改修予定の仕様案（現行とは別）
-
-新規改修は**税率別に合算した後の店舗別税端数処理（切り捨て／四捨五入）**。オーケーの3/103割引は**新規自動計算せず、現行の`discount_fee`に手入力**する。`discount_fee`は数量を掛ける前に差し引かれるため、まとめて会員割引合計を入力するなら原則数量1の明細を用いる。詳しくは [08-requested-enhancements.md](08-requested-enhancements.md)。
+レシート・分類グループ・明細で異なる税端数粒度、正負金額の合計差、対象者按分と移植時の処理順序は [12-calculation-contract.md](12-calculation-contract.md)、実装済み税端数処理の詳細は [15-shop-tax-rounding-design.md](15-shop-tax-rounding-design.md) を参照。
 
 ## 根拠
 
-[Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)
+[Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[自動テスト](../tests/README.md)

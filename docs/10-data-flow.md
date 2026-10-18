@@ -1,10 +1,10 @@
 # 10 DBリレーション・データフロー・更新境界
 
-更新: 2026-10-16 / **スキーマDDLと現在のVBコードを区別して記述**。図は説明用で、DDLを置き換えるものではない。
+更新: 2026-10-18 / **元のスキーマDDL・実装済み移行SQL・現在のVBコードを区別して記述**。図は説明用で、DDLを置き換えるものではない。
 
 ## 1. 物理外部キー（DDLで確認済み）
 
-以下はアップロードされた実DDLに**明示されている外部キー**のみを使ったER図。必須項目と主キーの詳細は [02-database.md](02-database.md)。
+以下はアップロードされた実DDLに**明示されている外部キー**のみを使ったER図。元のDDLは16テーブル・90列・17外部キーで、税端数移行後は2列追加され92列になるが、テーブルと外部キーの数は変わらない。必須項目と主キーの詳細は [02-database.md](02-database.md)。
 
 ```mermaid
 erDiagram
@@ -42,7 +42,8 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    A["RegisterForm: Receipt親とGroups/Details/Usersを編集"]
+    A["RegisterForm: ヘッダーは画面に保持、Groups/Details/Usersは既存どおり編集"]
+    A2["必要な登録確認後、画面のヘッダー値をReceiptへ転記"]
     B{"Receipt.Seq = 0 ?"}
     C["DataAccess.RegisterReceipt"]
     D["DataAccess.UpdateReceipt"]
@@ -51,7 +52,8 @@ flowchart TD
     G["ヘッダーUPDATE"]
     H["子の削除 → 子INSERT"]
     I["Commit / 例外時Rollback"]
-    A --> B
+    A --> A2
+    A2 --> B
     B -->|新規| C
     B -->|更新| D
     C --> E
@@ -63,12 +65,16 @@ flowchart TD
     F --> I
 ```
 
+- 内税／外税と端数方式は、編集中はコントロールだけで保持する。合計プレビューは `Receipt.GetTotal(taxType, taxRoundingMode)` を呼び、元の `Receipt.TaxType`・`TaxRoundingMode`・`Total` は変更しない。登録確認前の代入やキャンセル時の復元処理はない。
+- 店名・所在地・支払方法・タグ等と同じく、必要な確認がすべて済んでから両税設定を転記する。グループ・明細は既存の共有オブジェクトを編集し、既存レシートを開く際に子をDBから再読込する。レシート全体のディープコピーは導入していない。
+- 流用は従来どおり、確認後に `Seq = 0` として画面上の値を転記し、そのまま新規保存・画面終了する。追加の登録操作はなく、店舗履歴による再初期化もしない。元レシートのDB行は保持する。
+
 **物理削除順（2026-10-18修正）**:
 
 - `UpdateReceipt`: 親UPDATE → `DeleteReceiptGroups`（**対象者割当 → 明細 → グループ**）→ グループ・明細・対象者割当を再INSERT。
 - `DeleteReceipt`: `DeleteReceiptGroups`（上記の順）→ **レシート親DELETE**。
-- 更新・削除とも既存のトランザクション内で行い、途中のDELETE・INSERTや親DELETEが失敗するとDB全体の変更をRollbackする。物理FK制約に `CASCADE` は追加しない。
-- テスト用DBではFK ON/OFFの両方で成功・巻き戻し・別レシートの保持を検証する。アプリの接続設定や `PRAGMA foreign_keys` の既定値は変更しない。既存の実データ整合性や、他の更新経路のFK対応を検証済みとは扱わない。
+- 更新・削除とも既存のトランザクション内で行い、途中のDELETE・INSERTや親DELETEが失敗すると、そのトランザクション内のDB変更をすべてRollbackする。物理FK制約に `CASCADE` は追加しない。
+- テスト用DBではFK ON/OFFの両方で成功・巻き戻し・別レシートの保持を検証済み。アプリの接続設定や `PRAGMA foreign_keys` の既定値は変更しない。既存の実データ整合性や、他の更新経路のFK対応を検証済みとは扱わない。
 - `t_receipt_points` はこれらの削除処理に登場しない。実データがあれば別途取り扱いが必要。
 
 ## 3. レシートの読み込みフロー
@@ -83,9 +89,16 @@ ViewForm → DataAccess.GetReceipts(年月/年)
 ```
 
 - ソース上は親を取得した後、各子階層を別々に取得する。
+- 残高推算用の `GetPaymentReceipts(dateFrom, dateTo, payment)` も、ヘッダーから同じ子読込へ進む。一覧・残高の両経路で `tax_rounding_mode` を取得し、保存された方式で再計算する。
 - `t_receipts.total` はSELECTしておらず、`Receipt.Total` による再計算を用いる。
 - グループと明細はそれぞれの `seq` で表示順が決まる。
 - 年次集計ではこの読込を1年分について行うため、将来的な件数増加時にSQL発行回数を計測したい。
+
+**任意文字列のNULL対応（2026-10-18）**:
+
+- 両ヘッダー読込の `shop_location`・`tag`、グループの `tag`、明細の `tag` の計6箇所で、`IsDBNull` によりSQLのNULLだけを `String.Empty` に変換する。既存の空文字・日本語・空白はそのまま保持する。
+- 読込、子の再読込、画面取消・再表示では、DBのNULL、金額、対象者割当を更新しないことを一時DBで自動検証済み。明示的な登録／更新時は既存保存SQLが画面上の空文字を保存する。
+- 必須の店名・品名等や数値列の読込、DB定義は変更していない。小数の割引率を `GetInt32` で読み込む既存処理は未改修。
 
 ## 4. 振替・残高のフロー
 
@@ -105,14 +118,15 @@ RegisterPaymentMemoForm → DataAccess.RegisterPaymentMemo
 
 `Calculation.AutoBalance` と `DataAccess.GetAutoBalance` にほぼ同内容の計算がある。最新の登録残高を起点として `-レシートTotal -出金振替 +入金振替` を計算する。重複実装は将来的な差異リスク。
 
-## 5. 店舗別税端数への変更点・オーケーの継続運用
+## 5. レシート別税端数と店舗履歴・オーケーの継続運用
 
-以下のDB拡張は**税端数に関する設計案のみ**。
+以下のDB拡張・アプリ処理は実装済みで、移行SQLを含め自動テスト済み。利用者の実DBへの適用状況と、実レシートとの照合結果は未確認。
 
 - **`t_receipts.tax_rounding_mode`は各レシートで選択・保存する正本**。税率ごとに合算した後に切捨／四捨五入。
-- `m_shop.tax_rounding_mode`は**マスタ登録済み店舗を明示選択した新規入力の初期値だけ**。未登録の店でもレシート側で選べる。
+- 新規入力の初期方式は、店名と支払方法の所有者の `account_name = Environment.UserName` で履歴を絞り、`date DESC, seq DESC LIMIT 1` で取得する。候補選択・自由入力確定の両方に適用し、履歴なしは `floor`。手動選択後と既存レシートの編集では上書きしない。
+- `m_shop.tax_rounding_mode` は移行互換性のため列・読込モデルを残すが、**現在の初期選択では使用せず、編集画面も追加しない**。店舗マスタ未登録でもレシートで方式を選べる。
 - **店舗マスタとのFK・`shop_code`は追加しない**。履歴だけの店・自由入力の店でも使用可能。
-- 旧レシートは旧計算のまま維持する。カラム追加の[移行SQL案](migrations/20261017_01_shop_tax_rounding.sql)は**未適用**。[15 詳細設計](15-shop-tax-rounding-design.md)参照。
+- [移行SQL](migrations/20261017_01_shop_tax_rounding.sql)は2列を追加し、旧レシートの方式を既定値 `floor` として旧計算を維持する。既存の `total` や対象者割当は更新せず、接続の外部キー設定も変更しない。バックアップしたDBのコピーに一度だけ適用する。[15 詳細設計](15-shop-tax-rounding-design.md)参照。
 - **オーケー割引は新しい計算機能・DB列を設けず、既存の`discount_fee`への手入力を継続**。まとめ明細で合計割引を入れる場合は`quantity=1`に注意。[08](08-requested-enhancements.md)参照。
 
-**根拠**: [実SQLite DDL](schema/monetail_schema.sql)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)
+**根拠**: [実SQLite DDL](schema/monetail_schema.sql)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[自動テスト](../tests/README.md)

@@ -8,19 +8,19 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 - **SQLite**（`System.Data.SQLite.Core 1.0.113.1`）
 - ソリューション: [HouseholdAccountsBeta/HouseholdAccountsBeta.sln](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)
 - 業務操作: レシート・振替・残高の入力、分類別／収支／残高の集計など
-- **未完成**: マスタ編集画面、ポイント機能の一部
+- **保留・未完成**: マスタ編集画面は作成を見送り。ポイント機能は一部実装のまま、採用範囲は未決定
 
 ## ドキュメント
 
 | ファイル | 内容 |
 | --- | --- |
 | [01 機能一覧](docs/01-features.md) | 画面・機能と実装状態 |
-| [02 DB仕様](docs/02-database.md) | **実スキーマから確定した16テーブル**、90カラム・主キー・17外部キー・コード照合 |
+| [02 DB仕様](docs/02-database.md) | 元DDLの**16テーブル・90カラム・17外部キー**と、移行後92カラム・コード照合 |
 | [実DBのDDL](docs/schema/monetail_schema.sql) | SQLiteから抽出したテーブル定義SQL（実データなし） |
 | [03 計算仕様](docs/03-calculations.md) | 税・割引・端数・明細の対象者・残高 |
 | [04 構成・開発環境](docs/04-architecture.md) | VB.NETプロジェクト構造、起動・DBの接続 |
 | [05 未実装・課題](docs/05-issues.md) | 改修候補、データ整合性リスク、要仕様判断 |
-| [06 テスト](docs/06-test-cases.md) | 手動E2Eテスト、計算のゴールデンケース |
+| [06 テスト](docs/06-test-cases.md) | 実行済み自動テストと、未実施の手動E2E・実データ検証 |
 | [07 ロードマップ](docs/07-roadmap.md) | レガシー版の完成からオンライン版再設計へ |
 | [08 改修要件](docs/08-requested-enhancements.md) | 店舗別税端数の改修・オーケーは既存割引額入力を継続 |
 | [09 操作ガイド](docs/09-user-guide.md) | 日々の入力・編集・集計操作、画面の色分けと入力補助 |
@@ -30,8 +30,9 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [13 用語・意思決定](docs/13-glossary-decisions.md) | 現行用語、未決定事項、変更時の判断記録 |
 | [14 確定した運用方針](docs/14-decisions-2026-10-16.md) | 税率別合算・店舗別端数・概算按分・オーケーは従来どおり手入力 |
 | [15 レシート単位の税端数・詳細設計](docs/15-shop-tax-rounding-design.md) | 店舗ごとの直近の方式を初期選択、各レシートへ設定を保存 |
-| [移行SQL](docs/migrations/20261017_01_shop_tax_rounding.sql) | `m_shop`と`t_receipts`に2列追加（未適用） |
+| [移行SQL](docs/migrations/20261017_01_shop_tax_rounding.sql) | `m_shop`と`t_receipts`に2列追加。一時DBで検証済み、実DBの適用状況は未確認 |
 | [税計算テストデータ](docs/tests/tax-rounding-cases.json) | 税率別合算・切捨／四捨五入の期待値（VB自動テストで利用） |
+| [16 文書照合記録](docs/16-documentation-audit.md) | 既存17文書・関連5資料と、取り込み済み実装の照合範囲・検証結果 |
 
 ### 読む順番
 
@@ -42,7 +43,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 
 ### ドキュメントの位置付け
 
-**2026-10-16更新。** 最初はソース静的解析でしたが、ユーザー提供のSQLite DDLを照合し、**テーブル定義・宣言型・PK・FKは実DDLで確認済み**です。実レコード、接続時のFK有効状態、データ整合性、Windowsでのビルド・起動テストは未実施。「実装確認」はソースが存在する意味であり、実機動作の保証ではありません。
+**2026-10-18更新。** ソース、ユーザー提供の元DDL、移行SQL、自動テストを照合しています。元DDLは16テーブル・90カラム・17FKで、税端数移行後の一時DBは92カラムです。計算20件・SQLite移行5件・Windowsの実SQLite／画面15件の計40件と、既存ソリューションのNuGet復元・Windowsビルドが[mainのCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39120545702)で成功しています。利用者のWindows環境での手動操作・実レシート照合・実DBの適用状況／整合性は未確認です。
 
 このリポジトリは**レガシー版の機能完成・現行仕様の確定**が目的です。オンライン化や別言語による新規実装は、その後に検討します。
 
@@ -53,7 +54,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 3. `App.config`／`My Project/Settings.settings` にある `ConnectionString` が利用するSQLiteファイルを指しているか確認。**ソースには環境固有の絶対パスが設定されているので、まずバックアップ・テスト用DBに変更すること。**
 4. SQLite実データファイルはこのリポジトリに含まれていません。テーブル定義SQLは [docs/schema/monetail_schema.sql](docs/schema/monetail_schema.sql) を参照してください。新規セットアップはマスタ初期データ等の別途準備が必要です。
 
-これらの手順は**実機未検証**です。個人データを含むSQLiteファイルはコミットしないでください。
+NuGet復元・ビルドと一時DBでの画面自動テストはWindows CIで確認済みです。利用者の端末・実DBでのセットアップは未確認です。個人データを含むSQLiteファイルはコミットしないでください。
 
 ## レシートごとの税端数処理
 
@@ -62,3 +63,11 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 既存DBはバックアップを取り、テスト用コピーに [移行SQL](docs/migrations/20261017_01_shop_tax_rounding.sql) を一度だけ適用してから利用してください。既存行は `floor` となり、保存済みの合計や割当を移行時に変更しません。旧アプリと新アプリでDBを共有しないでください。
 
 [自動テストとWindowsでの検証手順](tests/README.md)を参照してください。Linuxでも実際のVB計算コードとSQLite移行を検証でき、Windowsでは保存・読込・画面操作のテストを実行できます。
+
+## 更新・削除とNULL文字列
+
+レシート更新では対象者割当→明細→グループの順に子を削除して再登録し、削除操作では最後にレシート親を削除します。既存のトランザクションを維持し、途中失敗時はDBの変更全体を戻します。テスト用接続のFK ON/OFFで確認済みですが、製品の接続設定やDB定義は変更していません。
+
+所在地とレシート・グループ・明細のタグがSQL NULLでも、一覧・残高・編集画面では空欄として読み込めます。読込・画面取消では保存済みNULLや金額を変更しません。明示保存した場合は既存の保存処理で空文字を保存します。必須の店名・明細名や、振替・残高自身の任意文字列の読込は今回の修正対象ではありません。
+
+取り込み済みの変更は[税端数処理（PR #1）](https://github.com/k-o-a-b-c/monetail-legacy/pull/1)、[外部キー対応（PR #2）](https://github.com/k-o-a-b-c/monetail-legacy/pull/2)、[NULL文字列対応（PR #3）](https://github.com/k-o-a-b-c/monetail-legacy/pull/3)です。小数の割引率の読込、支払メモの一括保存など、残る課題は[05 課題一覧](docs/05-issues.md)を参照してください。

@@ -1,20 +1,16 @@
 # 04 レガシー版 アーキテクチャ・開発環境
 
-更新日: 2026-10-15 / ソース静的調査。ビルド・起動は未検証。
+更新日: 2026-10-18 / 現在のソース・DDL・自動テストに照合。Windows CIで既存ソリューションのビルドと対象画面・永続化テストを確認済み。実運用DBでの起動・手動確認は未実施。
 
 ## 構成
 
 ```text
 Windows デスクトップアプリ
   ViewForm / Register*Form / DetailViewForm（Windows Forms UI）
-       ↓
-  Receipt・Balance・Transfer・Master（VB.NETデータクラス）
-       ↓
-  Calculation（計算処理）
-       ↓
-  DataAccess + DataAccessList（System.Data.SQLite、SQL直書き）
-       ↓
-  ローカル SQLite ファイル
+       ├── Receipt・Balance・Transfer・Master（VB.NETデータクラス）
+       │      └── Receiptの計算プロパティ + Calculation（税・割引・残高）
+       └── DataAccess + DataAccessList（System.Data.SQLite、SQL直書き）
+                  └── ローカル SQLite ファイル
 ```
 
 - 言語: **VB.NET**、UI: **Windows Forms**、ターゲット: **.NET Framework 4.8**
@@ -37,25 +33,39 @@ Windows デスクトップアプリ
 | `.../Logic/Calculation.vb` | 税・割引・残高の計算 |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
+| `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
+| `.github/workflows/tests.yml` | Linux／Windowsのテストと既存ソリューションのWindowsビルド |
 
 ## 代表的な処理フロー
 
 1. 起動: `ViewForm.New` → `DataAccess(My.Settings.ConnectionString)` → SQLite接続オープン。
 2. マスタ: 人／支払方法／店舗／税率等をSELECTして画面の選択肢を生成。マスタの一部は初回読込後に保持。
-3. レシート保存: `RegisterForm` が画面入力を `Receipt` と子リストへ反映 → `DataAccess.RegisterReceipt / UpdateReceipt`。
+3. レシート編集: グループ・明細は既存どおり `Receipt` の子リストを編集する。店名等と内税／外税・端数方式はコントロールに保持し、合計表示は `Receipt.GetTotal(taxType, taxRoundingMode)` で `Receipt` の税設定を変えずに計算する。必要な登録確認後にヘッダーへ転記 → `DataAccess.RegisterReceipt / UpdateReceipt`。レシート全体のディープコピーは導入していない。
 4. レシート参照: `GetReceipts` → `LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData` の順に読み込む。
 5. 集計: 画面内で年次データを取得し、`Receipt` の計算プロパティと `Calculation` で集約。
 6. 振替／残高: 専用フォームから `DataAccess` の各登録メソッドを呼ぶ。
 
+税端数はレシートの `TaxRoundingMode`（`floor` / `half_up`）が正本で、同税率の明細を合算してから処理する。新規画面の初期選択だけを、同店・現在のWindows利用者が所有する支払方法の直近レシートから取得する。店舗マスタの端数値は参照せず、マスタメンテナンス画面も追加していない。流用は従来どおり確認直後の新規保存・画面終了で、画面上の税設定を保存する。
+
+更新・削除では、対象者割当→明細→グループ→（削除時のみ）レシート親の順で削除し、既存トランザクションでDB変更を確定・巻き戻す。外部キーON/OFFをテスト用接続で検証しているが、製品の外部キー設定は変更していない。
+
+所在地とレシート／グループ／明細タグのNULLは読込時だけ `String.Empty` に変換する。一覧・残高の両ヘッダー読込と子の読込が対象で、読込・取消はDBのNULLを保存し直さない。後から明示的に保存した場合は、従来の保存SQLで空文字を書き込む。
+
 ## 起動・開発上の注意
 
 1. WindowsとVisual Studio（.NET Framework 4.8用の開発機能）が必要。
-2. `.sln` を開きNuGetパッケージを復元してビルドする。**手順はソース上の構成から推定したもので、実際のビルド確認は未実施**。
+2. `.sln` を開きNuGetパッケージを復元してビルドする。GitHub Actionsでは `nuget restore` と `msbuild`（Debug / Any CPU）による既存ソリューションのビルドを確認済み。
 3. `My.Settings.ConnectionString` はSQLiteのファイルパス。`App.config` と `Settings.settings` には**異なるドライブの絶対パス**が入っており、別環境でそのまま起動できない可能性が高い。作業用DBのパスを必ず確認する。
-4. SQLiteの実データファイルはレポジトリにない。ユーザー提供の実DDLを [docs/schema/monetail_schema.sql](schema/monetail_schema.sql) に保存済み。ただし新規環境で必要な**マスタ初期データ**は別途用意する。
+4. SQLiteの実データファイルはレポジトリにない。ユーザー提供の実DDLを [docs/schema/monetail_schema.sql](schema/monetail_schema.sql) に保存済み。これは移行前の16テーブル・90列・17外部キーの定義であり、現行アプリには[税端数の移行SQL](migrations/20261017_01_shop_tax_rounding.sql)による2列追加（合計92列）が必要。バックアップしたDBのコピーへ一度だけ適用して確認し、新旧アプリで同じDBを共有しない。新規環境で必要な**マスタ初期データ**は別途用意する。
 5. 実データはGitHubにコミットしない。設定の汎用化・サンプルDBの匿名化が必要。
 6. Windowsログイン名 `Environment.UserName` で個人識別を一部行う。アプリ認証・家計ごとの権限チェックとは異なる。
-7. テストプロジェクト／CIワークフローは調査時点のツリーでは確認できない。
+7. 利用者の実DBへのマイグレーション適用状況は未確認。CI成功は、既存データ全件の整合性や運用環境での画面表示を検証したことを意味しない。
+
+## 自動検証
+
+[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxで.NET 8の計算テスト20件とPython標準SQLiteの移行テスト5件、Windowsで.NET Framework 4.8の永続化・画面テスト15件を実行する。合計40件と、既存ソリューションのNuGet復元・Windowsビルドが成功済み（2026-10-18時点）。
+
+Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFの更新／削除と失敗時DB復元、任意文字列のNULL読込・画面取消を検証する。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
 
 ## オンライン化に向けた境界
 

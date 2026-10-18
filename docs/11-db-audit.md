@@ -1,14 +1,23 @@
 # 11 SQLite健全性確認・バックアップ・データ移行前チェック
 
-更新: 2026-10-16 / 本書は**手順と検査SQL**。実DBに対しては未実行。
+更新: 2026-10-18 / 本書は**手順と検査SQL**。実DBに対しては未実行。
 
 ## 前提・注意
 
 - 対象DBをアプリで操作しながらファイル単純コピーすると、WALやジャーナルの状態によって完全なスナップショットにならない可能性がある。**アプリを停止してバックアップ**するか、SQLiteのオンラインバックアップ機構を使う。
 - 本番ファイルでは試さない。**取得したバックアップのコピー**を検査する。SQL実行前にファイルパスを目視確認する。
-- このSQLファイルは**実データを変更しないSELECT/PRAGMA中心**。集計件数も個人情報に該当し得るため、外部共有前に内容を確認する。
+- 本書のSQLは**実データを変更しないSELECT/PRAGMA中心**。集計件数も個人情報に該当し得るため、外部共有前に内容を確認する。
 - `PRAGMA foreign_keys` は**接続単位**。CLIで取得した値をそのままVBアプリの値とみなさない。
 - 既存レシートの`t_receipts.total`と表示額の差は、SQLだけで正確には計算できない（割引・税・端数の業務ロジックが必要）。
+- 提出時の[DDL原本](schema/monetail_schema.sql)は16表・90列・17外部キーのスナップショット。税端数の[移行SQL](migrations/20261017_01_shop_tax_rounding.sql)適用後は2列だけ増えて92列となる。利用者の実DBへの適用状況は未確認のため、まず列の有無を調べ、追加済みDBへ再適用しない。
+
+## 実装・自動検証済みの範囲
+
+- **税端数**: 税率別合算後の`floor`／`half_up`をレシート単位で保存する。新規入力は同じ店舗・現在の利用者の直近レシートを初期値とし、店舗マスタ列は互換性のため残すが初期選択に使わない。移行テストでは既存行・金額・対象者割当、既定値・制約、PRAGMAの保持と再実行拒否を確認済み。
+- **外部キー**: 更新・削除は明細対象者 → 明細 → グループ → レシートの順で削除する（更新ではレシート親を削除せず子を再登録）。既存トランザクション内で処理し、テスト用接続のFK ON/OFF双方で成功と途中失敗時のDB復元を確認済み。製品接続のFK設定やDB定義を一律変更したものではない。`t_receipt_points.receipt_seq`へのFK追加・ポイント保存読込は未対応。
+- **NULL文字列**: 所在地・レシートタグ・グループタグ・明細タグはNULLを空文字として読み込む。一覧・残高の両経路、子の再読込、編集取消・再表示で、DBのNULL・金額・対象者割当を変えないことを確認済み。明示保存では従来の保存処理に従い空文字を保存する。他のエンティティのNULL許容文字列や実データ全体の健全性は別途確認が必要。
+
+これらは合成したテストDBでの自動検証であり、利用者の実DBの移行状況・整合性を確認したものではない。[自動テストと実行方法](../tests/README.md)参照。
 
 ## 1. スキーマと整合性の検査
 
@@ -19,12 +28,15 @@ sqlite3 -readonly "C:\work\monetail_test.sqlite" "PRAGMA integrity_check;"
 sqlite3 -readonly "C:\work\monetail_test.sqlite" "PRAGMA foreign_key_check;"
 sqlite3 -readonly "C:\work\monetail_test.sqlite" "PRAGMA foreign_keys;"
 sqlite3 -readonly "C:\work\monetail_test.sqlite" "PRAGMA index_list('t_receipts');"
+sqlite3 -readonly "C:\work\monetail_test.sqlite" "PRAGMA table_info('t_receipts');"
+sqlite3 -readonly "C:\work\monetail_test.sqlite" "PRAGMA table_info('m_shop');"
 ```
 
 - `integrity_check` が`ok`でない場合はDBファイルの健全性を確認する。
 - `foreign_key_check` は違反があるとテーブル名・rowid・参照先等を返す。**結果が空**なら（検証対象のDDLに関して）整合性違反は報告されなかった意味。
 - `foreign_keys` が0でも、`foreign_key_check`は宣言済みのFKの違反を調査できる。ただしアプリ接続が0か1かは別途確認する。
 - `index_list` の`sqlite_autoindex_*`は主キー由来の内部索引であり、手書き`CREATE INDEX`ではない。
+- `table_info`で両表に`tax_rounding_mode`があるか確認する。片方だけなら移行状態を調査する。列がないDBでも本節のPRAGMAは実行できる。端数方式そのものの集計は、両列の存在を確認してから[移行SQL末尾の読取確認](migrations/20261017_01_shop_tax_rounding.sql)を必要に応じて実行する。
 
 ## 2. 個人データを出力しない確認SQL
 
@@ -79,9 +91,12 @@ SELECT COUNT(*) AS ambiguously_named_receipts
 FROM t_receipts r
 WHERE (SELECT COUNT(*) FROM m_shop s WHERE s.name = r.shop_name) > 1;
 
--- DB上はNULLを許すが読込コードのGetStringで問題となり得る値
-SELECT COUNT(*) AS null_shop_locations
-FROM t_receipts WHERE shop_location IS NULL;
+-- 読込時に空文字へ正規化する4列のNULL件数（NULL自体は異常ではない）
+SELECT 't_receipts.shop_location' AS column_name, COUNT(*) AS null_rows
+FROM t_receipts WHERE shop_location IS NULL
+UNION ALL SELECT 't_receipts.tag', COUNT(*) FROM t_receipts WHERE tag IS NULL
+UNION ALL SELECT 't_receipt_groups.tag', COUNT(*) FROM t_receipt_groups WHERE tag IS NULL
+UNION ALL SELECT 't_receipt_details.tag', COUNT(*) FROM t_receipt_details WHERE tag IS NULL;
 ```
 
 **判断上の注意**:
@@ -90,6 +105,7 @@ FROM t_receipts WHERE shop_location IS NULL;
 - 税率コード不一致があれば、現行`TaxRate(code)`呼出しでNullになる可能性があるため、実データを保全したまま原因分析。
 - `discount_rate`は`INTEGER`宣言でも、SQLiteの型親和性により内容によっては他型が入る可能性がある。
 - 店舗の同名・名称不一致は**マスタ運用の仕様確認が先**で、機械的な削除・修正をしてはいけない。
+- 上記4列はNULL許容で、アプリでは空欄として扱う。件数を理由に一括で空文字へ書き換えない。読込・取消だけでは保存内容は変わらない。
 
 ## 3. DBバックアップ・復元のリハーサル（本番を直接触らない）
 
@@ -104,7 +120,7 @@ FROM t_receipts WHERE shop_location IS NULL;
 - 変更前DDLと変更後DDLをどちらも版管理し、**ロールバックの手順**を用意。
 - 旧レシートの計算結果をテスト用データで固定（[12](12-calculation-contract.md)）。
 - 新カラムのDEFAULT・NULL・移行方法を定義。古いレシートは従来計算を維持する。
-- FKの有効化だけを先に本番へ投入しない。削除順・ポイント孤児の扱いを解決してから段階的に試験する。
+- レシートの削除順は修正済みだが、FKの有効化だけを先に本番へ投入しない。実DBの既存違反やポイント孤児の扱い、他の保存経路を確認してから段階的に試験する。
 - `m_shop`と`t_receipts`の店舗名同一性を確認して、安易な名前一致JOINによる誤紐付けを避ける。
 
 **元資料**: [実DDL](schema/monetail_schema.sql)、[DB仕様書](02-database.md)、[ソースと課題](05-issues.md)
