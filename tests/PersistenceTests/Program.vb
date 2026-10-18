@@ -22,6 +22,8 @@ Module Program
         Check("receipt delete preserves neighbors with foreign keys on and off", AddressOf ForeignKeyTests.DeleteChildren)
         Check("late receipt update failure rolls all rows back with foreign keys on and off", AddressOf ForeignKeyTests.UpdateRollback)
         Check("late receipt delete failure rolls all rows back with foreign keys on and off", AddressOf ForeignKeyTests.DeleteRollback)
+        Check("balance delete preserves neighbors with zero or multiple children and foreign keys on and off", AddressOf BalanceForeignKeyTests.DeleteChildren)
+        Check("late balance delete failure restores all rows and allows retry with foreign keys on and off", AddressOf BalanceForeignKeyTests.DeleteRollback)
         Check("nullable receipt header text normalizes only NULL on both read paths", AddressOf NullTextTests.HeaderText)
         Check("nullable child tags normalize only NULL and reload without database changes", AddressOf NullTextTests.ChildText)
         Check("fully NULL receipt opens and cancels without changing saved data", AddressOf NullTextTests.OpenAndCancel)
