@@ -43,7 +43,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 
 ### ドキュメントの位置付け
 
-**2026-10-18更新。** ソース、ユーザー提供の元DDL、移行SQL、自動テストを照合しています。元DDLは16テーブル・90カラム・17FKで、税端数移行後の一時DBは92カラムです。計算20件・SQLite移行5件・Windowsの実SQLite／画面15件の計40件と、既存ソリューションのNuGet復元・Windowsビルドが[mainのCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39120545702)で成功しています。利用者のWindows環境での手動操作・実レシート照合・実DBの適用状況／整合性は未確認です。
+**2026-10-18更新。** ソース、ユーザー提供の元DDL、移行SQL、自動テストを照合しています。元DDLは16テーブル・90カラム・17FKで、税端数移行後の一時DBは92カラムです。計算20件・SQLite移行5件・Windowsの実SQLite／画面17件の計42件と、既存ソリューションのNuGet復元・Windowsビルドが[改修ブランチのCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39126013357)で成功しています。利用者のWindows環境での手動操作・実レシート照合・実DBの適用状況／整合性は未確認です。
 
 このリポジトリは**レガシー版の機能完成・現行仕様の確定**が目的です。オンライン化や別言語による新規実装は、その後に検討します。
 
@@ -70,4 +70,6 @@ NuGet復元・ビルドと一時DBでの画面自動テストはWindows CIで確
 
 所在地とレシート・グループ・明細のタグがSQL NULLでも、一覧・残高・編集画面では空欄として読み込めます。読込・画面取消では保存済みNULLや金額を変更しません。明示保存した場合は既存の保存処理で空文字を保存します。必須の店名・明細名や、振替・残高自身の任意文字列の読込は今回の修正対象ではありません。
 
-取り込み済みの変更は[税端数処理（PR #1）](https://github.com/k-o-a-b-c/monetail-legacy/pull/1)、[外部キー対応（PR #2）](https://github.com/k-o-a-b-c/monetail-legacy/pull/2)、[NULL文字列対応（PR #3）](https://github.com/k-o-a-b-c/monetail-legacy/pull/3)です。小数の割引率の読込、支払メモの一括保存など、残る課題は[05 課題一覧](docs/05-issues.md)を参照してください。
+取り込み済みの変更は[税端数処理（PR #1）](https://github.com/k-o-a-b-c/monetail-legacy/pull/1)、[外部キー対応（PR #2）](https://github.com/k-o-a-b-c/monetail-legacy/pull/2)、[NULL文字列対応（PR #3）](https://github.com/k-o-a-b-c/monetail-legacy/pull/3)、[文書整備（PR #4）](https://github.com/k-o-a-b-c/monetail-legacy/pull/4)です。
+
+この版では、[小数割引率の読込（PR #5）](https://github.com/k-o-a-b-c/monetail-legacy/pull/5)も修正しています。明細の読込型をモデルと同じ`Double`へ合わせ、保存した小数率を読み込めるようにしました。DB定義・保存処理・割引計算式・画面操作は従来どおりです。支払メモの一括保存など、残る課題は[05 課題一覧](docs/05-issues.md)を参照してください。

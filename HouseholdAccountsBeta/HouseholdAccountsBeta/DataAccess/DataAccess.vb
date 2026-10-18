@@ -545,7 +545,7 @@ Public Class DataAccess
                     receiptDetail.Fee = detailReader.GetInt32(4)
                     receiptDetail.Quantity = detailReader.GetInt32(5)
                     receiptDetail.DiscountFee = detailReader.GetInt32(6)
-                    receiptDetail.DiscountRate = detailReader.GetInt32(7)
+                    receiptDetail.DiscountRate = detailReader.GetDouble(7)
                     receiptDetail.TaxTarget = (detailReader.GetInt32(8) = 1)
                     receiptDetail.Tag = If(detailReader.IsDBNull(9), String.Empty, detailReader.GetString(9))
                     LoadReceiptDetailUsersData(receiptDetail)

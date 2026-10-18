@@ -308,7 +308,7 @@
 | 総数 | 15表 → **16表** | `t_receipt_points` は提出DDLに存在する。`ReceiptPoint` モデルもあるが、DataAccessでの保存・読込は未実装 |
 | `t_receipt_points` | `receipt_seq` はNOT NULL、**主キーは `seq` 単独**、ポイント種別へのFKのみ | **`t_receipts(seq)` へのFKなし**。孤児行・連番使用方法を調べる |
 | `m_payment_classification` | `valid_from DATE`、`valid_to DATE` はNULL許容 | 支払い方法の有効期間機能が使われているか確認する |
-| `t_receipt_details.discount_rate` | **INTEGER NOT NULL** | VBの `ReceiptDetail.DiscountRate` は `Double`。読込処理の `GetInt32` と併せ小数率の往復確認が必要 |
+| `t_receipt_details.discount_rate` | **INTEGER NOT NULL** | VBの `ReceiptDetail.DiscountRate` は `Double`。小数はSQLiteのREALとして保存される。共通読込を`GetInt32(7)`から`GetDouble(7)`へ修正し、宣言型・保存処理は維持（LEG-005） |
 | `t_receipt_groups.tax` | **INTEGER NOT NULL DEFAULT 8**、`m_tax_rate` へのFKなし | VB側は税率マスタの**コード**として解釈。実データのコード対応を確認 |
 | `t_receipts` | 店名・店舗は文字列。`shop_code` なし。`total INTEGER` はNULL許容 | **丸め方式をレシート自体へ保存するため店舗マスタへのFKは不要**。保存合計と明細再計算の一致も検証 |
 | 削除の整合性 | レシート→グループ→明細→対象者にFKがあるがCASCADEなし | 2026-10-18に子から削除する順序へ修正。FK ON/OFFの更新・削除・巻き戻しを自動テスト |
@@ -320,6 +320,7 @@
 - 親子データはレシート登録時にトランザクションを用いる。**レシート更新では子データを削除・再登録**。
 - `DataAccess.DeleteReceiptGroups` は **明細対象者 → 明細 → グループ** の順で削除し、`DeleteReceipt` はその後にレシート親を削除する。2026-10-18に旧来の親からの削除順を修正した。既存のトランザクション内で更新・削除し、途中失敗時はDBの変更全体を戻す。接続時のFK設定とDB定義は変更しない。
 - レシートのNULL許容文字列4列（`t_receipts.shop_location`、`t_receipts.tag`、`t_receipt_groups.tag`、`t_receipt_details.tag`）は、`IsDBNull`で空文字へ正規化して読み込む。一覧・残高用の両読込経路と子データ再読込を対応済み。読込・画面の取消だけではDBのNULLや金額・対象者割当を変更せず、明示保存時は既存処理に従い空文字を保存する。他のエンティティのNULL許容文字列まで対応を広げたものではない。
+- 小数割引率の旧`GetInt32`読込は、製品と同じSQLiteプロバイダーで`InvalidCastException`になることを再現した。共通の`LoadReceiptDetailData`で`GetDouble`を使い、整数率・小数率の両方をモデルへ読み込む。DDLの`INTEGER`は変更せず、既存DBの移行や率・保存合計の一括更新は行わない。[検証範囲](06-test-cases.md)参照。
 - `t_receipts.total` を保存するが `GetReceipts` のSELECTから合計列を読まないため、DBに保存された`total`と、`Receipt.Total`で再計算する表示・集計額が異なり得る。
 - `t_receipt_points.receipt_seq` にFKがなく、`t_receipt_groups.tax` に税率マスタのFKがない点は、移行前の整合性検証対象。
 - SQLite接続に `PRAGMA foreign_keys` を明示設定するVBコードは `DataAccess.vb` 冒頭で確認できない。接続文字列・プロバイダー既定値による動作は現状不明。
