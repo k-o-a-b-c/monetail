@@ -241,8 +241,8 @@ Friend Module ConcurrencyTests
         End Select
     End Sub
 
-    Private Function MakeItem(kind As EntityKind, label As String, variant As Integer, Optional existing As Object = Nothing) As Object
-        Dim itemDate = New Date(2026, 10, 17 + variant, 9 + variant, 23, 45)
+    Private Function MakeItem(kind As EntityKind, label As String, shapeNumber As Integer, Optional existing As Object = Nothing) As Object
+        Dim itemDate = New Date(2026, 10, 17 + shapeNumber, 9 + shapeNumber, 23, 45)
         Dim cash As New PaymentClassification With {.Code = 1}
         Dim bank As New PaymentClassification With {.Code = 2}
         Select Case kind
@@ -253,14 +253,14 @@ Friend Module ConcurrencyTests
                 receipt.ShopLocation = label & " location"
                 receipt.Tag = label & " header"
                 receipt.PaymentClassification = bank
-                receipt.TaxType = variant Mod 2
-                receipt.TaxRoundingMode = If(variant = 2, "half_up", "floor")
+                receipt.TaxType = shapeNumber Mod 2
+                receipt.TaxRoundingMode = If(shapeNumber = 2, "half_up", "floor")
                 receipt.Groups.Clear()
-                For index As Integer = 1 To If(variant = 2, 2, 1)
+                For index As Integer = 1 To If(shapeNumber = 2, 2, 1)
                     Dim group = ReceiptFixtures.Group(If(index = 1, 8, 10))
                     group.Tag = label & " group " & index.ToString(CultureInfo.InvariantCulture)
-                    For detailIndex As Integer = 1 To If(variant = 3, 2, 1)
-                        Dim detail = ReceiptFixtures.Detail(100 * variant + detailIndex, taxable:=(detailIndex = 1), quantity:=variant, discountFee:=3, discountRate:=2.5)
+                    For detailIndex As Integer = 1 To If(shapeNumber = 3, 2, 1)
+                        Dim detail = ReceiptFixtures.Detail(100 * shapeNumber + detailIndex, taxable:=(detailIndex = 1), quantity:=shapeNumber, discountFee:=3, discountRate:=2.5)
                         detail.Name = label & " item " & detailIndex.ToString(CultureInfo.InvariantCulture)
                         detail.Tag = label & " detail " & detailIndex.ToString(CultureInfo.InvariantCulture)
                         detail.Users.Add(New User With {.Code = 2})
@@ -275,7 +275,7 @@ Friend Module ConcurrencyTests
                 transfer.Date = itemDate
                 transfer.Name = label & " transfer"
                 transfer.Tag = label & " header"
-                transfer.Fee = 100 * variant + 17
+                transfer.Fee = 100 * shapeNumber + 17
                 transfer.FromPaymentClassification = bank
                 transfer.ToPaymentClassification = cash
                 Return transfer
@@ -284,8 +284,8 @@ Friend Module ConcurrencyTests
                 balance.Date = itemDate
                 balance.Tag = label & " header"
                 balance.Groups.Clear()
-                balance.Groups.Add(New BalanceGroup With {.PaymentClassification = bank, .Balance = -100 * variant, .ValuationAmount = If(variant = 2, Nothing, CType(-350, Integer?)), .Tag = label & " bank"})
-                If variant = 2 Then balance.Groups.Add(New BalanceGroup With {.PaymentClassification = cash, .Balance = 221, .ValuationAmount = 250, .Tag = label & " cash"})
+                balance.Groups.Add(New BalanceGroup With {.PaymentClassification = bank, .Balance = -100 * shapeNumber, .ValuationAmount = If(shapeNumber = 2, Nothing, CType(-350, Integer?)), .Tag = label & " bank"})
+                If shapeNumber = 2 Then balance.Groups.Add(New BalanceGroup With {.PaymentClassification = cash, .Balance = 221, .ValuationAmount = 250, .Tag = label & " cash"})
                 Return balance
             Case Else : Throw New ArgumentOutOfRangeException(NameOf(kind))
         End Select
