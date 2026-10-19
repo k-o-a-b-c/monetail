@@ -130,7 +130,7 @@ Friend Module ConcurrencyTests
 
                 ChangeStaleTag(kind, staleSnapshot)
                 Save(second, kind, staleSnapshot, registering:=False)
-                ' 現行仕様の後勝ちを固定する。先行編集のヘッダー・子との混在は認めない。
+                ' 現行の後勝ちを再現する。先行編集のヘッダー・子との混在は認めない。
                 AssertSaved(fixture, kind, staleSnapshot)
                 Equal(unaffected, Snapshot(fixture, kind, 1), "A stale edit must preserve the neighbor and all unrelated rows")
                 AssertForeignKeys(DataConnection(second))
@@ -326,7 +326,7 @@ Friend Module ConcurrencyTests
                 Next
                 Dim childCondition = " WHERE receipt_seq=" & seq.ToString(CultureInfo.InvariantCulture)
                 AssertRows(fixture, "SELECT receipt_seq,seq,group_classification_code,tax,tag FROM t_receipt_groups" & childCondition & " ORDER BY seq", groups.ToArray())
-                AssertRows(fixture, "SELECT receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag FROM t_receipt_details" & childCondition & " ORDER BY group_seq,seq", details.ToArray())
+                AssertRows(fixture, "SELECT receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,CAST(discount_rate AS REAL),tax_target,tag FROM t_receipt_details" & childCondition & " ORDER BY group_seq,seq", details.ToArray())
                 AssertRows(fixture, "SELECT receipt_seq,group_seq,detail_seq,user_code FROM t_receipt_detail_users" & childCondition & " ORDER BY group_seq,detail_seq,user_code", users.ToArray())
             Case EntityKind.Transfer
                 Dim transfer = DirectCast(item, Transfer)
@@ -369,17 +369,33 @@ Friend Module ConcurrencyTests
             End Using
         End Using
         For Each table In tables
-            Dim query = "SELECT * FROM " & table
+            ' 宣言型によるプロバイダーの丸めを避け、SQLite上の格納型と値を比較する。
+            Dim columns As New List(Of String)()
+            Using command = connection.CreateCommand()
+                command.CommandText = "PRAGMA table_info(" & QuoteIdentifier(table) & ")"
+                Using reader = command.ExecuteReader()
+                    While reader.Read()
+                        Dim column = QuoteIdentifier(reader.GetString(1))
+                        columns.Add("typeof(" & column & ")")
+                        columns.Add("quote(" & column & ")")
+                    End While
+                End Using
+            End Using
+            Dim query = "SELECT " & String.Join(",", columns) & " FROM " & QuoteIdentifier(table)
             Dim keyColumn As String = Nothing
             If kind.HasValue Then
                 If table = ParentTable(kind.Value) Then keyColumn = "seq"
                 If kind.Value = EntityKind.Receipt AndAlso New String() {"t_receipt_groups", "t_receipt_details", "t_receipt_detail_users"}.Contains(table) Then keyColumn = "receipt_seq"
                 If kind.Value = EntityKind.Balance AndAlso table = "t_balance_groups" Then keyColumn = "balance_seq"
             End If
-            If keyColumn IsNot Nothing AndAlso excludedSequences.Length > 0 Then query &= " WHERE " & keyColumn & " NOT IN (" & String.Join(",", excludedSequences) & ")"
+            If keyColumn IsNot Nothing AndAlso excludedSequences.Length > 0 Then query &= " WHERE " & QuoteIdentifier(keyColumn) & " NOT IN (" & String.Join(",", excludedSequences) & ")"
             result.AppendLine(table).Append(QueryRows(connection, query & " ORDER BY rowid"))
         Next
         Return result.ToString()
+    End Function
+
+    Private Function QuoteIdentifier(name As String) As String
+        Return """" & name.Replace("""", """""") & """"
     End Function
 
     Private Function QueryRows(connection As SQLiteConnection, sql As String) As String
