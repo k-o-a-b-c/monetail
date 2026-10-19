@@ -1,6 +1,6 @@
 # 02 現行SQLiteデータベース仕様（実DDL照合済み）
 
-更新日: 2026-10-18。対象: `monetail-legacy`、VB.NET / .NET Framework 4.8 / SQLite。
+更新日: 2026-10-19。対象: `monetail-legacy`、VB.NET / .NET Framework 4.8 / SQLite。
 
 > **一次資料**: 利用者が実SQLiteから抽出した `monetail_schema.sql`。[元のDDL](schema/monetail_schema.sql) を保存した。ここで「確定」とするのは提出されたDDLに記載された宣言である。**実レコード、実行時PRAGMA、データ整合性、SQLiteの物理ファイル内の追加構造は未検証**。宣言型と実値の格納型はSQLiteでは必ずしも同じではない。
 
@@ -316,7 +316,7 @@
 
 ## 5. 現行コードとの整合性・リスク
 
-- レシート・振替・残高の`seq`は現行コードが `MAX(seq)+1` で採番している。複数クライアント同時入力には競合リスク。
+- レシート・振替・残高の`seq`は、`BEGIN IMMEDIATE`の後に`MAX(seq)+1`で採番する。ローカル2接続では採番が直列化され、ロック失敗後の全行保持・再試行も成功した。一方、古い編集は先の親子の業務値を上書きする。[検証範囲](17-concurrent-persistence-validation.md)参照。製品の採番・保存SQL・接続設定とDDLは維持する。
 - 親子データはレシート登録時にトランザクションを用いる。**レシート更新では子データを削除・再登録**。
 - `DataAccess.DeleteReceiptGroups` は **明細対象者 → 明細 → グループ** の順で削除し、`DeleteReceipt` はその後にレシート親を削除する。2026-10-18に旧来の親からの削除順を修正した。既存のトランザクション内で更新・削除し、途中失敗時はDBの変更全体を戻す。接続時のFK設定とDB定義は変更しない。
 - `DataAccess.DeleteBalance` は **`t_balance_groups` → `t_balances`** の順に削除する（LEG-027）。FK ON/OFFで削除成功（子0／2件）と、既存トランザクション内の親削除失敗からの復元・同じDataAccessでの再削除（子2件）を検証済み。製品の接続設定・DDL・画面操作は維持する。
