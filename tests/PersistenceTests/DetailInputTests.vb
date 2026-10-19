@@ -66,7 +66,7 @@ Friend Module DetailInputTests
                             Equal(mode, saved.TaxRoundingMode)
                             Equal(0, saved.TaxType)
                             Dim expected = If(editing, New List(Of ReceiptDetail) From {receipt.Groups(0).Details(0)}, added)
-                            For Each detail In expected
+                            For Each detail As ReceiptDetail In expected
                                 Dim actual = saved.Groups(0).Details.Single(Function(d) d.Seq = detail.Seq)
                                 Equal(detail.Quantity, actual.Quantity)
                                 Equal(detail.DiscountRate, actual.DiscountRate)
