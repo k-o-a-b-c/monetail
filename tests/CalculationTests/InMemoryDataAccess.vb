@@ -11,11 +11,13 @@ Public Class DataAccess
         Return LastBalance
     End Function
 
-    Public Function GetPaymentReceipts(dateFrom As DateTime, dateTo As DateTime, payment As PaymentClassification) As List(Of Receipt)
+    Public Function GetPaymentReceipts(dateFrom As DateTime, dateTo As DateTime, payment As PaymentClassification,
+                                      Optional endExclusive As Boolean = False) As List(Of Receipt)
         Return Receipts
     End Function
 
-    Public Function GetPaymentTransfers(dateFrom As DateTime, dateTo As DateTime, payment As PaymentClassification) As List(Of Transfer)
+    Public Function GetPaymentTransfers(dateFrom As DateTime, dateTo As DateTime, payment As PaymentClassification,
+                                       Optional endExclusive As Boolean = False) As List(Of Transfer)
         Return Transfers
     End Function
 End Class

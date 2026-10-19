@@ -37,7 +37,8 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [17 採番・更新競合の検証](docs/17-concurrent-persistence-validation.md) | PR #9時点の検証履歴 |
 | [18 古い編集の上書き防止](docs/18-stale-edit-protection.md) | 更新版照合・競合時の画面・3列追加移行 |
 | [19 DB接続設定](docs/19-database-startup-settings.md) | 実行用XML・パス解決・起動前のDBと移行確認 |
-| [20 残高推算の日付境界](docs/20-balance-date-boundaries.md) | 実SQLiteでの両計算経路の現行挙動と、後続の仕様判断 |
+| [20 残高推算の日付境界](docs/20-balance-date-boundaries.md) | PR #12時点の修正前の再現記録 |
+| [21 日末残高の推算期間](docs/21-end-of-day-balance.md) | 日末残高の翌日から対象日末までの集計・回帰テスト |
 
 ### 読む順番
 
