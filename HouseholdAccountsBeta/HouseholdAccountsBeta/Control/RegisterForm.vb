@@ -450,27 +450,36 @@ Public Class RegisterForm
 
     End Sub
 
+    Private Function NormalizeQuantity() As Integer
+        Dim value As Integer
+        If Not Integer.TryParse(QuantityTextBox.Text, value) OrElse value < 1 Then value = 1
+        QuantityTextBox.Text = value.ToString()
+        Return value
+    End Function
+
+    Private Function NormalizeDiscountRate() As Double
+        Dim value As Double
+        If Not Double.TryParse(DiscountRateTextBox.Text, value) OrElse Double.IsNaN(value) OrElse Double.IsInfinity(value) Then
+            value = 0
+        Else
+            value = Math.Min(100, Math.Max(0, value))
+        End If
+        DiscountRateTextBox.Text = value.ToString()
+        Return value
+    End Function
+
+    Private Sub QuantityTextBox_Validated(sender As Object, e As EventArgs) Handles QuantityTextBox.Validated
+        NormalizeQuantity()
+    End Sub
+
+    Private Sub DiscountRateTextBox_Validated(sender As Object, e As EventArgs) Handles DiscountRateTextBox.Validated
+        NormalizeDiscountRate()
+    End Sub
+
     Private Sub AddDetailButton_Click(sender As Object, e As EventArgs) Handles AddDetailButton.Click
 
-        ' 検証が終わるまで既存明細や画面の編集状態を変更しない。
-        Dim quantity As Integer
-        If Not Integer.TryParse(QuantityTextBox.Text, quantity) OrElse quantity < 1 Then
-            MessageBox.Show(Me, "数量は1以上の整数を入力してください。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            QuantityTextBox.Select()
-            QuantityTextBox.SelectAll()
-            Return
-        End If
-
-        Dim discountRate As Double = 0
-        If Not String.IsNullOrWhiteSpace(DiscountRateTextBox.Text) AndAlso
-           (Not Double.TryParse(DiscountRateTextBox.Text, discountRate) OrElse
-            Double.IsNaN(discountRate) OrElse Double.IsInfinity(discountRate) OrElse
-            discountRate < 0 OrElse discountRate > 100) Then
-            MessageBox.Show(Me, "値引率は0〜100の数値を入力してください。空欄は0%として扱います。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            DiscountRateTextBox.Select()
-            DiscountRateTextBox.SelectAll()
-            Return
-        End If
+        Dim quantity As Integer = NormalizeQuantity()
+        Dim discountRate As Double = NormalizeDiscountRate()
 
         Dim detail As ReceiptDetail
         If DetailListView.SelectedItems.Count = 0 Then

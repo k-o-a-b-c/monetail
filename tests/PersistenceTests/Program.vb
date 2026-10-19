@@ -15,7 +15,7 @@ Module Program
         Check("empty corrupt and unrelated databases are rejected without changes or retained handles", AddressOf StartupTests.InvalidDatabases)
         Check("required tables columns and both migrations are checked without schema changes", AddressOf StartupTests.RequiredSchema)
         Check("startup reports setup and XML errors once and allows corrected settings", AddressOf StartupTests.ErrorReportingAndRecovery)
-        Check("invalid detail quantities and discount rates preserve the editor and saved data", AddressOf DetailInputTests.RejectedInputs)
+        Check("detail fields normalize without dialogs and apply corrected values on add and update", AddressOf DetailInputTests.NormalizedInputs)
         Check("valid detail boundaries blank rates decimal rates and negative prices can be saved", AddressOf DetailInputTests.AcceptedInputs)
         Check("legacy out of range details still load calculate and cancel without changes", AddressOf DetailInputTests.LegacyReceipts)
         Check("both balance predictors distinguish missing data zero income and account filters", AddressOf BalanceBoundaryTests.NoBaselineAndAccountFiltering)
@@ -563,8 +563,7 @@ Module Program
     End Function
 
     Friend Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
-                              Optional beforeAnswer As Action = Nothing, Optional expectedConflict As Boolean = False,
-                              Optional expectedWarningTitle As String = Nothing, Optional expectedConfirmations As Integer = 1)
+                              Optional beforeAnswer As Action = Nothing, Optional expectedConflict As Boolean = False)
         Dim answered As Integer
         Dim warnings As Integer
         Dim clickedDialogs As New System.Collections.Generic.HashSet(Of String)()
@@ -580,7 +579,7 @@ Module Program
                         Console.Error.Flush()
                         Environment.FailFast(diagnostic)
                     End If
-                    Dim dialog = FindOwnConfirmation(If(expectedWarningTitle, "更新の競合"))
+                    Dim dialog = FindOwnConfirmation("更新の競合")
                     If dialog <> IntPtr.Zero Then
                         Dim buttons = DialogButtons(dialog, availableOnly:=True)
                         ' 作成途中や想定外の複数ボタンでは押下せず、期限時に実IDを報告する。
@@ -588,7 +587,7 @@ Module Program
                         Dim okButton = buttons.Single()
                         If Not clickedDialogs.Add(dialog.ToString() & "|conflict") Then Return
                         warnings += 1
-                        Console.WriteLine("INFO " & operation & " warning button id=" & GetDlgCtrlID(okButton).ToString())
+                        Console.WriteLine("INFO " & operation & " conflict warning button id=" & GetDlgCtrlID(okButton).ToString())
                         ' モーダル画面の切替はタイマーを抜けてから処理する。
                         If Not PostMessage(okButton, &HF5UI, IntPtr.Zero, IntPtr.Zero) Then
                             assertionFailure = New Exception(operation & " could not post the conflict OK button: " & Marshal.GetLastWin32Error().ToString())
@@ -622,7 +621,7 @@ Module Program
             End Try
         End Using
         If assertionFailure IsNot Nothing Then Throw assertionFailure
-        Equal(expectedConfirmations, answered, operation & " must show the expected number of confirmations")
-        Equal(If(expectedConflict OrElse expectedWarningTitle IsNot Nothing, 1, 0), warnings, operation & " must show the expected warning")
+        Equal(1, answered, operation & " must show exactly one confirmation")
+        Equal(If(expectedConflict, 1, 0), warnings, operation & " must show the expected conflict warning")
     End Sub
 End Module

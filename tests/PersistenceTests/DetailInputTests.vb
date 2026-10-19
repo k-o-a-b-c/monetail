@@ -4,21 +4,22 @@ Imports System.Linq
 Imports System.Xml.Serialization
 
 Friend Module DetailInputTests
-    Public Sub RejectedInputs()
+    Public Sub NormalizedInputs()
         EachForeignKeyMode(
             Sub(fixture)
                 For Each editing In New Boolean() {False, True}
                     Dim receipt = fixture.Data.GetReceipts(2026, 10).Single()
                     Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
                         Program.OpenForm(form)
-                        SelectDetail(form, editing)
                         For Each quantity In New String() {"", " ", "abc", "1.5", "0", "-1", "2147483648"}
-                            SetInput(form, quantity, "0")
-                            Reject(form, fixture, form.QuantityTextBox)
+                            SelectDetail(form, editing)
+                            CheckCorrection(form, fixture, quantity, "-1", 1, 0)
                         Next
-                        For Each rate In New String() {"-1", "101", "100.1", "abc", "NaN", "Infinity", "-Infinity", "1e309"}
-                            SetInput(form, "1", rate)
-                            Reject(form, fixture, form.DiscountRateTextBox)
+                        Dim rates = {"", " ", "-1", "101", "100.1", "abc", "NaN", "Infinity", "-Infinity", "1e309", "2.5"}
+                        Dim expected = {0R, 0R, 0R, 100R, 100R, 0R, 0R, 0R, 0R, 0R, 2.5R}
+                        For index As Integer = 0 To rates.Length - 1
+                            SelectDetail(form, editing)
+                            CheckCorrection(form, fixture, "2", rates(index), 2, expected(index))
                         Next
                         form.Close()
                     End Using
@@ -92,6 +93,16 @@ Friend Module DetailInputTests
                     SelectDetail(form, True)
                     Equal("0", form.QuantityTextBox.Text)
                     Equal("125", form.DiscountRateTextBox.Text)
+                    WithoutDialogs(
+                        Sub()
+                            form.QuantityTextBox.Select()
+                            form.ItemNameComboBox.Select()
+                            form.DiscountRateTextBox.Select()
+                            form.ItemNameComboBox.Select()
+                        End Sub)
+                    Equal("1", form.QuantityTextBox.Text)
+                    Equal("100", form.DiscountRateTextBox.Text)
+                    Equal(original, ReceiptState(receipt), "Correcting legacy fields must not change receipt data before updating the detail")
                     form.GroupListView.SelectedItems.Clear()
                     form.GroupListView.Items(1).Selected = True
                     Application.DoEvents()
@@ -106,25 +117,52 @@ Friend Module DetailInputTests
             End Sub)
     End Sub
 
-    Private Sub Reject(form As RegisterForm, fixture As DatabaseFixture, invalidField As TextBox)
+    Private Sub CheckCorrection(form As RegisterForm, fixture As DatabaseFixture, quantity As String, rate As String,
+                                expectedQuantity As Integer, expectedRate As Double)
+        SetInput(form, quantity, rate)
         Dim before = ReceiptState(form.Receipt)
         Dim saved = ConcurrencyTests.Snapshot(fixture)
         Dim inputs = InputState(form)
         Dim group = form.Receipt.Groups(0)
         Dim details = group.Details.ToArray()
-        Dim users = details(0).Users.ToArray()
-        Program.ClickAndAnswer(form.AddDetailButton, DialogResult.OK, "Reject invalid " & invalidField.Name,
-            expectedWarningTitle:="入力エラー", expectedConfirmations:=0)
-        Application.DoEvents()
-        Equal(True, form.Visible)
-        Equal(DialogResult.None, form.DialogResult)
-        Equal(True, invalidField.Focused)
-        Equal(invalidField.Text.Length, invalidField.SelectionLength)
-        Equal(inputs, InputState(form), "All pending detail inputs and selection must remain unchanged")
-        Equal(before, ReceiptState(form.Receipt), "Validation must precede any mutation of the receipt")
+        Dim editing = form.DetailListView.SelectedItems.Count > 0
+        WithoutDialogs(
+            Sub()
+                form.QuantityTextBox.Select()
+                form.ItemNameComboBox.Select()
+                Application.DoEvents()
+                Equal(expectedQuantity.ToString(), form.QuantityTextBox.Text)
+                form.DiscountRateTextBox.Select()
+                form.ItemNameComboBox.Select()
+                Application.DoEvents()
+                Equal(expectedRate.ToString(), form.DiscountRateTextBox.Text)
+            End Sub)
+        Equal(inputs, InputState(form), "Validation must preserve the other inputs and edit selection")
+        Equal(before, ReceiptState(form.Receipt), "Leaving a field must not change receipt data")
         Equal(True, details.SequenceEqual(group.Details))
-        Equal(True, users.SequenceEqual(details(0).Users))
         Equal(saved, ConcurrencyTests.Snapshot(fixture))
+
+        ' 欄を離れるイベントを経由しない呼出でも、追加／更新時に同じ補正を行う。
+        form.QuantityTextBox.Text = quantity
+        form.DiscountRateTextBox.Text = rate
+        WithoutDialogs(Sub() form.AddDetailButton.PerformClick())
+        Equal(details.Length + If(editing, 0, 1), group.Details.Count)
+        Dim actual = If(editing, group.Details(0), group.Details.Last())
+        Equal(expectedQuantity, actual.Quantity)
+        Equal(expectedRate, actual.DiscountRate)
+        Equal(saved, ConcurrencyTests.Snapshot(fixture), "Detail editing must not save before registration")
+    End Sub
+
+    Private Sub WithoutDialogs(action As Action)
+        Using guard As New System.Windows.Forms.Timer With {.Interval = 5000}
+            AddHandler guard.Tick, Sub(sender, args) Environment.FailFast("Unexpected dialog blocked automatic input correction")
+            guard.Start()
+            Try
+                action()
+            Finally
+                guard.Stop()
+            End Try
+        End Using
     End Sub
 
     Private Sub SelectDetail(form As RegisterForm, editing As Boolean)
@@ -150,8 +188,8 @@ Friend Module DetailInputTests
     End Sub
 
     Private Function InputState(form As RegisterForm) As String
-        Return String.Join("|", form.ItemNameComboBox.Text, form.FeeTextBox.Text, form.QuantityTextBox.Text,
-            form.DiscountFeeTextBox.Text, form.DiscountRateTextBox.Text, form.DetailTagTextBox.Text,
+        Return String.Join("|", form.ItemNameComboBox.Text, form.FeeTextBox.Text,
+            form.DiscountFeeTextBox.Text, form.DetailTagTextBox.Text,
             form.TaxTargetCheckBox.Checked.ToString(), form.AddDetailButton.Text,
             String.Join(",", form.DetailListView.SelectedIndices.Cast(Of Integer)()),
             String.Join(",", form.UserListBox.SelectedItems.Cast(Of User)().Select(Function(u) u.Code)))
