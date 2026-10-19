@@ -435,12 +435,16 @@ Module Program
         Next
     End Sub
 
-    ' Native MessageBox buttons have stable IDs, independent of Windows display language.
+    ' 確認のYes/NoはIDで選び、競合警告は表示言語に依存せず単一ボタンを選ぶ。
     ' Only a confirmation dialog owned by this test process is eligible for interaction.
     Private Delegate Function EnumWindowCallback(window As IntPtr, parameter As IntPtr) As Boolean
 
     <DllImport("user32.dll")>
     Private Function EnumWindows(callback As EnumWindowCallback, parameter As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function EnumChildWindows(parent As IntPtr, callback As EnumWindowCallback, parameter As IntPtr) As Boolean
     End Function
 
     <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
@@ -457,6 +461,10 @@ Module Program
 
     <DllImport("user32.dll")>
     Private Function GetDlgItem(dialog As IntPtr, controlId As Integer) As IntPtr
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function GetDlgCtrlID(control As IntPtr) As Integer
     End Function
 
     <DllImport("user32.dll", SetLastError:=True)>
@@ -491,6 +499,31 @@ Module Program
         Return result
     End Function
 
+    Private Function DialogButtons(dialog As IntPtr, Optional availableOnly As Boolean = False) As System.Collections.Generic.List(Of IntPtr)
+        Dim result As New System.Collections.Generic.List(Of IntPtr)()
+        EnumChildWindows(dialog,
+            Function(window, parameter)
+                Dim className As New StringBuilder(128)
+                GetClassName(window, className, className.Capacity)
+                If Not String.Equals(className.ToString(), "Button", StringComparison.OrdinalIgnoreCase) Then Return True
+                If availableOnly AndAlso (Not IsWindowVisible(window) OrElse Not IsWindowEnabled(window)) Then Return True
+                result.Add(window)
+                Return True
+            End Function, IntPtr.Zero)
+        Return result
+    End Function
+
+    Private Function DialogButtonDiagnostics(dialog As IntPtr) As String
+        Dim result As New StringBuilder()
+        For Each button In DialogButtons(dialog)
+            Dim caption As New StringBuilder(128)
+            GetWindowText(button, caption, caption.Capacity)
+            result.Append(" id=").Append(GetDlgCtrlID(button)).Append(" caption=[").Append(caption).
+                Append("] visible=").Append(IsWindowVisible(button)).Append(" enabled=").Append(IsWindowEnabled(button)).Append(";")
+        Next
+        Return result.ToString()
+    End Function
+
     Private Function OwnDialogDiagnostics() As String
         Dim result As New StringBuilder()
         Dim ownProcessId = CUInt(Process.GetCurrentProcess().Id)
@@ -506,9 +539,7 @@ Module Program
                 If className.ToString() <> "#32770" Then Return True
                 result.Append(" title=[").Append(title).Append("] visible=").Append(IsWindowVisible(window)).
                     Append(" enabled=").Append(IsWindowEnabled(window)).
-                    Append(" OK=").Append(GetDlgItem(window, 1) <> IntPtr.Zero).
-                    Append(" Yes=").Append(GetDlgItem(window, 6) <> IntPtr.Zero).
-                    Append(" No=").Append(GetDlgItem(window, 7) <> IntPtr.Zero).Append(";")
+                    Append(" buttons=[").Append(DialogButtonDiagnostics(window)).Append("];")
                 Return True
             End Function, IntPtr.Zero)
         Return result.ToString()
@@ -533,10 +564,13 @@ Module Program
                     End If
                     Dim dialog = FindOwnConfirmation("更新の競合")
                     If dialog <> IntPtr.Zero Then
-                        Dim okButton = GetDlgItem(dialog, 1)
-                        If okButton = IntPtr.Zero Then Return
+                        Dim buttons = DialogButtons(dialog, availableOnly:=True)
+                        ' 作成途中や想定外の複数ボタンでは押下せず、期限時に実IDを報告する。
+                        If buttons.Count <> 1 Then Return
+                        Dim okButton = buttons.Single()
                         If Not clickedDialogs.Add(dialog.ToString() & "|conflict") Then Return
                         warnings += 1
+                        Console.WriteLine("INFO " & operation & " conflict warning button id=" & GetDlgCtrlID(okButton).ToString())
                         ' モーダル画面の切替はタイマーを抜けてから処理する。
                         If Not PostMessage(okButton, &HF5UI, IntPtr.Zero, IntPtr.Zero) Then
                             assertionFailure = New Exception(operation & " could not post the conflict OK button: " & Marshal.GetLastWin32Error().ToString())
