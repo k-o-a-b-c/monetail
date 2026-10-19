@@ -113,7 +113,7 @@ Friend Module RevisionTests
                     End Select
                     fixture.Execute("CREATE TRIGGER fail_revision_save AFTER " & triggerEvent & " ON " & triggerTable & " WHEN " & condition & " BEGIN SELECT RAISE(ABORT,'late revision save failure'); END;")
                     Dim withTrigger = Snapshot(fixture)
-                    Dim updates As Integer
+                    Dim updates As Integer = 0
                     Dim observe As SQLiteUpdateEventHandler = Sub(sender, args) updates += 1
                     AddHandler fixture.ActualDataConnection.Update, observe
                     ' 失敗は別接続で起こすため、その実接続のイベントも監視する。

@@ -14,7 +14,7 @@ Friend Module RevisionUiTests
                         Dim originalToken = RevisionTests.Token(kind, item)
                         Dim unrelated = Snapshot(fixture, kind, 1)
                         Using form = CreateEditor(fixture.Data, kind, item)
-                            Dim closed As Boolean
+                            Dim closed As Boolean = False
                             AddHandler form.FormClosed, Sub(sender, args) closed = True
                             Program.OpenForm(form)
                             SetPendingInput(form, kind)
@@ -51,7 +51,7 @@ Friend Module RevisionUiTests
                         Dim item = LoadItem(fixture.Data, kind)
                         Dim originalToken = RevisionTests.Token(kind, item)
                         Using form = CreateEditor(fixture.Data, kind, item)
-                            Dim closed As Boolean
+                            Dim closed As Boolean = False
                             AddHandler form.FormClosed, Sub(sender, args) closed = True
                             Program.OpenForm(form)
                             SetPendingInput(form, kind)
