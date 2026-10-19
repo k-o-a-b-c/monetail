@@ -8,10 +8,10 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの9チェック） | 20 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面（既存28＋更新版6＋競合UI2） | 36 |
-| 合計 | 66 |
+| Windowsの実SQLite・画面・起動設定（既存36＋起動設定6） | 42 |
+| 合計 | 72 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fstale-edit-protection)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fdatabase-startup-validation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -27,6 +27,8 @@ Windows と .NET Framework 4.8 がある環境では次も実行します。
 ```powershell
 dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
 ```
+
+起動設定の回帰では、実.NET設定プロバイダーと製品SQLiteで既定値の一致、exe基準の相対パス、接続オプション、未作成の保持、不正DB・必要構造／各移行列不足、追加列の許容、拒否時のファイル内容・ハンドル解放、エラー通知と修正後の再接続を検証します。DBの実データ監査やメイン画面のエラー表示・終了操作のE2Eは含みません。[19 設定契約](../docs/19-database-startup-settings.md)参照。
 
 こちらは実際の `DataAccess`、SQLite プロバイダー（製品と同じ 1.0.113.1）、登録画面、独自コントロールを直接コンパイルします。一時DBで新規保存／編集、一覧・残高用の両読込、店舗別の直近方式、同日時の順序、利用者ごとの履歴、手動選択の保持、内税／外税と端数方式のラジオグループの独立性、編集中・確認取消時にReceiptの両設定・合計が変わらないこと、登録確認後の選択値の反映、更新失敗時のロールバック、新規／編集取消／流用の画面状態を検証します。確認ダイアログを開かない画面操作は実際のイベント処理を呼び出します。流用は確認ダイアログを含め、ボタン操作後の即時保存・画面終了と取消を検証します。既存DBは使用しません。
 

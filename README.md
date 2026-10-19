@@ -36,6 +36,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [16 文書照合記録](docs/16-documentation-audit.md) | 既存17文書・関連5資料と、取り込み済み実装の照合範囲・検証結果 |
 | [17 採番・更新競合の検証](docs/17-concurrent-persistence-validation.md) | PR #9時点の検証履歴 |
 | [18 古い編集の上書き防止](docs/18-stale-edit-protection.md) | 更新版照合・競合時の画面・3列追加移行 |
+| [19 DB接続設定](docs/19-database-startup-settings.md) | 実行用XML・パス解決・起動前のDBと移行確認 |
 
 ### 読む順番
 
@@ -54,7 +55,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 
 1. WindowsにVisual Studioと.NET Framework 4.8向けの開発コンポーネントを用意。
 2. 上記`.sln`を開いてNuGetパッケージを復元し、ビルド。
-3. `App.config`／`My Project/Settings.settings` にある `ConnectionString` が利用するSQLiteファイルを指しているか確認。**ソースには環境固有の絶対パスが設定されているので、まずバックアップ・テスト用DBに変更すること。**
+3. 開発時は`App.config`、配布先はexe横の`HouseholdAccountsBeta.exe.config`の`ConnectionString`を、バックアップしたテスト用SQLiteへ設定する。既定はEドライブ。相対パスはexe基準で解決し、不在・不正DB・移行不足では起動を中止する。[設定手順](docs/19-database-startup-settings.md)を参照。
 4. SQLite実データファイルはこのリポジトリに含まれていません。テーブル定義SQLは [docs/schema/monetail_schema.sql](docs/schema/monetail_schema.sql) を参照してください。新規セットアップはマスタ初期データ等の別途準備が必要です。
 
 NuGet復元・ビルドと一時DBでの画面自動テストはWindows CIで確認済みです。利用者の端末・実DBでのセットアップは未確認です。個人データを含むSQLiteファイルはコミットしないでください。

@@ -38,7 +38,7 @@ Windows デスクトップアプリ
 
 ## 代表的な処理フロー
 
-1. 起動: `ViewForm.New` → `DataAccess(My.Settings.ConnectionString)` → SQLite接続オープン。
+1. 起動: `ViewForm.New`で画面を構築し、`ViewForm_Load` → `DatabaseStartup.TryOpenConfiguredDatabase` → `DataAccess`で設定・既存ファイル・必要なDB構造を確認する。成功後に一覧を読み込み、設定・DBの問題では案内して終了する。[19 接続設定](19-database-startup-settings.md)参照。
 2. マスタ: 人／支払方法／店舗／税率等をSELECTして画面の選択肢を生成。マスタの一部は初回読込後に保持。
 3. レシート編集: グループ・明細は既存どおり `Receipt` の子リストを編集する。店名等と内税／外税・端数方式はコントロールに保持し、合計表示は `Receipt.GetTotal(taxType, taxRoundingMode)` で `Receipt` の税設定を変えずに計算する。必要な登録確認後にヘッダーへ転記 → `DataAccess.RegisterReceipt / UpdateReceipt`。レシート全体のディープコピーは導入していない。
 4. レシート参照: `GetReceipts` → `LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData` の順に読み込む。
@@ -62,7 +62,7 @@ Windows デスクトップアプリ
 
 1. WindowsとVisual Studio（.NET Framework 4.8用の開発機能）が必要。
 2. `.sln` を開きNuGetパッケージを復元してビルドする。GitHub Actionsでは `nuget restore` と `msbuild`（Debug / Any CPU）による既存ソリューションのビルドを確認済み。
-3. `My.Settings.ConnectionString` はSQLiteのファイルパス。`App.config` と `Settings.settings` には**異なるドライブの絶対パス**が入っており、別環境でそのまま起動できない可能性が高い。作業用DBのパスを必ず確認する。
+3. `My.Settings.ConnectionString`の既定値は`App.config`・`Settings.settings`・生成コードでEドライブへ統一。配布先はexe横のXMLを編集する。相対パスはexe基準。不在時は自動作成せず、構造・移行不足でも起動を中止する。利用するDBの指定は必要。[設定手順](19-database-startup-settings.md)参照。
 4. SQLiteの実データファイルはレポジトリにない。ユーザー提供の実DDLを [docs/schema/monetail_schema.sql](schema/monetail_schema.sql) に保存済み。これは移行前の16テーブル・90列・17外部キーの定義であり、現行アプリには[税端数の移行SQL](migrations/20261017_01_shop_tax_rounding.sql)による2列追加（合計92列）が必要。バックアップしたDBのコピーへ一度だけ適用して確認し、新旧アプリで同じDBを共有しない。新規環境で必要な**マスタ初期データ**は別途用意する。
 5. 実データはGitHubにコミットしない。設定の汎用化・サンプルDBの匿名化が必要。
 6. Windowsログイン名 `Environment.UserName` で個人識別を一部行う。アプリ認証・家計ごとの権限チェックとは異なる。
