@@ -117,22 +117,24 @@ Friend Module RevisionUiTests
     End Sub
 
     Private Function InputSnapshot(form As Form, kind As EntityKind) As String
+        ' 日付欄の隠れた時刻と時刻欄の隠れた日付は、入力確定時に正規化される。
+        ' 利用者が入力する日付・時刻をそれぞれ比較する。
         Select Case kind
             Case EntityKind.Receipt
                 Dim editor = DirectCast(form, RegisterForm)
                 Return String.Join("|", editor.ReceiptTagTextBox.Text, editor.ShopNameComboBox.Text,
-                    editor.ShopLocationComboBox.Text, editor.ReceiptDateTextBox.Value.ToString("O"),
-                    editor.ReceiptTimeTextBox.Value.ToString("O"), editor.TaxExclusiveRadioButton.Checked.ToString(),
+                    editor.ShopLocationComboBox.Text, editor.ReceiptDateTextBox.Value.Date.ToString("O"),
+                    editor.ReceiptTimeTextBox.Value.TimeOfDay.ToString(), editor.TaxExclusiveRadioButton.Checked.ToString(),
                     editor.TaxRoundingHalfUpRadioButton.Checked.ToString(), editor.TotalTextBox.Text)
             Case EntityKind.Transfer
                 Dim editor = DirectCast(form, RegisterTransferForm)
                 Return String.Join("|", editor.TransferTagTextBox.Text, editor.NameComboBox.Text,
-                    editor.FeeTextBox.Text, editor.TransferDateTextBox.Value.ToString("O"), editor.TransferTimeTextBox.Value.ToString("O"),
+                    editor.FeeTextBox.Text, editor.TransferDateTextBox.Value.Date.ToString("O"), editor.TransferTimeTextBox.Value.TimeOfDay.ToString(),
                     Convert.ToString(editor.FromPaymentClassificationComboBox.SelectedValue, CultureInfo.InvariantCulture),
                     Convert.ToString(editor.ToPaymentClassificationComboBox.SelectedValue, CultureInfo.InvariantCulture))
             Case EntityKind.Balance
                 Dim editor = DirectCast(form, RegisterBalanceForm)
-                Dim result = editor.BalanceTagTextBox.Text & "|" & editor.BalanceDateTextBox.Value.ToString("O")
+                Dim result = editor.BalanceTagTextBox.Text & "|" & editor.BalanceDateTextBox.Value.Date.ToString("O")
                 For Each row As DataGridViewRow In editor.BalanceDataGridView.Rows
                     For Each index In New Integer() {editor.BalanceColumn.Index, editor.ValuationAmountColumn.Index, editor.TagColumn.Index}
                         result &= "|" & Convert.ToString(row.Cells(index).Value, CultureInfo.InvariantCulture)
