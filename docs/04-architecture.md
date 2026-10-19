@@ -36,6 +36,8 @@ Windows デスクトップアプリ
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
 | `.github/workflows/tests.yml` | Linux／Windowsのテストと既存ソリューションのWindowsビルド |
 
+残高推算の期間判定・加減算は`Calculation.AutoBalance`の内部3引数オーバーロードに集約する。従来の公開2引数版は共有`Calculation.DataAccess`、`DataAccess.GetAutoBalance`は自身のインスタンスを渡す。SQL読込は渡されたDataAccessが担い、インスタンス側の推算で共有接続を切り替えない。
+
 ## 代表的な処理フロー
 
 1. 起動: `ViewForm.New`で画面を構築し、`ViewForm_Load` → `DatabaseStartup.TryOpenConfiguredDatabase` → `DataAccess`で設定・既存ファイル・必要なDB構造を確認する。成功後に一覧を読み込み、設定・DBの問題では案内して終了する。[19 接続設定](19-database-startup-settings.md)参照。

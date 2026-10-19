@@ -411,39 +411,7 @@ Public Class DataAccess
     End Function
 
     Public Function GetAutoBalance(ByVal TargetDate As Date, ByVal PaymentClassification As PaymentClassification) As Nullable(Of Integer)
-
-        Dim balance As Integer = 0
-        Dim dateFrom As DateTime = DateTime.MinValue
-        ' DateTimeの最終日は翌日を表現できないため、最終tickを含む上限にする。
-        Dim endExclusive As Boolean = TargetDate.Date <> DateTime.MaxValue.Date
-        Dim dateTo As DateTime = If(endExclusive, TargetDate.Date.AddDays(1), DateTime.MaxValue)
-
-        Dim LastBalance As Balance = Me.GetLastBalance(TargetDate.Date, PaymentClassification)
-        If LastBalance IsNot Nothing Then
-            dateFrom = LastBalance.Date.Date.AddDays(1)
-            balance = LastBalance.Groups.FirstOrDefault(Function(g) g.PaymentClassification.Code = PaymentClassification.Code).Balance
-        End If
-
-        Dim receipts As List(Of Receipt) = Me.GetPaymentReceipts(dateFrom, dateTo, PaymentClassification, endExclusive:=endExclusive)
-        For Each receipt As Receipt In receipts
-            balance -= receipt.Total
-        Next
-
-        Dim transfers As List(Of Transfer) = Me.GetPaymentTransfers(dateFrom, dateTo, PaymentClassification, endExclusive:=endExclusive)
-        For Each transfer As Transfer In transfers
-            If transfer.FromPaymentClassification.Code = PaymentClassification.Code Then
-                balance -= transfer.Fee
-            Else
-                balance += transfer.Fee
-            End If
-        Next
-
-        If LastBalance IsNot Nothing OrElse receipts.Count > 0 OrElse transfers.Count > 0 Then
-            Return balance
-        Else
-            Return Nothing
-        End If
-
+        Return Calculation.AutoBalance(TargetDate, PaymentClassification, Me)
     End Function
 
 #End Region

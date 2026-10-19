@@ -131,7 +131,7 @@ RegisterPaymentMemoForm → DataAccess.RegisterPaymentMemo
 
 ### 残高推算
 
-`Calculation.AutoBalance` と `DataAccess.GetAutoBalance` にほぼ同内容の計算がある。最新の登録残高を起点として `-レシートTotal -出金振替 +入金振替` を計算する。重複実装は将来的な差異リスク。
+`Calculation.AutoBalance`の内部3引数オーバーロードが、最新の登録残高を起点として期間判定と`-レシートTotal -出金振替 +入金振替`を計算する。公開2引数版は`Calculation.DataAccess`を渡し、`DataAccess.GetAutoBalance`は`Me`を渡す。既存の入口を保ち、インスタンス側の推算は共有DataAccessを参照・変更しない。
 
 ## 5. 採番と編集競合
 

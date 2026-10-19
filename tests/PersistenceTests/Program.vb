@@ -22,6 +22,7 @@ Module Program
         Check("both balance predictors preserve month year and leap-day transitions", AddressOf BalanceBoundaryTests.CalendarTransitions)
         Check("both balance predictors use the date part of a recorded end-of-day balance", AddressOf BalanceBoundaryTests.NonMidnightBaseline)
         Check("both balance predictors handle the first and last supported dates without overflow", AddressOf BalanceBoundaryTests.SupportedDateExtremes)
+        Check("instance balance prediction uses its own database without changing the shared data source", AddressOf BalanceBoundaryTests.InstanceDataSource)
         Check("actual SQLite receipt insert/update and both read paths", AddressOf ReceiptPersistence)
         Check("discount rates survive receipt insert and all three read paths", AddressOf FractionalDiscountTests.InsertRoundTrips)
         Check("discount rates survive receipt update and all three read paths", AddressOf FractionalDiscountTests.UpdateRoundTrips)

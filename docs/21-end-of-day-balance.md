@@ -14,7 +14,7 @@
 
 ## 実装と保存値
 
-両AutoBalanceで同じ期間を求め、`GetPaymentReceipts`と`GetPaymentTransfers`の追加引数`endExclusive=True`を使う。この場合のSQL条件は`date >= :date_from AND date < :date_to`。一般の3引数呼出は従来どおり両端を含む`BETWEEN`を使う。最終日は上限を含むモードでMaxValueまでを集計する。
+両AutoBalanceは`Calculation`の内部3引数オーバーロードへ委譲し、同じ期間判定・加減算を使う。公開2引数版は共有`Calculation.DataAccess`、`DataAccess.GetAutoBalance`は自身のインスタンスを渡す。後者は共有DataAccessを参照・変更しない。`GetPaymentReceipts`と`GetPaymentTransfers`の追加引数`endExclusive=True`を使う。この場合のSQL条件は`date >= :date_from AND date < :date_to`。一般の3引数呼出は従来どおり両端を含む`BETWEEN`を使う。最終日は上限を含むモードでMaxValueまでを集計する。
 
 アプリが保存するスペース区切りの日時と小数秒・明示的な`.0000000`を、日付の両側の0時で区切って扱う。日時列・レシート合計・税端数方式・更新版などの保存値を正規化・再保存しない。DB定義・移行SQL・登録操作も追加しない。修正した推算値は再読込時に表示へ反映される。
 
@@ -34,4 +34,4 @@
 
 ## 残る範囲
 
-推算処理の共通化（LEG-025）は後続の作業。同一日時の複数残高の優先順位も未確定で、現在のSQLにseqの順序指定はない。日付だけ／T区切り／タイムゾーン付きなど別のTEXT形式、夏時間、実データの整合性、利用者環境の手動E2Eは今回の検証範囲に含めない。
+推算処理の共通化（LEG-025）は実装済み。共有DataAccessが未設定／別DBの状態で、各インスタンスが自身のDBの金額を返すこと、公開2引数版が共有設定のDBを読むこと、双方の保存値と共有設定が変わらないことをFK ON/OFFで追加検証する。同一日時の複数残高の優先順位も未確定で、現在のSQLにseqの順序指定はない。日付だけ／T区切り／タイムゾーン付きなど別のTEXT形式、夏時間、実データの整合性、利用者環境の手動E2Eは今回の検証範囲に含めない。
