@@ -459,8 +459,16 @@ Module Program
     Private Function GetDlgItem(dialog As IntPtr, controlId As Integer) As IntPtr
     End Function
 
-    <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
-    Private Function SendMessage(window As IntPtr, message As UInteger, wParam As IntPtr, lParam As IntPtr) As IntPtr
+    <DllImport("user32.dll", SetLastError:=True)>
+    Private Function PostMessage(window As IntPtr, message As UInteger, wParam As IntPtr, lParam As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function IsWindowVisible(window As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function IsWindowEnabled(window As IntPtr) As Boolean
     End Function
 
     Private Function FindOwnConfirmation(Optional expectedTitle As String = "確認") As IntPtr
@@ -471,6 +479,7 @@ Module Program
                 Dim processId As UInteger
                 GetWindowThreadProcessId(window, processId)
                 If processId <> ownProcessId Then Return True
+                If Not IsWindowVisible(window) OrElse Not IsWindowEnabled(window) Then Return True
                 Dim title As New StringBuilder(128)
                 Dim className As New StringBuilder(128)
                 GetWindowText(window, title, title.Capacity)
@@ -482,28 +491,60 @@ Module Program
         Return result
     End Function
 
+    Private Function OwnDialogDiagnostics() As String
+        Dim result As New StringBuilder()
+        Dim ownProcessId = CUInt(Process.GetCurrentProcess().Id)
+        EnumWindows(
+            Function(window, parameter)
+                Dim processId As UInteger
+                GetWindowThreadProcessId(window, processId)
+                If processId <> ownProcessId Then Return True
+                Dim title As New StringBuilder(128)
+                Dim className As New StringBuilder(128)
+                GetWindowText(window, title, title.Capacity)
+                GetClassName(window, className, className.Capacity)
+                If className.ToString() <> "#32770" Then Return True
+                result.Append(" title=[").Append(title).Append("] visible=").Append(IsWindowVisible(window)).
+                    Append(" enabled=").Append(IsWindowEnabled(window)).
+                    Append(" OK=").Append(GetDlgItem(window, 1) <> IntPtr.Zero).
+                    Append(" Yes=").Append(GetDlgItem(window, 6) <> IntPtr.Zero).
+                    Append(" No=").Append(GetDlgItem(window, 7) <> IntPtr.Zero).Append(";")
+                Return True
+            End Function, IntPtr.Zero)
+        Return result.ToString()
+    End Function
+
     Friend Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
                               Optional beforeAnswer As Action = Nothing, Optional expectedConflict As Boolean = False)
         Dim answered As Integer
         Dim warnings As Integer
+        Dim clickedDialogs As New System.Collections.Generic.HashSet(Of String)()
         Dim assertionFailure As Exception = Nothing
         Dim watch = Stopwatch.StartNew()
         Using responder As New System.Windows.Forms.Timer With {.Interval = 50}
             AddHandler responder.Tick,
                 Sub(sender, args)
                     If watch.Elapsed > TimeSpan.FromSeconds(15) Then
-                        Environment.FailFast(operation & " confirmation did not complete within 15 seconds.")
+                        Dim diagnostic = operation & " dialogs did not complete within 15 seconds; confirmations=" & answered.ToString() &
+                            "; warnings=" & warnings.ToString() & "; dialogs:" & OwnDialogDiagnostics()
+                        Console.Error.WriteLine("FAIL " & diagnostic)
+                        Console.Error.Flush()
+                        Environment.FailFast(diagnostic)
                     End If
-                    Dim dialog = FindOwnConfirmation()
-                    If dialog = IntPtr.Zero Then
-                        dialog = FindOwnConfirmation("更新の競合")
-                        If dialog = IntPtr.Zero Then Return
+                    Dim dialog = FindOwnConfirmation("更新の競合")
+                    If dialog <> IntPtr.Zero Then
                         Dim okButton = GetDlgItem(dialog, 1)
                         If okButton = IntPtr.Zero Then Return
+                        If Not clickedDialogs.Add(dialog.ToString() & "|conflict") Then Return
                         warnings += 1
-                        SendMessage(okButton, &HF5UI, IntPtr.Zero, IntPtr.Zero)
+                        ' モーダル画面の切替はタイマーを抜けてから処理する。
+                        If Not PostMessage(okButton, &HF5UI, IntPtr.Zero, IntPtr.Zero) Then
+                            assertionFailure = New Exception(operation & " could not post the conflict OK button: " & Marshal.GetLastWin32Error().ToString())
+                        End If
                         Return
                     End If
+                    dialog = FindOwnConfirmation()
+                    If dialog = IntPtr.Zero Then Return
                     If answered = 0 AndAlso beforeAnswer IsNot Nothing Then
                         Try
                             beforeAnswer()
@@ -515,8 +556,11 @@ Module Program
                     ' An unexpected extra confirmation is declined, then reported after the handler returns.
                     Dim button = GetDlgItem(dialog, If(answered = 0 AndAlso answer = DialogResult.Yes AndAlso assertionFailure Is Nothing, 6, 7))
                     If button = IntPtr.Zero Then Return
+                    If Not clickedDialogs.Add(dialog.ToString() & "|confirmation") Then Return
                     answered += 1
-                    SendMessage(button, &HF5UI, IntPtr.Zero, IntPtr.Zero) ' BM_CLICK
+                    If Not PostMessage(button, &HF5UI, IntPtr.Zero, IntPtr.Zero) Then ' BM_CLICK
+                        assertionFailure = New Exception(operation & " could not post the confirmation button: " & Marshal.GetLastWin32Error().ToString())
+                    End If
                 End Sub
             responder.Start()
             Try
