@@ -65,7 +65,7 @@ Friend Module BalanceBoundaryTests
             End Sub)
     End Sub
 
-    Public Sub InclusiveStartAndEnd()
+    Public Sub EndOfDayHalfOpenInterval()
         EachForeignKeyMode(
             Sub(fixture)
                 AddBalance(fixture, New Date(2026, 10, 15), 1000, 1)
@@ -83,8 +83,10 @@ Friend Module BalanceBoundaryTests
                 ReadOnlyCase(fixture,
                     Sub()
                         AssertWindow(fixture, New Date(2026, 10, 15, 23, 59, 59), New Date(2026, 10, 16, 23, 59, 59), "2,3,4", "2,3,4")
-                        ' 1000 - (11+13+17) - 3 + 5 - 7 = 954。
-                        AssertBoth(fixture, New Date(2026, 10, 16), 1, 954)
+                        AssertWindow(fixture, New Date(2026, 10, 16), New Date(2026, 10, 17), "3,4,5", "3,4,5", endExclusive:=True)
+                        ' 残高日末を再計上せず、対象日最後の小数秒まで含める。
+                        ' 1000 - (13+17+103) + 5 - 7 - 113 = 752。
+                        AssertBoth(fixture, New Date(2026, 10, 16), 1, 752)
                     End Sub)
             End Sub)
     End Sub
@@ -104,6 +106,10 @@ Friend Module BalanceBoundaryTests
                 Dim upperReceipt = AddReceipt(fixture, targetEnd, 31, 1)
                 SetRawDate(fixture, "t_receipts", lowerReceipt, "2026-10-15 23:59:59.0000000")
                 SetRawDate(fixture, "t_receipts", upperReceipt, "2026-10-16 23:59:59.0000000")
+                Dim firstReceipt = AddReceipt(fixture, New Date(2026, 10, 16), 37, 1)
+                Dim nextReceipt = AddReceipt(fixture, New Date(2026, 10, 17), 41, 1)
+                SetRawDate(fixture, "t_receipts", firstReceipt, "2026-10-16 00:00:00.0000000")
+                SetRawDate(fixture, "t_receipts", nextReceipt, "2026-10-17 00:00:00.0000000")
                 AddTransfer(fixture, New Date(2026, 10, 16, 12, 0, 0), 3, 2, 1)
                 AddTransfer(fixture, targetEnd, 5, 1, 2)
                 AddTransfer(fixture, targetEnd.AddTicks(1), 7, 2, 1)
@@ -112,6 +118,10 @@ Friend Module BalanceBoundaryTests
                 Dim lowerTransfer = AddTransfer(fixture, lowerEnd, 17, 1, 2)
                 SetRawDate(fixture, "t_transfers", upperTransfer, "2026-10-16 23:59:59.0000000")
                 SetRawDate(fixture, "t_transfers", lowerTransfer, "2026-10-15 23:59:59.0000000")
+                Dim firstTransfer = AddTransfer(fixture, New Date(2026, 10, 16), 19, 2, 1)
+                Dim nextTransfer = AddTransfer(fixture, New Date(2026, 10, 17), 23, 1, 2)
+                SetRawDate(fixture, "t_transfers", firstTransfer, "2026-10-16 00:00:00.0000000")
+                SetRawDate(fixture, "t_transfers", nextTransfer, "2026-10-17 00:00:00.0000000")
                 ReadOnlyCase(fixture,
                     Sub()
                         Dim payment = fixture.Data.PaymentClassification(1)
@@ -123,9 +133,10 @@ Friend Module BalanceBoundaryTests
                         Dim allTransfers = fixture.Data.GetPaymentTransfers(lowerEnd, New Date(2026, 10, 17), payment).ToDictionary(Function(t) t.Seq)
                         Equal(targetEnd.AddTicks(1).Ticks, allTransfers(3).Date.Ticks)
                         Equal(targetEnd.Ticks, allTransfers(upperTransfer).Date.Ticks)
-                        AssertWindow(fixture, lowerEnd, targetEnd, "1,2,6", "1,2,6")
-                        ' TEXT比較では上限の.0000000も除外されるが、下限の.0000000は含まれる。
-                        AssertBoth(fixture, New Date(2026, 10, 16), 1, 928)
+                        AssertWindow(fixture, lowerEnd, targetEnd, "1,2,6,8", "1,2,6,7")
+                        AssertWindow(fixture, New Date(2026, 10, 16), New Date(2026, 10, 17), "1,2,3,4,5,7,8", "1,2,3,4,5,7", endExclusive:=True)
+                        ' 支出151円、入金40円、出金18円。翌日0時の明示的な小数秒ゼロも除外。
+                        AssertBoth(fixture, New Date(2026, 10, 16), 1, 871)
                     End Sub)
             End Sub)
     End Sub
@@ -166,8 +177,32 @@ Friend Module BalanceBoundaryTests
                         Equal(baseline, selected.Seq)
                         Equal(New Date(2026, 10, 15, 9, 30, 0), selected.Date)
                         AssertWindow(fixture, New Date(2026, 10, 16, 9, 29, 59), New Date(2026, 10, 16, 23, 59, 59), "4", "1,2")
-                        AssertBoth(fixture, New Date(2026, 10, 16), 1, 984)
+                        AssertWindow(fixture, New Date(2026, 10, 16), New Date(2026, 10, 17), "2,3,4", "1,2", endExclusive:=True)
+                        AssertBoth(fixture, New Date(2026, 10, 16), 1, 774)
                     End Sub)
+            End Sub)
+    End Sub
+
+    Public Sub SupportedDateExtremes()
+        EachForeignKeyMode(
+            Sub(fixture)
+                AddReceipt(fixture, DateTime.MinValue, 11, 1)
+                AddReceipt(fixture, New Date(1, 1, 2).AddTicks(-1), 13, 1)
+                AddReceipt(fixture, New Date(1, 1, 2), 101, 1)
+                AddTransfer(fixture, DateTime.MinValue, 7, 2, 1)
+                AddTransfer(fixture, New Date(1, 1, 2).AddTicks(-1), 5, 1, 2)
+                AddTransfer(fixture, New Date(1, 1, 2), 103, 1, 2)
+                ReadOnlyCase(fixture, Sub() AssertBoth(fixture, DateTime.MinValue, 1, -22))
+            End Sub)
+        EachForeignKeyMode(
+            Sub(fixture)
+                AddBalance(fixture, New Date(9999, 12, 30, 18, 0, 0), 1000, 1)
+                AddReceipt(fixture, New Date(9999, 12, 30, 23, 59, 59), 101, 1)
+                AddReceipt(fixture, New Date(9999, 12, 31), 11, 1)
+                AddReceipt(fixture, DateTime.MaxValue, 13, 1)
+                AddTransfer(fixture, New Date(9999, 12, 31), 7, 2, 1)
+                AddTransfer(fixture, DateTime.MaxValue, 5, 1, 2)
+                ReadOnlyCase(fixture, Sub() AssertBoth(fixture, DateTime.MaxValue, 1, 978))
             End Sub)
     End Sub
 
@@ -214,10 +249,15 @@ Friend Module BalanceBoundaryTests
         Equal(Of Integer?)(expected, Calculation.AutoBalance(target, payment), "Calculation " & context)
     End Sub
 
-    Private Sub AssertWindow(fixture As DatabaseFixture, dateFrom As Date, dateTo As Date, receiptIds As String, transferIds As String)
+    Private Sub AssertWindow(fixture As DatabaseFixture, dateFrom As Date, dateTo As Date, receiptIds As String, transferIds As String,
+                             Optional endExclusive As Boolean = False)
         Dim payment = fixture.Data.PaymentClassification(1)
-        Equal(receiptIds, String.Join(",", fixture.Data.GetPaymentReceipts(dateFrom, dateTo, payment).Select(Function(r) r.Seq).OrderBy(Function(seq) seq)))
-        Equal(transferIds, String.Join(",", fixture.Data.GetPaymentTransfers(dateFrom, dateTo, payment).Select(Function(t) t.Seq).OrderBy(Function(seq) seq)))
+        Dim receipts = If(endExclusive, fixture.Data.GetPaymentReceipts(dateFrom, dateTo, payment, endExclusive:=True),
+            fixture.Data.GetPaymentReceipts(dateFrom, dateTo, payment))
+        Dim transfers = If(endExclusive, fixture.Data.GetPaymentTransfers(dateFrom, dateTo, payment, endExclusive:=True),
+            fixture.Data.GetPaymentTransfers(dateFrom, dateTo, payment))
+        Equal(receiptIds, String.Join(",", receipts.Select(Function(r) r.Seq).OrderBy(Function(seq) seq)))
+        Equal(transferIds, String.Join(",", transfers.Select(Function(t) t.Seq).OrderBy(Function(seq) seq)))
     End Sub
 
     Private Function AddReceipt(fixture As DatabaseFixture, value As Date, amount As Integer, paymentCode As Integer) As Integer

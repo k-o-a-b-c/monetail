@@ -414,20 +414,22 @@ Public Class DataAccess
 
         Dim balance As Integer = 0
         Dim dateFrom As DateTime = DateTime.MinValue
-        Dim dateTo As DateTime = TargetDate.Date + New TimeSpan(23, 59, 59)
+        ' DateTimeの最終日は翌日を表現できないため、最終tickを含む上限にする。
+        Dim endExclusive As Boolean = TargetDate.Date <> DateTime.MaxValue.Date
+        Dim dateTo As DateTime = If(endExclusive, TargetDate.Date.AddDays(1), DateTime.MaxValue)
 
         Dim LastBalance As Balance = Me.GetLastBalance(TargetDate.Date, PaymentClassification)
         If LastBalance IsNot Nothing Then
-            dateFrom = LastBalance.Date + New TimeSpan(23, 59, 59)
+            dateFrom = LastBalance.Date.Date.AddDays(1)
             balance = LastBalance.Groups.FirstOrDefault(Function(g) g.PaymentClassification.Code = PaymentClassification.Code).Balance
         End If
 
-        Dim receipts As List(Of Receipt) = Me.GetPaymentReceipts(dateFrom, dateTo, PaymentClassification)
+        Dim receipts As List(Of Receipt) = Me.GetPaymentReceipts(dateFrom, dateTo, PaymentClassification, endExclusive:=endExclusive)
         For Each receipt As Receipt In receipts
             balance -= receipt.Total
         Next
 
-        Dim transfers As List(Of Transfer) = Me.GetPaymentTransfers(dateFrom, dateTo, PaymentClassification)
+        Dim transfers As List(Of Transfer) = Me.GetPaymentTransfers(dateFrom, dateTo, PaymentClassification, endExclusive:=endExclusive)
         For Each transfer As Transfer In transfers
             If transfer.FromPaymentClassification.Code = PaymentClassification.Code Then
                 balance -= transfer.Fee
@@ -719,12 +721,14 @@ Public Class DataAccess
 
     End Function
 
-    Public Function GetPaymentReceipts(ByVal dateFrom As DateTime, ByVal dateTo As DateTime, ByVal payment As PaymentClassification) As List(Of Receipt)
+    Public Function GetPaymentReceipts(ByVal dateFrom As DateTime, ByVal dateTo As DateTime, ByVal payment As PaymentClassification,
+                                       Optional endExclusive As Boolean = False) As List(Of Receipt)
 
         Dim receiptList As New List(Of Receipt)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode, revision_token from t_receipts where date between :date_from and :date_to and payment_classification_code = :payment_classification_code"
+            Dim dateCondition = If(endExclusive, "date >= :date_from and date < :date_to", "date between :date_from and :date_to")
+            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode, revision_token from t_receipts where " & dateCondition & " and payment_classification_code = :payment_classification_code"
             command.Parameters.AddWithValue("date_from", dateFrom)
             command.Parameters.AddWithValue("date_to", dateTo)
             command.Parameters.AddWithValue("payment_classification_code", payment.Code)
@@ -752,12 +756,14 @@ Public Class DataAccess
 
     End Function
 
-    Public Function GetPaymentTransfers(ByVal dateFrom As DateTime, ByVal dateTo As DateTime, ByVal payment As PaymentClassification) As List(Of Transfer)
+    Public Function GetPaymentTransfers(ByVal dateFrom As DateTime, ByVal dateTo As DateTime, ByVal payment As PaymentClassification,
+                                        Optional endExclusive As Boolean = False) As List(Of Transfer)
 
         Dim transferList As New List(Of Transfer)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag, revision_token from t_transfers where date between :date_from and :date_to and (from_payment_classification_code = :payment_classification_code or to_payment_classification_code = :payment_classification_code)"
+            Dim dateCondition = If(endExclusive, "date >= :date_from and date < :date_to", "date between :date_from and :date_to")
+            command.CommandText = "select seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag, revision_token from t_transfers where " & dateCondition & " and (from_payment_classification_code = :payment_classification_code or to_payment_classification_code = :payment_classification_code)"
             command.Parameters.AddWithValue("date_from", dateFrom)
             command.Parameters.AddWithValue("date_to", dateTo)
             command.Parameters.AddWithValue("payment_classification_code", payment.Code)
