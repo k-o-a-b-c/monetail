@@ -6,6 +6,14 @@ Public Class RegisterForm
 
     Public Property Receipt As Receipt
 
+    Private ReloadRequiredValue As Boolean
+
+    Public ReadOnly Property ReloadRequired As Boolean
+        Get
+            Return ReloadRequiredValue
+        End Get
+    End Property
+
     Private Property SelectedGroup As ReceiptGroup
 
     Private Property Detail As ReceiptDetail
@@ -529,13 +537,19 @@ Public Class RegisterForm
         Receipt.PaymentClassification = DataAccess.PaymentClassification(DirectCast(PaymentClassificationComboBox.SelectedValue, Integer))
         Receipt.Tag = ReceiptTagTextBox.Text
 
-        If Receipt.Seq = 0 Then
-            DataAccess.RegisterReceipt(Receipt)
-            PaymentClassification = DirectCast(PaymentClassificationComboBox.SelectedItem, PaymentClassification)
-        Else
-            DataAccess.UpdateReceipt(Receipt)
-            PaymentClassification = Nothing
-        End If
+        Try
+            If Receipt.Seq = 0 Then
+                DataAccess.RegisterReceipt(Receipt)
+                PaymentClassification = DirectCast(PaymentClassificationComboBox.SelectedItem, PaymentClassification)
+            Else
+                DataAccess.UpdateReceipt(Receipt)
+                PaymentClassification = Nothing
+            End If
+        Catch ex As System.Data.DBConcurrencyException
+            ReloadRequiredValue = True
+            MessageBox.Show(ex.Message, "更新の競合", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End Try
 
 
         Me.DialogResult = DialogResult.OK
@@ -550,7 +564,13 @@ Public Class RegisterForm
             Return
         End If
 
-        DataAccess.DeleteReceipt(Receipt)
+        Try
+            DataAccess.DeleteReceipt(Receipt)
+        Catch ex As System.Data.DBConcurrencyException
+            ReloadRequiredValue = True
+            MessageBox.Show(ex.Message, "更新の競合", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End Try
 
         Me.DialogResult = DialogResult.OK
 

@@ -1,5 +1,6 @@
 ﻿Public Class Transfer
     Public Property Seq As Integer
+    Friend Property RevisionToken As String
     Public Property [Date] As DateTime
     Public Property Name As String
     Public Property Fee As Integer

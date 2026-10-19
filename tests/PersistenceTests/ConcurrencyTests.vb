@@ -8,7 +8,7 @@ Imports System.Threading
 Imports System.Threading.Tasks
 
 Friend Module ConcurrencyTests
-    Private Enum EntityKind
+    Friend Enum EntityKind
         Receipt
         Transfer
         Balance
@@ -109,7 +109,7 @@ Friend Module ConcurrencyTests
             End Sub)
     End Sub
 
-    Public Sub StaleEditsOverwrite()
+    Public Sub StaleEditsRejected()
         EachCase(
             Sub(fixture, second, kind)
                 Dim neighbor = MakeItem(kind, "unchanged neighbor", 3)
@@ -129,15 +129,17 @@ Friend Module ConcurrencyTests
                 AssertSaved(fixture, kind, firstSnapshot)
 
                 ChangeStaleTag(kind, staleSnapshot)
-                Save(second, kind, staleSnapshot, registering:=False)
-                ' 現行の後勝ちを再現する。先行編集のヘッダー・子との混在は認めない。
-                AssertSaved(fixture, kind, staleSnapshot)
+                Dim before = Snapshot(fixture)
+                RevisionTests.RejectWithoutWrites(fixture, second, kind, staleSnapshot,
+                    Sub() Save(second, kind, staleSnapshot, registering:=False))
+                Equal(before, Snapshot(fixture), "A stale edit must preserve the first editor's complete saved snapshot")
+                AssertSaved(fixture, kind, firstSnapshot)
                 Equal(unaffected, Snapshot(fixture, kind, 1), "A stale edit must preserve the neighbor and all unrelated rows")
                 AssertForeignKeys(DataConnection(second))
             End Sub)
     End Sub
 
-    Private Sub EachCase(action As Action(Of DatabaseFixture, DataAccess, EntityKind))
+    Friend Sub EachCase(action As Action(Of DatabaseFixture, DataAccess, EntityKind))
         Dim failures As New List(Of String)()
         For Each foreignKeys In New Boolean() {True, False}
             For Each kind In [Enum].GetValues(GetType(EntityKind)).Cast(Of EntityKind)()
@@ -203,7 +205,7 @@ Friend Module ConcurrencyTests
         Throw New Exception("Expected SQLite Busy/Locked: " & context)
     End Sub
 
-    Private Function ParentTable(kind As EntityKind) As String
+    Friend Function ParentTable(kind As EntityKind) As String
         Select Case kind
             Case EntityKind.Receipt : Return "t_receipts"
             Case EntityKind.Transfer : Return "t_transfers"
@@ -212,7 +214,7 @@ Friend Module ConcurrencyTests
         End Select
     End Function
 
-    Private Function Sequence(kind As EntityKind, item As Object) As Integer
+    Friend Function Sequence(kind As EntityKind, item As Object) As Integer
         Select Case kind
             Case EntityKind.Receipt : Return DirectCast(item, Receipt).Seq
             Case EntityKind.Transfer : Return DirectCast(item, Transfer).Seq
@@ -221,7 +223,7 @@ Friend Module ConcurrencyTests
         End Select
     End Function
 
-    Private Function LoadItem(data As DataAccess, kind As EntityKind) As Object
+    Friend Function LoadItem(data As DataAccess, kind As EntityKind) As Object
         Select Case kind
             Case EntityKind.Receipt : Return data.GetReceipts(2026, 10).Single(Function(item) item.Seq = 1)
             Case EntityKind.Transfer : Return data.GetTransfers(New Date(2026, 10, 1)).Single(Function(item) item.Seq = 1)
@@ -230,7 +232,7 @@ Friend Module ConcurrencyTests
         End Select
     End Function
 
-    Private Sub Save(data As DataAccess, kind As EntityKind, item As Object, registering As Boolean)
+    Friend Sub Save(data As DataAccess, kind As EntityKind, item As Object, registering As Boolean)
         Select Case kind
             Case EntityKind.Receipt
                 If registering Then data.RegisterReceipt(DirectCast(item, Receipt)) Else data.UpdateReceipt(DirectCast(item, Receipt))
@@ -241,7 +243,7 @@ Friend Module ConcurrencyTests
         End Select
     End Sub
 
-    Private Function MakeItem(kind As EntityKind, label As String, shapeNumber As Integer, Optional existing As Object = Nothing) As Object
+    Friend Function MakeItem(kind As EntityKind, label As String, shapeNumber As Integer, Optional existing As Object = Nothing) As Object
         Dim itemDate = New Date(2026, 10, 17 + shapeNumber, 9 + shapeNumber, 23, 45)
         Dim cash As New PaymentClassification With {.Code = 1}
         Dim bank As New PaymentClassification With {.Code = 2}
@@ -291,7 +293,7 @@ Friend Module ConcurrencyTests
         End Select
     End Function
 
-    Private Sub ChangeStaleTag(kind As EntityKind, item As Object)
+    Friend Sub ChangeStaleTag(kind As EntityKind, item As Object)
         Select Case kind
             Case EntityKind.Receipt
                 DirectCast(item, Receipt).Tag = "stale second editor"
@@ -304,7 +306,7 @@ Friend Module ConcurrencyTests
         End Select
     End Sub
 
-    Private Sub AssertSaved(fixture As DatabaseFixture, kind As EntityKind, item As Object)
+    Friend Sub AssertSaved(fixture As DatabaseFixture, kind As EntityKind, item As Object)
         Dim seq = Sequence(kind, item)
         Dim condition = " WHERE seq=" & seq.ToString(CultureInfo.InvariantCulture)
         Select Case kind
@@ -352,11 +354,11 @@ Friend Module ConcurrencyTests
         Equal(expectedText.ToString(), QueryRows(fixture.ActualDataConnection, sql), sql)
     End Sub
 
-    Private Function Snapshot(fixture As DatabaseFixture) As String
+    Friend Function Snapshot(fixture As DatabaseFixture) As String
         Return Snapshot(fixture, Nothing)
     End Function
 
-    Private Function Snapshot(fixture As DatabaseFixture, kind As EntityKind?, ParamArray excludedSequences As Integer()) As String
+    Friend Function Snapshot(fixture As DatabaseFixture, kind As EntityKind?, ParamArray excludedSequences As Integer()) As String
         Dim connection = fixture.ActualDataConnection
         Dim result As New StringBuilder(QueryRows(connection, "SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name"))
         Dim tables As New List(Of String)()
@@ -432,7 +434,7 @@ Friend Module ConcurrencyTests
         End Using
     End Function
 
-    Private Sub AssertForeignKeys(connection As SQLiteConnection)
+    Friend Sub AssertForeignKeys(connection As SQLiteConnection)
         Equal(String.Empty, QueryRows(connection, "PRAGMA foreign_key_check"), "All related rows must have valid foreign keys")
     End Sub
 End Module

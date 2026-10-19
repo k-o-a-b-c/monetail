@@ -4,6 +4,14 @@
 
     Public Property Transfer As Transfer
 
+    Private ReloadRequiredValue As Boolean
+
+    Public ReadOnly Property ReloadRequired As Boolean
+        Get
+            Return ReloadRequiredValue
+        End Get
+    End Property
+
     Public Property FromPaymentClassification As PaymentClassification
     Public Property ToPaymentClassification As PaymentClassification
 
@@ -142,11 +150,17 @@
         Transfer.ToPaymentClassification = DataAccess.PaymentClassification(DirectCast(ToPaymentClassificationComboBox.SelectedValue, Integer))
         Transfer.Tag = TransferTagTextBox.Text
 
-        If Transfer.Seq = 0 Then
-            DataAccess.RegisterTransfer(Transfer)
-        Else
-            DataAccess.UpdateTransfer(Transfer)
-        End If
+        Try
+            If Transfer.Seq = 0 Then
+                DataAccess.RegisterTransfer(Transfer)
+            Else
+                DataAccess.UpdateTransfer(Transfer)
+            End If
+        Catch ex As System.Data.DBConcurrencyException
+            ReloadRequiredValue = True
+            MessageBox.Show(ex.Message, "更新の競合", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End Try
 
         FromPaymentClassification = DirectCast(FromPaymentClassificationComboBox.SelectedItem, PaymentClassification)
         ToPaymentClassification = DirectCast(ToPaymentClassificationComboBox.SelectedItem, PaymentClassification)
@@ -163,7 +177,13 @@
             Return
         End If
 
-        DataAccess.DeleteTransfer(Transfer)
+        Try
+            DataAccess.DeleteTransfer(Transfer)
+        Catch ex As System.Data.DBConcurrencyException
+            ReloadRequiredValue = True
+            MessageBox.Show(ex.Message, "更新の競合", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End Try
 
         Me.DialogResult = DialogResult.OK
 

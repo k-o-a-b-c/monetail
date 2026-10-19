@@ -473,7 +473,7 @@ Public Class DataAccess
         End If
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode from t_receipts where date between :date_from and :date_to and (payment_classification_code = :payment_classification_code or :payment_classification_code = -1) order by date desc, seq desc"
+            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode, revision_token from t_receipts where date between :date_from and :date_to and (payment_classification_code = :payment_classification_code or :payment_classification_code = -1) order by date desc, seq desc"
             command.Parameters.AddWithValue("date_from", New Date(Year, MonthFrom, 1))
             command.Parameters.AddWithValue("date_to", New Date(Year, MonthTo, Date.DaysInMonth(Year, MonthTo), 23, 59, 59))
             command.Parameters.AddWithValue("payment_classification_code", PaymentCode)
@@ -488,7 +488,8 @@ Public Class DataAccess
                         .TaxType = reader.GetInt32(4),
                         .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
                         .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
-                        .TaxRoundingMode = reader.GetString(7)
+                        .TaxRoundingMode = reader.GetString(7),
+                        .RevisionToken = reader.GetString(8)
                     }
                     LoadReceiptGroupData(receipt, GroupCode)
                     receiptList.Add(receipt)
@@ -578,7 +579,7 @@ Public Class DataAccess
         Dim transferList As New List(Of Transfer)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag from t_transfers where date between :date_from and :date_to order by date desc, seq desc"
+            command.CommandText = "select seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag, revision_token from t_transfers where date between :date_from and :date_to order by date desc, seq desc"
             command.Parameters.AddWithValue("date_from", New Date(YearMonth.Year, YearMonth.Month, 1))
             command.Parameters.AddWithValue("date_to", New Date(YearMonth.Year, YearMonth.Month, Date.DaysInMonth(YearMonth.Year, YearMonth.Month), 23, 59, 59))
 
@@ -591,7 +592,8 @@ Public Class DataAccess
                         .Fee = reader.GetInt32(3),
                         .FromPaymentClassification = PaymentClassification(reader.GetInt32(4)),
                         .ToPaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6))
+                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
+                        .RevisionToken = reader.GetString(7)
                     }
                     transferList.Add(transfer)
                 End While
@@ -607,7 +609,7 @@ Public Class DataAccess
         Dim balanceList As New List(Of Balance)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, tag from t_balances where date between :date_from and :date_to order by date desc, seq desc"
+            command.CommandText = "select seq, date, tag, revision_token from t_balances where date between :date_from and :date_to order by date desc, seq desc"
             command.Parameters.AddWithValue("date_from", New Date(YearMonth.Year, YearMonth.Month, 1))
             command.Parameters.AddWithValue("date_to", New Date(YearMonth.Year, YearMonth.Month, Date.DaysInMonth(YearMonth.Year, YearMonth.Month), 23, 59, 59))
 
@@ -616,7 +618,8 @@ Public Class DataAccess
                     Dim balance As New Balance() With {
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
-                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2))
+                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2)),
+                        .RevisionToken = reader.GetString(3)
                     }
                     LoadBalanceGroupData(balance)
                     balanceList.Add(balance)
@@ -670,7 +673,7 @@ Public Class DataAccess
     Public Function GetLastBalance(ByVal targetDate As DateTime, ByVal payment As PaymentClassification) As Balance
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select b.seq, b.date, b.tag from t_balances b inner join t_balance_groups bg on bg.balance_seq = b.seq where b.date < :date and bg.payment_classification_code = :payment_classification_code order by b.date desc limit 1"
+            command.CommandText = "select b.seq, b.date, b.tag, b.revision_token from t_balances b inner join t_balance_groups bg on bg.balance_seq = b.seq where b.date < :date and bg.payment_classification_code = :payment_classification_code order by b.date desc limit 1"
             command.Parameters.AddWithValue("date", targetDate)
             command.Parameters.AddWithValue("payment_classification_code", payment.Code)
 
@@ -680,7 +683,8 @@ Public Class DataAccess
                     balance = New Balance() With {
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
-                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2))
+                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2)),
+                        .RevisionToken = reader.GetString(3)
                     }
                     LoadBalanceGroupData(balance)
                 End While
@@ -694,7 +698,7 @@ Public Class DataAccess
     Public Function GetLastValuationAmount(ByVal targetDate As DateTime, ByVal payment As PaymentClassification) As Balance
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select b.seq, b.date, b.tag from t_balances b inner join t_balance_groups bg on bg.balance_seq = b.seq where b.date < :date and bg.payment_classification_code = :payment_classification_code and bg.valuation_amount is not null order by b.date desc limit 1"
+            command.CommandText = "select b.seq, b.date, b.tag, b.revision_token from t_balances b inner join t_balance_groups bg on bg.balance_seq = b.seq where b.date < :date and bg.payment_classification_code = :payment_classification_code and bg.valuation_amount is not null order by b.date desc limit 1"
             command.Parameters.AddWithValue("date", targetDate)
             command.Parameters.AddWithValue("payment_classification_code", payment.Code)
 
@@ -704,7 +708,8 @@ Public Class DataAccess
                     balance = New Balance() With {
                         .Seq = reader.GetInt32(0),
                         .Date = reader.GetDateTime(1),
-                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2))
+                        .Tag = If(reader.IsDBNull(2), String.Empty, reader.GetString(2)),
+                        .RevisionToken = reader.GetString(3)
                     }
                     LoadBalanceGroupData(balance)
                 End While
@@ -720,7 +725,7 @@ Public Class DataAccess
         Dim receiptList As New List(Of Receipt)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode from t_receipts where date between :date_from and :date_to and payment_classification_code = :payment_classification_code"
+            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode, revision_token from t_receipts where date between :date_from and :date_to and payment_classification_code = :payment_classification_code"
             command.Parameters.AddWithValue("date_from", dateFrom)
             command.Parameters.AddWithValue("date_to", dateTo)
             command.Parameters.AddWithValue("payment_classification_code", payment.Code)
@@ -735,7 +740,8 @@ Public Class DataAccess
                         .TaxType = reader.GetInt32(4),
                         .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
                         .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
-                        .TaxRoundingMode = reader.GetString(7)
+                        .TaxRoundingMode = reader.GetString(7),
+                        .RevisionToken = reader.GetString(8)
                     }
                     LoadReceiptGroupData(receipt)
                     receiptList.Add(receipt)
@@ -752,7 +758,7 @@ Public Class DataAccess
         Dim transferList As New List(Of Transfer)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag from t_transfers where date between :date_from and :date_to and (from_payment_classification_code = :payment_classification_code or to_payment_classification_code = :payment_classification_code)"
+            command.CommandText = "select seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag, revision_token from t_transfers where date between :date_from and :date_to and (from_payment_classification_code = :payment_classification_code or to_payment_classification_code = :payment_classification_code)"
             command.Parameters.AddWithValue("date_from", dateFrom)
             command.Parameters.AddWithValue("date_to", dateTo)
             command.Parameters.AddWithValue("payment_classification_code", payment.Code)
@@ -766,7 +772,8 @@ Public Class DataAccess
                         .Fee = reader.GetInt32(3),
                         .FromPaymentClassification = PaymentClassification(reader.GetInt32(4)),
                         .ToPaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6))
+                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
+                        .RevisionToken = reader.GetString(7)
                     }
                     transferList.Add(transfer)
                 End While
@@ -805,10 +812,36 @@ Public Class DataAccess
 
 #Region "登録"
 
+    Private Const ConcurrentEditMessage As String = "他の画面やアプリで変更または削除されています。変更を反映できません。一度閉じて、一覧から開き直してください。"
+
+    Private Shared Function RequireRevision(revisionToken As String) As String
+        If String.IsNullOrEmpty(revisionToken) Then
+            Throw New System.Data.DBConcurrencyException(ConcurrentEditMessage)
+        End If
+        Return revisionToken
+    End Function
+
+    Private Shared Sub EnsureSingleRow(rowCount As Integer)
+        If rowCount <> 1 Then
+            Throw New System.Data.DBConcurrencyException(ConcurrentEditMessage)
+        End If
+    End Sub
+
+    ' 同じ書込トランザクション内で、子を削除する前に親の更新版を確認する。
+    Private Sub EnsureCurrentRevision(tableName As String, seq As Integer, revisionToken As String)
+        Using command As SQLiteCommand = Connection.CreateCommand()
+            command.CommandText = "select count(*) from " & tableName & " where seq = :seq and revision_token = :revision_token"
+            command.Parameters.AddWithValue("seq", seq)
+            command.Parameters.AddWithValue("revision_token", revisionToken)
+            EnsureSingleRow(Convert.ToInt32(command.ExecuteScalar()))
+        End Using
+    End Sub
+
     Public Sub RegisterReceipt(ByVal receipt As Receipt)
 
         Calculation.ValidateTaxRoundingMode(receipt.TaxRoundingMode)
 
+        Dim newRevision As String = Guid.NewGuid().ToString("N")
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
@@ -821,7 +854,7 @@ Public Class DataAccess
             SetChildSequence(receipt)
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "insert into t_receipts (seq, date, shop_name, shop_location, tax_type, tax_rounding_mode, payment_classification_code, tag, update_user, update_datetime, total) values (:seq, :date, :shop_name, :shop_location, :tax_type, :tax_rounding_mode, :payment_classification_code, :tag, :update_user, :update_datetime, :total)"
+                command.CommandText = "insert into t_receipts (seq, date, shop_name, shop_location, tax_type, tax_rounding_mode, payment_classification_code, tag, update_user, update_datetime, total, revision_token) values (:seq, :date, :shop_name, :shop_location, :tax_type, :tax_rounding_mode, :payment_classification_code, :tag, :update_user, :update_datetime, :total, :revision_token)"
                 command.Parameters.AddWithValue("seq", receipt.Seq)
                 command.Parameters.AddWithValue("date", receipt.Date)
                 command.Parameters.AddWithValue("shop_name", receipt.ShopName)
@@ -832,6 +865,7 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("tag", receipt.Tag)
                 command.Parameters.AddWithValue("update_user", Environment.UserName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
+                command.Parameters.AddWithValue("revision_token", newRevision)
                 command.Parameters.AddWithValue("total", receipt.Total)
                 command.ExecuteNonQuery()
             End Using
@@ -839,6 +873,7 @@ Public Class DataAccess
             InsertReceiptGroups(receipt)
 
             trans.Commit()
+            receipt.RevisionToken = newRevision
 
         Catch ex As Exception
             If trans IsNot Nothing Then
@@ -916,6 +951,8 @@ Public Class DataAccess
 
         Calculation.ValidateTaxRoundingMode(receipt.TaxRoundingMode)
 
+        Dim originalRevision As String = RequireRevision(receipt.RevisionToken)
+        Dim newRevision As String = Guid.NewGuid().ToString("N")
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
@@ -924,8 +961,10 @@ Public Class DataAccess
             SetChildSequence(receipt)
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "update t_receipts set date = :date, shop_name = :shop_name, shop_location = :shop_location, tax_type = :tax_type, tax_rounding_mode = :tax_rounding_mode, payment_classification_code = :payment_classification_code, tag = :tag, update_user = :update_user, update_datetime = :update_datetime, total = :total where seq = :seq"
+                command.CommandText = "update t_receipts set date = :date, shop_name = :shop_name, shop_location = :shop_location, tax_type = :tax_type, tax_rounding_mode = :tax_rounding_mode, payment_classification_code = :payment_classification_code, tag = :tag, update_user = :update_user, update_datetime = :update_datetime, total = :total, revision_token = :new_revision_token where seq = :seq and revision_token = :original_revision_token"
                 command.Parameters.AddWithValue("seq", receipt.Seq)
+                command.Parameters.AddWithValue("original_revision_token", originalRevision)
+                command.Parameters.AddWithValue("new_revision_token", newRevision)
                 command.Parameters.AddWithValue("date", receipt.Date)
                 command.Parameters.AddWithValue("shop_name", receipt.ShopName)
                 command.Parameters.AddWithValue("shop_location", receipt.ShopLocation)
@@ -936,13 +975,14 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("update_user", Environment.UserName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
                 command.Parameters.AddWithValue("total", receipt.Total)
-                command.ExecuteNonQuery()
+                EnsureSingleRow(command.ExecuteNonQuery())
             End Using
 
             DeleteReceiptGroups(receipt)
             InsertReceiptGroups(receipt)
 
             trans.Commit()
+            receipt.RevisionToken = newRevision
 
         Catch ex As Exception
             If trans IsNot Nothing Then
@@ -979,16 +1019,19 @@ Public Class DataAccess
 
     Public Sub DeleteReceipt(ByVal receipt As Receipt)
 
+        Dim originalRevision As String = RequireRevision(receipt.RevisionToken)
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
+            EnsureCurrentRevision("t_receipts", receipt.Seq, originalRevision)
 
             DeleteReceiptGroups(receipt)
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "delete from t_receipts where seq = :seq"
+                command.CommandText = "delete from t_receipts where seq = :seq and revision_token = :original_revision_token"
                 command.Parameters.AddWithValue("seq", receipt.Seq)
-                command.ExecuteNonQuery()
+                command.Parameters.AddWithValue("original_revision_token", originalRevision)
+                EnsureSingleRow(command.ExecuteNonQuery())
             End Using
 
             trans.Commit()
@@ -1010,6 +1053,7 @@ Public Class DataAccess
 
     Public Sub RegisterTransfer(ByVal transfer As Transfer)
 
+        Dim newRevision As String = Guid.NewGuid().ToString("N")
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
@@ -1021,7 +1065,7 @@ Public Class DataAccess
             End Using
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "insert into t_transfers(seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag, update_user, update_datetime) values (:seq, :date, :name, :fee, :from_payment_classification_code, :to_payment_classification_code, :tag, :update_user, :update_datetime)"
+                command.CommandText = "insert into t_transfers(seq, date, name, fee, from_payment_classification_code, to_payment_classification_code, tag, update_user, update_datetime, revision_token) values (:seq, :date, :name, :fee, :from_payment_classification_code, :to_payment_classification_code, :tag, :update_user, :update_datetime, :revision_token)"
                 command.Parameters.AddWithValue("seq", transfer.Seq)
                 command.Parameters.AddWithValue("date", transfer.Date)
                 command.Parameters.AddWithValue("name", transfer.Name)
@@ -1031,10 +1075,12 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("tag", transfer.Tag)
                 command.Parameters.AddWithValue("update_user", Environment.UserName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
+                command.Parameters.AddWithValue("revision_token", newRevision)
                 command.ExecuteNonQuery()
             End Using
 
             trans.Commit()
+            transfer.RevisionToken = newRevision
 
         Catch ex As Exception
             If trans IsNot Nothing Then
@@ -1053,13 +1099,17 @@ Public Class DataAccess
 
     Public Sub UpdateTransfer(ByVal transfer As Transfer)
 
+        Dim originalRevision As String = RequireRevision(transfer.RevisionToken)
+        Dim newRevision As String = Guid.NewGuid().ToString("N")
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "update t_transfers set date = :date, name = :name, fee = :fee, from_payment_classification_code = :from_payment_classification_code, to_payment_classification_code = :to_payment_classification_code, tag = :tag, update_user = :update_user, update_datetime = :update_datetime where seq = :seq"
+                command.CommandText = "update t_transfers set date = :date, name = :name, fee = :fee, from_payment_classification_code = :from_payment_classification_code, to_payment_classification_code = :to_payment_classification_code, tag = :tag, update_user = :update_user, update_datetime = :update_datetime, revision_token = :new_revision_token where seq = :seq and revision_token = :original_revision_token"
                 command.Parameters.AddWithValue("seq", transfer.Seq)
+                command.Parameters.AddWithValue("original_revision_token", originalRevision)
+                command.Parameters.AddWithValue("new_revision_token", newRevision)
                 command.Parameters.AddWithValue("date", transfer.Date)
                 command.Parameters.AddWithValue("name", transfer.Name)
                 command.Parameters.AddWithValue("fee", transfer.Fee)
@@ -1068,10 +1118,11 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("tag", transfer.Tag)
                 command.Parameters.AddWithValue("update_user", Environment.UserName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
-                command.ExecuteNonQuery()
+                EnsureSingleRow(command.ExecuteNonQuery())
             End Using
 
             trans.Commit()
+            transfer.RevisionToken = newRevision
 
         Catch ex As Exception
             If trans IsNot Nothing Then
@@ -1090,14 +1141,17 @@ Public Class DataAccess
 
     Public Sub DeleteTransfer(ByVal transfer As Transfer)
 
+        Dim originalRevision As String = RequireRevision(transfer.RevisionToken)
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
+            EnsureCurrentRevision("t_transfers", transfer.Seq, originalRevision)
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "delete from t_transfers where seq = :seq"
+                command.CommandText = "delete from t_transfers where seq = :seq and revision_token = :original_revision_token"
                 command.Parameters.AddWithValue("seq", transfer.Seq)
-                command.ExecuteNonQuery()
+                command.Parameters.AddWithValue("original_revision_token", originalRevision)
+                EnsureSingleRow(command.ExecuteNonQuery())
             End Using
 
             trans.Commit()
@@ -1119,6 +1173,7 @@ Public Class DataAccess
 
     Public Sub RegisterBalance(ByVal balance As Balance)
 
+        Dim newRevision As String = Guid.NewGuid().ToString("N")
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
@@ -1133,18 +1188,20 @@ Public Class DataAccess
             Next
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "insert into t_balances (seq, date, tag, update_user, update_datetime) values (:seq, :date, :tag, :update_user, :update_datetime)"
+                command.CommandText = "insert into t_balances (seq, date, tag, update_user, update_datetime, revision_token) values (:seq, :date, :tag, :update_user, :update_datetime, :revision_token)"
                 command.Parameters.AddWithValue("seq", balance.Seq)
                 command.Parameters.AddWithValue("date", balance.Date)
                 command.Parameters.AddWithValue("tag", balance.Tag)
                 command.Parameters.AddWithValue("update_user", Environment.UserName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
+                command.Parameters.AddWithValue("revision_token", newRevision)
                 command.ExecuteNonQuery()
             End Using
 
             InsertBalanceGroups(balance)
 
             trans.Commit()
+            balance.RevisionToken = newRevision
 
         Catch ex As Exception
             If trans IsNot Nothing Then
@@ -1180,6 +1237,8 @@ Public Class DataAccess
 
     Public Sub UpdateBalance(ByVal balance As Balance)
 
+        Dim originalRevision As String = RequireRevision(balance.RevisionToken)
+        Dim newRevision As String = Guid.NewGuid().ToString("N")
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
@@ -1190,19 +1249,22 @@ Public Class DataAccess
             Next
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "update t_balances set date = :date, tag = :tag, update_user = :update_user, update_datetime = :update_datetime where seq = :seq"
+                command.CommandText = "update t_balances set date = :date, tag = :tag, update_user = :update_user, update_datetime = :update_datetime, revision_token = :new_revision_token where seq = :seq and revision_token = :original_revision_token"
                 command.Parameters.AddWithValue("seq", balance.Seq)
+                command.Parameters.AddWithValue("original_revision_token", originalRevision)
+                command.Parameters.AddWithValue("new_revision_token", newRevision)
                 command.Parameters.AddWithValue("date", balance.Date)
                 command.Parameters.AddWithValue("tag", balance.Tag)
                 command.Parameters.AddWithValue("update_user", Environment.UserName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
-                command.ExecuteNonQuery()
+                EnsureSingleRow(command.ExecuteNonQuery())
             End Using
 
             DeleteBalanceGroups(balance)
             InsertBalanceGroups(balance)
 
             trans.Commit()
+            balance.RevisionToken = newRevision
 
         Catch ex As Exception
             If trans IsNot Nothing Then
@@ -1221,16 +1283,19 @@ Public Class DataAccess
 
     Public Sub DeleteBalance(ByVal balance As Balance)
 
+        Dim originalRevision As String = RequireRevision(balance.RevisionToken)
         Dim trans As SQLiteTransaction = Nothing
         Try
             trans = Connection.BeginTransaction()
+            EnsureCurrentRevision("t_balances", balance.Seq, originalRevision)
 
             DeleteBalanceGroups(balance)
 
             Using command As SQLiteCommand = Connection.CreateCommand()
-                command.CommandText = "delete from t_balances where seq = :seq"
+                command.CommandText = "delete from t_balances where seq = :seq and revision_token = :original_revision_token"
                 command.Parameters.AddWithValue("seq", balance.Seq)
-                command.ExecuteNonQuery()
+                command.Parameters.AddWithValue("original_revision_token", originalRevision)
+                EnsureSingleRow(command.ExecuteNonQuery())
             End Using
 
             trans.Commit()

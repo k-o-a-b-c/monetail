@@ -7,6 +7,14 @@ Public Class RegisterBalanceForm
 
     Public Property Balance As Balance
 
+    Private ReloadRequiredValue As Boolean
+
+    Public ReadOnly Property ReloadRequired As Boolean
+        Get
+            Return ReloadRequiredValue
+        End Get
+    End Property
+
     Private Sub RegisterBalanceForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         If Balance Is Nothing Then
             Balance = New Balance()
@@ -76,7 +84,13 @@ Public Class RegisterBalanceForm
             Return
         End If
 
-        DataAccess.DeleteBalance(Balance)
+        Try
+            DataAccess.DeleteBalance(Balance)
+        Catch ex As System.Data.DBConcurrencyException
+            ReloadRequiredValue = True
+            MessageBox.Show(ex.Message, "更新の競合", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End Try
 
         Me.DialogResult = DialogResult.OK
 
@@ -133,11 +147,17 @@ Public Class RegisterBalanceForm
             Return
         End If
 
-        If Balance.Seq = 0 Then
-            DataAccess.RegisterBalance(Balance)
-        Else
-            DataAccess.UpdateBalance(Balance)
-        End If
+        Try
+            If Balance.Seq = 0 Then
+                DataAccess.RegisterBalance(Balance)
+            Else
+                DataAccess.UpdateBalance(Balance)
+            End If
+        Catch ex As System.Data.DBConcurrencyException
+            ReloadRequiredValue = True
+            MessageBox.Show(ex.Message, "更新の競合", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End Try
 
         Me.DialogResult = DialogResult.OK
 

@@ -78,6 +78,8 @@
             UpdateNotify(RegisterForm.PaymentClassification)
             UpdateList()
             SelectReceiptRowBySeq(RegisterForm.Receipt.Seq)
+        ElseIf RegisterForm.ReloadRequired Then
+            UpdateList()
         End If
     End Sub
 
@@ -94,6 +96,8 @@
             UpdateNotify(RegisterForm.PaymentClassification)
             UpdateList()
             SelectReceiptRowBySeq(RegisterForm.Receipt.Seq)
+        ElseIf RegisterForm.ReloadRequired Then
+            UpdateList()
         End If
     End Sub
 
@@ -113,6 +117,8 @@
             UpdateNotify(RegisterTransferForm.ToPaymentClassification)
             UpdateList()
             SelectTransferRowBySeq(RegisterTransferForm.Transfer.Seq)
+        ElseIf RegisterTransferForm.ReloadRequired Then
+            UpdateList()
         End If
     End Sub
 
@@ -130,6 +136,8 @@
             UpdateNotify(RegisterTransferForm.ToPaymentClassification)
             UpdateList()
             SelectTransferRowBySeq(RegisterTransferForm.Transfer.Seq)
+        ElseIf RegisterTransferForm.ReloadRequired Then
+            UpdateList()
         End If
     End Sub
 

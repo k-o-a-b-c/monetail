@@ -32,11 +32,19 @@ Module Program
         Check("nullable transfer tags preserve both read paths and all-NULL auto-balance", AddressOf BalanceTransferNullTests.TransferTags)
         Check("overlapping receipt/transfer/balance registration serializes sequence allocation with foreign keys on and off", AddressOf ConcurrencyTests.ConcurrentRegistration)
         Check("held write locks reject whole saves and allow same-connection retry with foreign keys on and off", AddressOf ConcurrencyTests.HeldWriteLock)
-        Check("stale receipt/transfer/balance edits currently overwrite complete snapshots with foreign keys on and off", AddressOf ConcurrencyTests.StaleEditsOverwrite)
+        Check("stale receipt/transfer/balance edits preserve the first writer with foreign keys on and off", AddressOf ConcurrencyTests.StaleEditsRejected)
+        Check("stale receipt/transfer/balance deletes reject before changing children with foreign keys on and off", AddressOf RevisionTests.StaleDeletesRejected)
+        Check("deleted and reused receipt/transfer/balance IDs reject old snapshots with foreign keys on and off", AddressOf RevisionTests.DeletedAndReusedIdsRejected)
+        Check("current receipt/transfer/balance saves and copies publish fresh committed tokens with foreign keys on and off", AddressOf RevisionTests.CurrentSavesAndCopies)
+        Check("late failed receipt/transfer/balance saves preserve tokens and allow retry with foreign keys on and off", AddressOf RevisionTests.FailedSavesPreserveTokens)
+        Check("all seven receipt/transfer/balance readers return initial and refreshed tokens without writes", AddressOf RevisionTests.AllReaderTokens)
+        Check("unknown receipt/transfer/balance tokens reject updates and deletes without writes", AddressOf RevisionTests.UnknownTokensRejected)
         Check("new receipt defaults and manual override UI", AddressOf NewReceiptUi)
         Check("edit previews tax choices without changing receipt until confirmed save", AddressOf EditUi)
         Check("declined confirmations leave receipt unchanged and keep form open", AddressOf CancelCopyUi)
         Check("copy confirmation immediately saves visible mode and closes", AddressOf ImmediateCopyUi)
+        Check("current receipt/transfer/balance edit and delete confirmations still save and close", AddressOf RevisionUiTests.CurrentOperationsClose)
+        Check("receipt/transfer/balance edit and delete conflicts warn and preserve open forms and input", AddressOf RevisionUiTests.ConflictsKeepInput)
         Return Finish()
     End Function
 
@@ -129,7 +137,7 @@ Module Program
         target.GetType().GetMethod(name, BindingFlags.Instance Or BindingFlags.NonPublic).Invoke(target, args)
     End Sub
 
-    Private Sub OpenForm(form As Form)
+    Friend Sub OpenForm(form As Form)
         form.Show()
         Application.DoEvents()
     End Sub
@@ -455,7 +463,7 @@ Module Program
     Private Function SendMessage(window As IntPtr, message As UInteger, wParam As IntPtr, lParam As IntPtr) As IntPtr
     End Function
 
-    Private Function FindOwnConfirmation() As IntPtr
+    Private Function FindOwnConfirmation(Optional expectedTitle As String = "確認") As IntPtr
         Dim result As IntPtr
         Dim ownProcessId = CUInt(Process.GetCurrentProcess().Id)
         EnumWindows(
@@ -467,16 +475,17 @@ Module Program
                 Dim className As New StringBuilder(128)
                 GetWindowText(window, title, title.Capacity)
                 GetClassName(window, className, className.Capacity)
-                If title.ToString() <> "確認" OrElse className.ToString() <> "#32770" Then Return True
+                If title.ToString() <> expectedTitle OrElse className.ToString() <> "#32770" Then Return True
                 result = window
                 Return False
             End Function, IntPtr.Zero)
         Return result
     End Function
 
-    Private Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
-                               Optional beforeAnswer As Action = Nothing)
+    Friend Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
+                              Optional beforeAnswer As Action = Nothing, Optional expectedConflict As Boolean = False)
         Dim answered As Integer
+        Dim warnings As Integer
         Dim assertionFailure As Exception = Nothing
         Dim watch = Stopwatch.StartNew()
         Using responder As New System.Windows.Forms.Timer With {.Interval = 50}
@@ -486,7 +495,15 @@ Module Program
                         Environment.FailFast(operation & " confirmation did not complete within 15 seconds.")
                     End If
                     Dim dialog = FindOwnConfirmation()
-                    If dialog = IntPtr.Zero Then Return
+                    If dialog = IntPtr.Zero Then
+                        dialog = FindOwnConfirmation("更新の競合")
+                        If dialog = IntPtr.Zero Then Return
+                        Dim okButton = GetDlgItem(dialog, 1)
+                        If okButton = IntPtr.Zero Then Return
+                        warnings += 1
+                        SendMessage(okButton, &HF5UI, IntPtr.Zero, IntPtr.Zero)
+                        Return
+                    End If
                     If answered = 0 AndAlso beforeAnswer IsNot Nothing Then
                         Try
                             beforeAnswer()
@@ -510,5 +527,6 @@ Module Program
         End Using
         If assertionFailure IsNot Nothing Then Throw assertionFailure
         Equal(1, answered, operation & " must show exactly one confirmation")
+        Equal(If(expectedConflict, 1, 0), warnings, operation & " must show the expected conflict warning")
     End Sub
 End Module

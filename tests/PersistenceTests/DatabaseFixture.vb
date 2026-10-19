@@ -25,6 +25,7 @@ Friend Class DatabaseFixture
                 "VALUES(1,1,1,'item',19,1,0,0,1,''),(1,2,1,'item',19,1,0,0,1,'');" &
                 "INSERT INTO t_receipt_detail_users(receipt_seq,group_seq,detail_seq,user_code) VALUES(1,1,1,1);")
         Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "tax_rounding.sql")))
+        Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "revision_tokens.sql")))
         Data = New DataAccess(ConnectionString)
     End Sub
 

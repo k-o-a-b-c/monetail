@@ -1,5 +1,6 @@
 ﻿Public Class Receipt
     Public Property Seq As Integer
+    Friend Property RevisionToken As String
     Public Property [Date] As DateTime
     Public Property ShopName As String
     Public Property ShopLocation As String

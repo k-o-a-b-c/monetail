@@ -1,6 +1,7 @@
 Imports System.Collections.Generic
 Imports System.Data.SQLite
 Imports System.Globalization
+Imports System.Linq
 Imports System.Text
 
 Friend Module BalanceForeignKeyTests
@@ -11,7 +12,7 @@ Friend Module BalanceForeignKeyTests
                     SeedRows(fixture, withChildren)
                     AssertIntegrity(fixture, foreignKeys)
                     Dim unaffected = DatabaseSnapshot(fixture, excludedBalance:=1)
-                    fixture.Data.DeleteBalance(New Balance With {.Seq = 1})
+                    fixture.Data.DeleteBalance(fixture.Data.GetBalances(New Date(2026, 10, 1)).Single(Function(item) item.Seq = 1))
                     AssertDeleted(fixture, unaffected, foreignKeys)
                 End Using
             Next
@@ -22,7 +23,7 @@ Friend Module BalanceForeignKeyTests
         For Each foreignKeys In New Boolean() {True, False}
             Using fixture As New DatabaseFixture(foreignKeys)
                 SeedRows(fixture, withChildren:=True)
-                Dim balance As New Balance With {.Seq = 1}
+                Dim balance = fixture.Data.GetBalances(New Date(2026, 10, 1)).Single(Function(item) item.Seq = 1)
                 Dim unaffected = DatabaseSnapshot(fixture, excludedBalance:=1)
                 ' 子の削除に到達したことを確認してから、親の削除を失敗させる。
                 fixture.Execute("CREATE TRIGGER fail_balance_delete BEFORE DELETE ON t_balances WHEN OLD.seq=1 BEGIN " &

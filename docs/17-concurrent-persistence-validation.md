@@ -1,5 +1,7 @@
 # 17 採番・更新競合の検証
 
+> 本書はPR #9時点の履歴。古い編集の上書き再現と当時の件数を保持する。現在は[18 上書き防止](18-stale-edit-protection.md)で更新・削除の拒否を実装している。
+
 更新: 2026-10-19 / LEG-003・LEG-016。[PR #9](https://github.com/k-o-a-b-c/monetail-legacy/pull/9)で製品コードを変更せず、実際の`DataAccess`の現在の動作を検証した。[CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39182519779)で追加3チェックを含む全53件と既存Windowsビルドが成功。
 
 ## 対象と方法
