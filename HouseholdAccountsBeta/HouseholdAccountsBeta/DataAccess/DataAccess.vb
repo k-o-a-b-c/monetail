@@ -6,8 +6,7 @@ Public Class DataAccess
     Private ReadOnly Connection As SQLiteConnection
 
     Public Sub New(ConnectionString As String)
-        Connection = New SQLiteConnection(ConnectionString)
-        Connection.Open()
+        Connection = DatabaseStartup.OpenConnection(ConnectionString)
     End Sub
 
 #Region "Master"

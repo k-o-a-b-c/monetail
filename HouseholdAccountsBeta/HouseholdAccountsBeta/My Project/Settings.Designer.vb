@@ -56,7 +56,7 @@ Namespace My
         
         <Global.System.Configuration.ApplicationScopedSettingAttribute(),  _
          Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
-         Global.System.Configuration.DefaultSettingValueAttribute("Data Source=D:\家計簿フォルダ\家計簿.sqlite")>  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Data Source=E:\家計簿フォルダ\家計簿.sqlite;FailIfMissing=True")>  _
         Public ReadOnly Property ConnectionString() As String
             Get
                 Return CType(Me("ConnectionString"),String)

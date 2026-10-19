@@ -326,7 +326,7 @@
 - `RegisterPaymentMemo`は、入力リスト全体の既存UPSERTを1つのトランザクションで処理し、全件成功時にCommit、失敗時にRollbackして例外を再送出する。空リストでは開始前に戻る。FK ON/OFFで成功・末尾INSERT／UPDATE失敗時の全件復元・同じDataAccessでの再保存・空リストを自動検証済み。`t_payment_memo`のDDL、保存順、日付・タグのNULL保存仕様は維持する。
 - `t_receipts.total` を保存するが `GetReceipts` のSELECTから合計列を読まないため、DBに保存された`total`と、`Receipt.Total`で再計算する表示・集計額が異なり得る。
 - `t_receipt_points.receipt_seq` にFKがなく、`t_receipt_groups.tax` に税率マスタのFKがない点は、移行前の整合性検証対象。
-- SQLite接続に `PRAGMA foreign_keys` を明示設定するVBコードは `DataAccess.vb` 冒頭で確認できない。接続文字列・プロバイダー既定値による動作は現状不明。
+- `DataAccess`は`DatabaseStartup.OpenConnection`で既存ファイルと必須のテーブル／列・両移行を確認する。`FailIfMissing=True`とexe基準のパス解決を適用し、FK等の他の接続オプションは維持する。構造確認はデータ整合性検査ではなく、実運用時のFK有効状態は別途確認する。[19 接続設定](19-database-startup-settings.md)参照。
 
 ## 6. 店舗別の消費税端数処理（実装済み）とオーケーの現行運用
 

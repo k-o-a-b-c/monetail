@@ -9,6 +9,12 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main() As Integer
+        Check("XML deployment settings and generated defaults agree", AddressOf StartupTests.ConfigurationDefaults)
+        Check("relative database paths use the executable directory and preserve connection options", AddressOf StartupTests.RelativePathsAndOptions)
+        Check("missing or invalid database settings never create a database", AddressOf StartupTests.MissingOrInvalidSettings)
+        Check("empty corrupt and unrelated databases are rejected without changes or retained handles", AddressOf StartupTests.InvalidDatabases)
+        Check("required tables columns and both migrations are checked without schema changes", AddressOf StartupTests.RequiredSchema)
+        Check("startup reports setup and XML errors once and allows corrected settings", AddressOf StartupTests.ErrorReportingAndRecovery)
         Check("actual SQLite receipt insert/update and both read paths", AddressOf ReceiptPersistence)
         Check("discount rates survive receipt insert and all three read paths", AddressOf FractionalDiscountTests.InsertRoundTrips)
         Check("discount rates survive receipt update and all three read paths", AddressOf FractionalDiscountTests.UpdateRoundTrips)

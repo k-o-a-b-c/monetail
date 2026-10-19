@@ -26,9 +26,6 @@ Public Class ViewForm
         InitializeComponent()
 
         ' InitializeComponent() 呼び出しの後で初期化を追加します。
-        DataAccess = New DataAccess(My.Settings.ConnectionString)
-        Calculation.DataAccess = DataAccess
-
         SplitContainer1.SplitterDistance = SplitContainer1.Width \ 2
         SplitContainer2.SplitterDistance = (SplitContainer2.Height \ 7) * 5
 
@@ -44,6 +41,15 @@ Public Class ViewForm
     End Sub
 
     Private Sub ViewForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        DataAccess = DatabaseStartup.TryOpenConfiguredDatabase(
+            Function() My.Settings.ConnectionString,
+            Sub(message) MessageBox.Show(message, "DB設定エラー", MessageBoxButtons.OK, MessageBoxIcon.Error))
+        If DataAccess Is Nothing Then
+            Close()
+            Return
+        End If
+        Calculation.DataAccess = DataAccess
 
         InitList()
         InitBalance()
