@@ -14,6 +14,10 @@ Module Program
         Check("preview tax settings leave receipt and saved totals unchanged", AddressOf PreviewDoesNotMutateReceipt)
         Check("negative half_up tax and mixed refunds", AddressOf Refunds)
         Check("user allocation is a rounded estimate", AddressOf UserEstimates)
+        Check("person filters preserve empty exact and partial selections with and without allocation", AddressOf PersonStatisticsTests.FilterMatrix)
+        Check("person allocation preserves signed rounding for two and three people across tax modes and rates", AddressOf PersonStatisticsTests.AllocationRounding)
+        Check("person statistics round within each group and retain empty groups and metadata", AddressOf PersonStatisticsTests.GroupBoundaries)
+        Check("person matching ignores order and currently compares User references", AddressOf PersonStatisticsTests.UserReferenceMatching)
         Check("balance estimation uses receipt mode", AddressOf BalanceEstimation)
         Return Finish()
     End Function

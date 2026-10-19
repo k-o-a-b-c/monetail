@@ -6,12 +6,12 @@
 
 | 対象 | 件数 |
 | --- | ---: |
-| 計算（JSONの11ケース＋VBの9チェック） | 20 |
+| 計算（JSONの11ケース＋VBの13チェック） | 24 |
 | SQLite移行（税端数5＋更新版5） | 10 |
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8） | 50 |
-| 合計 | 80 |
+| 合計 | 84 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Arefactor%2Fshared-balance-prediction)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Atest%2Fperson-group-statistics)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -19,6 +19,8 @@ python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 ```
 
 計算テストは .NET 8 SDK を使い、実アプリの VB ソースを直接コンパイルします。JSON の全11ケース、税率別合算、旧 `floor` の負数・浮動小数点境界、手入力値引・率値引、収入／支出、人別参考配分、残高推算、内税／外税・端数方式を指定した合計プレビューでReceiptの状態を変更しないことを検証します。残高推算の入出力だけをメモリ上で供給し、計算処理は製品コードを実行します。
+
+人別集計は、対象者なし・1〜3名と無関係な選択者を含む全16選択集合、完全一致／部分一致、按分あり／なし、内税／外税、両端数方式を固定値で比較します。2人／3人の正負按分、8%／10%、課税／非課税混在、グループ内合算・空グループ・分類／日時の保持も確認します。Userの参照一致を現行挙動として記録し、各呼出前後でレシートの値・会計合計／収入／支出と選択者の値・参照順序が変わらないことを検証します。製品コードやDBは変更しません。[22 検証範囲と残る仕様判断](../docs/22-person-group-statistics.md)参照。
 
 マイグレーションテストは Python 標準ライブラリの SQLite で実際のスキーマと移行 SQL を実行し、既存行・割当・合計の保持、税端数2列と更新版3列だけの追加、既定値・制約、PRAGMA の保持、再実行拒否を検証します。
 

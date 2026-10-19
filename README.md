@@ -39,6 +39,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [19 DB接続設定](docs/19-database-startup-settings.md) | 実行用XML・パス解決・起動前のDBと移行確認 |
 | [20 残高推算の日付境界](docs/20-balance-date-boundaries.md) | PR #12時点の修正前の再現記録 |
 | [21 日末残高の推算期間](docs/21-end-of-day-balance.md) | 日末残高の翌日から対象日末までの集計・回帰テスト |
+| [22 分類・人別集計](docs/22-person-group-statistics.md) | 対象者フィルタ・按分・丸めの現行挙動と残る仕様判断 |
 
 ### 読む順番
 
