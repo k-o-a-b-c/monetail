@@ -1,6 +1,7 @@
 ﻿Public Class Balance
 
     Public Property Seq As Integer
+    Friend Property RevisionToken As String
     Public Property [Date] As DateTime
     Public Property Tag As String
 

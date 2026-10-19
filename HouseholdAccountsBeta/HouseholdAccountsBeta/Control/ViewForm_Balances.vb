@@ -64,6 +64,8 @@
             UpdateBalance()
             UpdateNotify()
             SelectBalanceRowBySeq(RegisterBalanceForm.Balance.Seq)
+        ElseIf RegisterBalanceForm.ReloadRequired Then
+            UpdateBalance()
         End If
     End Sub
 
@@ -80,6 +82,8 @@
             UpdateBalance()
             UpdateNotify()
             SelectBalanceRowBySeq(RegisterBalanceForm.Balance.Seq)
+        ElseIf RegisterBalanceForm.ReloadRequired Then
+            UpdateBalance()
         End If
     End Sub
 

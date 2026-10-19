@@ -13,7 +13,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - run: dotnet run --project tests/CalculationTests/CalculationTests.vbproj
-      - run: python3 -m unittest discover -s tests -p 'test_migration.py' -v
+      - run: python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 
   windows-persistence-and-ui:
     runs-on: windows-latest

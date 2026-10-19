@@ -70,11 +70,11 @@ Windows デスクトップアプリ
 
 ## 自動検証
 
-[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxで.NET 8の計算テスト20件とPython標準SQLiteの移行テスト5件、Windowsで.NET Framework 4.8の永続化・画面テスト28件を実行する。合計53件と、既存ソリューションのNuGet復元・Windowsビルドが成功済み（2026-10-19時点）。
+[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxの計算・移行テストとWindowsの実SQLite／画面テスト・既存ビルドを実行する。自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
 
 Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFのレシート更新／削除と失敗時DB復元、残高削除の成功・巻き戻しと再削除、レシートのNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。残高・振替のNULLタグ読込と両AutoBalanceの3チェックも成功した。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
 
-競合の3チェックは、同じ一時ファイルへの2接続で採番の直列化・書込ロック失敗と再試行・古い編集内容の上書きを検証する。製品の保存コードや設定は維持し、上書き防止は未実装。[検証条件](17-concurrent-persistence-validation.md)参照。
+競合の3チェックは、同じ一時ファイルへの2接続で採番の直列化・書込ロック失敗と再試行・古い編集内容の拒否を検証する。親3表の更新版を読込・保存し、競合時は警告と再読込フラグを返す。[保存契約](18-stale-edit-protection.md)参照。
 
 ## オンライン化に向けた境界
 

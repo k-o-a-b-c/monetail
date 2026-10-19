@@ -32,11 +32,19 @@ Module Program
         Check("nullable transfer tags preserve both read paths and all-NULL auto-balance", AddressOf BalanceTransferNullTests.TransferTags)
         Check("overlapping receipt/transfer/balance registration serializes sequence allocation with foreign keys on and off", AddressOf ConcurrencyTests.ConcurrentRegistration)
         Check("held write locks reject whole saves and allow same-connection retry with foreign keys on and off", AddressOf ConcurrencyTests.HeldWriteLock)
-        Check("stale receipt/transfer/balance edits currently overwrite complete snapshots with foreign keys on and off", AddressOf ConcurrencyTests.StaleEditsOverwrite)
+        Check("stale receipt/transfer/balance edits preserve the first writer with foreign keys on and off", AddressOf ConcurrencyTests.StaleEditsRejected)
+        Check("stale receipt/transfer/balance deletes reject before changing children with foreign keys on and off", AddressOf RevisionTests.StaleDeletesRejected)
+        Check("deleted and reused receipt/transfer/balance IDs reject old snapshots with foreign keys on and off", AddressOf RevisionTests.DeletedAndReusedIdsRejected)
+        Check("current receipt/transfer/balance saves and copies publish fresh committed tokens with foreign keys on and off", AddressOf RevisionTests.CurrentSavesAndCopies)
+        Check("late failed receipt/transfer/balance saves preserve tokens and allow retry with foreign keys on and off", AddressOf RevisionTests.FailedSavesPreserveTokens)
+        Check("all seven receipt/transfer/balance readers return initial and refreshed tokens without writes", AddressOf RevisionTests.AllReaderTokens)
+        Check("unknown receipt/transfer/balance tokens reject updates and deletes without writes", AddressOf RevisionTests.UnknownTokensRejected)
         Check("new receipt defaults and manual override UI", AddressOf NewReceiptUi)
         Check("edit previews tax choices without changing receipt until confirmed save", AddressOf EditUi)
         Check("declined confirmations leave receipt unchanged and keep form open", AddressOf CancelCopyUi)
         Check("copy confirmation immediately saves visible mode and closes", AddressOf ImmediateCopyUi)
+        Check("current receipt/transfer/balance edit and delete confirmations still save and close", AddressOf RevisionUiTests.CurrentOperationsClose)
+        Check("receipt/transfer/balance edit and delete conflicts warn and preserve open forms and input", AddressOf RevisionUiTests.ConflictsKeepInput)
         Return Finish()
     End Function
 
@@ -129,7 +137,7 @@ Module Program
         target.GetType().GetMethod(name, BindingFlags.Instance Or BindingFlags.NonPublic).Invoke(target, args)
     End Sub
 
-    Private Sub OpenForm(form As Form)
+    Friend Sub OpenForm(form As Form)
         form.Show()
         Application.DoEvents()
     End Sub
@@ -427,12 +435,16 @@ Module Program
         Next
     End Sub
 
-    ' Native MessageBox buttons have stable IDs, independent of Windows display language.
+    ' 確認のYes/NoはIDで選び、競合警告は表示言語に依存せず単一ボタンを選ぶ。
     ' Only a confirmation dialog owned by this test process is eligible for interaction.
     Private Delegate Function EnumWindowCallback(window As IntPtr, parameter As IntPtr) As Boolean
 
     <DllImport("user32.dll")>
     Private Function EnumWindows(callback As EnumWindowCallback, parameter As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function EnumChildWindows(parent As IntPtr, callback As EnumWindowCallback, parameter As IntPtr) As Boolean
     End Function
 
     <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
@@ -451,12 +463,69 @@ Module Program
     Private Function GetDlgItem(dialog As IntPtr, controlId As Integer) As IntPtr
     End Function
 
-    <DllImport("user32.dll", CharSet:=CharSet.Unicode)>
-    Private Function SendMessage(window As IntPtr, message As UInteger, wParam As IntPtr, lParam As IntPtr) As IntPtr
+    <DllImport("user32.dll")>
+    Private Function GetDlgCtrlID(control As IntPtr) As Integer
     End Function
 
-    Private Function FindOwnConfirmation() As IntPtr
+    <DllImport("user32.dll", SetLastError:=True)>
+    Private Function PostMessage(window As IntPtr, message As UInteger, wParam As IntPtr, lParam As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function IsWindowVisible(window As IntPtr) As Boolean
+    End Function
+
+    <DllImport("user32.dll")>
+    Private Function IsWindowEnabled(window As IntPtr) As Boolean
+    End Function
+
+    Private Function FindOwnConfirmation(Optional expectedTitle As String = "確認") As IntPtr
         Dim result As IntPtr
+        Dim ownProcessId = CUInt(Process.GetCurrentProcess().Id)
+        EnumWindows(
+            Function(window, parameter)
+                Dim processId As UInteger
+                GetWindowThreadProcessId(window, processId)
+                If processId <> ownProcessId Then Return True
+                If Not IsWindowVisible(window) OrElse Not IsWindowEnabled(window) Then Return True
+                Dim title As New StringBuilder(128)
+                Dim className As New StringBuilder(128)
+                GetWindowText(window, title, title.Capacity)
+                GetClassName(window, className, className.Capacity)
+                If title.ToString() <> expectedTitle OrElse className.ToString() <> "#32770" Then Return True
+                result = window
+                Return False
+            End Function, IntPtr.Zero)
+        Return result
+    End Function
+
+    Private Function DialogButtons(dialog As IntPtr, Optional availableOnly As Boolean = False) As System.Collections.Generic.List(Of IntPtr)
+        Dim result As New System.Collections.Generic.List(Of IntPtr)()
+        EnumChildWindows(dialog,
+            Function(window, parameter)
+                Dim className As New StringBuilder(128)
+                GetClassName(window, className, className.Capacity)
+                If Not String.Equals(className.ToString(), "Button", StringComparison.OrdinalIgnoreCase) Then Return True
+                If availableOnly AndAlso (Not IsWindowVisible(window) OrElse Not IsWindowEnabled(window)) Then Return True
+                result.Add(window)
+                Return True
+            End Function, IntPtr.Zero)
+        Return result
+    End Function
+
+    Private Function DialogButtonDiagnostics(dialog As IntPtr) As String
+        Dim result As New StringBuilder()
+        For Each button In DialogButtons(dialog)
+            Dim caption As New StringBuilder(128)
+            GetWindowText(button, caption, caption.Capacity)
+            result.Append(" id=").Append(GetDlgCtrlID(button)).Append(" caption=[").Append(caption).
+                Append("] visible=").Append(IsWindowVisible(button)).Append(" enabled=").Append(IsWindowEnabled(button)).Append(";")
+        Next
+        Return result.ToString()
+    End Function
+
+    Private Function OwnDialogDiagnostics() As String
+        Dim result As New StringBuilder()
         Dim ownProcessId = CUInt(Process.GetCurrentProcess().Id)
         EnumWindows(
             Function(window, parameter)
@@ -467,25 +536,48 @@ Module Program
                 Dim className As New StringBuilder(128)
                 GetWindowText(window, title, title.Capacity)
                 GetClassName(window, className, className.Capacity)
-                If title.ToString() <> "確認" OrElse className.ToString() <> "#32770" Then Return True
-                result = window
-                Return False
+                If className.ToString() <> "#32770" Then Return True
+                result.Append(" title=[").Append(title).Append("] visible=").Append(IsWindowVisible(window)).
+                    Append(" enabled=").Append(IsWindowEnabled(window)).
+                    Append(" buttons=[").Append(DialogButtonDiagnostics(window)).Append("];")
+                Return True
             End Function, IntPtr.Zero)
-        Return result
+        Return result.ToString()
     End Function
 
-    Private Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
-                               Optional beforeAnswer As Action = Nothing)
+    Friend Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
+                              Optional beforeAnswer As Action = Nothing, Optional expectedConflict As Boolean = False)
         Dim answered As Integer
+        Dim warnings As Integer
+        Dim clickedDialogs As New System.Collections.Generic.HashSet(Of String)()
         Dim assertionFailure As Exception = Nothing
         Dim watch = Stopwatch.StartNew()
         Using responder As New System.Windows.Forms.Timer With {.Interval = 50}
             AddHandler responder.Tick,
                 Sub(sender, args)
                     If watch.Elapsed > TimeSpan.FromSeconds(15) Then
-                        Environment.FailFast(operation & " confirmation did not complete within 15 seconds.")
+                        Dim diagnostic = operation & " dialogs did not complete within 15 seconds; confirmations=" & answered.ToString() &
+                            "; warnings=" & warnings.ToString() & "; dialogs:" & OwnDialogDiagnostics()
+                        Console.Error.WriteLine("FAIL " & diagnostic)
+                        Console.Error.Flush()
+                        Environment.FailFast(diagnostic)
                     End If
-                    Dim dialog = FindOwnConfirmation()
+                    Dim dialog = FindOwnConfirmation("更新の競合")
+                    If dialog <> IntPtr.Zero Then
+                        Dim buttons = DialogButtons(dialog, availableOnly:=True)
+                        ' 作成途中や想定外の複数ボタンでは押下せず、期限時に実IDを報告する。
+                        If buttons.Count <> 1 Then Return
+                        Dim okButton = buttons.Single()
+                        If Not clickedDialogs.Add(dialog.ToString() & "|conflict") Then Return
+                        warnings += 1
+                        Console.WriteLine("INFO " & operation & " conflict warning button id=" & GetDlgCtrlID(okButton).ToString())
+                        ' モーダル画面の切替はタイマーを抜けてから処理する。
+                        If Not PostMessage(okButton, &HF5UI, IntPtr.Zero, IntPtr.Zero) Then
+                            assertionFailure = New Exception(operation & " could not post the conflict OK button: " & Marshal.GetLastWin32Error().ToString())
+                        End If
+                        Return
+                    End If
+                    dialog = FindOwnConfirmation()
                     If dialog = IntPtr.Zero Then Return
                     If answered = 0 AndAlso beforeAnswer IsNot Nothing Then
                         Try
@@ -498,8 +590,11 @@ Module Program
                     ' An unexpected extra confirmation is declined, then reported after the handler returns.
                     Dim button = GetDlgItem(dialog, If(answered = 0 AndAlso answer = DialogResult.Yes AndAlso assertionFailure Is Nothing, 6, 7))
                     If button = IntPtr.Zero Then Return
+                    If Not clickedDialogs.Add(dialog.ToString() & "|confirmation") Then Return
                     answered += 1
-                    SendMessage(button, &HF5UI, IntPtr.Zero, IntPtr.Zero) ' BM_CLICK
+                    If Not PostMessage(button, &HF5UI, IntPtr.Zero, IntPtr.Zero) Then ' BM_CLICK
+                        assertionFailure = New Exception(operation & " could not post the confirmation button: " & Marshal.GetLastWin32Error().ToString())
+                    End If
                 End Sub
             responder.Start()
             Try
@@ -510,5 +605,6 @@ Module Program
         End Using
         If assertionFailure IsNot Nothing Then Throw assertionFailure
         Equal(1, answered, operation & " must show exactly one confirmation")
+        Equal(If(expectedConflict, 1, 0), warnings, operation & " must show the expected conflict warning")
     End Sub
 End Module
