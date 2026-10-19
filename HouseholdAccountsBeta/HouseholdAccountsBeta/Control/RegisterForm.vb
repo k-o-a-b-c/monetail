@@ -452,6 +452,26 @@ Public Class RegisterForm
 
     Private Sub AddDetailButton_Click(sender As Object, e As EventArgs) Handles AddDetailButton.Click
 
+        ' 検証が終わるまで既存明細や画面の編集状態を変更しない。
+        Dim quantity As Integer
+        If Not Integer.TryParse(QuantityTextBox.Text, quantity) OrElse quantity < 1 Then
+            MessageBox.Show(Me, "数量は1以上の整数を入力してください。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            QuantityTextBox.Select()
+            QuantityTextBox.SelectAll()
+            Return
+        End If
+
+        Dim discountRate As Double = 0
+        If Not String.IsNullOrWhiteSpace(DiscountRateTextBox.Text) AndAlso
+           (Not Double.TryParse(DiscountRateTextBox.Text, discountRate) OrElse
+            Double.IsNaN(discountRate) OrElse Double.IsInfinity(discountRate) OrElse
+            discountRate < 0 OrElse discountRate > 100) Then
+            MessageBox.Show(Me, "値引率は0〜100の数値を入力してください。空欄は0%として扱います。", "入力エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            DiscountRateTextBox.Select()
+            DiscountRateTextBox.SelectAll()
+            Return
+        End If
+
         Dim detail As ReceiptDetail
         If DetailListView.SelectedItems.Count = 0 Then
             detail = New ReceiptDetail()
@@ -462,9 +482,9 @@ Public Class RegisterForm
 
         detail.Name = ItemNameComboBox.Text
         Integer.TryParse(FeeTextBox.Text, detail.Fee)
-        Integer.TryParse(QuantityTextBox.Text, detail.Quantity)
+        detail.Quantity = quantity
         Integer.TryParse(DiscountFeeTextBox.Text, detail.DiscountFee)
-        Double.TryParse(DiscountRateTextBox.Text, detail.DiscountRate)
+        detail.DiscountRate = discountRate
         detail.Tag = DetailTagTextBox.Text
         detail.TaxTarget = TaxTargetCheckBox.Checked
         detail.Users.Clear()
