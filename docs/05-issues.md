@@ -35,10 +35,11 @@
 | LEG-022 | P2 | **DDL確認・データ未検証** | 税率コードの参照整合性 | `t_receipt_groups.tax` は **DEFAULT 8**、`m_tax_rate.code` をソースは参照するが物理FKがない。実データの税率コード対応を検査 |
 | LEG-023 | P2 | **DDL確認・機能未確認** | 支払方法の有効期間 | `m_payment_classification` に `valid_from DATE` と `valid_to DATE` がある。既存UI・DBアクセスでの利用は未確認 |
 | LEG-024 | P1 | **修正済み・自動テスト追加** | レシートの任意文字列のNULL読込 | 製品と同じSQLiteでNULLの`GetString`が`InvalidCastException`になることをテストDBで再現。`shop_location`とレシート・グループ・明細の`tag`を読込時だけ空文字へ変換。一覧・残高・子再読込・画面取消を検証し、金額と保存済みNULLを維持。DB定義・必須文字列の読込・保存処理は変更しない |
-| LEG-025 | P2 | **コード確認** | 残高推算ロジックの重複 | `Calculation.AutoBalance` と `DataAccess.GetAutoBalance` にほぼ同じ処理がある。ルール変更時に計算の食い違いが生じるリスク |
+| LEG-025 | P2 | **共通化前の境界回帰を追加** | 残高推算ロジックの重複 | 実SQLite・FK ON/OFFで両経路を固定の期待値と比較し、読込時の全保存値・型・版・スキーマ保持を検証する。現行の境界にはLEG-029の判断が残るため、共通化は未実施。[20 記録](20-balance-date-boundaries.md) |
 | LEG-026 | P2 | **コード上の性能リスク** | レシート階層のN+1 SELECT | `GetReceipts` 後にグループ→明細→対象者を個別問い合わせ。年次集計で件数増加時にSQL発行回数・応答時間を計測する |
 | LEG-027 | P0 | **修正済み・CI成功** | 残高削除の外部キー対応 | `DeleteBalance`のDELETE順を`t_balance_groups`→`t_balances`へ変更。既存トランザクションを維持し、FK ON/OFFで削除成功（子0／2件）・親削除失敗時の全件復元と同じDataAccessでの再削除（子2件）、他の残高・無関係な全テーブルの保持を自動検証済み。製品のFK設定・DDL・画面操作は変更しない。レシートのLEG-004とは別の対象範囲 |
 | LEG-028 | P1 | **修正済み・CI成功** | 残高・振替の任意タグのNULL読込 | 製品と同じSQLiteで旧コードのSQL NULLの`GetString`例外を再現。`t_balances.tag`・`t_balance_groups.tag`・`t_transfers.tag`の3列・6読込箇所でNULLだけをモデルの空文字へ変換。残高の3読込と振替の2読込、全NULL時の両AutoBalanceを3チェックに追加。非NULL文字列・日時・金額・評価額・支払方法と保存済みNULLを保持する。DB移行・保存SQL・計算・必須文字列・画面操作は変更せず、レシートのLEG-024とは別の対象範囲 |
+| LEG-029 | P1 | **現行挙動の再現テスト追加・仕様未確定** | 残高推算の日時境界 | 日末の小数秒とTEXTゼロ表記を終点で除外し、開始点は包含する。時刻付き残高では開始が翌日へずれる場合もある。製品計算は変更せず、日末残高の意味・期間条件・日時表記の扱いを決めてから修正する。[20 記録](20-balance-date-boundaries.md) |
 
 ## 合意した前提と2026-10-18時点の実装状況
 
