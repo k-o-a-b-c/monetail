@@ -2,16 +2,16 @@
 
 リポジトリのルートで実行します。
 
-2026-10-18時点の実行結果は次のとおりです。各チェック内の値・モード・経路の組合せは、件数へ重複加算していません。
+2026-10-19時点の実行結果は次のとおりです。各チェック内の値・モード・経路の組合せは、件数へ重複加算していません。
 
 | 対象 | 件数 | 結果 |
 | --- | ---: | --- |
 | 計算（JSONの11ケース＋VBの9チェック） | 20 | 成功 |
 | SQLite移行 | 5 | 成功 |
-| Windowsの実SQLite・画面（従来8＋レシートFK4＋レシートNULL3＋小数率2＋支払メモ3＋残高削除2＋残高・振替NULL3） | 25 | 成功 |
-| 合計 | 50 | 成功 |
+| Windowsの実SQLite・画面（従来8＋レシートFK4＋レシートNULL3＋小数率2＋支払メモ3＋残高削除2＋残高・振替NULL3＋競合3） | 28 | 成功 |
+| 合計 | 53 | 成功 |
 
-既存ソリューションのNuGet復元・Windowsビルドも成功しています。[残高・振替タグの修正後CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39167959156)。実データは使用していません。以下の手動手順を利用者のWindows環境・実DBで実施した結果ではありません。
+既存ソリューションのNuGet復元・Windowsビルドも成功しています。[競合検証のCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39182519779)。実データは使用していません。以下の手動手順を利用者のWindows環境・実DBで実施した結果ではありません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -43,6 +43,8 @@ NULL文字列の回帰テストでは、レシートの所在地・タグ、グ�
 小数割引率の回帰は新規・更新の2チェックです。率0%／3%／2.5%／2.6%、`floor`／`half_up`それぞれで、単価103円・単価値引3円・数量2・外税8%を保存し、一覧・残高・子再読込の3経路で率と合計を検証します。整数率はINTEGER、小数率はREALで格納され、読込では率・値引・数量・保存合計等を更新しないことも確認します。旧`GetInt32`がREAL値で`InvalidCastException`になることは、[修正前CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39125787720)で再現しています。製品修正は共通読込の`GetDouble`への変更だけで、DDL・保存・計算・入力操作は従来どおりです。[PR #5](https://github.com/k-o-a-b-c/monetail-legacy/pull/5)。
 
 支払メモ一括保存は、成功、末尾行のINSERT／UPDATE失敗時の巻き戻しと同じDataAccessでの再保存、空リストの3チェックに成功しました。FK ON/OFFで実際のDataAccessを使い、追加と更新の混在、NULL日付／タグ・空文字・日時・引用符／改行を含むメモ、対象外行・読込時の保存値の保持を確認します。[旧処理のCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39158731495)では成功・空リストがPASSする一方、FK ONで末尾INSERTを失敗させると先行する1行目の更新と2行目の追加が残ることを再現しました。末尾失敗はテスト専用トリガーで起こし、その前に先行2行の変更が実行されたことも確認します。修正後は末尾INSERT／UPDATE失敗の両方をFK ON/OFFで通しています。製品の保存SQL・保存順・NULL仕様は維持し、画面の空メモは従来どおり空文字です。画面の確認・終了操作や実DBでの障害復旧を検証したものではありません。[PR #6](https://github.com/k-o-a-b-c/monetail-legacy/pull/6)。
+
+採番・更新競合は3チェックに成功しました。レシート・振替・残高について、同じ一時DBへの2接続とFK ON/OFFで、競合する登録、書込ロック中の登録／更新失敗と再試行、古い編集内容による上書きを検証します。製品コードと設定は変更せず、古い編集が先の変更を上書きすることも再現したもので、上書き防止は未実装です。[検証範囲](../docs/17-concurrent-persistence-validation.md)。
 
 GitHub Actions の `Tests` は上記テストと、Windows で既存ソリューションの NuGet 復元・ビルドを実行します。
 
