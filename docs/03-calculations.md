@@ -70,7 +70,7 @@ half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
 
 ## 5. 残高の推算
 
-`Calculation.AutoBalance` および `DataAccess.GetAutoBalance` は、対象口座の指定日前の最新残高を起点に、対象期間の取引を反映する。
+`Calculation.AutoBalance` および `DataAccess.GetAutoBalance` は、対象口座の指定日前の最新残高を起点に、対象期間の取引を反映する。期間判定と加減算は`Calculation`の内部オーバーロードに共通化し、各入口が使うDataAccessを明示的に渡す。
 
 ```text
 推算残高 = 直前の登録残高

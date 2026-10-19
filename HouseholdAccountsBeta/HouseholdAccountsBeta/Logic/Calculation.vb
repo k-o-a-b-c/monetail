@@ -29,6 +29,11 @@
     End Function
 
     Public Shared Function AutoBalance(ByVal BaseDate As DateTime, ByVal PaymentClassification As PaymentClassification) As Nullable(Of Integer)
+        Return AutoBalance(BaseDate, PaymentClassification, DataAccess)
+    End Function
+
+    ' 呼出元の接続を明示し、期間判定と加減算を一か所で行う。
+    Friend Shared Function AutoBalance(ByVal BaseDate As DateTime, ByVal PaymentClassification As PaymentClassification, ByVal source As DataAccess) As Nullable(Of Integer)
         Dim balance As Integer = 0
         Dim dateFrom As DateTime = DateTime.MinValue
         ' 日末残高の翌日から対象日の翌日直前までを集計する。
@@ -36,18 +41,18 @@
         Dim dateTo As DateTime = If(endExclusive, BaseDate.Date.AddDays(1), DateTime.MaxValue)
         Dim payment As PaymentClassification = PaymentClassification
 
-        Dim LastBalance As Balance = DataAccess.GetLastBalance(BaseDate.Date, payment)
+        Dim LastBalance As Balance = source.GetLastBalance(BaseDate.Date, payment)
         If LastBalance IsNot Nothing Then
             dateFrom = LastBalance.Date.Date.AddDays(1)
             balance = LastBalance.Groups.FirstOrDefault(Function(g) g.PaymentClassification.Code = payment.Code).Balance
         End If
 
-        Dim receipts As List(Of Receipt) = DataAccess.GetPaymentReceipts(dateFrom, dateTo, payment, endExclusive:=endExclusive)
+        Dim receipts As List(Of Receipt) = source.GetPaymentReceipts(dateFrom, dateTo, payment, endExclusive:=endExclusive)
         For Each receipt As Receipt In receipts
             balance -= receipt.Total
         Next
 
-        Dim transfers As List(Of Transfer) = DataAccess.GetPaymentTransfers(dateFrom, dateTo, payment, endExclusive:=endExclusive)
+        Dim transfers As List(Of Transfer) = source.GetPaymentTransfers(dateFrom, dateTo, payment, endExclusive:=endExclusive)
         For Each transfer As Transfer In transfers
             If transfer.FromPaymentClassification.Code = payment.Code Then
                 balance -= transfer.Fee

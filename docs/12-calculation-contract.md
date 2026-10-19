@@ -104,7 +104,7 @@ Expenses + Incomes = 18  ← Total(19) と1円異なる
 
 ## 5. 残高推算の契約
 
-`Calculation.AutoBalance`と`DataAccess.GetAutoBalance`のロジックは近似している。`GetLastBalance(TargetDate.Date, PaymentClassification)`から**対象日より前**の最新残高を取得し、以下を反映する。
+`Calculation.AutoBalance`と`DataAccess.GetAutoBalance`は、`Calculation`の内部3引数オーバーロードへ同じ処理を委譲する。`GetLastBalance(TargetDate.Date, PaymentClassification)`から**対象日より前**の最新残高を取得し、以下を反映する。
 
 ```text
 balance = （起点となる登録残高。なければ0）
@@ -116,7 +116,7 @@ balance = （起点となる登録残高。なければ0）
 - 前回残高・当該期間のレシート・振替が全くなければ `Nothing`。
 - 登録残高は日末の値と確定。`dateFrom`は残高の保存日時の日付部分の翌日00:00:00、`dateTo`は対象日の翌日00:00:00とし、推算では`date >= from AND date < to`で検索する。起点なしはMinValueから。最終日9999/12/31はMaxValueを含む上限とする。一般の期間読込の3引数呼出は従来の両端包含を維持する。[21 日末残高](21-end-of-day-balance.md)参照。
 - 負のレシート合計（収入）があれば「`- Total`」のため残高は増える。
-- 同じ名称の業務計算が複数場所にあり、将来仕様変更時には両方を比較する。
+- 公開2引数の`Calculation.AutoBalance`は共有`Calculation.DataAccess`、`DataAccess.GetAutoBalance`は自身のインスタンスを読込元とする。後者は共有接続が未設定／別DBでも自身のDBを読み、共有設定を変更しない。両入口の結果は固定期待値で検証する。
 
 ## 6. 為替換算
 

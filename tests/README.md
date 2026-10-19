@@ -8,10 +8,10 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの9チェック） | 20 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高境界7） | 49 |
-| 合計 | 79 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8） | 50 |
+| 合計 | 80 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fbalance-day-boundaries)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Arefactor%2Fshared-balance-prediction)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -28,7 +28,7 @@ Windows と .NET Framework 4.8 がある環境では次も実行します。
 dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
 ```
 
-残高の日付境界は、製品DataAccessで保存した一時DBをFK ON/OFFで両AutoBalanceから読み、日末残高の仕様の固定期待値と比較します。起点なし／0円／収入・口座の絞り込み、最新起点と同日残高、残高日の翌日から対象日末までの半開区間、1tick・小数秒ゼロのTEXT表記、月末・年末・うるう日、時刻付き残高、DateTimeの最小日／最終日を対象とします。一般の3引数読込の両端包含も維持します。全保存値・格納型・版・スキーマ・FK／user_versionの不変と書込イベント0回を確認し、共通化は未実施です。[21 現行仕様](../docs/21-end-of-day-balance.md)、[20 修正前の記録](../docs/20-balance-date-boundaries.md)参照。
+残高の日付境界は、製品DataAccessで保存した一時DBをFK ON/OFFで両AutoBalanceから読み、日末残高の仕様の固定期待値と比較します。起点なし／0円／収入・口座の絞り込み、最新起点と同日残高、残高日の翌日から対象日末までの半開区間、1tick・小数秒ゼロのTEXT表記、月末・年末・うるう日、時刻付き残高、DateTimeの最小日／最終日を対象とします。一般の3引数読込の両端包含も維持します。全保存値・格納型・版・スキーマ・FK／user_versionの不変と書込イベント0回を確認します。推算は`Calculation`へ共通化し、共有DataAccessが未設定／別DBでもインスタンス側が自身のDBを読み、共有設定を変更しない回帰を追加しています。[21 現行仕様](../docs/21-end-of-day-balance.md)、[20 修正前の記録](../docs/20-balance-date-boundaries.md)参照。
 
 起動設定の回帰では、実.NET設定プロバイダーと製品SQLiteで既定値の一致、exe基準の相対パス、接続オプション、未作成の保持、不正DB・必要構造／各移行列不足、追加列の許容、拒否時のファイル内容・ハンドル解放、エラー通知と修正後の再接続を検証します。DBの実データ監査やメイン画面のエラー表示・終了操作のE2Eは含みません。[19 設定契約](../docs/19-database-startup-settings.md)参照。
 

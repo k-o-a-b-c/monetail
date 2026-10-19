@@ -206,6 +206,48 @@ Friend Module BalanceBoundaryTests
             End Sub)
     End Sub
 
+    Public Sub InstanceDataSource()
+        EachForeignKeyMode(
+            Sub(fixture)
+                Dim target As New Date(2026, 10, 16)
+                AddBalance(fixture, target.AddDays(-1), 1000, 1)
+                AddReceipt(fixture, target, 73, 1)
+                AddTransfer(fixture, target, 5, 1, 2)
+                AddTransfer(fixture, target, 7, 2, 1)
+                Using other As New DatabaseFixture(Convert.ToInt64(Scalar(fixture, "PRAGMA foreign_keys")) = 1)
+                    ' 別DBには初期レシート41円があり、同じ口座コードでも残高が異なる。
+                    AddBalance(other, target.AddDays(-1), 2000, 1)
+                    ReadOnlyCase(fixture,
+                        Sub()
+                            ReadOnlyCase(other,
+                                Sub()
+                                    Dim previousData = Calculation.DataAccess
+                                    Try
+                                        Dim payment = fixture.Data.PaymentClassification(1)
+                                        Dim otherPayment = other.Data.PaymentClassification(1)
+                                        Calculation.DataAccess = Nothing
+                                        Equal(Of Integer?)(929, fixture.Data.GetAutoBalance(target, payment))
+                                        Equal(Of Integer?)(1959, other.Data.GetAutoBalance(target, otherPayment))
+                                        Equal(True, Calculation.DataAccess Is Nothing)
+
+                                        Calculation.DataAccess = other.Data
+                                        Equal(Of Integer?)(1959, Calculation.AutoBalance(target, otherPayment))
+                                        Equal(Of Integer?)(929, fixture.Data.GetAutoBalance(target, payment))
+                                        Equal(True, Calculation.DataAccess Is other.Data)
+
+                                        Calculation.DataAccess = fixture.Data
+                                        Equal(Of Integer?)(929, Calculation.AutoBalance(target, payment))
+                                        Equal(Of Integer?)(1959, other.Data.GetAutoBalance(target, otherPayment))
+                                        Equal(True, Calculation.DataAccess Is fixture.Data)
+                                    Finally
+                                        Calculation.DataAccess = previousData
+                                    End Try
+                                End Sub)
+                        End Sub)
+                End Using
+            End Sub)
+    End Sub
+
     Private Sub EachForeignKeyMode(action As Action(Of DatabaseFixture))
         For Each foreignKeys In New Boolean() {False, True}
             Try
