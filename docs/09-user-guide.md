@@ -112,6 +112,8 @@
 
 合計・分類・商品個別の金額は**税端数を処理する単位の差**で一致しない可能性がある。レシート全体の税率別合算による会計合計が正本で、分類・人別は参考額。計算仕様・確認例は [03](03-calculations.md) と [12](12-calculation-contract.md) を参照。
 
+**集計表の範囲超過:** 分類集計・収支集計で月額や年計が扱える範囲を超えると、表全体を「集計不可／範囲超過」に置き換える。年・支払者・対象者や収入／支出の条件を変え、範囲内になれば通常表示へ戻る。エラー行から詳細は開かない。保存済みデータは変更されない。[26 詳細](26-statistics-amount-overflow.md)。
+
 ## 8. 今後必要な実機確認
 
 - 画面キャプチャと各入力項目の表示名・Tab移動順・必須印。
@@ -122,5 +124,3 @@
 自動検証の対象と、DBのバックアップ・税端数移行を含む手動確認の手順は [tests/README.md](../tests/README.md) を参照。マスタメンテナンス画面の作成とポイント機能の完成は保留中で、今回の変更には含めていない。
 
 **根拠**: [ViewForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)、[ViewForm_List.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[RegisterBalanceForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterBalanceForm.vb)、[RegisterTransferForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterTransferForm.vb)、[RegisterPaymentMemoForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterPaymentMemoForm.vb)
-
-**集計表の範囲超過:** 分類集計・収支集計で月額や年計が扱える範囲を超えると、表全体を「集計不可／範囲超過」に置き換える。年・支払者・対象者や収入／支出の条件を変え、範囲内になれば通常表示へ戻る。エラー行から詳細は開かない。保存済みデータは変更されない。[26 詳細](26-statistics-amount-overflow.md)。

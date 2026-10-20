@@ -88,14 +88,16 @@ Friend Module StatisticsOverflowTests
                 "INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(2,'other cash',2,2);" &
                 "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'other group',2,1,0)")
             For index As Integer = 0 To amounts.Length - 1
+                Dim groupCode = groups(index)
+                Dim paymentCode = payments(index)
                 Dim detail = ReceiptFixtures.Detail(amounts(index), taxable:=False)
                 detail.Users.Add(fixture.Data.UserList().Single(Function(u) u.Code = 1))
                 Dim group = ReceiptFixtures.Group(10, detail)
-                group.GroupClassification = fixture.Data.GroupClassificationList().Single(Function(g) g.Code = groups(index))
+                group.GroupClassification = fixture.Data.GroupClassificationList().Single(Function(g) g.Code = groupCode)
                 Dim receipt = MakeReceipt(mode, group)
                 receipt.Date = New Date(2026, months(index), index + 1)
                 receipt.TaxType = 0
-                receipt.PaymentClassification = fixture.Data.PaymentClassificationList().Single(Function(p) p.Code = payments(index))
+                receipt.PaymentClassification = fixture.Data.PaymentClassificationList().Single(Function(p) p.Code = paymentCode)
                 Equal(amounts(index), receipt.Total)
                 fixture.Data.RegisterReceipt(receipt)
             Next

@@ -62,6 +62,8 @@ Windows デスクトップアプリ
 
 明細の割引率は共通の`LoadReceiptDetailData`で`GetDouble`により読み込む。SQLiteの`INTEGER`宣言でも小数はREALとして保存され、旧`GetInt32`は読込例外となった。読込型だけをモデルの`Double`へ合わせ、保存・計算・画面操作は変更していない。
 
+`ViewForm_Statistics.vb`は分類・収支集計の表示処理を共用する。範囲超過時は途中の行を消してエラー行を表示し、表示設定はFinallyで戻す。集計式・DataAccessは変更しない。[26 仕様](26-statistics-amount-overflow.md)。
+
 ## 起動・開発上の注意
 
 1. WindowsとVisual Studio（.NET Framework 4.8用の開発機能）が必要。
@@ -103,5 +105,3 @@ Web / スマートフォン / デスクトップ
 ## 根拠
 
 [ソリューション](../HouseholdAccountsBeta/HouseholdAccountsBeta.sln)、[プロジェクト](../HouseholdAccountsBeta/HouseholdAccountsBeta/HouseholdAccountsBeta.vbproj)、[設定](../HouseholdAccountsBeta/HouseholdAccountsBeta/App.config)、[依存パッケージ](../HouseholdAccountsBeta/HouseholdAccountsBeta/packages.config)
-
-`ViewForm_Statistics.vb`は分類・収支集計の表示処理を共用する。範囲超過時は途中の行を消してエラー行を表示し、表示設定はFinallyで戻す。集計式・DataAccessは変更しない。[26 仕様](26-statistics-amount-overflow.md)。

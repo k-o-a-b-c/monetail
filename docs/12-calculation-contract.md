@@ -21,6 +21,8 @@
 
 明細の候補反映・登録・流用の前に、選択税設定で既存の合計／収支・グループ／明細計算を確認する。各整数変換が範囲外なら警告して中止し、補正後の入力と元モデル・DBを保持する。式入力とは異なり金額超過を0へ補正しない。[25 金額範囲](25-receipt-amount-overflow.md)参照。
 
+分類・収支の月年集計は、既存の整数加算や収支別集計で範囲超過になれば表全体をエラー表示へ置き換える。正常時の計算・加算順序・型は維持し、データを修正せず条件変更で復帰する。[26 集計契約](26-statistics-amount-overflow.md)参照。
+
 処理順は次の通り。**通常の%割引に近似した3/103割引ではない**。
 
 ```text
@@ -167,5 +169,3 @@ balance = （起点となる登録残高。なければ0）
 実行方法と全体の自動テスト件数は[tests/README.md](../tests/README.md)および[06](06-test-cases.md)を参照。
 
 参照: [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)
-
-分類・収支の月年集計は、既存の整数加算や収支別集計で範囲超過になれば表全体をエラー表示へ置き換える。正常時の計算・加算順序・型は維持し、データを修正せず条件変更で復帰する。[26 集計契約](26-statistics-amount-overflow.md)参照。

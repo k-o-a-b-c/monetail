@@ -20,6 +20,8 @@
 
 ## 検証
 
+[修正前CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39389498537)で、追加2チェックが分類加算と収支SumのOverflowExceptionで失敗し、既存Windows56チェックは成功した。
+
 Windows上で製品の集計partial・Designer・詳細画面と実SQLiteを直接コンパイルする。テスト用partialは一時DBと年・選択コントロールを初期化する。メイン画面全体の起動・年月移動ボタン・全タブのE2Eではない。
 
 - FK ON/OFF・両端数方式で、月額・年額、複数分類／支払方法の総計、正負の範囲超過、相殺前の途中超過と収支別超過を確認する。

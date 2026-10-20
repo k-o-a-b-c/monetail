@@ -50,6 +50,8 @@
 - 明細対象者の集計は「部分一致」「完全一致」と「対象者１名のみの按分表示」がある。具体的計算は [03-calculations.md](03-calculations.md)。
 - アプリのログイン認証、スマホ入力、Web API、クラウド同期は**現行機能としては確認されていない**。
 
+分類集計・収支集計で金額の範囲を超えた場合、表全体を「集計不可／範囲超過」へ置き換え、年や絞り込み条件の変更で再計算する。保存値は変更しない。[26 詳細](26-statistics-amount-overflow.md)。
+
 ## 根拠
 
 - [メイン画面](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)、[一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)
