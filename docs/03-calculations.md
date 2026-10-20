@@ -74,6 +74,8 @@ half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
 
 個人配分の合計が会計総額と一致しなくても、レシート合計を変更しない。購入者（支払者）と費用帰属者の優先順位や、差額を特定の人へ配賦する厳密な端数配分は未実装。
 
+分類集計・収支集計の月額／年額は既存のInt32計算を維持する。加算・整数変換で範囲外なら集計表全体を「集計不可／範囲超過」へ置き換え、条件変更で再計算する。[26 集計の金額範囲](26-statistics-amount-overflow.md)参照。
+
 ## 5. 残高の推算
 
 `Calculation.AutoBalance` および `DataAccess.GetAutoBalance` は、対象口座の指定日前の最新残高を起点に、対象期間の取引を反映する。期間判定と加減算は`Calculation`の内部オーバーロードに共通化し、各入口が使うDataAccessを明示的に渡す。

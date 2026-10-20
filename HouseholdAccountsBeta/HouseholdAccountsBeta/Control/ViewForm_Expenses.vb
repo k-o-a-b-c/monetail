@@ -2,12 +2,10 @@
 Partial Public Class ViewForm
 
     Private Sub UpdateExpenses()
+        UpdateStatistics(ExpensesDataGridView, AddressOf PopulateExpenses)
+    End Sub
 
-        ExpensesDataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None
-        ExpensesDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing
-
-        ExpensesDataGridView.Rows.Clear()
-
+    Private Sub PopulateExpenses()
 
         Dim ReceiptList As List(Of Receipt) = DataAccess.GetReceipts(YearMonth.Year)
         ReceiptList = ReceiptList.Where(Function(r)
@@ -97,9 +95,6 @@ Partial Public Class ViewForm
             ExpensesDataGridView.Rows.Add(totalValues.ToArray())
         End If
 
-        ExpensesDataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells
-        ExpensesDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
-
     End Sub
 
     Private Sub ExpensesDataGridView_CellFormatting(sender As Object, e As DataGridViewCellFormattingEventArgs) Handles ExpensesDataGridView.CellFormatting
@@ -130,6 +125,9 @@ Partial Public Class ViewForm
     End Sub
     Private Sub ExpensesDataGridView_CellMouseDoubleClick(sender As Object, e As DataGridViewCellMouseEventArgs) Handles ExpensesDataGridView.CellMouseDoubleClick
         If e.RowIndex < 0 OrElse e.ColumnIndex < 2 Then
+            Return
+        End If
+        If ExpensesDataGridView.Rows(e.RowIndex).Cells(0).Value Is Nothing Then
             Return
         End If
         Dim PaymentCode As Integer = CInt(ExpensesDataGridView.Rows(e.RowIndex).Cells("ExpensesPaymentCodeColumn").Value)
