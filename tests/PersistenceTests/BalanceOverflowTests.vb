@@ -133,7 +133,7 @@ Friend Module BalanceOverflowTests
                 BalanceBoundaryTests.AddBalance(fixture, New Date(2026, 1, 31), 1500000000, 1)
                 BalanceBoundaryTests.AddReceipt(fixture, New Date(2026, 2, 2), -1500000000, 1)
                 BalanceBoundaryTests.AddBalance(fixture, target, 77, 1)
-                Dim balance = fixture.Data.GetBalances(2026, 2).Single()
+                Dim balance = fixture.Data.GetBalances(New Date(2026, 2, 1)).Single()
                 Dim previous = Calculation.DataAccess
                 Try
                     Calculation.DataAccess = fixture.Data
@@ -162,7 +162,7 @@ Friend Module BalanceOverflowTests
                         form.BalanceDataGridView.Rows(0).Cells(form.BalanceColumn.Index).Value = 88
                         Program.ClickAndAnswer(form.RegiserButton, DialogResult.Yes, "Save manual balance despite unavailable prediction")
                         Equal(DialogResult.OK, form.DialogResult)
-                        Equal(88, fixture.Data.GetBalances(2026, 2).Single().Groups.Single().Balance)
+                        Equal(88, fixture.Data.GetBalances(New Date(2026, 2, 1)).Single().Groups.Single().Balance)
                     End Using
                 Finally
                     Calculation.DataAccess = previous
