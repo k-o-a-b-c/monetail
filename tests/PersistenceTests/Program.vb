@@ -11,6 +11,7 @@ Module Program
     Function Main() As Integer
         Check("category month and year overflow clears partial totals and recovers without writes", AddressOf StatisticsOverflowTests.Categories)
         Check("income expense month and year overflow clears partial totals and recovers without writes", AddressOf StatisticsOverflowTests.IncomeAndExpenses)
+        Check("statistics restore sizing and propagate errors unrelated to amount overflow", AddressOf StatisticsOverflowTests.OtherErrorsPropagate)
         Check("XML deployment settings and generated defaults agree", AddressOf StartupTests.ConfigurationDefaults)
         Check("relative database paths use the executable directory and preserve connection options", AddressOf StartupTests.RelativePathsAndOptions)
         Check("missing or invalid database settings never create a database", AddressOf StartupTests.MissingOrInvalidSettings)

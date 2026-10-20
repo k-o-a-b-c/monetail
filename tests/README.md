@@ -8,10 +8,10 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの20チェック） | 31 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6） | 56 |
-| 合計 | 97 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3） | 59 |
+| 合計 | 100 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Freceipt-amount-overflow)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fstatistics-amount-overflow)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -72,3 +72,5 @@ GitHub Actions の `Tests` は上記テストと、Windows で既存ソリュー
 8. 外税8%、単価103円・単価値引3円・数量2・値引率2.5%で保存し、開き直して率と合計（切り捨て210円／四捨五入211円）が保持されることを確認します。率を2.6%へ更新して再表示し、切り捨て209円／四捨五入210円を確認します。0%・3%の整数率も従来どおり保存・再表示できることを確認します。
 
 旧アプリと新アプリで同じDBを同時に使わないでください。
+
+分類・収支の月年集計は、製品の集計partial・Designer・詳細画面と実SQLiteを使い、同一／複数分類・支払方法、月額／年額、正負・相殺前の途中超過と収支別超過、型の両端・通常値・空年を確認します。テスト用partialで一時DBと年・選択コントロールを初期化し、メイン画面全体の起動・年月移動ボタン・全タブのE2Eは含めません。エラー行の詳細抑止、途中／前回表示の消去、条件変更と実際の収支ラジオイベントによる復帰、表示設定の復元と関係しない例外の伝播、全保存値・型・版・スキーマの保持をFK ON/OFF・両端数方式で確認します。[26 仕様](../docs/26-statistics-amount-overflow.md)。

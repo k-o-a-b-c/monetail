@@ -27,6 +27,10 @@ Partial Public Class ViewForm
             UpdateExpenses()
         End If
     End Sub
+
+    Friend Sub PopulateForTest(populate As Action)
+        UpdateStatistics(GroupStatisticsDataGridView, populate)
+    End Sub
 End Class
 
 Friend Module StatisticsOverflowTests
@@ -39,7 +43,7 @@ Friend Module StatisticsOverflowTests
                 Scenario(foreignKeys, mode, True, {1500000000, 1500000000}, {1, 1}, {1, 2}, {1, 2}, True)
                 Scenario(foreignKeys, mode, True, {1500000000, 1500000000}, {1, 2}, {1, 2}, {1, 2}, True)
                 Scenario(foreignKeys, mode, True, {-1500000000, -1500000000}, {1, 1}, {1, 1}, {1, 1}, True)
-                Scenario(foreignKeys, mode, True, {1500000000, 1500000000, -1500000000}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, True)
+                Scenario(foreignKeys, mode, True, {-1500000000, 1500000000, 1500000000}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, True)
                 Scenario(foreignKeys, mode, True, {Integer.MaxValue, Integer.MinValue}, {1, 2}, {1, 1}, {1, 1}, False)
                 Scenario(foreignKeys, mode, True, {120, -20}, {1, 2}, {1, 2}, {1, 2}, False)
             Next
@@ -56,10 +60,24 @@ Friend Module StatisticsOverflowTests
                 Scenario(foreignKeys, mode, False, {1500000000, 1500000000}, {1, 2}, {1, 2}, {1, 1}, True)
                 Scenario(foreignKeys, mode, False, {-1500000000, -1500000000}, {1, 1}, {1, 1}, {1, 1}, True)
                 Scenario(foreignKeys, mode, False, {-1500000000, -1500000000}, {1, 2}, {1, 2}, {1, 1}, True)
+                Scenario(foreignKeys, mode, False, {1500000000, 1500000000, -1500000000}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, True)
                 Scenario(foreignKeys, mode, False, {Integer.MaxValue, Integer.MinValue}, {1, 2}, {1, 1}, {1, 1}, False)
                 Scenario(foreignKeys, mode, False, {120, -20}, {1, 2}, {1, 2}, {1, 2}, False)
             Next
         Next
+    End Sub
+
+    Public Sub OtherErrorsPropagate()
+        Using fixture As New DatabaseFixture
+            Using form As New ViewForm(fixture.Data)
+                Throws(Of InvalidOperationException)(
+                    Sub() form.PopulateForTest(Sub() Throw New InvalidOperationException("unrelated failure")))
+                Equal(0, form.GroupStatisticsDataGridView.Rows.Count)
+                AssertSizing(form.GroupStatisticsDataGridView)
+                form.RefreshStatistics(True)
+                AssertNormal(form.GroupStatisticsDataGridView)
+            End Using
+        End Using
     End Sub
 
     Private Sub Scenario(foreignKeys As Boolean, mode As String, categories As Boolean,
@@ -119,7 +137,9 @@ Friend Module StatisticsOverflowTests
                         End If
                     End If
                     AssertNormal(grid)
-                    Equal(0, CInt(grid.Rows(grid.Rows.Count - 1).Cells(14).Value))
+                    Dim recovered As Long = If(categories, 0L,
+                        amounts.Where(Function(amount) If(amounts(0) > 0, amount < 0, amount > 0)).Sum(Function(amount) CLng(amount)))
+                    Equal(CInt(recovered), CInt(grid.Rows(grid.Rows.Count - 1).Cells(14).Value))
                     If payments.Distinct().Count() > 1 Then
                         form.UserListBox.ClearSelected()
                         form.IncomeAndExpenseRadioButton.Checked = True

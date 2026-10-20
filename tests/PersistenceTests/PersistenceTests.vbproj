@@ -28,6 +28,7 @@
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterTransferForm*.vb" Link="Production/%(Filename)%(Extension)" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterBalanceForm*.vb" Link="Production/%(Filename)%(Extension)" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.Designer.vb" Link="Production/ViewForm.Designer.vb" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Statistics.vb" Link="Production/ViewForm_Statistics.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_ListStatistics.vb" Link="Production/ViewForm_ListStatistics.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Expenses.vb" Link="Production/ViewForm_Expenses.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm*.vb" Link="Production/%(Filename)%(Extension)" />

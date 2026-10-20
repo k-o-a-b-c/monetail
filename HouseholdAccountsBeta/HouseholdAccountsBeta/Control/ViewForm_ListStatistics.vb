@@ -5,13 +5,10 @@ Partial Public Class ViewForm
     ''' 分類集計を更新する
     ''' </summary>
     Private Sub UpdateListStatistics()
+        UpdateStatistics(GroupStatisticsDataGridView, AddressOf PopulateListStatistics)
+    End Sub
 
-        ' 処理高速化（開始）
-        GroupStatisticsDataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None
-        GroupStatisticsDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing
-
-        ' 表示内容クリア
-        GroupStatisticsDataGridView.Rows.Clear()
+    Private Sub PopulateListStatistics()
 
         ' 1年分のデータを取得する
         Dim ReceiptList As List(Of Receipt) = DataAccess.GetReceipts(YearMonth.Year)
@@ -73,14 +70,13 @@ Partial Public Class ViewForm
         Next
         GroupStatisticsDataGridView.Rows.Add(totalValues.ToArray())
 
-        ' 処理高速化（終了）
-        GroupStatisticsDataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells
-        GroupStatisticsDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
-
     End Sub
 
     Private Sub GroupStatisticsDataGridView_CellMouseDoubleClick(sender As Object, e As DataGridViewCellMouseEventArgs) Handles GroupStatisticsDataGridView.CellMouseDoubleClick
         If e.RowIndex < 0 OrElse e.ColumnIndex < 2 Then
+            Return
+        End If
+        If GroupStatisticsDataGridView.Rows(e.RowIndex).Cells(0).Value Is Nothing Then
             Return
         End If
         Dim GroupCode As Integer = CInt(GroupStatisticsDataGridView.Rows(e.RowIndex).Cells("GroupCodeColumn").Value)

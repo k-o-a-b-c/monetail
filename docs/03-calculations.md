@@ -118,3 +118,5 @@ half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
 ## 根拠
 
 [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[自動テスト](../tests/README.md)
+
+分類集計・収支集計の月額／年額は既存のInt32計算を維持する。加算・整数変換で範囲外なら集計表全体を「集計不可／範囲超過」へ置き換え、条件変更で再計算する。[26 集計の金額範囲](26-statistics-amount-overflow.md)参照。

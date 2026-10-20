@@ -167,3 +167,5 @@ balance = （起点となる登録残高。なければ0）
 実行方法と全体の自動テスト件数は[tests/README.md](../tests/README.md)および[06](06-test-cases.md)を参照。
 
 参照: [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)
+
+分類・収支の月年集計は、既存の整数加算や収支別集計で範囲超過になれば表全体をエラー表示へ置き換える。正常時の計算・加算順序・型は維持し、データを修正せず条件変更で復帰する。[26 集計契約](26-statistics-amount-overflow.md)参照。
