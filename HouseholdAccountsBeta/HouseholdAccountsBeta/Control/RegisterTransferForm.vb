@@ -34,6 +34,7 @@
             SetTransferData()
             RegiserButton.Text = "更新"
         End If
+        UpdateState()
 
     End Sub
 
@@ -53,14 +54,19 @@
         ToPaymentClassification = DirectCast(ToPaymentClassificationComboBox.SelectedItem, PaymentClassification)
     End Sub
 
-    Private Sub UpdateState()
-        Dim registerCheck As Boolean = True
-        registerCheck = registerCheck AndAlso Not String.IsNullOrEmpty(NameComboBox.Text)
-        registerCheck = registerCheck AndAlso (FromPaymentClassificationComboBox.SelectedIndex <> -1)
-        registerCheck = registerCheck AndAlso (ToPaymentClassificationComboBox.SelectedIndex <> -1)
-        registerCheck = registerCheck AndAlso Integer.TryParse(FeeTextBox.Text, Nothing)
+    Private Function TryGetTransferInput(ByRef fee As Integer) As Boolean
+        ' 登録・流用のボタン状態と、実行直前の検証を同じ条件にする。
+        Return Not String.IsNullOrEmpty(NameComboBox.Text) AndAlso
+            TypeOf FromPaymentClassificationComboBox.SelectedItem Is PaymentClassification AndAlso
+            TypeOf ToPaymentClassificationComboBox.SelectedItem Is PaymentClassification AndAlso
+            Integer.TryParse(FeeTextBox.Text, fee)
+    End Function
 
-        RegiserButton.Enabled = registerCheck
+    Private Sub UpdateState()
+        Dim fee As Integer
+        Dim canRegister As Boolean = TryGetTransferInput(fee)
+        RegiserButton.Enabled = canRegister
+        CopyButton.Enabled = canRegister
     End Sub
 
 #End Region
@@ -118,7 +124,16 @@
 
     Public Sub RegisterTransfer(ByVal isCopy As Boolean)
 
-        If DirectCast(FromPaymentClassificationComboBox.SelectedValue, Integer) = DirectCast(ToPaymentClassificationComboBox.SelectedValue, Integer) Then
+        ' 確認ダイアログや流用のSeq変更より前に、直接呼出でも入力を確認する。
+        Dim fee As Integer
+        If Not TryGetTransferInput(fee) Then
+            UpdateState()
+            Return
+        End If
+        Dim fromPayment = DirectCast(FromPaymentClassificationComboBox.SelectedItem, PaymentClassification)
+        Dim toPayment = DirectCast(ToPaymentClassificationComboBox.SelectedItem, PaymentClassification)
+
+        If fromPayment.Code = toPayment.Code Then
             MessageBox.Show("移動元と移動先が同一です。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error)
             Return
         End If
@@ -145,9 +160,9 @@
 
         Transfer.Date = TransferDateTextBox.Value.Date + New TimeSpan(TransferTimeTextBox.Value.TimeOfDay.Hours, TransferTimeTextBox.Value.TimeOfDay.Minutes, TransferTimeTextBox.Value.TimeOfDay.Seconds)
         Transfer.Name = NameComboBox.Text
-        Transfer.Fee = Integer.Parse(FeeTextBox.Text)
-        Transfer.FromPaymentClassification = DataAccess.PaymentClassification(DirectCast(FromPaymentClassificationComboBox.SelectedValue, Integer))
-        Transfer.ToPaymentClassification = DataAccess.PaymentClassification(DirectCast(ToPaymentClassificationComboBox.SelectedValue, Integer))
+        Transfer.Fee = fee
+        Transfer.FromPaymentClassification = DataAccess.PaymentClassification(fromPayment.Code)
+        Transfer.ToPaymentClassification = DataAccess.PaymentClassification(toPayment.Code)
         Transfer.Tag = TransferTagTextBox.Text
 
         Try
