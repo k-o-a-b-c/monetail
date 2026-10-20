@@ -83,10 +83,11 @@ Friend Module StatisticsOverflowTests
     Private Sub Scenario(foreignKeys As Boolean, mode As String, categories As Boolean,
                          amounts As Integer(), months As Integer(), payments As Integer(), groups As Integer(), overflow As Boolean)
         Using fixture As New DatabaseFixture(foreignKeys)
-            fixture.Data.DeleteReceipt(fixture.Data.GetReceipts(2026, 10).Single())
             fixture.Execute("INSERT INTO m_user(code,name,account_name,seq) VALUES(2,'other','other-account',2);" &
                 "INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(2,'other cash',2,2);" &
                 "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'other group',2,1,0)")
+            ' マスタの読込キャッシュが作られる前に、テスト用マスタを揃える。
+            fixture.Data.DeleteReceipt(fixture.Data.GetReceipts(2026, 10).Single())
             For index As Integer = 0 To amounts.Length - 1
                 Dim groupCode = groups(index)
                 Dim paymentCode = payments(index)
