@@ -256,7 +256,7 @@ Friend Module DetailInputTests
         End Using
     End Sub
 
-    Private Sub SelectDetail(form As RegisterForm, editing As Boolean)
+    Friend Sub SelectDetail(form As RegisterForm, editing As Boolean)
         form.GroupListView.SelectedItems.Clear()
         form.GroupListView.Items(0).Selected = True
         Application.DoEvents()
@@ -286,7 +286,7 @@ Friend Module DetailInputTests
             String.Join(",", form.UserListBox.SelectedItems.Cast(Of User)().Select(Function(u) u.Code)))
     End Function
 
-    Private Function ReceiptState(receipt As Receipt) As String
+    Friend Function ReceiptState(receipt As Receipt) As String
         Using writer As New StringWriter(CultureInfo.InvariantCulture)
             Dim serializer As New XmlSerializer(GetType(Receipt))
             serializer.Serialize(writer, receipt)
