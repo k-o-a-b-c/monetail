@@ -31,6 +31,7 @@ Windows デスクトップアプリ
 | `.../Data/Statistics/` | 集計用DTO |
 | `.../DataAccess/` | SQLite接続、SELECT/INSERT/UPDATE/DELETE、履歴取得 |
 | `.../Logic/Calculation.vb` | 税・割引・残高の計算 |
+| `.../Logic/IntegerExpression.vb` | 単価・値引額の整数式評価。乗算優先・入力不正や桁あふれは0 |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |

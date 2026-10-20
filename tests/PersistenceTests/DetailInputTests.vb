@@ -79,6 +79,97 @@ Friend Module DetailInputTests
             End Sub)
     End Sub
 
+    Public Sub MoneyExpressions()
+        EachForeignKeyMode(
+            Sub(fixture)
+                Dim original = fixture.Data.GetReceipts(2026, 10).Single()
+                Dim originalState = ReceiptState(original)
+                Dim savedState = ConcurrencyTests.Snapshot(fixture)
+                Using cancelled As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = original}
+                    Program.OpenForm(cancelled)
+                    SelectDetail(cancelled, True)
+                    cancelled.FeeTextBox.Text = "100+20*3"
+                    cancelled.DiscountFeeTextBox.Text = "2+3*4"
+                    ValidateMoneyFields(cancelled, 160, 14)
+                    cancelled.Close()
+                End Using
+                Equal(originalState, ReceiptState(original), "Cancelling evaluated fields must preserve the original receipt")
+                Equal(savedState, ConcurrencyTests.Snapshot(fixture))
+
+                For Each editing In New Boolean() {False, True}
+                    For Each mode In New String() {"floor", "half_up"}
+                        Dim receipt = fixture.Data.GetReceipts(2026, 10).Single()
+                        Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
+                            Program.OpenForm(form)
+                            form.TaxInclusiveRadioButton.Checked = True
+                            form.TaxRoundingFloorRadioButton.Checked = (mode = "floor")
+                            form.TaxRoundingHalfUpRadioButton.Checked = (mode = "half_up")
+                            Dim saved = ConcurrencyTests.Snapshot(fixture)
+                            Dim added As New List(Of ReceiptDetail)
+                            For Each discountField In New Boolean() {False, True}
+                                For Each item As KeyValuePair(Of String, Integer) In IntegerExpressionCases.MoneyUiCases()
+                                    SelectDetail(form, editing)
+                                    SetInput(form, "1", "0")
+                                    Dim priceText = If(discountField, "100+20*3", item.Key)
+                                    Dim discountText = If(discountField, item.Key, "2+3*4")
+                                    Dim price = If(discountField, 160, item.Value)
+                                    Dim discount = If(discountField, item.Value, 14)
+                                    form.FeeTextBox.Text = priceText
+                                    form.DiscountFeeTextBox.Text = discountText
+                                    Dim before = ReceiptState(receipt)
+                                    Dim group = receipt.Groups(0)
+                                    Dim references = group.Details.ToArray()
+                                    Dim selection = String.Join(",", form.DetailListView.SelectedIndices.Cast(Of Integer)())
+                                    Dim buttonText = form.AddDetailButton.Text
+                                    ValidateMoneyFields(form, price, discount)
+                                    Equal(before, ReceiptState(receipt), "Evaluating a field must not mutate receipt data")
+                                    Equal(True, references.SequenceEqual(group.Details))
+                                    Equal(selection, String.Join(",", form.DetailListView.SelectedIndices.Cast(Of Integer)()))
+                                    Equal(buttonText, form.AddDetailButton.Text)
+                                    Equal(saved, ConcurrencyTests.Snapshot(fixture))
+
+                                    ' Validatedを経由しないボタン呼出も同じ計算結果を反映する。
+                                    form.FeeTextBox.Text = priceText
+                                    form.DiscountFeeTextBox.Text = discountText
+                                    WithoutDialogs(Sub() form.AddDetailButton.PerformClick())
+                                    Equal(references.Length + If(editing, 0, 1), group.Details.Count)
+                                    Dim line = If(editing, group.Details(0), group.Details.Last())
+                                    Equal(price, line.Fee)
+                                    Equal(discount, line.DiscountFee)
+                                    If Not editing Then added.Add(line)
+                                    Equal(saved, ConcurrencyTests.Snapshot(fixture))
+                                Next
+                            Next
+                            Program.ClickAndAnswer(form.RegiserButton, DialogResult.Yes, "Save evaluated integer fields")
+                            Equal(DialogResult.OK, form.DialogResult)
+                            Dim reloaded = fixture.Data.GetReceipts(2026, 10).Single()
+                            Equal(mode, reloaded.TaxRoundingMode)
+                            Dim expected = If(editing, New List(Of ReceiptDetail) From {receipt.Groups(0).Details(0)}, added)
+                            For Each line As ReceiptDetail In expected
+                                Dim actual = reloaded.Groups(0).Details.Single(Function(d) d.Seq = line.Seq)
+                                Equal(line.Fee, actual.Fee)
+                                Equal(line.DiscountFee, actual.DiscountFee)
+                            Next
+                            Equal(0L, Convert.ToInt64(fixture.Scalar("SELECT count(*) FROM t_receipt_details WHERE typeof(fee)<>'integer' OR typeof(discount_fee)<>'integer'")))
+                        End Using
+                    Next
+                Next
+            End Sub)
+    End Sub
+
+    Private Sub ValidateMoneyFields(form As RegisterForm, expectedPrice As Integer, expectedDiscount As Integer)
+        WithoutDialogs(
+            Sub()
+                form.FeeTextBox.Select()
+                form.ItemNameComboBox.Select()
+                form.DiscountFeeTextBox.Select()
+                form.ItemNameComboBox.Select()
+                Application.DoEvents()
+                Equal(expectedPrice.ToString(CultureInfo.InvariantCulture), form.FeeTextBox.Text)
+                Equal(expectedDiscount.ToString(CultureInfo.InvariantCulture), form.DiscountFeeTextBox.Text)
+            End Sub)
+    End Sub
+
     Public Sub LegacyReceipts()
         EachForeignKeyMode(
             Sub(fixture)

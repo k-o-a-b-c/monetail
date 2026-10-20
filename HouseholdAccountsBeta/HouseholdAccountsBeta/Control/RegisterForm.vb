@@ -478,6 +478,8 @@ Public Class RegisterForm
 
     Private Sub AddDetailButton_Click(sender As Object, e As EventArgs) Handles AddDetailButton.Click
 
+        Dim fee As Integer = NormalizeMoney(FeeTextBox)
+        Dim discountFee As Integer = NormalizeMoney(DiscountFeeTextBox)
         Dim quantity As Integer = NormalizeQuantity()
         Dim discountRate As Double = NormalizeDiscountRate()
 
@@ -490,9 +492,9 @@ Public Class RegisterForm
         End If
 
         detail.Name = ItemNameComboBox.Text
-        Integer.TryParse(FeeTextBox.Text, detail.Fee)
+        detail.Fee = fee
         detail.Quantity = quantity
-        Integer.TryParse(DiscountFeeTextBox.Text, detail.DiscountFee)
+        detail.DiscountFee = discountFee
         detail.DiscountRate = discountRate
         detail.Tag = DetailTagTextBox.Text
         detail.TaxTarget = TaxTargetCheckBox.Checked
@@ -625,52 +627,15 @@ Public Class RegisterForm
         End Select
     End Sub
 
-    Private Sub FeeTextBox_Validated(sender As Object, e As EventArgs) Handles FeeTextBox.Validated
-        Dim inputString As String = FeeTextBox.Text
-        Dim index As Integer = 0
-        Dim startIndex As Integer
-        Dim tempValue As Integer
-        Dim parseValue As Integer
-        Dim minusSign As Boolean
-
-        inputString = inputString.Replace(" ", "")
-        While index < inputString.Length
-            Select Case inputString.Chars(index)
-                Case "0"c, "1"c, "2"c, "3"c, "4"c, "5"c, "6"c, "7"c, "8"c, "9"c
-                Case "+"c, "-"c
-                    If startIndex <> index Then
-                        If Not Integer.TryParse(inputString.Substring(startIndex, index - startIndex), parseValue) Then
-                            Return
-                        End If
-                        If Not minusSign Then
-                            tempValue += parseValue
-                        Else
-                            tempValue -= parseValue
-                        End If
-                    End If
-                    startIndex = index + 1
-                    minusSign = inputString.Chars(index) = "-"c
-
-                Case Else
-                    Return
-            End Select
-            index += 1
-        End While
-
-        If startIndex <> index Then
-            If Not Integer.TryParse(inputString.Substring(startIndex, index - startIndex), parseValue) Then
-                Return
-            End If
-            If Not minusSign Then
-                tempValue += parseValue
-            Else
-                tempValue -= parseValue
-            End If
-        End If
-
-        FeeTextBox.Text = tempValue.ToString()
-
+    Private Sub MoneyTextBox_Validated(sender As Object, e As EventArgs) Handles FeeTextBox.Validated, DiscountFeeTextBox.Validated
+        NormalizeMoney(DirectCast(sender, TextBox))
     End Sub
+
+    Private Function NormalizeMoney(field As TextBox) As Integer
+        Dim value As Integer = IntegerExpression.EvaluateOrZero(field.Text)
+        field.Text = value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        Return value
+    End Function
 
 #Region "ポイント"
 
