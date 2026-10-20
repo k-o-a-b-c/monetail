@@ -16,8 +16,8 @@ Friend Module TransferInputTests
                         Try
                             Program.OpenForm(form)
                             Dim invalid As New List(Of Action(Of RegisterTransferForm))
-                            For Each input In New String() {"", " ", "abc", "1.5", "1+2", "1*2", "2147483648", "-2147483649"}
-                                Dim text = input
+                            For Each invalidText As String In New String() {"", " ", "abc", "1.5", "1+2", "1*2", "2147483648", "-2147483649"}
+                                Dim text = invalidText
                                 invalid.Add(Sub(editor) editor.FeeTextBox.Text = text)
                             Next
                             invalid.Add(Sub(editor) editor.NameComboBox.Text = "")
@@ -133,6 +133,9 @@ Friend Module TransferInputTests
                     Program.ClickAndAnswer(form.CopyButton, DialogResult.No, "Decline transfer copy")
                     Equal(pending, InputState(form))
                     Program.ClickAndAnswer(form.RegiserButton, DialogResult.No, "Decline transfer update")
+                    Equal(pending, InputState(form))
+                    Equal(original, TransferState(source))
+                    Equal(saved, ConcurrencyTests.Snapshot(fixture))
                     form.TransferTimeTextBox.Value = New Date(2026, 10, 16)
                     pending = InputState(form)
                     Program.ClickAndAnswer(form.CopyButton, DialogResult.No, "Decline unspecified transfer time")
