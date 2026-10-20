@@ -146,15 +146,15 @@ Friend Module BalanceOverflowTests
                                 CopyPrediction(form)
                                 Equal(77, CInt(row.Cells(form.BalanceColumn.Index).Value))
                                 Equal(77, balance.Groups.Single().Balance)
-                                form.BalanceDateTextBox.Value = New Date(2026, 1, 31)
+                                SetDateAndValidate(form, New Date(2026, 1, 30))
                                 Equal(True, row.Cells(form.AutoBalanceColumn.Index).Value Is Nothing)
                                 CopyPrediction(form)
                                 Equal(True, row.Cells(form.BalanceColumn.Index).Value Is Nothing)
-                                form.BalanceDateTextBox.Value = New Date(2026, 2, 1)
+                                SetDateAndValidate(form, New Date(2026, 2, 1))
                                 Equal(1500000000, CInt(row.Cells(form.AutoBalanceColumn.Index).Value))
                                 CopyPrediction(form)
                                 Equal(1500000000, CInt(row.Cells(form.BalanceColumn.Index).Value))
-                                form.BalanceDateTextBox.Value = target
+                                SetDateAndValidate(form, target)
                                 Equal("範囲超過", CStr(row.Cells(form.AutoBalanceColumn.Index).Value))
                                 CopyPrediction(form)
                                 Equal(1500000000, CInt(row.Cells(form.BalanceColumn.Index).Value))
@@ -168,6 +168,13 @@ Friend Module BalanceOverflowTests
                     Calculation.DataAccess = previous
                 End Try
             End Sub)
+    End Sub
+
+    Private Sub SetDateAndValidate(form As RegisterBalanceForm, value As Date)
+        form.BalanceDateTextBox.Value = value
+        ' 再計算は欄を離れたValidatedで行う。値の代入だけでは発生しない。
+        GetType(RegisterBalanceForm).GetMethod("BalanceDateTextBox_Validated", BindingFlags.Instance Or BindingFlags.NonPublic).Invoke(
+            form, {form.BalanceDateTextBox, EventArgs.Empty})
     End Sub
 
     Private Sub CopyPrediction(form As RegisterBalanceForm)
