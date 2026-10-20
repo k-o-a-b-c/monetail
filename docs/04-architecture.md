@@ -64,6 +64,8 @@ Windows デスクトップアプリ
 
 `ViewForm_Statistics.vb`は分類・収支集計の表示処理を共用する。範囲超過時は途中の行を消してエラー行を表示し、表示設定はFinallyで戻す。集計式・DataAccessは変更しない。[26 仕様](26-statistics-amount-overflow.md)。
 
+`BalanceDisplay.vb`は登録・支払メモの推算表示でOverflowExceptionだけを表示文字列へ変換する。残高集計は共通の`UpdateStatistics`を使い、表とグラフの途中結果を消す。モデル・計算・DataAccessは維持する。[27 仕様](27-balance-amount-overflow.md)。
+
 ## 起動・開発上の注意
 
 1. WindowsとVisual Studio（.NET Framework 4.8用の開発機能）が必要。

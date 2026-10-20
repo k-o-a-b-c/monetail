@@ -8,10 +8,10 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの20チェック） | 31 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3） | 59 |
-| 合計 | 100 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4） | 63 |
+| 合計 | 104 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fstatistics-amount-overflow)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fbalance-amount-overflow)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -27,6 +27,8 @@ python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 金額範囲は、型の境界・正負の桁あふれ・相殺と収支、候補検証の非変更と選択税設定を固定例で検証します。WindowsではFK ON/OFFと両端数方式で、数量倍・値引額との差・税・明細合算の超過を追加／更新前に警告し、入力・選択・元明細・DB全行を保持することと修正後の保存を確認します。税切替のプレビュー、登録／流用の警告とSeq／更新版の保持、修正後の即時流用も検証します。[25 仕様](../docs/25-receipt-amount-overflow.md)参照。
 
 分類・収支の月年集計は、製品の集計partial・Designer・詳細画面と実SQLiteを使い、同一／複数分類・支払方法、月額／年額、正負・相殺前の途中超過と収支別超過、型の両端・通常値・空年を確認します。テスト用partialで一時DBと年・選択コントロールを初期化し、メイン画面全体の起動・年月移動ボタン・全タブのE2Eは含めません。エラー行の詳細抑止、途中／前回表示の消去、条件変更と実際の収支ラジオイベントによる復帰、表示設定の復元と関係しない例外の伝播、全保存値・型・版・スキーマの保持をFK ON/OFF・両端数方式で確認します。[26 仕様](../docs/26-statistics-amount-overflow.md)。
+
+残高の範囲超過は実SQLite・FK ON/OFFで4チェックを追加しています。推算両APIの正負・途中超過、入出金振替とレシート、最小／最大値・0円・データなしを比較し、表示ヘルパーの文字列変換と関係しない例外の伝播を確認します。製品の残高集計partial・Designerで、複数口座・評価額／USD・推算の表とグラフの消去・条件変更後の復帰を検証し、製品の残高登録画面で転記抑止・数値／空欄転記への復帰と手入力保存を確認します。表示時は全保存値・型・版・スキーマ・FK／user_versionの保持と書込0回を比較します。支払メモの各画面イベントは今回のUI回帰に含めず、共通ヘルパーと元ソリューションのビルドで確認します。[27 仕様](../docs/27-balance-amount-overflow.md)。
 
 マイグレーションテストは Python 標準ライブラリの SQLite で実際のスキーマと移行 SQL を実行し、既存行・割当・合計の保持、税端数2列と更新版3列だけの追加、既定値・制約、PRAGMA の保持、再実行拒否を検証します。
 

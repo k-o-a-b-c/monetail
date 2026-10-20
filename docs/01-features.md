@@ -52,6 +52,8 @@
 
 分類集計・収支集計で金額の範囲を超えた場合、表全体を「集計不可／範囲超過」へ置き換え、年や絞り込み条件の変更で再計算する。保存値は変更しない。[26 詳細](26-statistics-amount-overflow.md)。
 
+残高推算欄は範囲外を「範囲超過」と表示し、残高の反映ボタンで入力値を壊さない。残高集計は表とグラフを消して範囲超過を知らせ、条件変更で復帰する。[27 詳細](27-balance-amount-overflow.md)。
+
 ## 根拠
 
 - [メイン画面](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)、[一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)

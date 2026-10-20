@@ -16,12 +16,13 @@ Partial Public Class ViewForm
             SelectedRowIndex = -1
         End If
 
-        ' 処理高速化（開始）
-        BalanceStatisticsDataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None
-        BalanceStatisticsDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing
+        BalanceStatisticsChart.Series.Item(0).Points.Clear()
+        UpdateStatistics(BalanceStatisticsDataGridView,
+            Sub() PopulateBalanceStatistics(SelectedRowIndex, FirstRowIndex),
+            Sub() BalanceStatisticsChart.Series.Item(0).Points.Clear())
+    End Sub
 
-        ' 表示内容クリア
-        BalanceStatisticsDataGridView.Rows.Clear()
+    Private Sub PopulateBalanceStatistics(SelectedRowIndex As Integer, FirstRowIndex As Integer)
 
         ' 残高データ、支払い方法マスタ取得
         Dim BalanceStatisticsList As List(Of BalanceStatistics) = DataAccess.GetBalanceStatistics(YearMonth.Year)
@@ -222,14 +223,10 @@ Partial Public Class ViewForm
         '    BalanceStatisticsDataGridView.Columns.Item(Month).DefaultCellStyle = cellStyle
         'Next
 
-        ' 処理高速化（終了）
-        BalanceStatisticsDataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells
-        BalanceStatisticsDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
-
-        If SelectedRowIndex >= 0 Then
+        If SelectedRowIndex >= 0 AndAlso SelectedRowIndex < BalanceStatisticsDataGridView.Rows.Count Then
             BalanceStatisticsDataGridView.CurrentCell = BalanceStatisticsDataGridView.Rows(SelectedRowIndex).Cells(1)
         End If
-        If FirstRowIndex >= 0 Then
+        If FirstRowIndex >= 0 AndAlso FirstRowIndex < BalanceStatisticsDataGridView.Rows.Count Then
             BalanceStatisticsDataGridView.FirstDisplayedScrollingRowIndex = FirstRowIndex
         End If
 
@@ -260,6 +257,9 @@ Partial Public Class ViewForm
 
     Private Sub BalanceStatisticsDataGridView_CellMouseDoubleClick(sender As Object, e As DataGridViewCellMouseEventArgs) Handles BalanceStatisticsDataGridView.CellMouseDoubleClick
         If e.RowIndex < 0 OrElse e.ColumnIndex < 2 Then
+            Return
+        End If
+        If BalanceStatisticsDataGridView.Rows(e.RowIndex).Cells(0).Value Is Nothing Then
             Return
         End If
         Dim PaymentCode As Integer = CInt(BalanceStatisticsDataGridView.Rows(e.RowIndex).Cells("BalancePaymentCodeColumn").Value)

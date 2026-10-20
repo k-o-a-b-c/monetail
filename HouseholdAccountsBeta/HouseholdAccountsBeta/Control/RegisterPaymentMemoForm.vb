@@ -10,7 +10,7 @@ Public Class RegisterPaymentMemoForm
     Private Sub RegisterBalanceForm_Load(sender As Object, e As EventArgs) Handles Me.Load
         UpdateDate = Date.Today
         For Each PaymentMemo As PaymentMemo In DataAccess.GetPaymentMemoList
-            Dim values As Object() = {PaymentMemo.PaymentClassification, Calculation.AutoBalance(UpdateDate, PaymentMemo.PaymentClassification), PaymentMemo.CheckDate, "反映", PaymentMemo.Tag}
+            Dim values As Object() = {PaymentMemo.PaymentClassification, BalanceDisplay.AutoBalance(UpdateDate, PaymentMemo.PaymentClassification), PaymentMemo.CheckDate, "反映", PaymentMemo.Tag}
             SetRowColor(PaymentMemoDataGridView.Rows.Add(values))
         Next
         PaymentMemoDataGridView.AutoResizeColumn(0)
@@ -92,13 +92,13 @@ Public Class RegisterPaymentMemoForm
         If UpdateDate = Date.Today AndAlso PaymentClassification IsNot Nothing Then
             For Each row As DataGridViewRow In PaymentMemoDataGridView.Rows
                 If DirectCast(row.Cells.Item(PaymentClassificationColumn.Index).Value, PaymentClassification).Code = PaymentClassification.Code Then
-                    row.Cells.Item(AutoBalanceColumn.Index).Value = Calculation.AutoBalance(UpdateDate, PaymentClassification)
+                    row.Cells.Item(AutoBalanceColumn.Index).Value = BalanceDisplay.AutoBalance(UpdateDate, PaymentClassification)
                 End If
             Next
         Else
             UpdateDate = Date.Today
             For Each row As DataGridViewRow In PaymentMemoDataGridView.Rows
-                row.Cells.Item(AutoBalanceColumn.Index).Value = Calculation.AutoBalance(UpdateDate, DirectCast(row.Cells.Item(PaymentClassificationColumn.Index).Value, PaymentClassification))
+                row.Cells.Item(AutoBalanceColumn.Index).Value = BalanceDisplay.AutoBalance(UpdateDate, DirectCast(row.Cells.Item(PaymentClassificationColumn.Index).Value, PaymentClassification))
             Next
         End If
     End Sub
