@@ -130,3 +130,5 @@
 自動検証の対象と、DBのバックアップ・税端数移行を含む手動確認の手順は [tests/README.md](../tests/README.md) を参照。マスタメンテナンス画面の作成とポイント機能の完成は保留中で、今回の変更には含めていない。
 
 **根拠**: [ViewForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)、[ViewForm_List.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[RegisterBalanceForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterBalanceForm.vb)、[RegisterTransferForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterTransferForm.vb)、[RegisterPaymentMemoForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterPaymentMemoForm.vb)
+
+**レシートの入力チェック:** 店名空欄・内税／外税未選択・支払方法未選択・明細なしでは、登録と流用の両方が押せない。入力を直すと再び押せるようになり、追加の警告や自動補正は行わない。店舗マスタ未登録でも入力でき、正常な流用は従来の確認後すぐに保存して閉じる。[30 詳細](30-receipt-input-validation.md)。

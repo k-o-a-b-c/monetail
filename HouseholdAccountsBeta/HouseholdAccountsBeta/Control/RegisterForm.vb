@@ -126,6 +126,14 @@ Public Class RegisterForm
         Next
     End Sub
 
+    Private Function HasRequiredReceiptInput() As Boolean
+        Return Receipt IsNot Nothing AndAlso
+            Not String.IsNullOrEmpty(ShopNameComboBox.Text) AndAlso
+            (TaxInclusiveRadioButton.Checked OrElse TaxExclusiveRadioButton.Checked) AndAlso
+            TypeOf PaymentClassificationComboBox.SelectedItem Is PaymentClassification AndAlso
+            Receipt.Groups.Any(Function(g) g.Details.Count > 0)
+    End Function
+
     Private Sub UpdateState()
 
         If InitializingReceiptControls OrElse Receipt Is Nothing Then
@@ -143,13 +151,9 @@ Public Class RegisterForm
         End If
         TotalTextBox2.Text = TotalTextBox.Text
 
-        Dim registerCheck As Boolean = True
-        registerCheck = registerCheck AndAlso Not String.IsNullOrEmpty(ShopNameComboBox.Text)
-        registerCheck = registerCheck AndAlso (TaxInclusiveRadioButton.Checked OrElse TaxExclusiveRadioButton.Checked)
-        registerCheck = registerCheck AndAlso (PaymentClassificationComboBox.SelectedIndex <> -1)
-        registerCheck = registerCheck AndAlso Receipt.Groups.Any(Function(g) g.Details.Count > 0)
-
-        RegiserButton.Enabled = registerCheck
+        Dim canRegister As Boolean = HasRequiredReceiptInput()
+        RegiserButton.Enabled = canRegister
+        CopyButton.Enabled = canRegister
 
     End Sub
 
@@ -285,7 +289,7 @@ Public Class RegisterForm
         UpdateState()
     End Sub
 
-    Private Sub PaymentClassificationComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles PaymentClassificationComboBox.SelectedIndexChanged
+    Private Sub RequiredReceiptInput_Changed(sender As Object, e As EventArgs) Handles PaymentClassificationComboBox.SelectedIndexChanged, ShopNameComboBox.TextChanged
         UpdateState()
     End Sub
 
@@ -557,6 +561,12 @@ Public Class RegisterForm
     End Sub
 
     Private Sub RegisterReceipt(ByVal isCopy As Boolean)
+
+        ' ボタン状態だけに頼らず、確認や流用時のSeq変更より前に必須入力を確認する。
+        If Not HasRequiredReceiptInput() Then
+            UpdateState()
+            Return
+        End If
 
         ' 確認ダイアログや流用時のSeq変更より前に、現在の画面設定で確認する。
         If Not ReceiptAmountValidation.IsInRange(Receipt, If(TaxExclusiveRadioButton.Checked, 1, 0), SelectedTaxRoundingMode) Then

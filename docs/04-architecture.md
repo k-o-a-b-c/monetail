@@ -111,3 +111,5 @@ Web / スマートフォン / デスクトップ
 ## 根拠
 
 [ソリューション](../HouseholdAccountsBeta/HouseholdAccountsBeta.sln)、[プロジェクト](../HouseholdAccountsBeta/HouseholdAccountsBeta/HouseholdAccountsBeta.vbproj)、[設定](../HouseholdAccountsBeta/HouseholdAccountsBeta/App.config)、[依存パッケージ](../HouseholdAccountsBeta/HouseholdAccountsBeta/packages.config)
+
+レシートの`HasRequiredReceiptInput`は両ボタンの状態と`RegisterReceipt`の入口で共用する。店名のTextChangedも状態を更新し、不備のある入力で確認・Seq変更・ヘッダー転記へ進まない。[30 仕様](30-receipt-input-validation.md)。
