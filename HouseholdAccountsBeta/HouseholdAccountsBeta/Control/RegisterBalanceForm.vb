@@ -105,18 +105,8 @@ Public Class RegisterBalanceForm
             Return
         End If
 
-        If Balance.Seq <> 0 Then
-            If MessageBox.Show("登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
-                Return
-            End If
-            If Balance.Date.Date <> BalanceDateTextBox.Value.Date AndAlso MessageBox.Show("日付が変更されています。本当によろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
-                Return
-            End If
-        End If
-
-        Balance.Date = BalanceDateTextBox.Value.Date
-        Balance.Tag = BalanceTagTextBox.Text
-        Balance.Groups = New List(Of BalanceGroup)()
+        ' 元の明細を消さずに候補を作り、全行の入力が有効になるまでBalanceへ反映しない。
+        Dim pendingGroups As New List(Of BalanceGroup)()
         For Each row As DataGridViewRow In BalanceDataGridView.Rows
             If row.Cells.Item(BalanceColumn.Index).Value Is Nothing Then
                 If row.Cells.Item(ValuationAmountColumn.Index).Value IsNot Nothing Then
@@ -128,24 +118,47 @@ Public Class RegisterBalanceForm
 
             Dim group As New BalanceGroup()
             group.PaymentClassification = DirectCast(row.Cells.Item(PaymentClassificationColumn.Index).Value, PaymentClassification)
-            group.Balance = Integer.Parse(row.Cells.Item(BalanceColumn.Index).Value.ToString())
+            Dim amount As Integer
+            If Not Integer.TryParse(row.Cells.Item(BalanceColumn.Index).Value.ToString(), amount) Then
+                MessageBox.Show("残高は整数で入力してください。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                Return
+            End If
+            group.Balance = amount
             If row.Cells.Item(ValuationAmountColumn.Index).Value Is Nothing Then
                 group.ValuationAmount = Nothing
             Else
-                group.ValuationAmount = Integer.Parse(row.Cells.Item(ValuationAmountColumn.Index).Value.ToString())
+                Dim valuation As Integer
+                If Not Integer.TryParse(row.Cells.Item(ValuationAmountColumn.Index).Value.ToString(), valuation) Then
+                    MessageBox.Show("評価額は整数で入力してください。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Return
+                End If
+                group.ValuationAmount = valuation
             End If
             If row.Cells.Item(TagColumn.Index).Value IsNot Nothing Then
                 group.Tag = row.Cells.Item(TagColumn.Index).Value.ToString()
             Else
                 group.Tag = String.Empty
             End If
-            Balance.Groups.Add(group)
+            pendingGroups.Add(group)
         Next
 
-        If Balance.Groups.Count = 0 Then
+        If pendingGroups.Count = 0 Then
             MessageBox.Show("残高情報がありません。", "エラー", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1)
             Return
         End If
+
+        If Balance.Seq <> 0 Then
+            If MessageBox.Show("登録します。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) = DialogResult.No Then
+                Return
+            End If
+            If Balance.Date.Date <> BalanceDateTextBox.Value.Date AndAlso MessageBox.Show("日付が変更されています。本当によろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
+                Return
+            End If
+        End If
+
+        Balance.Date = BalanceDateTextBox.Value.Date
+        Balance.Tag = BalanceTagTextBox.Text
+        Balance.Groups = pendingGroups
 
         Try
             If Balance.Seq = 0 Then

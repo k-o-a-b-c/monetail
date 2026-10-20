@@ -56,6 +56,8 @@
 
 振替の登録・流用は入力条件を共用し、名称空欄・支払方法未選択・不正な金額では両ボタンを無効にする。処理を直接呼んでも確認・モデル変更より前に止め、修正後は再操作できる。[28 詳細](28-transfer-input-validation.md)。
 
+残高登録は一時的な明細リストで全入力を検証し、確認後に元モデルへ反映する。入力エラーや確認取消では日付・タグ・明細と参照を保持し、同じオブジェクトを開き直しても元の値を表示する。[29 詳細](29-balance-input-state.md)。
+
 ## 根拠
 
 - [メイン画面](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)、[一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)

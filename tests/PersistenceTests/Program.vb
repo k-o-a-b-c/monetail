@@ -9,6 +9,9 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main() As Integer
+        Check("invalid balance inputs preserve the original object and same-instance reopen state", AddressOf BalanceInputStateTests.InvalidInputsAndReopen)
+        Check("corrected balance inputs save zero signed boundaries and nullable valuations", AddressOf BalanceInputStateTests.CorrectAndSave)
+        Check("declining validated balance confirmations preserves input models and references", AddressOf BalanceInputStateTests.DeclinedConfirmations)
         Check("invalid transfer inputs disable register and copy and reject direct calls before mutation", AddressOf TransferInputTests.InvalidInputsAndRecovery)
         Check("transfer integer boundaries preserve new update and immediate copy behavior", AddressOf TransferInputTests.AcceptedValuesAndImmediateCopy)
         Check("transfer confirmation cancellations and identical account warnings preserve input and data", AddressOf TransferInputTests.ExistingConfirmations)
