@@ -450,7 +450,36 @@ Public Class RegisterForm
 
     End Sub
 
+    Private Function NormalizeQuantity() As Integer
+        Dim value As Integer
+        If Not Integer.TryParse(QuantityTextBox.Text, value) OrElse value < 1 Then value = 1
+        QuantityTextBox.Text = value.ToString()
+        Return value
+    End Function
+
+    Private Function NormalizeDiscountRate() As Double
+        Dim value As Double
+        If Not Double.TryParse(DiscountRateTextBox.Text, value) OrElse Double.IsNaN(value) OrElse Double.IsInfinity(value) Then
+            value = 0
+        Else
+            value = Math.Min(100, Math.Max(0, value))
+        End If
+        DiscountRateTextBox.Text = value.ToString()
+        Return value
+    End Function
+
+    Private Sub QuantityTextBox_Validated(sender As Object, e As EventArgs) Handles QuantityTextBox.Validated
+        NormalizeQuantity()
+    End Sub
+
+    Private Sub DiscountRateTextBox_Validated(sender As Object, e As EventArgs) Handles DiscountRateTextBox.Validated
+        NormalizeDiscountRate()
+    End Sub
+
     Private Sub AddDetailButton_Click(sender As Object, e As EventArgs) Handles AddDetailButton.Click
+
+        Dim quantity As Integer = NormalizeQuantity()
+        Dim discountRate As Double = NormalizeDiscountRate()
 
         Dim detail As ReceiptDetail
         If DetailListView.SelectedItems.Count = 0 Then
@@ -462,9 +491,9 @@ Public Class RegisterForm
 
         detail.Name = ItemNameComboBox.Text
         Integer.TryParse(FeeTextBox.Text, detail.Fee)
-        Integer.TryParse(QuantityTextBox.Text, detail.Quantity)
+        detail.Quantity = quantity
         Integer.TryParse(DiscountFeeTextBox.Text, detail.DiscountFee)
-        Double.TryParse(DiscountRateTextBox.Text, detail.DiscountRate)
+        detail.DiscountRate = discountRate
         detail.Tag = DetailTagTextBox.Text
         detail.TaxTarget = TaxTargetCheckBox.Checked
         detail.Users.Clear()
