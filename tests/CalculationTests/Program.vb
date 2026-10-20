@@ -6,6 +6,9 @@ Imports System.Text.Json
 Module Program
     Function Main() As Integer
         CheckJsonExpectations()
+        Check("receipt amount validation catches signed overflow and income expense cancellation", AddressOf ReceiptAmountValidationTests.AmountRanges)
+        Check("pending amount validation preserves the original receipt lists details and settings", AddressOf ReceiptAmountValidationTests.CandidateIsReadOnly)
+        Check("amount validation uses selected tax settings without changing saved settings", AddressOf ReceiptAmountValidationTests.SelectedTaxSettings)
         Check("integer expressions evaluate multiplication before addition and subtraction", AddressOf IntegerExpressionTests.Priority)
         Check("integer expressions support signed operands whitespace and Int32 boundaries", AddressOf IntegerExpressionTests.SignedAndBoundaries)
         Check("malformed and non integer expressions normalize to zero", AddressOf IntegerExpressionTests.InvalidInputs)

@@ -10,6 +10,7 @@
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/**/*.vb" Link="Production/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb" Link="Production/Calculation.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/IntegerExpression.vb" Link="Production/IntegerExpression.vb" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/ReceiptAmountValidation.vb" Link="Production/ReceiptAmountValidation.vb" />
     <Compile Include="../Shared/Assertions.vb" Link="Assertions.vb" />
     <Compile Include="../Shared/IntegerExpressionCases.vb" Link="IntegerExpressionCases.vb" />
     <Compile Include="../Shared/ReceiptFixtures.vb" Link="ReceiptFixtures.vb" />

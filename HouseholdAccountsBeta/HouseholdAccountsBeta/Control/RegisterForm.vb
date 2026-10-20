@@ -133,7 +133,11 @@ Public Class RegisterForm
         End If
 
         If TaxInclusiveRadioButton.Checked OrElse TaxExclusiveRadioButton.Checked Then
-            TotalTextBox.Text = Receipt.GetTotal(If(TaxExclusiveRadioButton.Checked, 1, 0), SelectedTaxRoundingMode).ToString()
+            If ReceiptAmountValidation.IsInRange(Receipt, If(TaxExclusiveRadioButton.Checked, 1, 0), SelectedTaxRoundingMode) Then
+                TotalTextBox.Text = Receipt.GetTotal(If(TaxExclusiveRadioButton.Checked, 1, 0), SelectedTaxRoundingMode).ToString()
+            Else
+                TotalTextBox.Text = "範囲超過"
+            End If
         Else
             TotalTextBox.Text = String.Empty
         End If
@@ -484,26 +488,34 @@ Public Class RegisterForm
         Dim quantity As Integer = NormalizeQuantity()
         Dim discountRate As Double = NormalizeDiscountRate()
 
-        Dim detail As ReceiptDetail
-        If DetailListView.SelectedItems.Count = 0 Then
-            detail = New ReceiptDetail()
-        Else
-            detail = SelectedGroup.Details(DetailListView.SelectedIndices(0))
-            AddDetailButton.Text = "追加"
+        Dim previous As ReceiptDetail = If(DetailListView.SelectedItems.Count = 0, Nothing,
+            SelectedGroup.Details(DetailListView.SelectedIndices(0)))
+        Dim pending As New ReceiptDetail With {
+            .Name = ItemNameComboBox.Text, .Fee = fee, .Quantity = quantity,
+            .DiscountFee = discountFee, .DiscountRate = discountRate, .Tag = DetailTagTextBox.Text,
+            .TaxTarget = TaxTargetCheckBox.Checked
+        }
+        pending.Users.AddRange(UserListBox.SelectedItems.Cast(Of User))
+        If Not ReceiptAmountValidation.CanApplyDetail(Receipt, SelectedGroup, previous, pending,
+                If(TaxExclusiveRadioButton.Checked, 1, 0), SelectedTaxRoundingMode) Then
+            ShowAmountOverflow()
+            Return
         End If
 
-        detail.Name = ItemNameComboBox.Text
-        detail.Fee = fee
-        detail.Quantity = quantity
-        detail.DiscountFee = discountFee
-        detail.DiscountRate = discountRate
-        detail.Tag = DetailTagTextBox.Text
-        detail.TaxTarget = TaxTargetCheckBox.Checked
-        detail.Users.Clear()
-        detail.Users.AddRange(UserListBox.SelectedItems.Cast(Of User))
-
-        If DetailListView.SelectedItems.Count = 0 Then
-            SelectedGroup.Details.Add(detail)
+        If previous Is Nothing Then
+            SelectedGroup.Details.Add(pending)
+        Else
+            ' 検証後に元の明細へ反映し、既存のオブジェクト参照と採番情報を維持する。
+            previous.Name = pending.Name
+            previous.Fee = pending.Fee
+            previous.Quantity = pending.Quantity
+            previous.DiscountFee = pending.DiscountFee
+            previous.DiscountRate = pending.DiscountRate
+            previous.Tag = pending.Tag
+            previous.TaxTarget = pending.TaxTarget
+            previous.Users.Clear()
+            previous.Users.AddRange(pending.Users)
+            AddDetailButton.Text = "追加"
         End If
 
         SetDetailListView()
@@ -539,7 +551,18 @@ Public Class RegisterForm
         RegisterReceipt(True)
     End Sub
 
+    Private Sub ShowAmountOverflow()
+        MessageBox.Show(Me, "金額が扱える範囲を超えています。単価・値引額・数量や税区分を確認してください。",
+                        "金額の範囲エラー", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+    End Sub
+
     Private Sub RegisterReceipt(ByVal isCopy As Boolean)
+
+        ' 確認ダイアログや流用時のSeq変更より前に、現在の画面設定で確認する。
+        If Not ReceiptAmountValidation.IsInRange(Receipt, If(TaxExclusiveRadioButton.Checked, 1, 0), SelectedTaxRoundingMode) Then
+            ShowAmountOverflow()
+            Return
+        End If
 
         If ReceiptTimeTextBox.Value.TimeOfDay = TimeSpan.FromTicks(0) AndAlso MessageBox.Show("時刻を設定していません。よろしいですか？", "確認", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) = DialogResult.No Then
             Return

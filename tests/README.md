@@ -6,12 +6,12 @@
 
 | 対象 | 件数 |
 | --- | ---: |
-| 計算（JSONの11ケース＋VBの17チェック） | 28 |
+| 計算（JSONの11ケース＋VBの20チェック） | 31 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証4） | 54 |
-| 合計 | 92 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6） | 56 |
+| 合計 | 97 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeat%2Finteger-money-expressions)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Freceipt-amount-overflow)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -23,6 +23,8 @@ python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 人別集計は、対象者なし・1〜3名と無関係な選択者を含む全16選択集合、完全一致／部分一致、按分あり／なし、内税／外税、両端数方式を固定値で比較します。2人／3人の正負按分、8%／10%、課税／非課税混在、グループ内合算・空グループ・分類／日時の保持も確認します。Userの参照一致を現行挙動として記録し、各呼出前後でレシートの値・会計合計／収入／支出と選択者の値・参照順序が変わらないことを検証します。製品コードやDBは変更しません。[22 検証範囲と残る仕様判断](../docs/22-person-group-statistics.md)参照。
 
 整数式は製品`IntegerExpression`を直接呼び、固定入力表で乗算優先・符号・空白・型の境界・不正式・途中の桁あふれをen-US／de-DEで比較します。同じ入力表の画面用ケースをWindowsでも使い、単価・値引額の両欄を離れる実操作と、イベントを経由しない追加／更新、取消、両端数方式の保存・再読込、INTEGER保存をFK ON/OFFで検証します。欄の評価だけで元レシート・合計・DBが変わらないことも確認します。[24 仕様](../docs/24-integer-money-expressions.md)参照。
+
+金額範囲は、型の境界・正負の桁あふれ・相殺と収支、候補検証の非変更と選択税設定を固定例で検証します。WindowsではFK ON/OFFと両端数方式で、数量倍・値引額との差・税・明細合算の超過を追加／更新前に警告し、入力・選択・元明細・DB全行を保持することと修正後の保存を確認します。税切替のプレビュー、登録／流用の警告とSeq／更新版の保持、修正後の即時流用も検証します。[25 仕様](../docs/25-receipt-amount-overflow.md)参照。
 
 マイグレーションテストは Python 標準ライブラリの SQLite で実際のスキーマと移行 SQL を実行し、既存行・割当・合計の保持、税端数2列と更新版3列だけの追加、既定値・制約、PRAGMA の保持、再実行拒否を検証します。
 

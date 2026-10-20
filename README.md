@@ -42,6 +42,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [22 分類・人別集計](docs/22-person-group-statistics.md) | 対象者フィルタ・按分・丸めの現行挙動と残る仕様判断 |
 | [23 明細入力の検証](docs/23-detail-input-validation.md) | 数量1以上・値引率0〜100%への自動補正と既存データ互換性 |
 | [24 単価・値引額の整数式](docs/24-integer-money-expressions.md) | 加減算・乗算の優先順位、入力補正と保存 |
+| [25 金額の桁あふれ](docs/25-receipt-amount-overflow.md) | 明細反映・登録前の確認、警告と入力・データの保持 |
 
 ### 読む順番
 
