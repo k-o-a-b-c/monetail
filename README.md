@@ -46,6 +46,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [26 集計の桁あふれ](docs/26-statistics-amount-overflow.md) | 分類・収支の月年集計の範囲超過表示と復帰 |
 | [27 残高の桁あふれ](docs/27-balance-amount-overflow.md) | 推算欄と残高集計の範囲超過表示、転記抑止、表・グラフの復帰 |
 | [28 振替の入力チェック](docs/28-transfer-input-validation.md) | 登録・流用の共通検証、不正入力時のモデル・DB保持 |
+| [29 残高入力と元データ保持](docs/29-balance-input-state.md) | 全行の検証後に反映、エラー・確認取消と開き直し時の保持 |
 
 ### 読む順番
 

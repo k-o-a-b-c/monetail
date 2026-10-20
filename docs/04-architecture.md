@@ -68,6 +68,8 @@ Windows デスクトップアプリ
 
 振替の`TryGetTransferInput`はボタン状態と保存処理の入口で共用する。確認前に入力と整数変換を検証し、流用のSeq変更後にParseで失敗する経路をなくす。[28 仕様](28-transfer-input-validation.md)。
 
+残高登録は画面から`pendingGroups`を作り、全行の検証と確認が済んでからBalanceへ転記する。エラーで途中のリストを親一覧のモデルへ残さない。[29 仕様](29-balance-input-state.md)。
+
 ## 起動・開発上の注意
 
 1. WindowsとVisual Studio（.NET Framework 4.8用の開発機能）が必要。

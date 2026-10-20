@@ -117,6 +117,8 @@ half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
 
 振替金額は従来どおりInt32の整数入力で、0・負額も許容する。登録・流用で同じ条件を確認し、不正入力はモデルやDBへ反映する前に中止する。レシート単価・値引額の整数式は適用しない。[28 入力契約](28-transfer-input-validation.md)参照。
 
+残高登録は既存の整数範囲と任意評価額を維持し、全行を一時リストで検証してから元モデルへ反映する。入力エラーでは日付・タグ・明細も変更しない。[29 入力契約](29-balance-input-state.md)参照。
+
 ## 計算互換性の追加資料
 
 レシート・分類グループ・明細で異なる税端数粒度、正負金額の合計差、対象者按分と移植時の処理順序は [12-calculation-contract.md](12-calculation-contract.md)、実装済み税端数処理の詳細は [15-shop-tax-rounding-design.md](15-shop-tax-rounding-design.md) を参照。
