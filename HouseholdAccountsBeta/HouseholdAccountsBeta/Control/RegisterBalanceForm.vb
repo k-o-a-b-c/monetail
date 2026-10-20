@@ -69,7 +69,7 @@ Public Class RegisterBalanceForm
 
     Private Sub FillAutoBalance()
         For Each row As DataGridViewRow In BalanceDataGridView.Rows
-            row.Cells.Item(AutoBalanceColumn.Index).Value = Calculation.AutoBalance(BalanceDateTextBox.Value, DirectCast(row.Cells.Item(PaymentClassificationColumn.Index).Value, PaymentClassification))
+            row.Cells.Item(AutoBalanceColumn.Index).Value = BalanceDisplay.AutoBalance(BalanceDateTextBox.Value, DirectCast(row.Cells.Item(PaymentClassificationColumn.Index).Value, PaymentClassification))
             SetRowColor(row.Index)
         Next
     End Sub
@@ -168,7 +168,10 @@ Public Class RegisterBalanceForm
     Private Sub BalanceDataGridView_CellContentClick(sender As Object, e As DataGridViewCellEventArgs) Handles BalanceDataGridView.CellContentClick
         '反映ボタン
         If BalanceDataGridView.Columns.Item(e.ColumnIndex) Is CopyAutoBalanceColumn AndAlso e.RowIndex >= 0 Then
-            BalanceDataGridView.Rows.Item(e.RowIndex).Cells.Item(BalanceColumn.Index).Value = BalanceDataGridView.Rows.Item(e.RowIndex).Cells.Item(AutoBalanceColumn.Index).Value
+            ' 範囲超過の表示文字列は、登録する残高へ転記しない。
+            Dim value As Object = BalanceDataGridView.Rows.Item(e.RowIndex).Cells.Item(AutoBalanceColumn.Index).Value
+            If TypeOf value Is String Then Return
+            BalanceDataGridView.Rows.Item(e.RowIndex).Cells.Item(BalanceColumn.Index).Value = value
             SetRowColor(e.RowIndex)
         End If
     End Sub

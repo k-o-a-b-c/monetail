@@ -94,6 +94,8 @@ half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
 - 残高の `valuation_amount` は実残高と別の評価額（任意）。月次画面では評価額表示切替に使用する。
 - 月次残高の推算値には背景色と「自動計算による予測残高」の注記を付ける。
 
+残高推算の両APIは既存のInt32計算と途中の範囲超過例外を維持する。登録・支払メモでは表示ヘルパーで「範囲超過」に変換し、残高集計では表全体をエラー表示にしてグラフを消す。0円・データなしと区別する。[27 金額範囲](27-balance-amount-overflow.md)参照。
+
 ## 6. USD換算
 
 年度ごと `t_exchange_rates` から `USD/JPY` の月末に近い `middle_rate` を1件選ぶ。残高集計値を `JPY金額 / rate` として、小数第2位で `MidpointRounding.AwayFromZero` 丸めする。月のレートがなければ換算値を空欄にする。為替の回帰テストは未整備。

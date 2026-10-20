@@ -31,6 +31,11 @@ Partial Public Class ViewForm
     Friend Sub PopulateForTest(populate As Action)
         UpdateStatistics(GroupStatisticsDataGridView, populate)
     End Sub
+
+    Friend Sub RefreshBalanceStatistics(Optional year As Integer = 2026)
+        YearMonth = New Date(year, 1, 1)
+        UpdateBalanceStatistics()
+    End Sub
 End Class
 
 Friend Module StatisticsOverflowTests

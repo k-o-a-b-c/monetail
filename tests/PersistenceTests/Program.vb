@@ -9,6 +9,10 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main() As Integer
+        Check("balance prediction preserves signed overflow boundaries missing values and read-only behavior", AddressOf BalanceOverflowTests.PredictionRanges)
+        Check("recorded balance totals clear grids and graphs on overflow and recover through filters", AddressOf BalanceOverflowTests.RecordedStatistics)
+        Check("projected balance overflow clears graphs and recovers through valuation and year filters", AddressOf BalanceOverflowTests.ProjectedStatistics)
+        Check("balance editor preserves inputs on prediction overflow and copies only numeric values", AddressOf BalanceOverflowTests.EditorCopyAndRecovery)
         Check("category month and year overflow clears partial totals and recovers without writes", AddressOf StatisticsOverflowTests.Categories)
         Check("income expense month and year overflow clears partial totals and recovers without writes", AddressOf StatisticsOverflowTests.IncomeAndExpenses)
         Check("statistics restore sizing and propagate errors unrelated to amount overflow", AddressOf StatisticsOverflowTests.OtherErrorsPropagate)

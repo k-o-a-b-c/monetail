@@ -1,7 +1,7 @@
-' 分類・収支集計に共通する表示の復帰処理
+' 分類・収支・残高集計に共通する表示の復帰処理
 Partial Public Class ViewForm
 
-    Private Sub UpdateStatistics(grid As DataGridView, populate As Action)
+    Private Sub UpdateStatistics(grid As DataGridView, populate As Action, Optional onOverflow As Action = Nothing)
         grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing
         grid.Rows.Clear()
@@ -10,8 +10,9 @@ Partial Public Class ViewForm
         Catch ex As OverflowException
             ' 途中までの表や前の条件の合計を、正常な結果として残さない。
             grid.Rows.Clear()
+            If onOverflow IsNot Nothing Then onOverflow()
             Dim values As New List(Of Object) From {Nothing, "集計不可"}
-            For month As Integer = 1 To 13
+            For column As Integer = 2 To grid.Columns.Count - 1
                 values.Add("範囲超過")
             Next
             Dim row = grid.Rows(grid.Rows.Add(values.ToArray()))

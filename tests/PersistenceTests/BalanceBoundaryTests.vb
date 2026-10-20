@@ -248,7 +248,7 @@ Friend Module BalanceBoundaryTests
             End Sub)
     End Sub
 
-    Private Sub EachForeignKeyMode(action As Action(Of DatabaseFixture))
+    Friend Sub EachForeignKeyMode(action As Action(Of DatabaseFixture))
         For Each foreignKeys In New Boolean() {False, True}
             Try
                 Using fixture As New DatabaseFixture(foreignKeys)
@@ -263,7 +263,7 @@ Friend Module BalanceBoundaryTests
         Next
     End Sub
 
-    Private Sub ReadOnlyCase(fixture As DatabaseFixture, action As Action)
+    Friend Sub ReadOnlyCase(fixture As DatabaseFixture, action As Action)
         Dim before = ConcurrencyTests.Snapshot(fixture)
         Dim foreignKeys = Scalar(fixture, "PRAGMA foreign_keys")
         Dim userVersion = Scalar(fixture, "PRAGMA user_version")
@@ -284,7 +284,7 @@ Friend Module BalanceBoundaryTests
         End Try
     End Sub
 
-    Private Sub AssertBoth(fixture As DatabaseFixture, target As Date, paymentCode As Integer, expected As Integer?)
+    Friend Sub AssertBoth(fixture As DatabaseFixture, target As Date, paymentCode As Integer, expected As Integer?)
         Dim payment = fixture.Data.PaymentClassification(paymentCode)
         Dim context = target.ToString("O", CultureInfo.InvariantCulture) & " payment=" & paymentCode.ToString(CultureInfo.InvariantCulture)
         Equal(Of Integer?)(expected, fixture.Data.GetAutoBalance(target, payment), "DataAccess " & context)
@@ -302,7 +302,7 @@ Friend Module BalanceBoundaryTests
         Equal(transferIds, String.Join(",", transfers.Select(Function(t) t.Seq).OrderBy(Function(seq) seq)))
     End Sub
 
-    Private Function AddReceipt(fixture As DatabaseFixture, value As Date, amount As Integer, paymentCode As Integer) As Integer
+    Friend Function AddReceipt(fixture As DatabaseFixture, value As Date, amount As Integer, paymentCode As Integer) As Integer
         Dim receipt = MakeReceipt("floor", Group(10, Detail(amount, taxable:=False)))
         receipt.Date = value
         receipt.TaxType = 0
@@ -311,14 +311,14 @@ Friend Module BalanceBoundaryTests
         Return receipt.Seq
     End Function
 
-    Private Function AddTransfer(fixture As DatabaseFixture, value As Date, amount As Integer, fromCode As Integer, toCode As Integer) As Integer
+    Friend Function AddTransfer(fixture As DatabaseFixture, value As Date, amount As Integer, fromCode As Integer, toCode As Integer) As Integer
         Dim transfer As New Transfer With {.Date = value, .Name = "boundary", .Fee = amount, .Tag = "",
             .FromPaymentClassification = fixture.Data.PaymentClassification(fromCode), .ToPaymentClassification = fixture.Data.PaymentClassification(toCode)}
         fixture.Data.RegisterTransfer(transfer)
         Return transfer.Seq
     End Function
 
-    Private Function AddBalance(fixture As DatabaseFixture, value As Date, amount As Integer, paymentCode As Integer) As Integer
+    Friend Function AddBalance(fixture As DatabaseFixture, value As Date, amount As Integer, paymentCode As Integer) As Integer
         Dim balance As New Balance With {.Date = value, .Tag = "boundary"}
         balance.Groups.Add(New BalanceGroup With {.PaymentClassification = fixture.Data.PaymentClassification(paymentCode),
             .Balance = amount, .ValuationAmount = 9999, .Tag = ""})
