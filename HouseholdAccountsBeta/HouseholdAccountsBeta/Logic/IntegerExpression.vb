@@ -5,8 +5,10 @@ Public NotInheritable Class IntegerExpression
     ' 整数の加減算・乗算を評価する。空欄、不正な式、途中の桁あふれは0に補正する。
     Public Shared Function EvaluateOrZero(text As String) As Integer
         If String.IsNullOrWhiteSpace(text) Then Return 0
+        ' indexは式の読み取り位置。各処理が読み取った分だけ先へ進める。
         Dim index As Integer = 0
         Dim result As Integer
+        ' 「乗算のまとまり」を先に求め、その結果どうしを左から加減算する。
         If Not ReadProduct(text, index, result) Then Return 0
         While index < text.Length
             Dim operation As Char = text(index)
@@ -21,7 +23,7 @@ Public NotInheritable Class IntegerExpression
         Return result
     End Function
 
-    ' 乗算のまとまりを先に計算し、加減算側へ渡す。
+    ' 例：100+20*3では、20*3を60にしてから加算側へ渡す。
     Private Shared Function ReadProduct(text As String, ByRef index As Integer, ByRef result As Integer) As Boolean
         If Not ReadInteger(text, index, result) Then Return False
         SkipWhitespace(text, index)
@@ -41,6 +43,7 @@ Public NotInheritable Class IntegerExpression
     Private Shared Function ReadInteger(text As String, ByRef index As Integer, ByRef result As Integer) As Boolean
         SkipWhitespace(text, index)
         Dim negative As Boolean = False
+        ' 数値の先頭の符号を読むため、-10や2*-3の負数にも対応できる。
         If index < text.Length AndAlso (text(index) = "+"c OrElse text(index) = "-"c) Then
             negative = text(index) = "-"c
             index += 1
@@ -50,11 +53,13 @@ Public NotInheritable Class IntegerExpression
         Dim magnitude As Long = 0
         ' MinValueの絶対値はInt32に収まらないため、符号適用前はLongで読む。
         Dim limit As Long = If(negative, 2147483648L, Integer.MaxValue)
+        ' 半角数字を1桁ずつ読み、桁を追加するたびに上限を確認する。
         While index < text.Length AndAlso text(index) >= "0"c AndAlso text(index) <= "9"c
             magnitude = magnitude * 10 + (AscW(text(index)) - AscW("0"c))
             If magnitude > limit Then Return False
             index += 1
         End While
+        ' 数字を読めなかった場合は、符号だけの入力などの不正な式。
         If index = start Then Return False
         result = CInt(If(negative, -magnitude, magnitude))
         Return True

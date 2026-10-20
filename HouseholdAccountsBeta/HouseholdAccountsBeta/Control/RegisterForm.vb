@@ -478,6 +478,7 @@ Public Class RegisterForm
 
     Private Sub AddDetailButton_Click(sender As Object, e As EventArgs) Handles AddDetailButton.Click
 
+        ' 欄を離れるイベントが発生しない操作でも、両欄を同じ式評価で確定する。
         Dim fee As Integer = NormalizeMoney(FeeTextBox)
         Dim discountFee As Integer = NormalizeMoney(DiscountFeeTextBox)
         Dim quantity As Integer = NormalizeQuantity()
@@ -632,6 +633,7 @@ Public Class RegisterForm
     End Sub
 
     Private Function NormalizeMoney(field As TextBox) As Integer
+        ' 表示だけを補正し、明細への反映は追加・更新ボタン側で行う。
         Dim value As Integer = IntegerExpression.EvaluateOrZero(field.Text)
         field.Text = value.ToString(System.Globalization.CultureInfo.InvariantCulture)
         Return value
