@@ -9,6 +9,9 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main() As Integer
+        Check("invalid transfer inputs disable register and copy and reject direct calls before mutation", AddressOf TransferInputTests.InvalidInputsAndRecovery)
+        Check("transfer integer boundaries preserve new update and immediate copy behavior", AddressOf TransferInputTests.AcceptedValuesAndImmediateCopy)
+        Check("transfer confirmation cancellations and identical account warnings preserve input and data", AddressOf TransferInputTests.ExistingConfirmations)
         Check("balance prediction preserves signed overflow boundaries missing values and read-only behavior", AddressOf BalanceOverflowTests.PredictionRanges)
         Check("recorded balance totals clear grids and graphs on overflow and recover through filters", AddressOf BalanceOverflowTests.RecordedStatistics)
         Check("projected balance overflow clears graphs and recovers through valuation and year filters", AddressOf BalanceOverflowTests.ProjectedStatistics)
@@ -574,7 +577,8 @@ Module Program
 
     Friend Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
                               Optional beforeAnswer As Action = Nothing, Optional expectedConflict As Boolean = False,
-                              Optional expectedWarningTitle As String = Nothing, Optional expectedConfirmations As Integer = 1)
+                              Optional expectedWarningTitle As String = Nothing, Optional expectedConfirmations As Integer = 1,
+                              Optional invoke As Action = Nothing)
         Dim answered As Integer
         Dim warnings As Integer
         Dim clickedDialogs As New System.Collections.Generic.HashSet(Of String)()
@@ -591,6 +595,7 @@ Module Program
                         Environment.FailFast(diagnostic)
                     End If
                     Dim dialog = FindOwnConfirmation(If(expectedWarningTitle, "更新の競合"))
+                    If dialog = IntPtr.Zero AndAlso expectedWarningTitle Is Nothing Then dialog = FindOwnConfirmation("エラー")
                     If dialog <> IntPtr.Zero Then
                         Dim buttons = DialogButtons(dialog, availableOnly:=True)
                         ' 作成途中や想定外の複数ボタンでは押下せず、期限時に実IDを報告する。
@@ -626,7 +631,11 @@ Module Program
                 End Sub
             responder.Start()
             Try
-                buttonToClick.PerformClick()
+                If invoke Is Nothing Then
+                    buttonToClick.PerformClick()
+                Else
+                    invoke()
+                End If
             Finally
                 responder.Stop()
             End Try

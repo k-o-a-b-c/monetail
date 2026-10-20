@@ -54,6 +54,8 @@
 
 残高推算欄は範囲外を「範囲超過」と表示し、残高の反映ボタンで入力値を壊さない。残高集計は表とグラフを消して範囲超過を知らせ、条件変更で復帰する。[27 詳細](27-balance-amount-overflow.md)。
 
+振替の登録・流用は入力条件を共用し、名称空欄・支払方法未選択・不正な金額では両ボタンを無効にする。処理を直接呼んでも確認・モデル変更より前に止め、修正後は再操作できる。[28 詳細](28-transfer-input-validation.md)。
+
 ## 根拠
 
 - [メイン画面](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)、[一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)
