@@ -6,6 +6,10 @@ Imports System.Text.Json
 Module Program
     Function Main() As Integer
         CheckJsonExpectations()
+        Check("integer expressions evaluate multiplication before addition and subtraction", AddressOf IntegerExpressionTests.Priority)
+        Check("integer expressions support signed operands whitespace and Int32 boundaries", AddressOf IntegerExpressionTests.SignedAndBoundaries)
+        Check("malformed and non integer expressions normalize to zero", AddressOf IntegerExpressionTests.InvalidInputs)
+        Check("integer literal and intermediate arithmetic overflow normalize to zero", AddressOf IntegerExpressionTests.Overflow)
         Check("default and validated modes", AddressOf ModesAreValidated)
         Check("legacy floor snapshots including signed binary boundary", AddressOf LegacyFloorSnapshots)
         Check("manual discount_fee and Ceiling percentage discount", AddressOf ExistingDiscounts)

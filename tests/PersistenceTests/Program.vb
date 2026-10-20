@@ -16,6 +16,7 @@ Module Program
         Check("required tables columns and both migrations are checked without schema changes", AddressOf StartupTests.RequiredSchema)
         Check("startup reports setup and XML errors once and allows corrected settings", AddressOf StartupTests.ErrorReportingAndRecovery)
         Check("detail fields normalize without dialogs and apply corrected values on add and update", AddressOf DetailInputTests.NormalizedInputs)
+        Check("price and discount expressions normalize without dialogs and save evaluated integers", AddressOf DetailInputTests.MoneyExpressions)
         Check("valid detail boundaries blank rates decimal rates and negative prices can be saved", AddressOf DetailInputTests.AcceptedInputs)
         Check("legacy out of range details still load calculate and cancel without changes", AddressOf DetailInputTests.LegacyReceipts)
         Check("both balance predictors distinguish missing data zero income and account filters", AddressOf BalanceBoundaryTests.NoBaselineAndAccountFiltering)
