@@ -7,6 +7,7 @@ Friend Module ReceiptInputTests
         For Each foreignKeys In New Boolean() {False, True}
             For Each editing In New Boolean() {False, True}
                 For invalidCase As Integer = 0 To 4
+                    Console.WriteLine("INFO receipt invalid input FK=" & foreignKeys & " editing=" & editing & " case=" & invalidCase)
                     Using fixture = Seed(foreignKeys)
                         Dim source = fixture.Data.GetReceipts(2026, 10).Single()
                         Dim saved = ConcurrencyTests.Snapshot(fixture)
@@ -30,17 +31,21 @@ Friend Module ReceiptInputTests
                                 Case 3
                                     For index As Integer = 0 To form.GroupListView.Items.Count - 1
                                         SelectGroup(form, index)
-                                        While form.DetailListView.Items.Count > 0
+                                        For remaining As Integer = form.DetailListView.Items.Count - 1 To 0 Step -1
                                             form.DetailListView.Items(0).Selected = True
                                             Application.DoEvents()
+                                            Equal(True, form.RemoveDetailButton.Enabled, "Detail deletion must be available")
                                             form.RemoveDetailButton.PerformClick()
-                                        End While
+                                            Equal(remaining, form.DetailListView.Items.Count, "Detail deletion must remove one item")
+                                        Next
                                     Next
                                 Case 4
-                                    While form.GroupListView.Items.Count > 0
+                                    For remaining As Integer = form.GroupListView.Items.Count - 1 To 0 Step -1
                                         SelectGroup(form, 0)
+                                        Equal(True, form.RemoveGroupButton.Enabled, "Group deletion must be available")
                                         form.RemoveGroupButton.PerformClick()
-                                    End While
+                                        Equal(remaining, form.GroupListView.Items.Count, "Group deletion must remove one item")
+                                    Next
                             End Select
                             Equal(False, form.RegiserButton.Enabled)
                             Equal(False, form.CopyButton.Enabled)
