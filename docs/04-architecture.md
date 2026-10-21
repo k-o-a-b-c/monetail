@@ -45,7 +45,7 @@ Windows デスクトップアプリ
 1. 起動: `ViewForm.New`で画面を構築し、`ViewForm_Load` → `DatabaseStartup.TryOpenConfiguredDatabase` → `DataAccess`で設定・既存ファイル・必要なDB構造を確認する。成功後に一覧を読み込み、設定・DBの問題では案内して終了する。[19 接続設定](19-database-startup-settings.md)参照。
 2. マスタ: 人／支払方法／店舗／税率等をSELECTして画面の選択肢を生成。マスタの一部は初回読込後に保持。
 3. レシート編集: グループ・明細は既存どおり `Receipt` の子リストを編集する。店名等と内税／外税・端数方式はコントロールに保持し、合計表示は `Receipt.GetTotal(taxType, taxRoundingMode)` で `Receipt` の税設定を変えずに計算する。必要な登録確認後にヘッダーへ転記 → `DataAccess.RegisterReceipt / UpdateReceipt`。レシート全体のディープコピーは導入していない。
-4. レシート参照: `GetReceipts`と`GetPaymentReceipts`はLEFT JOINの1 SELECTと共通の`ReadReceiptHierarchy`でモデルへ組み立てる。一覧の日時降順と支払方法別のSeq昇順、各入口の期間条件を維持する（[35](35-batch-receipt-reads.md)、[36](36-batch-payment-receipt-reads.md)）。`LoadReceiptChildData`は従来の`LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData`を維持する。SQL数と読込時間はWindowsの一時DBで[計測する](34-receipt-read-performance.md)。
+4. レシート参照: `GetReceipts`と`GetPaymentReceipts`はLEFT JOINの1 SELECTと共通の`ReadReceiptHierarchy`でモデルへ組み立てる。一覧の日時降順と支払方法別のSeq昇順、各入口の期間条件を維持する（[35](35-batch-receipt-reads.md)、[36](36-batch-payment-receipt-reads.md)）。`LoadReceiptChildData`は従来の子SQLを一時領域へ読み、成功時だけ元のGroupsへ反映する（[37 途中失敗の保持](37-receipt-child-reload-state.md)）。内部は`LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData`を維持する。SQL数と読込時間はWindowsの一時DBで[計測する](34-receipt-read-performance.md)。
 5. 集計: 画面内で年次データを取得し、`Receipt` の計算プロパティと `Calculation` で集約。
 6. 振替／残高: 専用フォームから `DataAccess` の各登録メソッドを呼ぶ。
 7. 支払メモ: `RegisterPaymentMemoForm`から全行を`RegisterPaymentMemo`へ渡す。既存のUPSERTループ全体を1つのトランザクションで処理し、全件成功時にCommit、例外時にRollback・再送出し、Finallyで破棄する。空リストはトランザクション開始前に戻る。

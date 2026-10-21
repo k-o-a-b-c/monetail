@@ -16,7 +16,7 @@
 
 ## 検証と計測
 
-`PaymentReceiptReadTests.ReadLegacy`に改修前の親SELECTを残し、未変更の製品`LoadReceiptChildData`で子を読む。新しい共通JOINに依存しない参照として、回帰と同一CI内の性能比較に使う。実SQLite・FK ON/OFFで、固定期待値と参照読込の両方により、空階層・複数対象者・同じ子番号の別親・Seq=0・小数割引／複数税率／非課税負額・NULLタグ・版・マスタ参照を比較する。
+`PaymentReceiptReadTests.ReadLegacy`に改修前の親SELECTを残し、製品`LoadReceiptChildData`の従来の子SQLで読む。後続の[37](37-receipt-child-reload-state.md)で、同メソッドの途中失敗時の反映境界を保護する。新しい共通JOINに依存しない参照として、回帰と同一CI内の性能比較に使う。実SQLite・FK ON/OFFで、固定期待値と参照読込の両方により、空階層・複数対象者・同じ子番号の別親・Seq=0・小数割引／複数税率／非課税負額・NULLタグ・版・マスタ参照を比較する。
 
 通常／上端除外、日付境界・小数秒、空／逆転期間、複数口座・負の口座コード・該当なしと階層1 SELECTを確認する。正負それぞれで、日付順なら相殺されるがSeq順では途中超過する推算と、金額修正後の復帰も確認する。全保存値・型・版・スキーマ・PRAGMAの保持と書込0回を検証する。既存の日末推算・小数秒TEXT・月年／閏日・最小最大日時の回帰も継続する。
 

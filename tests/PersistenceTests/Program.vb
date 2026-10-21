@@ -16,6 +16,9 @@ Module Program
             Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
             Return 2
         End If
+        Check("native late integer read failures preserve receipt children and permit same-connection retry", AddressOf ReceiptChildReloadTests.NumericFailureAndRetry)
+        Check("missing users during child reload preserve the full model and recover after repair", AddressOf ReceiptChildReloadTests.MissingUserAndRetry)
+        Check("successful and empty child reloads preserve the collection headers points and tax settings", AddressOf ReceiptChildReloadTests.SuccessAndEmptyChildren)
         Check("payment receipt reads match legacy values references sequence order and use one SELECT", AddressOf PaymentReceiptReadTests.HierarchyAndSingleSelect)
         Check("payment receipt reads preserve inclusive exclusive fractional and empty range boundaries", AddressOf PaymentReceiptReadTests.RangeBoundaries)
         Check("payment receipt sequence preserves intermediate balance overflow and correction", AddressOf PaymentReceiptReadTests.PredictionOrder)
