@@ -9,6 +9,10 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main() As Integer
+        Check("direct receipt Total binding exposes overflow while the list display preserves other errors", AddressOf ReceiptListOverflowTests.LegacyBindingAndOtherErrors)
+        Check("receipt list mixes overflow and numeric rows preserving formatting metadata and live model values", AddressOf ReceiptListOverflowTests.MixedRowsAndCurrentValues)
+        Check("receipt list filters selection and original edit routes survive overflow without writes", AddressOf ReceiptListOverflowTests.FiltersAndEditCancellation)
+        Check("receipt list corrects an overflowing receipt through the existing editor and refreshes safely", AddressOf ReceiptListOverflowTests.CorrectAndSave)
         Check("detail view group overflow clears partial rows and recovers through detail and filter changes", AddressOf DetailViewOverflowTests.GroupOverflowAndRecovery)
         Check("detail view detail overflow preserves group totals and recovers without writes", AddressOf DetailViewOverflowTests.DetailOverflowAndRecovery)
         Check("detail view tax ranges integer boundaries and normal metadata retain display behavior", AddressOf DetailViewOverflowTests.TaxRangesAndNormalValues)

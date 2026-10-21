@@ -4,6 +4,61 @@
 
     Private TransferList As List(Of Transfer)
 
+    ' 計算モデルはそのまま参照し、一覧のバインド時だけ金額の範囲超過を表示に変える。
+    Private NotInheritable Class ReceiptListRow
+        Public ReadOnly Property Receipt As Receipt
+
+        Public Sub New(source As Receipt)
+            Receipt = source
+        End Sub
+
+        Public ReadOnly Property Seq As Integer
+            Get
+                Return Receipt.Seq
+            End Get
+        End Property
+
+        Public ReadOnly Property [Date] As DateTime
+            Get
+                Return Receipt.[Date]
+            End Get
+        End Property
+
+        Public ReadOnly Property ShopName As String
+            Get
+                Return Receipt.ShopName
+            End Get
+        End Property
+
+        Public ReadOnly Property ShopLocation As String
+            Get
+                Return Receipt.ShopLocation
+            End Get
+        End Property
+
+        Public ReadOnly Property PaymentClassification As PaymentClassification
+            Get
+                Return Receipt.PaymentClassification
+            End Get
+        End Property
+
+        Public ReadOnly Property Tag As String
+            Get
+                Return Receipt.Tag
+            End Get
+        End Property
+
+        Public ReadOnly Property Total As Object
+            Get
+                Try
+                    Return Receipt.Total
+                Catch ex As OverflowException
+                    Return "範囲超過"
+                End Try
+            End Get
+        End Property
+    End Class
+
     Private Sub InitList()
         HouseholdAccountDataGridView.AutoGenerateColumns = False
         TransferDataGridView.AutoGenerateColumns = False
@@ -48,7 +103,7 @@
         HouseholdAccountDataGridView.DataSource = AccountList.Where(Function(a)
                                                                         Return (UserComboBox.SelectedIndex = 0 OrElse a.PaymentClassification.User.Code = DirectCast(UserComboBox.SelectedValue, Integer)) _
                                                                             AndAlso (PaymentComboBox.SelectedIndex = 0 OrElse a.PaymentClassification.Code = DirectCast(PaymentComboBox.SelectedValue, Integer))
-                                                                    End Function).ToList()
+                                                                    End Function).Select(Function(a) New ReceiptListRow(a)).ToList()
         TransferDataGridView.DataSource = TransferList.Where(Function(t)
                                                                  Return (UserComboBox.SelectedIndex = 0 OrElse t.FromPaymentClassification.User.Code = DirectCast(UserComboBox.SelectedValue, Integer) OrElse t.ToPaymentClassification.User.Code = DirectCast(UserComboBox.SelectedValue, Integer)) _
                                                                      AndAlso (PaymentComboBox.SelectedIndex = 0 OrElse t.FromPaymentClassification.Code = DirectCast(PaymentComboBox.SelectedValue, Integer) OrElse t.ToPaymentClassification.Code = DirectCast(PaymentComboBox.SelectedValue, Integer))
@@ -60,13 +115,20 @@
         Dim cellStyle As New DataGridViewCellStyle()
         cellStyle.BackColor = Color.MistyRose
         For Each row As DataGridViewRow In HouseholdAccountDataGridView.Rows
-            If DirectCast(row.DataBoundItem, Receipt).Groups.Exists(Function(g) g.Details.Exists(Function(d) d.Users.Count = 0)) Then
+            If DirectCast(row.DataBoundItem, ReceiptListRow).Receipt.Groups.Exists(Function(g) g.Details.Exists(Function(d) d.Users.Count = 0)) Then
                 row.DefaultCellStyle = cellStyle
             End If
         Next
 
         TransferDataGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells
 
+    End Sub
+
+    Private Sub HouseholdAccountDataGridView_CellFormatting(sender As Object, e As DataGridViewCellFormattingEventArgs) Handles HouseholdAccountDataGridView.CellFormatting
+        If e.RowIndex < 0 OrElse e.ColumnIndex <> ReceiptTotalColumn.Index Then Return
+        Dim cell = HouseholdAccountDataGridView.Rows(e.RowIndex).Cells(e.ColumnIndex)
+        cell.ToolTipText = If(TypeOf e.Value Is String,
+            "合計金額が扱える範囲を超えています。レシートを開いて明細を確認してください。", String.Empty)
     End Sub
 
     Private Sub NewButton_Click(sender As Object, e As EventArgs) Handles NewButton.Click
