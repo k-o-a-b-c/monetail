@@ -433,35 +433,79 @@ Public Class DataAccess
     Public Function GetReceipts(ByVal Year As Integer, ByVal Month As Integer, Optional ByVal GroupCode As Integer = -1, Optional ByVal PaymentCode As Integer = -1) As List(Of Receipt)
 
         Dim receiptList As New List(Of Receipt)()
-
-        Dim MonthFrom As Integer = Month
-        Dim MonthTo As Integer = Month
-        If Month = 0 Then
-            MonthFrom = 1
-            MonthTo = 12
-        End If
+        Dim MonthFrom As Integer = If(Month = 0, 1, Month)
+        Dim MonthTo As Integer = If(Month = 0, 12, Month)
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select seq, date, shop_name, shop_location, tax_type, payment_classification_code, tag, tax_rounding_mode, revision_token from t_receipts where date between :date_from and :date_to and (payment_classification_code = :payment_classification_code or :payment_classification_code = -1) order by date desc, seq desc"
+            ' 子が空でも親を残す。分類の絞り込みも親のWHEREではなくJOIN条件に置く。
+            command.CommandText =
+                "select r.seq, r.date, r.shop_name, r.shop_location, r.tax_type, r.payment_classification_code, r.tag, r.tax_rounding_mode, r.revision_token, " &
+                "g.seq, g.group_classification_code, g.tax, g.tag, " &
+                "d.seq, d.name, d.fee, d.quantity, d.discount_fee, d.discount_rate, d.tax_target, d.tag, u.user_code " &
+                "from t_receipts r " &
+                "left join t_receipt_groups g on g.receipt_seq = r.seq and (g.group_classification_code = :group_code or :group_code = -1) " &
+                "left join t_receipt_details d on d.receipt_seq = g.receipt_seq and d.group_seq = g.seq " &
+                "left join t_receipt_detail_users u on u.receipt_seq = d.receipt_seq and u.group_seq = d.group_seq and u.detail_seq = d.seq " &
+                "where r.date between :date_from and :date_to and (r.payment_classification_code = :payment_code or :payment_code = -1) " &
+                "order by r.date desc, r.seq desc, g.seq, d.seq, u.user_code"
             command.Parameters.AddWithValue("date_from", New Date(Year, MonthFrom, 1))
             command.Parameters.AddWithValue("date_to", New Date(Year, MonthTo, Date.DaysInMonth(Year, MonthTo), 23, 59, 59))
-            command.Parameters.AddWithValue("payment_classification_code", PaymentCode)
+            command.Parameters.AddWithValue("payment_code", PaymentCode)
+            command.Parameters.AddWithValue("group_code", GroupCode)
 
             Using reader As SQLiteDataReader = command.ExecuteReader
+                Dim receipt As Receipt = Nothing
+                Dim receiptGroup As ReceiptGroup = Nothing
+                Dim receiptDetail As ReceiptDetail = Nothing
                 While reader.Read()
-                    Dim receipt As New Receipt() With {
-                        .Seq = reader.GetInt32(0),
-                        .Date = reader.GetDateTime(1),
-                        .ShopName = reader.GetString(2),
-                        .ShopLocation = If(reader.IsDBNull(3), String.Empty, reader.GetString(3)),
-                        .TaxType = reader.GetInt32(4),
-                        .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
-                        .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
-                        .TaxRoundingMode = reader.GetString(7),
-                        .RevisionToken = reader.GetString(8)
-                    }
-                    LoadReceiptGroupData(receipt, GroupCode)
-                    receiptList.Add(receipt)
+                    ' 結合で繰り返される親・子を、並び順と主キーで一度だけ生成する。
+                    If receipt Is Nothing OrElse receipt.Seq <> reader.GetInt32(0) Then
+                        receipt = New Receipt() With {
+                            .Seq = reader.GetInt32(0),
+                            .Date = reader.GetDateTime(1),
+                            .ShopName = reader.GetString(2),
+                            .ShopLocation = If(reader.IsDBNull(3), String.Empty, reader.GetString(3)),
+                            .TaxType = reader.GetInt32(4),
+                            .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
+                            .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
+                            .TaxRoundingMode = reader.GetString(7),
+                            .RevisionToken = reader.GetString(8)
+                        }
+                        receiptList.Add(receipt)
+                        receiptGroup = Nothing
+                        receiptDetail = Nothing
+                    End If
+                    If reader.IsDBNull(9) Then Continue While
+                    If receiptGroup Is Nothing OrElse receiptGroup.Seq <> reader.GetInt32(9) Then
+                        receiptGroup = New ReceiptGroup() With {
+                            .ReceiptSeq = receipt.Seq,
+                            .Seq = reader.GetInt32(9),
+                            .GroupClassification = GroupClassification(reader.GetInt32(10)),
+                            .TaxRate = TaxRate(reader.GetInt32(11)),
+                            .Tag = If(reader.IsDBNull(12), String.Empty, reader.GetString(12))
+                        }
+                        receipt.Groups.Add(receiptGroup)
+                        receiptDetail = Nothing
+                    End If
+                    If reader.IsDBNull(13) Then Continue While
+                    If receiptDetail Is Nothing OrElse receiptDetail.Seq <> reader.GetInt32(13) Then
+                        receiptDetail = New ReceiptDetail() With {
+                            .ReceiptSeq = receipt.Seq,
+                            .GroupSeq = receiptGroup.Seq,
+                            .Seq = reader.GetInt32(13),
+                            .Name = reader.GetString(14),
+                            .Fee = reader.GetInt32(15),
+                            .Quantity = reader.GetInt32(16),
+                            .DiscountFee = reader.GetInt32(17),
+                            .DiscountRate = reader.GetDouble(18),
+                            .TaxTarget = (reader.GetInt32(19) = 1),
+                            .Tag = If(reader.IsDBNull(20), String.Empty, reader.GetString(20))
+                        }
+                        receiptGroup.Details.Add(receiptDetail)
+                    End If
+                    If Not reader.IsDBNull(21) Then
+                        receiptDetail.Users.Add(UserList.First(Function(u) u.Code = reader.GetInt32(21)))
+                    End If
                 End While
             End Using
         End Using

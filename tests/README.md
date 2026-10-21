@@ -8,10 +8,10 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの20チェック） | 31 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4） | 80 |
-| 合計 | 121 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3） | 83 |
+| 合計 | 124 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Ameasure%2Freceipt-read-performance)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Aperf%2Fbatch-receipt-reads)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
@@ -19,7 +19,9 @@
 dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --measure-receipt-reads "$env:TEMP/receipt-read-performance.csv"
 ```
 
-引数なしでは従来の画面・永続化テストを実行し、計測は行いません。CSVは実行環境と集計値だけで、DBファイルはアップロードしません。
+引数なしでは画面・永続化テストを実行し、計測は行いません。CSVは実行環境と集計値だけで、DBファイルはアップロードしません。
+
+GetReceiptsの一括読込は3チェックを追加しています。FK ON/OFFで、空の各階層・同一の子番号を持つ別親・Seq=0・複数対象者・小数割引／混合税率／非課税負額・NULLタグ・版とマスタ参照、分類／支払方法と日時境界を固定値で検証します。未変更のGetPaymentReceiptsと全ヘッダー・子・計算値・参照を比較し、階層SELECTが1回であること、子再読込、DB全値／型／版／スキーマ／PRAGMAの保持と書込0回も確認します。[35 仕様と性能比較](../docs/35-batch-receipt-reads.md)。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
