@@ -8,12 +8,12 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの20チェック） | 31 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3） | 83 |
-| 合計 | 124 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3） | 86 |
+| 合計 | 127 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Aperf%2Fbatch-receipt-reads)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Aperf%2Fbatch-payment-receipt-reads)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
-レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
+レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
 ```powershell
 dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --measure-receipt-reads "$env:TEMP/receipt-read-performance.csv"
@@ -21,7 +21,9 @@ dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --measure
 
 引数なしでは画面・永続化テストを実行し、計測は行いません。CSVは実行環境と集計値だけで、DBファイルはアップロードしません。
 
-GetReceiptsの一括読込は3チェックを追加しています。FK ON/OFFで、空の各階層・同一の子番号を持つ別親・Seq=0・複数対象者・小数割引／混合税率／非課税負額・NULLタグ・版とマスタ参照、分類／支払方法と日時境界を固定値で検証します。未変更のGetPaymentReceiptsと全ヘッダー・子・計算値・参照を比較し、階層SELECTが1回であること、子再読込、DB全値／型／版／スキーマ／PRAGMAの保持と書込0回も確認します。[35 仕様と性能比較](../docs/35-batch-receipt-reads.md)。
+GetReceiptsの一括読込は3チェックを追加しています。FK ON/OFFで、空の各階層・同一の子番号を持つ別親・Seq=0・複数対象者・小数割引／混合税率／非課税負額・NULLタグ・版とマスタ参照、分類／支払方法と日時境界を固定値で検証します。改修前の参照読込と全ヘッダー・子・計算値・参照を比較し、階層SELECTが1回であること、子再読込、DB全値／型／版／スキーマ／PRAGMAの保持と書込0回も確認します。[35 仕様と性能比較](../docs/35-batch-receipt-reads.md)。
+
+支払方法別の一括読込も3チェックを追加しています。FK ON/OFFで改修前の親SELECT＋未変更の子読込からなる参照と全値・参照・Seq順を照合し、階層1 SELECT、上端包含／除外・空／逆転期間、口座コード完全一致（-1を含む）と該当なしを確認します。日付順なら相殺されるがSeq順では途中超過する正負の推算と、金額修正後の復帰も検証します。既存の日末・小数秒TEXT・月年／閏日・最小最大日時の回帰も継続します。[36 仕様と同一CI内の比較](../docs/36-batch-payment-receipt-reads.md)。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj

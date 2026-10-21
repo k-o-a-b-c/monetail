@@ -29,9 +29,9 @@ Friend Module ReceiptReadTests
                         Equal(0, receipts.Single(Function(r) r.Seq = 0).Total)
                         Equal(20, receipts.Single(Function(r) r.Seq = 3).Total)
 
-                        ' 未変更の支払方法別読込と、全ヘッダー・子・マスタ参照を比較する。
+                        ' 改修前の参照読込と、全ヘッダー・子・マスタ参照を比較する。
                         For Each payment In fixture.Data.PaymentClassificationList
-                            Dim legacy = fixture.Data.GetPaymentReceipts(New Date(2026, 10, 1), New Date(2026, 10, 31, 23, 59, 59), payment)
+                            Dim legacy = PaymentReceiptReadTests.ReadLegacy(fixture, New Date(2026, 10, 1), New Date(2026, 10, 31, 23, 59, 59), payment)
                             For Each original In legacy
                                 AssertSame(original, receipts.Single(Function(r) r.Seq = original.Seq))
                             Next
@@ -110,7 +110,7 @@ Friend Module ReceiptReadTests
         Equal(expected, String.Join(",", receipts.Select(Function(r) r.Seq)))
     End Sub
 
-    Private Sub AssertSame(expected As Receipt, actual As Receipt)
+    Friend Sub AssertSame(expected As Receipt, actual As Receipt)
         Equal(expected.Seq, actual.Seq)
         Equal(expected.Date, actual.Date)
         Equal(expected.ShopName, actual.ShopName)
@@ -155,7 +155,7 @@ Friend Module ReceiptReadTests
         Next
     End Sub
 
-    Private Sub Seed(fixture As DatabaseFixture)
+    Friend Sub Seed(fixture As DatabaseFixture)
         fixture.Execute("INSERT INTO m_user(code,name,account_name,seq) VALUES(2,'second user','synthetic-account',2);" &
             "INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(2,'second payment',2,1);" &
             "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'second group',2,1,0);" &

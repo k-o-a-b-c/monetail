@@ -16,6 +16,9 @@ Module Program
             Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
             Return 2
         End If
+        Check("payment receipt reads match legacy values references sequence order and use one SELECT", AddressOf PaymentReceiptReadTests.HierarchyAndSingleSelect)
+        Check("payment receipt reads preserve inclusive exclusive fractional and empty range boundaries", AddressOf PaymentReceiptReadTests.RangeBoundaries)
+        Check("payment receipt sequence preserves intermediate balance overflow and correction", AddressOf PaymentReceiptReadTests.PredictionOrder)
         Check("joined receipt reads preserve empty hierarchies fractional discounts order and master references", AddressOf ReceiptReadTests.HierarchyAndReferences)
         Check("joined receipt filters preserve parent membership month year and fractional date boundaries", AddressOf ReceiptReadTests.FiltersAndBoundaries)
         Check("receipt hierarchy uses one SELECT and child reload preserves independent models", AddressOf ReceiptReadTests.SingleSelectAndReload)

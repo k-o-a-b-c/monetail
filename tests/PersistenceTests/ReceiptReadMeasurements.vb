@@ -12,10 +12,12 @@ Friend Module ReceiptReadMeasurements
     Friend Function Run(outputPath As String) As Integer
         Try
             Dim lines As New List(Of String) From {
-                "os,framework,runtime,provider,sqlite,processors,receipts_per_month,scope,receipts,groups,details,assignments,empty_cache_selects,warm_selects,warm_parent_selects,warm_group_selects,warm_detail_selects,warm_user_selects,warm_other_selects,samples,min_ms,median_ms,max_ms"}
+                "os,framework,runtime,provider,sqlite,processors,reader,receipts_per_month,scope,receipts,groups,details,assignments,empty_cache_selects,warm_selects,warm_parent_selects,warm_group_selects,warm_detail_selects,warm_user_selects,warm_other_selects,samples,min_ms,median_ms,max_ms"}
             For Each monthly In {10, 100}
                 For Each selectedMonth As Integer In {10, 0}
-                    lines.Add(Measure(monthly, selectedMonth))
+                    For Each readerName In {"GetReceipts", "LegacyPaymentReceipts", "GetPaymentReceipts"}
+                        lines.Add(Measure(monthly, selectedMonth, readerName))
+                    Next
                 Next
             Next
             File.WriteAllLines(outputPath, lines, New UTF8Encoding(False))
@@ -29,7 +31,7 @@ Friend Module ReceiptReadMeasurements
         End Try
     End Function
 
-    Private Function Measure(monthly As Integer, month As Integer) As String
+    Private Function Measure(monthly As Integer, month As Integer, readerName As String) As String
         Using fixture As New DatabaseFixture(True)
             Seed(fixture, monthly)
             Dim receiptCount = monthly * If(month = 0, 12, 1)
@@ -39,22 +41,22 @@ Friend Module ReceiptReadMeasurements
             BalanceBoundaryTests.ReadOnlyCase(fixture,
                 Sub()
                     ' 各ケースで新規DataAccessを使い、マスタキャッシュの有無を分ける。
-                    emptyCounts = CountSelects(fixture, monthly, month)
-                    warmCounts = CountSelects(fixture, monthly, month)
+                    emptyCounts = CountSelects(fixture, monthly, month, readerName)
+                    warmCounts = CountSelects(fixture, monthly, month, readerName)
                     For sample = 1 To Samples
                         ' Trace・結果検証・DBスナップショットは時間計測に含めない。
                         Dim timer = Stopwatch.StartNew()
-                        Dim receipts = fixture.Data.GetReceipts(2026, month)
+                        Dim receipts = ReadRows(fixture, month, readerName)
                         timer.Stop()
                         elapsed.Add(timer.Elapsed.TotalMilliseconds)
-                        AssertLoaded(receipts, monthly, month)
+                        AssertLoaded(receipts, monthly, month, readerName)
                     Next
                 End Sub)
             elapsed.Sort()
             Dim fields As New List(Of String) From {
                 Environment.OSVersion.VersionString, ".NET Framework 4.8", Environment.Version.ToString(),
                 GetType(SQLiteConnection).Assembly.GetName().Version.ToString(), SQLiteConnection.SQLiteVersion,
-                Environment.ProcessorCount.ToString(CultureInfo.InvariantCulture),
+                Environment.ProcessorCount.ToString(CultureInfo.InvariantCulture), readerName,
                 monthly.ToString(CultureInfo.InvariantCulture), If(month = 0, "year", "month"),
                 receiptCount.ToString(CultureInfo.InvariantCulture), (receiptCount * 2).ToString(CultureInfo.InvariantCulture),
                 (receiptCount * 8).ToString(CultureInfo.InvariantCulture), (receiptCount * 16).ToString(CultureInfo.InvariantCulture),
@@ -67,7 +69,7 @@ Friend Module ReceiptReadMeasurements
         End Using
     End Function
 
-    Private Function CountSelects(fixture As DatabaseFixture, monthly As Integer, month As Integer) As Integer()
+    Private Function CountSelects(fixture As DatabaseFixture, monthly As Integer, month As Integer, readerName As String) As Integer()
         Dim counts(4) As Integer
         Dim tables = {"t_receipts", "t_receipt_groups", "t_receipt_details", "t_receipt_detail_users"}
         Dim observe As SQLiteTraceEventHandler =
@@ -80,19 +82,33 @@ Friend Module ReceiptReadMeasurements
         Dim receipts As List(Of Receipt)
         AddHandler fixture.ActualDataConnection.Trace, observe
         Try
-            receipts = fixture.Data.GetReceipts(2026, month)
+            receipts = ReadRows(fixture, month, readerName)
         Finally
             RemoveHandler fixture.ActualDataConnection.Trace, observe
         End Try
-        AssertLoaded(receipts, monthly, month)
+        AssertLoaded(receipts, monthly, month, readerName)
         If counts(0) = 0 Then Throw New InvalidOperationException("The product SELECT trace was not observed.")
         Return counts
     End Function
 
-    Private Sub AssertLoaded(receipts As List(Of Receipt), monthly As Integer, month As Integer)
-        Dim expected = Enumerable.Range(1, monthly * 12).
-            Where(Function(seq) month = 0 OrElse ((seq - 1) \ monthly) + 1 = month).
-            OrderByDescending(Function(seq) ReceiptDate(seq, monthly)).ThenByDescending(Function(seq) seq).ToArray()
+    Private Function ReadRows(fixture As DatabaseFixture, month As Integer, readerName As String) As List(Of Receipt)
+        If readerName = "GetReceipts" Then Return fixture.Data.GetReceipts(2026, month)
+        Dim dateFrom As New Date(2026, If(month = 0, 1, month), 1)
+        Dim dateTo = If(month = 0, New Date(2027, 1, 1), New Date(2026, month, 1).AddMonths(1))
+        ' コードだけの引数で、引数の準備によるマスタキャッシュの先読みを避ける。
+        Dim payment As New PaymentClassification With {.Code = 1}
+        If readerName = "LegacyPaymentReceipts" Then
+            Return PaymentReceiptReadTests.ReadLegacy(fixture, dateFrom, dateTo, payment, endExclusive:=True)
+        End If
+        Return fixture.Data.GetPaymentReceipts(dateFrom, dateTo, payment, endExclusive:=True)
+    End Function
+
+    Private Sub AssertLoaded(receipts As List(Of Receipt), monthly As Integer, month As Integer, readerName As String)
+        Dim expected As IEnumerable(Of Integer) = Enumerable.Range(1, monthly * 12).
+            Where(Function(seq) month = 0 OrElse ((seq - 1) \ monthly) + 1 = month)
+        If readerName = "GetReceipts" Then
+            expected = expected.OrderByDescending(Function(seq) ReceiptDate(seq, monthly)).ThenByDescending(Function(seq) seq)
+        End If
         Equal(String.Join(",", expected), String.Join(",", receipts.Select(Function(r) r.Seq)), "Receipt membership and order")
         For Each receipt In receipts
             Equal(ReceiptDate(receipt.Seq, monthly), receipt.Date)
