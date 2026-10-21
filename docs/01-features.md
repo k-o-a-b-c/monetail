@@ -67,3 +67,5 @@
 - [税端数設計](15-shop-tax-rounding-design.md)、[自動テストと確認手順](../tests/README.md)、[CI](../.github/workflows/tests.yml)
 
 分類別／支払方法別の集計詳細画面も、明細・グループ額の範囲超過を「集計不可／範囲超過」で知らせる。途中行を消して自動調整設定を復元し、明細表示の切替で計算できる範囲へ戻れば通常表示になる。[31 詳細](31-detail-view-amount-overflow.md)。
+
+レシート一覧は元Receiptを参照する表示用行をバインドし、範囲外の合計セルだけを「範囲超過」にする。他の行の閲覧・絞り込み・既存の編集経路を継続し、金額計算と保存値を変更しない。[32 詳細](32-receipt-list-amount-overflow.md)。

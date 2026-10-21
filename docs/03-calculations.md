@@ -130,3 +130,5 @@ half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
 レシートの登録・流用は必須入力も共通確認し、不備があれば確認・モデル転記前に中止する。税率別合算・端数処理・明細値引の式は変更しない。[30 入力契約](30-receipt-input-validation.md)。
 
 集計詳細の明細別／グループ別でも、既存の整数変換が範囲外なら表内に範囲超過を表示する。相殺・税・端数・値引きの式を変更せず、表示を切り替えて再計算する。[31 表示契約](31-detail-view-amount-overflow.md)。
+
+レシート一覧の表示用Totalは正常時に整数、範囲外なら文字列を返す。Receipt.Totalの型や例外契約、税・割引・丸めは変更しない。[32 一覧表示](32-receipt-list-amount-overflow.md)。
