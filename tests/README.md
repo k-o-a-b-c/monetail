@@ -15,6 +15,8 @@
 
 明細税率への[統一設計](../docs/40-detail-tax-unified-design.md)に向け、既存の`LegacyFloorSnapshots`チェック内に「10%課税−100円＋対象外1,000円」の会計890円・収入−111円・支出1,000円を追加した。対象外を独立集計した候補889円との差を識別する基準であり、新方式の採用や移行の検証完了を意味しない。[比較JSON](../docs/tests/detail-tax-migration-cases.json)は設計資料で、現在の自動テスト件数へは加算しない。
 
+今回の設計ブランチでは、計算31チェック（上記の追加固定値を含む）と移行10テストをローカルで確認した。計算は.NET SDK 8.0.426のRoslynでプロジェクトと同じ製品／テストソース・.NET 8参照を直接コンパイルして実行した。標準CLIは環境のNuGet初回処理のmutexで起動できなかったため、この方法を用いた。Windowsと製品コードは変更しておらず、変更前の[Tests #39583504358](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39583504358)の全件・既存ビルド成功を参照する。今回のGitHub Actionsは支払い／利用上限の問題で全ジョブが実行前に停止しており、CI成功とは扱わない。
+
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
 ```powershell
