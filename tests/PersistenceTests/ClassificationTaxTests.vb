@@ -285,7 +285,7 @@ Friend Module ClassificationTaxTests
         form.DiscountRateTextBox.Text = "0"
         form.TaxTargetCheckBox.Checked = True
         form.UserListBox.ClearSelected()
-        form.UserListBox.SelectedValue = 1
+        form.UserListBox.SelectedItem = form.UserListBox.Items.Cast(Of User)().Single(Function(u) u.Code = 1)
         Equal(True, form.AddDetailButton.Enabled)
         form.AddDetailButton.PerformClick()
     End Sub
