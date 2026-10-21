@@ -516,7 +516,12 @@ Public Class DataAccess
     End Function
 
     Public Sub LoadReceiptChildData(ByVal receipt As Receipt)
-        LoadReceiptGroupData(receipt)
+        ' 子だけを一時領域へ読み切り、成功後に既存リストへ反映する。
+        ' 再読込の途中で失敗しても、画面が共有する元の子・参照を残す。
+        Dim pending As New Receipt With {.Seq = receipt.Seq}
+        LoadReceiptGroupData(pending)
+        receipt.Groups.Clear()
+        receipt.Groups.AddRange(pending.Groups)
     End Sub
 
     Private Sub LoadReceiptGroupData(ByVal receipt As Receipt, Optional ByVal GroupCode As Integer = -1)

@@ -54,6 +54,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [34 レシート読込の性能計測](docs/34-receipt-read-performance.md) | Windowsの一時DBで月次・年次のSQL数と読込時間を比較 |
 | [35 レシート階層の一括読込](docs/35-batch-receipt-reads.md) | GetReceiptsを1 SELECTへ変更し、階層・順序・絞り込みを維持 |
 | [36 支払方法別レシートの一括読込](docs/36-batch-payment-receipt-reads.md) | 残高推算向け読込も1 SELECTへ変更し、期間条件と推算順序を維持 |
+| [37 レシートの子再読込とモデル保持](docs/37-receipt-child-reload-state.md) | 途中失敗では元の子・参照を保持し、成功時だけ反映 |
 
 ### 読む順番
 
