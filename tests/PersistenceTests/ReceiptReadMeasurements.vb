@@ -14,8 +14,8 @@ Friend Module ReceiptReadMeasurements
             Dim lines As New List(Of String) From {
                 "os,framework,runtime,provider,sqlite,processors,receipts_per_month,scope,receipts,groups,details,assignments,empty_cache_selects,warm_selects,warm_parent_selects,warm_group_selects,warm_detail_selects,warm_user_selects,warm_other_selects,samples,min_ms,median_ms,max_ms"}
             For Each monthly In {10, 100}
-                For Each month In {10, 0}
-                    lines.Add(Measure(monthly, month))
+                For Each selectedMonth As Integer In {10, 0}
+                    lines.Add(Measure(monthly, selectedMonth))
                 Next
             Next
             File.WriteAllLines(outputPath, lines, New UTF8Encoding(False))
