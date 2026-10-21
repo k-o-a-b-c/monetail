@@ -92,6 +92,8 @@ Module Program
     End Sub
 
     Private Sub ExistingDiscounts()
+        ' Decimal移行で修正する予定の二進誤差。現行製品の値として記録する。
+        Equal(9985, MakeReceipt("floor", Group(10, Detail(10000, taxable:=False, discountRate:=0.14))).Total)
         ' The manual three-yen discount remains an amount, not an automatic 3/103 rule.
         For Each mode In New String() {"floor", "half_up"}
             Equal(108, MakeReceipt(mode, Group(8, Detail(103, discountFee:=3))).Total)

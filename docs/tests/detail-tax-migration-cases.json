@@ -1,7 +1,7 @@
 {
   "format_version": 1,
-  "status": "design_review_not_an_executable_migration_test",
-  "description": "金額は値引後の整数円。候補値は未実装の統一計算案。会計差の許容判断が必要なケースを合格扱いにしない。",
+  "status": "accepted_decimal_design_not_an_executable_migration_test",
+  "description": "金額は値引後の整数円（raw_detailを除く）。会計・収支はDecimalへ統一し、旧Double誤差は引き継がない。実装・DB移行は未完了。",
   "cases": [
     {
       "id": "DTX-001",
@@ -14,10 +14,10 @@
       ],
       "expected_group_count": 1,
       "legacy_total": 41,
-      "candidate_total": 41,
       "legacy_category_reference": 40,
-      "candidate_category_reference": 41,
-      "reference_delta_allowed": true
+      "reference_delta_allowed": true,
+      "expected_total": 41,
+      "expected_category_reference": 41
     },
     {
       "id": "DTX-002",
@@ -29,7 +29,7 @@
       ],
       "expected_group_count": 1,
       "expected_detail_rates": [8, 10, 10],
-      "legacy_and_candidate_totals": {"floor": 61, "half_up": 63, "inclusive": 57}
+      "expected_totals": {"floor": 61, "half_up": 63, "inclusive": 57}
     },
     {
       "id": "DTX-003",
@@ -40,11 +40,11 @@
         {"seq": 1, "classification": 1, "rate": 10, "taxable_net": [38], "excluded_net": [1000]}
       ],
       "legacy_total": 1041,
-      "candidate_total": 1041
+      "expected_total": 1041
     },
     {
       "id": "DTX-004",
-      "description": "対象外の独立集計で会計額にも1円差が発生するDouble境界",
+      "description": "Decimalで会計890円を維持し、旧Double由来の収入誤差を修正",
       "tax_type": 1,
       "rounding_mode": "floor",
       "old_groups": [
@@ -53,9 +53,12 @@
       "legacy_total": 890,
       "legacy_incomes": -111,
       "legacy_expenses": 1000,
-      "candidate_total": 889,
-      "requires_accounting_decision": true,
-      "product_baseline_check": "tests/CalculationTests/Program.vb: LegacyFloorSnapshots"
+      "product_baseline_check": "tests/CalculationTests/Program.vb: LegacyFloorSnapshots",
+      "expected_total": 890,
+      "expected_incomes": -110,
+      "expected_expenses": 1000,
+      "rejected_double_separate_total": 889,
+      "decision": "decimal_for_all_receipts"
     },
     {
       "id": "DTX-005",
@@ -65,7 +68,7 @@
         {"tax_treatment": "out_of_scope", "rate": 0, "net": 10}
       ],
       "expected_distinct_tax_codes": true,
-      "candidate_total": 20
+      "expected_total": 20
     },
     {
       "id": "DTX-006",
@@ -83,7 +86,10 @@
     {
       "id": "DTX-007",
       "description": "複数グループの同文メモと末尾空白も保持",
-      "old_group_notes": [{"seq": 1, "tag": "same "}, {"seq": 2, "tag": "same "}],
+      "old_group_notes": [
+        {"seq": 1, "tag": "same "},
+        {"seq": 2, "tag": "same "}
+      ],
       "expected_note": "【統合元 1】\nsame \n【統合元 2】\nsame "
     },
     {
@@ -96,6 +102,29 @@
       ],
       "expected_codes_by_date": {"2030-01-31": 4, "2030-02-01": 9, "2030-02-28": 9, "2030-03-01": 4},
       "before_first_start": "unselected"
+    },
+    {
+      "id": "DTX-009",
+      "description": "課税負額単独の旧Double誤差も過去・新規共通で修正",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "old_groups": [
+        {"seq": 1, "classification": 1, "rate": 10, "taxable_net": [-100], "excluded_net": []}
+      ],
+      "legacy_total": -111,
+      "expected_total": -110
+    },
+    {
+      "id": "DTX-010",
+      "description": "0.14%をDecimalで保持し、Ceiling前の二進誤差を修正",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "raw_detail": {"fee": 10000, "quantity": 1, "discount_fee": 0, "discount_rate": "0.14", "tax_treatment": "out_of_scope"},
+      "legacy_discount": 15,
+      "expected_discount": 14,
+      "legacy_total": 9985,
+      "expected_total": 9986
     }
-  ]
+  ],
+  "calculation_policy": "decimal_for_all_receipts"
 }

@@ -13,7 +13,9 @@
 
 最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Adocs%2Fdetail-tax-unified-design)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
-明細税率への[統一設計](../docs/40-detail-tax-unified-design.md)に向け、既存の`LegacyFloorSnapshots`チェック内に「10%課税−100円＋対象外1,000円」の会計890円・収入−111円・支出1,000円を追加した。対象外を独立集計した候補889円との差を識別する基準であり、新方式の採用や移行の検証完了を意味しない。[比較JSON](../docs/tests/detail-tax-migration-cases.json)は設計資料で、現在の自動テスト件数へは加算しない。
+明細税率への[統一設計](../docs/40-detail-tax-unified-design.md)に向け、既存チェック内に現行の会計890円・収入−111円・支出1,000円と、10,000円の0.14%値引が現行Doubleでは15円になる境界を固定した。利用者はDecimalへ統一して誤差を修正する方針を決定した。採用する新期待値は会計890円・収入−110円・支出1,000円、0.14%値引は14円。[比較JSON](../docs/tests/detail-tax-migration-cases.json)は採用設計の資料であり、製品のDecimal化・移行実装は未完了。設計検算を現在の製品自動テスト件数へ加算しない。
+
+採用設計の比較JSONは10ケース。金額11項目をPythonのDecimalで照合し、0.14%値引も検算した。.NETのDecimalでも890円・−110円・値引14円／差引9,986円・負税額のfloor／half_up・税率別合算の8項目を検算した。これらは新計算の設計検証であり、製品コードやDB移行の実装テスト成功を示すものではない。
 
 今回の設計ブランチでは、計算31チェック（上記の追加固定値を含む）と移行10テストをローカルで確認した。計算は.NET SDK 8.0.426のRoslynでプロジェクトと同じ製品／テストソース・.NET 8参照を直接コンパイルして実行した。標準CLIは環境のNuGet初回処理のmutexで起動できなかったため、この方法を用いた。Windowsと製品コードは変更しておらず、変更前の[Tests #39583504358](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39583504358)の全件・既存ビルド成功を参照する。今回のGitHub Actionsは支払い／利用上限の問題で全ジョブが実行前に停止しており、CI成功とは扱わない。
 
