@@ -93,7 +93,7 @@ Public Class RegisterForm
     Private Sub SetGroupListView()
         GroupListView.Items.Clear()
         For Each group As ReceiptGroup In Receipt.Groups
-            Dim item As New ListViewItem(New String() {group.GroupClassification.Name, "", group.Tag})
+            Dim item As New ListViewItem(New String() {group.GroupClassification.Name & "（" & group.TaxRate.Rate.ToString() & "%）", "", group.Tag})
             GroupListView.Items.Add(item)
         Next
         For i As Integer = 0 To GroupListView.Columns.Count - 1
@@ -298,35 +298,41 @@ Public Class RegisterForm
 
 #Region "Group"
 
-    Private Sub UpdateAddGroupButton()
+    Private Function FindGroupDestination() As ReceiptGroup
+        Dim classification = TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification)
+        Dim taxRate = TryCast(GroupTaxRateComboBox.SelectedItem, TaxRate)
+        If classification Is Nothing Then Return Nothing
 
-        Dim mergeExisting As Boolean = False
+        ' 分類・税率が変わらない更新では、既存の重複グループを勝手に統合しない。
+        If SelectedGroup IsNot Nothing AndAlso classification.Code = SelectedGroup.GroupClassification.Code AndAlso
+            (taxRate Is Nothing OrElse taxRate.Code = SelectedGroup.TaxRate.Code) Then Return Nothing
+
+        Dim candidates = Receipt.Groups.Where(Function(g) g IsNot SelectedGroup AndAlso g.GroupClassification.Code = classification.Code)
+        If taxRate IsNot Nothing Then
+            Return candidates.FirstOrDefault(Function(g) g.TaxRate.Code = taxRate.Code)
+        End If
+
+        ' 初期税率が欠ける場合も、分類変更の統合先が一意なら従来の操作を維持する。
+        If SelectedGroup Is Nothing Then Return Nothing
+        Dim destinations = candidates.Take(2).ToArray()
+        Return If(destinations.Length = 1, destinations(0), Nothing)
+    End Function
+
+    Private Sub UpdateAddGroupButton()
+        Dim destination = FindGroupDestination()
+        Dim hasClassification = GroupClassificationComboBox.SelectedItem IsNot Nothing
+        Dim hasTaxRate = GroupTaxRateComboBox.SelectedItem IsNot Nothing
         If SelectedGroup Is Nothing Then
             AddGroupButton.Text = "追加"
-            If GroupClassificationComboBox.SelectedIndex = -1 OrElse Receipt.Groups.Any(Function(g) g.GroupClassification.Code = DirectCast(GroupClassificationComboBox.SelectedValue, Integer)) Then
-                AddGroupButton.Enabled = False
-            Else
-                AddGroupButton.Enabled = True
-            End If
+            AddGroupButton.Enabled = hasClassification AndAlso hasTaxRate AndAlso destination Is Nothing
             GroupTagTextBox.Enabled = True
-        ElseIf GroupClassificationComboBox.SelectedValue IsNot Nothing Then
-            If Receipt.Groups.Any(Function(g) g.GroupClassification.Code = DirectCast(GroupClassificationComboBox.SelectedValue, Integer)) AndAlso SelectedGroup.GroupClassification.Code <> DirectCast(GroupClassificationComboBox.SelectedValue, Integer) Then
-                mergeExisting = True
-                AddGroupButton.Text = "統合"
-                GroupTagTextBox.Enabled = False
-            Else
-                AddGroupButton.Text = "更新"
-                GroupTagTextBox.Enabled = True
-            End If
-            AddGroupButton.Enabled = True
-        End If
-
-        If GroupClassificationComboBox.SelectedItem Is Nothing OrElse
-            (GroupTaxRateComboBox.SelectedItem Is Nothing AndAlso Not mergeExisting) Then
-            AddGroupButton.Enabled = False
+        Else
+            Dim mergeExisting = destination IsNot Nothing
+            AddGroupButton.Text = If(mergeExisting, "統合", "更新")
+            AddGroupButton.Enabled = hasClassification AndAlso (hasTaxRate OrElse mergeExisting)
+            GroupTagTextBox.Enabled = Not mergeExisting
         End If
         UpdateState()
-
     End Sub
 
     Private Sub GroupTaxRateComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles GroupTaxRateComboBox.SelectedIndexChanged
@@ -380,6 +386,7 @@ Public Class RegisterForm
         UpdateAddGroupButton()
         If Not AddGroupButton.Enabled Then Return
         Dim group As ReceiptGroup
+        Dim destination = FindGroupDestination()
         If SelectedGroup Is Nothing Then
             group = New ReceiptGroup() With {
                 .GroupClassification = DirectCast(GroupClassificationComboBox.SelectedItem, GroupClassification),
@@ -387,9 +394,8 @@ Public Class RegisterForm
                 .Tag = GroupTagTextBox.Text
             }
             Receipt.Groups.Add(group)
-        ElseIf Receipt.Groups.Any(Function(g) g.GroupClassification.Code = DirectCast(GroupClassificationComboBox.SelectedValue, Integer)) AndAlso
-           SelectedGroup.GroupClassification.Code <> DirectCast(GroupClassificationComboBox.SelectedValue, Integer) Then
-            group = Receipt.Groups.Where(Function(g) g.GroupClassification.Code = DirectCast(GroupClassificationComboBox.SelectedValue, Integer)).First()
+        ElseIf destination IsNot Nothing Then
+            group = destination
             group.Details.AddRange(SelectedGroup.Details)
             RemoveGroupButton.PerformClick()
         Else
@@ -401,7 +407,7 @@ Public Class RegisterForm
 
         SetGroupListView()
 
-        GroupListView.Items(Receipt.Groups.FindIndex(Function(g) g.GroupClassification.Code = group.GroupClassification.Code)).Selected = True
+        GroupListView.Items(Receipt.Groups.IndexOf(group)).Selected = True
         TaxTargetCheckBox.Checked = group.GroupClassification.DefaultTaxTarget
 
         ItemNameComboBox.Select()
