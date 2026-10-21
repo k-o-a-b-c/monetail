@@ -51,6 +51,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [31 集計詳細の金額範囲超過](docs/31-detail-view-amount-overflow.md) | 途中行の消去、明細表示切替による復帰と表示設定の復元 |
 | [32 レシート一覧の金額範囲超過](docs/32-receipt-list-amount-overflow.md) | 該当セルだけの範囲超過表示と、絞り込み・編集の継続 |
 | [33 Windows先行・Web版入力の優先順位](docs/33-windows-first-web-input-priorities.md) | Windows版を先に進め、必須のWeb化ではレシート入力→振替入力を優先 |
+| [34 レシート読込の性能計測](docs/34-receipt-read-performance.md) | Windowsの一時DBで月次・年次のSQL数と読込時間を比較 |
 
 ### 読む順番
 

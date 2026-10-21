@@ -45,7 +45,7 @@ Windows デスクトップアプリ
 1. 起動: `ViewForm.New`で画面を構築し、`ViewForm_Load` → `DatabaseStartup.TryOpenConfiguredDatabase` → `DataAccess`で設定・既存ファイル・必要なDB構造を確認する。成功後に一覧を読み込み、設定・DBの問題では案内して終了する。[19 接続設定](19-database-startup-settings.md)参照。
 2. マスタ: 人／支払方法／店舗／税率等をSELECTして画面の選択肢を生成。マスタの一部は初回読込後に保持。
 3. レシート編集: グループ・明細は既存どおり `Receipt` の子リストを編集する。店名等と内税／外税・端数方式はコントロールに保持し、合計表示は `Receipt.GetTotal(taxType, taxRoundingMode)` で `Receipt` の税設定を変えずに計算する。必要な登録確認後にヘッダーへ転記 → `DataAccess.RegisterReceipt / UpdateReceipt`。レシート全体のディープコピーは導入していない。
-4. レシート参照: `GetReceipts` → `LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData` の順に読み込む。
+4. レシート参照: `GetReceipts` → `LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData` の順に読み込む。階層ごとのSELECT数と読込時間をWindowsの一時DBで[計測する](34-receipt-read-performance.md)。一括読込への変更はまだ行っていない。
 5. 集計: 画面内で年次データを取得し、`Receipt` の計算プロパティと `Calculation` で集約。
 6. 振替／残高: 専用フォームから `DataAccess` の各登録メソッドを呼ぶ。
 7. 支払メモ: `RegisterPaymentMemoForm`から全行を`RegisterPaymentMemo`へ渡す。既存のUPSERTループ全体を1つのトランザクションで処理し、全件成功時にCommit、例外時にRollback・再送出し、Finallyで破棄する。空リストはトランザクション開始前に戻る。
@@ -82,7 +82,7 @@ Windows デスクトップアプリ
 
 ## 自動検証
 
-[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxの計算・移行テストとWindowsの実SQLite／画面テスト・既存ビルドを実行する。自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
+[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxの計算・移行テストとWindowsの実SQLite／画面テスト・既存ビルドを実行する。別のWindowsジョブでレシート読込のSQL数・時間を計測する。自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
 
 Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFのレシート更新／削除と失敗時DB復元、残高削除の成功・巻き戻しと再削除、レシートのNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。残高・振替のNULLタグ読込と両AutoBalanceの3チェックも成功した。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
 

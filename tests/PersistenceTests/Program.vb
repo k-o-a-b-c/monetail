@@ -8,7 +8,14 @@ Imports System.Windows.Forms
 
 Module Program
     <STAThread>
-    Function Main() As Integer
+    Function Main(args As String()) As Integer
+        If args.Length = 2 AndAlso args(0) = "--measure-receipt-reads" Then
+            Return ReceiptReadMeasurements.Run(args(1))
+        End If
+        If args.Length <> 0 Then
+            Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
+            Return 2
+        End If
         Check("direct receipt Total binding exposes overflow while the list display preserves other errors", AddressOf ReceiptListOverflowTests.LegacyBindingAndOtherErrors)
         Check("receipt list mixes overflow and numeric rows preserving formatting metadata and live model values", AddressOf ReceiptListOverflowTests.MixedRowsAndCurrentValues)
         Check("receipt list filters selection and original edit routes survive overflow without writes", AddressOf ReceiptListOverflowTests.FiltersAndEditCancellation)
