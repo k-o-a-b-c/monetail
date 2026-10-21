@@ -52,6 +52,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [32 レシート一覧の金額範囲超過](docs/32-receipt-list-amount-overflow.md) | 該当セルだけの範囲超過表示と、絞り込み・編集の継続 |
 | [33 Windows先行・Web版入力の優先順位](docs/33-windows-first-web-input-priorities.md) | Windows版を先に進め、必須のWeb化ではレシート入力→振替入力を優先 |
 | [34 レシート読込の性能計測](docs/34-receipt-read-performance.md) | Windowsの一時DBで月次・年次のSQL数と読込時間を比較 |
+| [35 レシート階層の一括読込](docs/35-batch-receipt-reads.md) | GetReceiptsを1 SELECTへ変更し、階層・順序・絞り込みを維持 |
 
 ### 読む順番
 
