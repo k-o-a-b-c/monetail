@@ -3,6 +3,69 @@ Imports System.Reflection
 Imports System.Windows.Forms
 
 Friend Module ClassificationTaxTests
+    Public Sub StandardRateLabels()
+        For Each foreignKeys In {False, True}
+            Using fixture As New DatabaseFixture(foreignKeys)
+                Seed(fixture)
+                fixture.Execute("INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(3,'reduced',3,1,1);" &
+                    "INSERT INTO m_tax_rate(code,rate,start_date) VALUES(7,10,'2031-01-01'),(8,8,'2032-01-01');" &
+                    "UPDATE t_receipt_groups SET tax=4 WHERE seq=1;" &
+                    "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tax,tag) VALUES" &
+                    "(1,3,3,4,''),(1,4,3,5,''),(1,5,1,7,''),(1,6,1,8,'');")
+                BalanceBoundaryTests.ReadOnlyCase(fixture,
+                    Sub()
+                        Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = fixture.Data.GetReceipts(2026, 10).Single()}
+                            Program.OpenForm(form)
+                            AssertLabels(form, {"交際費（8%）", "交際費", "reduced", "reduced（10%）", "交際費", "交際費（8%）"})
+                            Dim original = DetailInputTests.ReceiptState(form.Receipt)
+                            SelectGroup(form, 1)
+                            form.GroupTagTextBox.Text = "pending note"
+                            form.ItemNameComboBox.Text = "pending item"
+                            form.FeeTextBox.Text = "123"
+                            form.ReceiptDateTextBox.Value = New Date(2019, 9, 30)
+                            AssertLabels(form, {"交際費", "交際費（10%）", "reduced", "reduced（10%）", "交際費（10%）", "交際費"})
+                            Equal(4, DirectCast(form.GroupTaxRateComboBox.SelectedItem, TaxRate).Code)
+                            Equal(1, form.GroupListView.SelectedIndices(0))
+                            Equal("pending note", form.GroupTagTextBox.Text)
+                            Equal("pending item", form.ItemNameComboBox.Text)
+                            Equal("123", form.FeeTextBox.Text)
+                            Equal(original, DetailInputTests.ReceiptState(form.Receipt))
+                            form.ReceiptDateTextBox.Value = New Date(2019, 10, 1)
+                            AssertLabels(form, {"交際費（8%）", "交際費", "reduced", "reduced（10%）", "交際費", "交際費（8%）"})
+                            Equal(5, DirectCast(form.GroupTaxRateComboBox.SelectedItem, TaxRate).Code)
+                            Equal(1, form.GroupListView.SelectedIndices(0))
+                            Equal("pending note", form.GroupTagTextBox.Text)
+                            form.GroupTaxRateComboBox.SelectedValue = 4
+                            Equal("交際費", form.GroupListView.Items(1).Text, "Manual selection must not redefine the standard")
+                            Equal(original, DetailInputTests.ReceiptState(form.Receipt))
+                            form.Close()
+                            Equal(original, DetailInputTests.ReceiptState(form.Receipt))
+                        End Using
+                    End Sub)
+            End Using
+            Using fixture As New DatabaseFixture(foreignKeys)
+                fixture.Execute("UPDATE t_receipt_groups SET tax=4;DELETE FROM m_tax_rate WHERE code=5;")
+                BalanceBoundaryTests.ReadOnlyCase(fixture,
+                    Sub()
+                        Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = fixture.Data.GetReceipts(2026, 10).Single()}
+                            Program.OpenForm(form)
+                            AssertLabels(form, {"food（8%）", "food（8%）"})
+                            Dim original = DetailInputTests.ReceiptState(form.Receipt)
+                            SelectGroup(form, 0)
+                            form.ReceiptDateTextBox.Value = New Date(2019, 9, 30)
+                            AssertLabels(form, {"food", "food"})
+                            form.ReceiptDateTextBox.Value = New Date(2019, 10, 1)
+                            Equal(Nothing, form.GroupTaxRateComboBox.SelectedItem)
+                            AssertLabels(form, {"food（8%）", "food（8%）"})
+                            Equal(0, form.GroupListView.SelectedIndices(0))
+                            Equal(original, DetailInputTests.ReceiptState(form.Receipt))
+                            form.Close()
+                        End Using
+                    End Sub)
+            End Using
+        Next
+    End Sub
+
     Public Sub AdditionAndSelection()
         For Each foreignKeys In {False, True}
             Using fixture As New DatabaseFixture(foreignKeys)
@@ -24,7 +87,7 @@ Friend Module ClassificationTaxTests
                             Dim ten = form.Receipt.Groups(1)
                             Equal(2, form.Receipt.Groups.Count)
                             Equal(1, form.GroupListView.SelectedIndices(0), "Adding the second tax must select its own row")
-                            Equal("交際費（10%）", form.GroupListView.Items(1).Text)
+                            Equal("交際費", form.GroupListView.Items(1).Text)
                             Equal(5, DirectCast(form.GroupTaxRateComboBox.SelectedItem, TaxRate).Code)
                             AddDetail(form, "ten", 31)
                             Equal("eight", eight.Details.Single().Name)
@@ -240,6 +303,10 @@ Friend Module ClassificationTaxTests
                     End Sub)
             End Using
         Next
+    End Sub
+
+    Private Sub AssertLabels(form As RegisterForm, expected As String())
+        Equal(String.Join("|", expected), String.Join("|", form.GroupListView.Items.Cast(Of ListViewItem)().Select(Function(item) item.Text)))
     End Sub
 
     Private Sub AssertSaved(receipt As Receipt, mode As String, taxType As Integer, total As Integer)

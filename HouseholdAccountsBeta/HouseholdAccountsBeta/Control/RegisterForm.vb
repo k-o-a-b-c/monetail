@@ -93,8 +93,23 @@ Public Class RegisterForm
     Private Sub SetGroupListView()
         GroupListView.Items.Clear()
         For Each group As ReceiptGroup In Receipt.Groups
-            Dim item As New ListViewItem(New String() {group.GroupClassification.Name & "（" & group.TaxRate.Rate.ToString() & "%）", "", group.Tag})
+            Dim item As New ListViewItem(New String() {group.GroupClassification.Name, "", group.Tag})
             GroupListView.Items.Add(item)
+        Next
+        UpdateGroupNames()
+    End Sub
+
+    Private Sub UpdateGroupNames()
+        If Receipt Is Nothing Then Return
+        For index As Integer = 0 To Math.Min(GroupListView.Items.Count, Receipt.Groups.Count) - 1
+            Dim group = Receipt.Groups(index)
+            Dim initialTaxRate = GetInitialGroupTaxRate(group.GroupClassification)
+            Dim name = group.GroupClassification.Name
+            If initialTaxRate Is Nothing OrElse group.TaxRate.Rate <> initialTaxRate.Rate Then
+                name &= "（" & group.TaxRate.Rate.ToString() & "%）"
+            End If
+            ' 行を作り直さず、日付変更中の選択と未反映の入力を保持する。
+            GroupListView.Items(index).Text = name
         Next
         For i As Integer = 0 To GroupListView.Columns.Count - 1
             GroupListView.AutoResizeColumn(i, ColumnHeaderAutoResizeStyle.HeaderSize)
@@ -234,18 +249,21 @@ Public Class RegisterForm
 
     Private Sub ReceiptDateTextBox_TextChanged(sender As Object, e As EventArgs) Handles ReceiptDateTextBox.TextChanged
         SetGroupTaxRate()
+        UpdateGroupNames()
     End Sub
 
-    Private Sub SetGroupTaxRate()
-        If GroupClassificationComboBox.DataSource Is Nothing Then
-            Return
-        End If
+    Private Function GetInitialGroupTaxRate(classification As GroupClassification) As TaxRate
         Dim standardRate = ReceiptDateTextBox.Value.CompareTo(New Date(2019, 10, 1)) >= 0 AndAlso
-            (GroupClassificationComboBox.SelectedItem Is Nothing OrElse Not DirectCast(GroupClassificationComboBox.SelectedItem, GroupClassification).ReducedTaxTarget)
+            (classification Is Nothing OrElse Not classification.ReducedTaxTarget)
         Dim rate = If(standardRate, 10, 8)
-        ' 表示順に依存せず税率で探す。同率が複数ならコード順で選択を安定させる。
-        GroupTaxRateComboBox.SelectedItem = GroupTaxRateComboBox.Items.Cast(Of TaxRate)().
-            OrderBy(Function(candidate) candidate.Code).FirstOrDefault(Function(candidate) candidate.Rate = rate)
+        ' 初期選択と一覧の標準税率を同じ判定にする。同率ならコード順で選ぶ。
+        Return DataAccess.TaxRateList.OrderBy(Function(candidate) candidate.Code).
+            FirstOrDefault(Function(candidate) candidate.Rate = rate)
+    End Function
+
+    Private Sub SetGroupTaxRate()
+        If GroupClassificationComboBox.DataSource Is Nothing Then Return
+        GroupTaxRateComboBox.SelectedItem = GetInitialGroupTaxRate(TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification))
     End Sub
 
 #End Region
