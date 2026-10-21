@@ -9,6 +9,10 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main() As Integer
+        Check("detail view group overflow clears partial rows and recovers through detail and filter changes", AddressOf DetailViewOverflowTests.GroupOverflowAndRecovery)
+        Check("detail view detail overflow preserves group totals and recovers without writes", AddressOf DetailViewOverflowTests.DetailOverflowAndRecovery)
+        Check("detail view tax ranges integer boundaries and normal metadata retain display behavior", AddressOf DetailViewOverflowTests.TaxRangesAndNormalValues)
+        Check("detail view unrelated failures propagate after restoring display settings", AddressOf DetailViewOverflowTests.OtherErrorsPropagate)
         Check("incomplete receipt inputs disable register and copy and preserve models on direct calls", AddressOf ReceiptInputTests.InvalidInputsAndRecovery)
         Check("valid receipt new update and immediate copy preserve tax modes and source rows", AddressOf ReceiptInputTests.ValidRegistrationAndImmediateCopy)
         Check("declining validated receipt confirmations preserves input models and references", AddressOf ReceiptInputTests.DeclinedConfirmations)

@@ -48,6 +48,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [28 振替の入力チェック](docs/28-transfer-input-validation.md) | 登録・流用の共通検証、不正入力時のモデル・DB保持 |
 | [29 残高入力と元データ保持](docs/29-balance-input-state.md) | 全行の検証後に反映、エラー・確認取消と開き直し時の保持 |
 | [30 レシートの入力チェック](docs/30-receipt-input-validation.md) | 登録・流用の必須条件の共通化、不備のある入力の確認前中止 |
+| [31 集計詳細の金額範囲超過](docs/31-detail-view-amount-overflow.md) | 途中行の消去、明細表示切替による復帰と表示設定の復元 |
 
 ### 読む順番
 

@@ -113,3 +113,5 @@ Web / スマートフォン / デスクトップ
 [ソリューション](../HouseholdAccountsBeta/HouseholdAccountsBeta.sln)、[プロジェクト](../HouseholdAccountsBeta/HouseholdAccountsBeta/HouseholdAccountsBeta.vbproj)、[設定](../HouseholdAccountsBeta/HouseholdAccountsBeta/App.config)、[依存パッケージ](../HouseholdAccountsBeta/HouseholdAccountsBeta/packages.config)
 
 レシートの`HasRequiredReceiptInput`は両ボタンの状態と`RegisterReceipt`の入口で共用する。店名のTextChangedも状態を更新し、不備のある入力で確認・Seq変更・ヘッダー転記へ進まない。[30 仕様](30-receipt-input-validation.md)。
+
+`DetailViewForm.ShowGroupStatistics`はOverflowExceptionだけを表内表示へ変換し、前回／途中の行を消す。読込・計算をTryで囲み、Finallyで行高・列幅・見出しの自動調整と品名の幅上限を復元する。金額以外の例外は伝播する。[31 仕様](31-detail-view-amount-overflow.md)。
