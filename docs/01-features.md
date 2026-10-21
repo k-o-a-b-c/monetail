@@ -65,3 +65,5 @@
 - [収支集計](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Expenses.vb)、[分類集計](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_ListStatistics.vb)、[残高集計](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_BalanceStatistics.vb)
 - [マスタメンテナンス](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/MasterMaintenanceForm.vb)
 - [税端数設計](15-shop-tax-rounding-design.md)、[自動テストと確認手順](../tests/README.md)、[CI](../.github/workflows/tests.yml)
+
+分類別／支払方法別の集計詳細画面も、明細・グループ額の範囲超過を「集計不可／範囲超過」で知らせる。途中行を消して自動調整設定を復元し、明細表示の切替で計算できる範囲へ戻れば通常表示になる。[31 詳細](31-detail-view-amount-overflow.md)。

@@ -128,3 +128,5 @@ half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
 [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)、[RegisterForm.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[自動テスト](../tests/README.md)
 
 レシートの登録・流用は必須入力も共通確認し、不備があれば確認・モデル転記前に中止する。税率別合算・端数処理・明細値引の式は変更しない。[30 入力契約](30-receipt-input-validation.md)。
+
+集計詳細の明細別／グループ別でも、既存の整数変換が範囲外なら表内に範囲超過を表示する。相殺・税・端数・値引きの式を変更せず、表示を切り替えて再計算する。[31 表示契約](31-detail-view-amount-overflow.md)。

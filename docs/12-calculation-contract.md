@@ -177,3 +177,5 @@ balance = （起点となる登録残高。なければ0）
 参照: [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)
 
 レシートの登録・流用は店名・税区分・支払方法・明細を共通確認し、不備があれば確認やヘッダー転記前に中止する。金額範囲の既存警告・計算式・保存仕様は維持する。[30 必須入力](30-receipt-input-validation.md)。
+
+集計詳細は明細・グループの既存計算が範囲外なら表内で通知し、途中行を残さない。表示を切り替えて再計算し、成功・超過・他の例外でも表示設定を復元する。式・丸め・保存値は変更しない。[31 詳細表示](31-detail-view-amount-overflow.md)。

@@ -34,27 +34,47 @@ Public Class DetailViewForm
         GroupDetailGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None
         GroupDetailGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing
 
-        For Each Column As DataGridViewColumn In GroupDetailGridView.Columns
-            Column.HeaderCell.SortGlyphDirection = SortOrder.None
-        Next
-
-        Dim Receipts As List(Of Receipt)
-        If Mode = DetailViewFormMode.Group Then
-            Receipts = DataAccess.GetReceipts(Year, Month, Code)
-        Else
-            Receipts = DataAccess.GetReceipts(Year, Month, -1, Code)
-        End If
-
         GroupDetailGridView.Rows.Clear()
+        Try
+            For Each Column As DataGridViewColumn In GroupDetailGridView.Columns
+                Column.HeaderCell.SortGlyphDirection = SortOrder.None
+            Next
 
-        GroupDetailGridView.Columns("GroupColumn").Visible = (Code < 0)
+            Dim Receipts As List(Of Receipt)
+            If Mode = DetailViewFormMode.Group Then
+                Receipts = DataAccess.GetReceipts(Year, Month, Code)
+            Else
+                Receipts = DataAccess.GetReceipts(Year, Month, -1, Code)
+            End If
 
-        If DetailCheckBox.Checked Then
-            GroupDetailGridView.Columns("ItemColumn").Visible = True
-            GroupDetailGridView.Columns("QuantityColumn").Visible = True
-            For Each Receipt As Receipt In Receipts
-                For Each Group As ReceiptGroup In Receipt.Groups
-                    For Each Detail As ReceiptDetail In Group.Details
+            GroupDetailGridView.Columns("GroupColumn").Visible = (Code < 0)
+
+            If DetailCheckBox.Checked Then
+                GroupDetailGridView.Columns("ItemColumn").Visible = True
+                GroupDetailGridView.Columns("QuantityColumn").Visible = True
+                For Each Receipt As Receipt In Receipts
+                    For Each Group As ReceiptGroup In Receipt.Groups
+                        For Each Detail As ReceiptDetail In Group.Details
+                            Dim rowIndex As Integer = GroupDetailGridView.Rows.Add()
+                            Dim row As DataGridViewRow = GroupDetailGridView.Rows(rowIndex)
+                            row.Cells("SeqColumn").Value = Receipt.Seq
+                            row.Cells("DateTimeColumn").Value = Receipt.Date.ToString("yyyy/MM/dd HH:mm:ss")
+                            row.Cells("ShopColumn").Value = Receipt.ShopName
+                            row.Cells("LocationColumn").Value = Receipt.ShopLocation
+                            row.Cells("PaymentColumn").Value = Receipt.PaymentClassification.Name
+                            row.Cells("TagColumn").Value = Receipt.Tag
+                            row.Cells("GroupColumn").Value = Group.GroupClassification.Name
+                            row.Cells("ItemColumn").Value = Detail.Name
+                            row.Cells("QuantityColumn").Value = Detail.Quantity
+                            row.Cells("FeeColumn").Value = Calculation.DetailCalculatedFee(Receipt, Group, Detail)
+                        Next
+                    Next
+                Next
+            Else
+                GroupDetailGridView.Columns("ItemColumn").Visible = False
+                GroupDetailGridView.Columns("QuantityColumn").Visible = False
+                For Each Receipt As Receipt In Receipts
+                    For Each Group As ReceiptGroup In Receipt.Groups
                         Dim rowIndex As Integer = GroupDetailGridView.Rows.Add()
                         Dim row As DataGridViewRow = GroupDetailGridView.Rows(rowIndex)
                         row.Cells("SeqColumn").Value = Receipt.Seq
@@ -64,40 +84,32 @@ Public Class DetailViewForm
                         row.Cells("PaymentColumn").Value = Receipt.PaymentClassification.Name
                         row.Cells("TagColumn").Value = Receipt.Tag
                         row.Cells("GroupColumn").Value = Group.GroupClassification.Name
-                        row.Cells("ItemColumn").Value = Detail.Name
-                        row.Cells("QuantityColumn").Value = Detail.Quantity
-                        row.Cells("FeeColumn").Value = Calculation.DetailCalculatedFee(Receipt, Group, Detail)
+                        row.Cells("FeeColumn").Value = Calculation.GroupCalculatedFee(Receipt, Group)
                     Next
                 Next
-            Next
-        Else
-            GroupDetailGridView.Columns("ItemColumn").Visible = False
-            GroupDetailGridView.Columns("QuantityColumn").Visible = False
-            For Each Receipt As Receipt In Receipts
-                For Each Group As ReceiptGroup In Receipt.Groups
-                    Dim rowIndex As Integer = GroupDetailGridView.Rows.Add()
-                    Dim row As DataGridViewRow = GroupDetailGridView.Rows(rowIndex)
-                    row.Cells("SeqColumn").Value = Receipt.Seq
-                    row.Cells("DateTimeColumn").Value = Receipt.Date.ToString("yyyy/MM/dd HH:mm:ss")
-                    row.Cells("ShopColumn").Value = Receipt.ShopName
-                    row.Cells("LocationColumn").Value = Receipt.ShopLocation
-                    row.Cells("PaymentColumn").Value = Receipt.PaymentClassification.Name
-                    row.Cells("TagColumn").Value = Receipt.Tag
-                    row.Cells("GroupColumn").Value = Group.GroupClassification.Name
-                    row.Cells("FeeColumn").Value = Calculation.GroupCalculatedFee(Receipt, Group)
-                Next
-            Next
-        End If
+            End If
 
-        ' 処理高速化（終了）
-        GroupDetailGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells
-        GroupDetailGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells
-        GroupDetailGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
+        Catch ex As OverflowException
+            ' 前の条件や途中までの明細を、正常な結果として残さない。
+            GroupDetailGridView.Rows.Clear()
+            Dim row = GroupDetailGridView.Rows(GroupDetailGridView.Rows.Add())
+            row.Cells("DateTimeColumn").Value = "集計不可"
+            row.Cells("FeeColumn").Value = "範囲超過"
+            For Each cell As DataGridViewCell In row.Cells
+                cell.ToolTipText = "金額が扱える範囲を超えたため、詳細を表示できません。明細表示や対象条件を見直してください。"
+            Next
+        Finally
+            ' 金額以外の例外も表示設定を戻してから呼出元へ返す。
+            ' 処理高速化（終了）
+            GroupDetailGridView.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.DisplayedCells
+            GroupDetailGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells
+            GroupDetailGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize
 
-        If GroupDetailGridView.Columns("ItemColumn").Width > 500 Then
-            GroupDetailGridView.Columns("ItemColumn").AutoSizeMode = DataGridViewAutoSizeColumnMode.None
-            GroupDetailGridView.Columns("ItemColumn").Width = 500
-        End If
+            If GroupDetailGridView.Columns("ItemColumn").Width > 500 Then
+                GroupDetailGridView.Columns("ItemColumn").AutoSizeMode = DataGridViewAutoSizeColumnMode.None
+                GroupDetailGridView.Columns("ItemColumn").Width = 500
+            End If
+        End Try
 
     End Sub
 
