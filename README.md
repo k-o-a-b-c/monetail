@@ -55,6 +55,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [35 レシート階層の一括読込](docs/35-batch-receipt-reads.md) | GetReceiptsを1 SELECTへ変更し、階層・順序・絞り込みを維持 |
 | [36 支払方法別レシートの一括読込](docs/36-batch-payment-receipt-reads.md) | 残高推算向け読込も1 SELECTへ変更し、期間条件と推算順序を維持 |
 | [37 レシートの子再読込とモデル保持](docs/37-receipt-child-reload-state.md) | 途中失敗では元の子・参照を保持し、成功時だけ反映 |
+| [38 税率の初期選択](docs/38-tax-default-selection.md) | マスタの並び順に依存せず8%／10%を選択し、保存済み税率を保持 |
 
 ### 読む順番
 

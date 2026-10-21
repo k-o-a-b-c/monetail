@@ -16,6 +16,9 @@ Module Program
             Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
             Return 2
         End If
+        Check("tax defaults preserve date and reduced rules across reordered future and duplicate master rates", AddressOf TaxDefaultTests.DefaultsIgnoreMasterOrder)
+        Check("missing tax defaults prevent invalid groups and preserve manual choices and merge behavior", AddressOf TaxDefaultTests.MissingRatesAndManualChoices)
+        Check("existing receipt tax codes survive selection cancellation and header-only saving", AddressOf TaxDefaultTests.ExistingRatesAndSave)
         Check("native late integer read failures preserve receipt children and permit same-connection retry", AddressOf ReceiptChildReloadTests.NumericFailureAndRetry)
         Check("missing users during child reload preserve the full model and recover after repair", AddressOf ReceiptChildReloadTests.MissingUserAndRetry)
         Check("successful and empty child reloads preserve the collection headers points and tax settings", AddressOf ReceiptChildReloadTests.SuccessAndEmptyChildren)
