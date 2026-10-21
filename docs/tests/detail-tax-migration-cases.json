@@ -1,0 +1,101 @@
+{
+  "format_version": 1,
+  "status": "design_review_not_an_executable_migration_test",
+  "description": "金額は値引後の整数円。候補値は未実装の統一計算案。会計差の許容判断が必要なケースを合格扱いにしない。",
+  "cases": [
+    {
+      "id": "DTX-001",
+      "description": "同分類・同率の2グループを統合し、参考額は新方式へ統一",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "old_groups": [
+        {"seq": 1, "classification": 1, "rate": 10, "taxable_net": [19], "excluded_net": []},
+        {"seq": 2, "classification": 1, "rate": 10, "taxable_net": [19], "excluded_net": []}
+      ],
+      "expected_group_count": 1,
+      "legacy_total": 41,
+      "candidate_total": 41,
+      "legacy_category_reference": 40,
+      "candidate_category_reference": 41,
+      "reference_delta_allowed": true
+    },
+    {
+      "id": "DTX-002",
+      "description": "同分類の8%と10%を明細税率に引き継ぐ",
+      "tax_type": 1,
+      "old_groups": [
+        {"seq": 1, "classification": 1, "rate": 8, "taxable_net": [19], "excluded_net": []},
+        {"seq": 2, "classification": 1, "rate": 10, "taxable_net": [19, 19], "excluded_net": []}
+      ],
+      "expected_group_count": 1,
+      "expected_detail_rates": [8, 10, 10],
+      "legacy_and_candidate_totals": {"floor": 61, "half_up": 63, "inclusive": 57}
+    },
+    {
+      "id": "DTX-003",
+      "description": "正の課税額と対象外の混在",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "old_groups": [
+        {"seq": 1, "classification": 1, "rate": 10, "taxable_net": [38], "excluded_net": [1000]}
+      ],
+      "legacy_total": 1041,
+      "candidate_total": 1041
+    },
+    {
+      "id": "DTX-004",
+      "description": "対象外の独立集計で会計額にも1円差が発生するDouble境界",
+      "tax_type": 1,
+      "rounding_mode": "floor",
+      "old_groups": [
+        {"seq": 1, "classification": 1, "rate": 10, "taxable_net": [-100], "excluded_net": [1000]}
+      ],
+      "legacy_total": 890,
+      "legacy_incomes": -111,
+      "legacy_expenses": 1000,
+      "candidate_total": 889,
+      "requires_accounting_decision": true,
+      "product_baseline_check": "tests/CalculationTests/Program.vb: LegacyFloorSnapshots"
+    },
+    {
+      "id": "DTX-005",
+      "description": "0%課税と対象外は別コード・別属性として保持",
+      "lines": [
+        {"tax_treatment": "taxable", "rate": 0, "net": 10},
+        {"tax_treatment": "out_of_scope", "rate": 0, "net": 10}
+      ],
+      "expected_distinct_tax_codes": true,
+      "candidate_total": 20
+    },
+    {
+      "id": "DTX-006",
+      "description": "再採番で同じ旧明細番号を持つ別グループの対象者を欠落させない",
+      "old_details": [
+        {"group_seq": 1, "seq": 1, "users": [1, 2]},
+        {"group_seq": 2, "seq": 1, "users": [1, 3]}
+      ],
+      "new_details": [
+        {"group_seq": 1, "seq": 1, "users": [1, 2]},
+        {"group_seq": 1, "seq": 2, "users": [1, 3]}
+      ],
+      "expected_assignment_count": 4
+    },
+    {
+      "id": "DTX-007",
+      "description": "複数グループの同文メモと末尾空白も保持",
+      "old_group_notes": [{"seq": 1, "tag": "same "}, {"seq": 2, "tag": "same "}],
+      "expected_note": "【統合元 1】\nsame \n【統合元 2】\nsame "
+    },
+    {
+      "id": "DTX-008",
+      "description": "同じ8%のコードを期間Cで再利用する。税率は制度の確定値ではない例示",
+      "rules": [
+        {"category": "example", "start_date": "2030-01-01", "tax_code": 4, "rate": 8},
+        {"category": "example", "start_date": "2030-02-01", "tax_code": 9, "rate": 1},
+        {"category": "example", "start_date": "2030-03-01", "tax_code": 4, "rate": 8}
+      ],
+      "expected_codes_by_date": {"2030-01-31": 4, "2030-02-01": 9, "2030-02-28": 9, "2030-03-01": 4},
+      "before_first_start": "unselected"
+    }
+  ]
+}
