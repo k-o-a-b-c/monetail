@@ -5,6 +5,20 @@ on:
   pull_request:
 
 jobs:
+  receipt-read-performance:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --measure-receipt-reads "$env:RUNNER_TEMP/receipt-read-performance.csv"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: receipt-read-performance
+          path: ${{ runner.temp }}/receipt-read-performance.csv
+          if-no-files-found: error
+
   calculations-and-migration:
     runs-on: ubuntu-latest
     steps:

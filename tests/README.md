@@ -11,7 +11,15 @@
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4） | 80 |
 | 合計 | 121 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Freceipt-list-overflow)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Ameasure%2Freceipt-read-performance)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+
+レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
+
+```powershell
+dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --measure-receipt-reads "$env:TEMP/receipt-read-performance.csv"
+```
+
+引数なしでは従来の画面・永続化テストを実行し、計測は行いません。CSVは実行環境と集計値だけで、DBファイルはアップロードしません。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
