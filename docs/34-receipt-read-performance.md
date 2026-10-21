@@ -4,7 +4,7 @@
 
 ## 対象とデータ
 
-`tests/PersistenceTests/ReceiptReadMeasurements.vb`から、製品と同じ.NET Framework 4.8・System.Data.SQLiteで実際の`DataAccess.GetReceipts(2026, month)`を呼ぶ。月次は10月、年次は`month=0`。各ケースで新しい一時DBとDataAccessを作る。
+`tests/PersistenceTests/ReceiptReadMeasurements.vb`から、製品と同じ.NET Framework 4.8・System.Data.SQLiteで実際の`DataAccess.GetReceipts(2026, month)`を呼ぶ。月次は10月、年次は`month=0`。各ケースで新しい一時DBとDataAccessを作る。後続の[36](36-batch-payment-receipt-reads.md)で支払方法別の改修前参照／改修後も追加し、CSVの`reader`列で3経路×4データケースを識別する。支払方法別は翌月初／翌年初を上端除外で指定し、Seq昇順で固定期待値と比較する。
 
 | 月あたり件数 | 読込範囲 | レシート | グループ | 明細 | 対象者割当 |
 | ---: | --- | ---: | ---: | ---: | ---: |
@@ -29,4 +29,4 @@ Windowsでのコマンド・CI・検証結果の正本は[tests/README.md](../te
 
 具体的な測定値は[計測追加PR](https://github.com/k-o-a-b-c/monetail-legacy/pulls?q=is%3Apr+head%3Ameasure%2Freceipt-read-performance)本文に、実行コミット・CIとともに記録する。共有CI環境の小規模な合成データによる基準であり、利用者端末・実データの速度、画面描画を含む応答時間、ネットワークDBやWeb版の性能を示すものではない。
 
-この基準を用いた一括読込の効果と互換性の比較は[35](35-batch-receipt-reads.md)に記録する。計測データ・5回の計測方法は維持し、CSVの結合SELECTはFROMの親テーブルへ分類する。
+この基準を用いた一覧の一括読込は[35](35-batch-receipt-reads.md)、同一CI内での支払方法別の改修前／後比較は[36](36-batch-payment-receipt-reads.md)に記録する。計測データ・5回の計測方法は維持し、CSVの結合SELECTはFROMの親テーブルへ分類する。

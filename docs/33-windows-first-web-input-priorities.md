@@ -12,7 +12,7 @@
 
 ## Windows版で積み上げるもの
 
-- SQLは既存のDataAccessに集約した構成を維持し、必要性を確認しながら改善する。LEG-026の[月次／年次のSQL数・読込時間](34-receipt-read-performance.md)を基準に、[GetReceiptsの一括読込](35-batch-receipt-reads.md)を比較する。残高推算など他の読込経路の一括化は未実施。
+- SQLは既存のDataAccessに集約した構成を維持し、必要性を確認しながら改善する。LEG-026の[月次／年次のSQL数・読込時間](34-receipt-read-performance.md)を基準に、[GetReceiptsの一括読込](35-batch-receipt-reads.md)を比較する。[残高推算向けGetPaymentReceipts](36-batch-payment-receipt-reads.md)も共通組立で一括化する。子再読込や振替・残高等の他経路は今回の対象に含めない。
 - 計算、入力補正、税率別合算と端数、保存の更新境界を文書と固定期待値で残す。ブラウザー固有の処理を現行の計算モデルへ混在させない。
 - 既存の計算テストの入力・期待値をWeb版の互換性の基準に使う。WinFormsの画面テストをそのままブラウザーへ流用できるという意味ではない。
 - 将来のWeb化だけを理由とする全面書換えや、Windows版のAPI接続への切替を先行させる決定はしていない。
