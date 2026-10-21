@@ -9,6 +9,9 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main() As Integer
+        Check("incomplete receipt inputs disable register and copy and preserve models on direct calls", AddressOf ReceiptInputTests.InvalidInputsAndRecovery)
+        Check("valid receipt new update and immediate copy preserve tax modes and source rows", AddressOf ReceiptInputTests.ValidRegistrationAndImmediateCopy)
+        Check("declining validated receipt confirmations preserves input models and references", AddressOf ReceiptInputTests.DeclinedConfirmations)
         Check("invalid balance inputs preserve the original object and same-instance reopen state", AddressOf BalanceInputStateTests.InvalidInputsAndReopen)
         Check("corrected balance inputs save zero signed boundaries and nullable valuations", AddressOf BalanceInputStateTests.CorrectAndSave)
         Check("declining validated balance confirmations preserves input models and references", AddressOf BalanceInputStateTests.DeclinedConfirmations)

@@ -175,3 +175,5 @@ balance = （起点となる登録残高。なければ0）
 実行方法と全体の自動テスト件数は[tests/README.md](../tests/README.md)および[06](06-test-cases.md)を参照。
 
 参照: [Receipt.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)、[Calculation.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)、[DataAccess.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)、[DataAccessList.vb](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccessList.vb)
+
+レシートの登録・流用は店名・税区分・支払方法・明細を共通確認し、不備があれば確認やヘッダー転記前に中止する。金額範囲の既存警告・計算式・保存仕様は維持する。[30 必須入力](30-receipt-input-validation.md)。
