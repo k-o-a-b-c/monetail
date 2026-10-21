@@ -90,14 +90,14 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 
 ## オンライン化に向けた境界
 
-将来の構成案（**現行実装ではない**）:
+まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。以下は後続の構成案で、**現行実装ではない**。言語・認証・DB製品等は未決定。
 
 ```text
 Web / スマートフォン / デスクトップ
              ↓ 認証付き HTTPS
              API・認可・業務ロジック
              ↓
-       Cloudflare D1 等
+       DB（製品は未決定）
 ```
 
 レガシー版のUIから計算ルール・永続化条件を切り離し、[03-calculations.md](03-calculations.md) と [06-test-cases.md](06-test-cases.md) を移植時の契約として使う。
