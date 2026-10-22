@@ -651,6 +651,36 @@ Partial Class RegisterForm
         Me.QuantityTextBox.TabIndex = 5
         Me.QuantityTextBox.Text = "1"
         '
+        'DetailTagTextBox
+        '
+        Me.DetailTagTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.DetailTagTextBox.ImeMode = System.Windows.Forms.ImeMode.[On]
+        Me.DetailTagTextBox.Location = New System.Drawing.Point(52, 120)
+        Me.DetailTagTextBox.Name = "DetailTagTextBox"
+        Me.DetailTagTextBox.Size = New System.Drawing.Size(156, 23)
+        Me.DetailTagTextBox.TabIndex = 11
+        '
+        'FeeTextBox
+        '
+        Me.FeeTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.FeeTextBox.ImeMode = System.Windows.Forms.ImeMode.Off
+        Me.FeeTextBox.Location = New System.Drawing.Point(52, 33)
+        Me.FeeTextBox.Name = "FeeTextBox"
+        Me.FeeTextBox.Size = New System.Drawing.Size(156, 23)
+        Me.FeeTextBox.TabIndex = 3
+        '
+        'DiscountRateTextBox
+        '
+        Me.DiscountRateTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.DiscountRateTextBox.ImeMode = System.Windows.Forms.ImeMode.Off
+        Me.DiscountRateTextBox.Location = New System.Drawing.Point(52, 91)
+        Me.DiscountRateTextBox.Name = "DiscountRateTextBox"
+        Me.DiscountRateTextBox.Size = New System.Drawing.Size(156, 23)
+        Me.DiscountRateTextBox.TabIndex = 9
+        '
         'DiscountFeeTextBox
         '
         Me.DiscountFeeTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _

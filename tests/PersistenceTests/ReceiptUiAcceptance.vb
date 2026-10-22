@@ -32,14 +32,14 @@ Friend Module ReceiptUiAcceptance
                         form.ItemNameComboBox.Select()
                         For Each expected As Control In New Control() {
                             form.FeeTextBox, form.QuantityTextBox, form.DiscountFeeTextBox,
-                            form.DiscountRateTextBox, form.DetailTaxRateComboBox, form.DetailTagTextBox,
+                            form.DiscountRateTextBox, form.DetailTagTextBox, form.DetailTaxRateComboBox,
                             form.UserListBox, form.AddDetailButton}
                             DialogKey(form, Keys.Tab)
                             Equal(True, expected.ContainsFocus, "Forward Tab must reach " & expected.Name)
                         Next
                         form.DetailTaxRateComboBox.Select()
                         DialogKey(form, Keys.Tab Or Keys.Shift)
-                        Equal(True, form.DiscountRateTextBox.ContainsFocus, "Reverse Tab must return to discount rate")
+                        Equal(True, form.DetailTagTextBox.ContainsFocus, "Reverse Tab must return to detail memo")
                         DialogKey(form, Keys.Tab)
                         Equal(True, form.DetailTaxRateComboBox.ContainsFocus)
                         form.TaxExclusiveRadioButton.Select()
@@ -91,18 +91,26 @@ Friend Module ReceiptUiAcceptance
                             Equal("標準税率の商品", form.DetailListView.Items(1).Text)
                             Equal("対象外の商品（対象外）", form.DetailListView.Items(2).Text)
                             If scale <> 1.0F Then
-                                form.AutoScaleDimensions = New SizeF(form.CurrentAutoScaleDimensions.Width / scale,
-                                                                     form.CurrentAutoScaleDimensions.Height / scale)
-                                form.PerformAutoScale()
+                                form.AutoScaleMode = AutoScaleMode.None
+                                form.Font = New Font(form.Font.FontFamily, form.Font.Size * scale, form.Font.Style, form.Font.Unit)
+                                form.Scale(New SizeF(scale, scale))
+                                form.PerformLayout()
                                 Application.DoEvents()
                             End If
+                            Equal(True, Math.Abs(form.DetailTaxRateComboBox.Width - CInt(156 * scale)) <= 2,
+                                  "The requested relative scale must actually change the tax field width")
                             For Each control As Control In New Control() {
+                                form.FeeTextBox, form.QuantityTextBox, form.DiscountFeeTextBox, form.DiscountRateTextBox,
                                 form.DetailTaxRateComboBox, form.Label3, form.DetailTagTextBox,
                                 form.TaxRoundingModePanel, form.TaxRoundingModeLabel,
                                 form.TaxRoundingFloorRadioButton, form.TaxRoundingHalfUpRadioButton}
                                 Equal(True, control.Visible, control.Name & " must be visible")
                                 Equal(True, control.Parent.ClientRectangle.Contains(control.Bounds), control.Name & " must fit inside its parent")
                             Next
+                            Separate(form.ItemNameComboBox, form.FeeTextBox)
+                            Separate(form.FeeTextBox, form.QuantityTextBox)
+                            Separate(form.FeeTextBox, form.DiscountFeeTextBox)
+                            Separate(form.DiscountRateTextBox, form.DetailTagTextBox)
                             Separate(form.DetailTaxRateComboBox, form.DiscountRateTextBox)
                             Separate(form.DetailTaxRateComboBox, form.DetailTagTextBox)
                             Separate(form.DetailTaxRateComboBox, form.Label3)
@@ -129,7 +137,7 @@ Friend Module ReceiptUiAcceptance
             End Using
         Next
         File.WriteAllText(Path.Combine(outputFolder, "layout.csv"), evidence.ToString(), New UTF8Encoding(True))
-        Console.WriteLine("Relative autoscaling exercises layout; actual Windows DPI is recorded separately in layout.csv.")
+        Console.WriteLine("Relative font and geometry scaling exercises layout; actual Windows DPI is recorded separately in layout.csv.")
     End Sub
 
     ' 異なる親に属する欄も画面座標へ揃え、重なっていないことを確認する。
