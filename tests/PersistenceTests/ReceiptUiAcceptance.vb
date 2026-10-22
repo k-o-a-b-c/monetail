@@ -48,6 +48,7 @@ Friend Module ReceiptUiAcceptance
                         DialogKey(form.TaxRoundingFloorRadioButton, Keys.Right)
                         Equal(True, form.TaxRoundingHalfUpRadioButton.Checked)
                         Equal(True, form.TaxExclusiveRadioButton.Checked)
+                        form.TaxExclusiveRadioButton.Select()
                         DialogKey(form.TaxExclusiveRadioButton, Keys.Left)
                         Equal(True, form.TaxInclusiveRadioButton.Checked)
                         Equal(True, form.TaxRoundingHalfUpRadioButton.Checked)
@@ -71,6 +72,7 @@ Friend Module ReceiptUiAcceptance
     Private Sub CaptureLayouts(outputFolder As String)
         Dim evidence As New StringBuilder("relative_scale,actual_dpi_x,actual_dpi_y,client_width,client_height,tax_width,tax_height" & vbCrLf)
         For Each factor As Single In New Single() {1.0F, 1.25F, 1.5F, 2.0F}
+            Dim scale = factor
             Using fixture As New DatabaseFixture
                 fixture.Execute("UPDATE m_group_classification SET name='食費' WHERE code=1;" &
                     "UPDATE t_receipt_details SET name='8%の商品',tax_code=4 WHERE group_seq=1;" &
@@ -88,9 +90,9 @@ Friend Module ReceiptUiAcceptance
                             Equal("8%の商品（8%）", form.DetailListView.Items(0).Text)
                             Equal("標準税率の商品", form.DetailListView.Items(1).Text)
                             Equal("対象外の商品（対象外）", form.DetailListView.Items(2).Text)
-                            If factor <> 1.0F Then
-                                form.AutoScaleDimensions = New SizeF(form.CurrentAutoScaleDimensions.Width / factor,
-                                                                     form.CurrentAutoScaleDimensions.Height / factor)
+                            If scale <> 1.0F Then
+                                form.AutoScaleDimensions = New SizeF(form.CurrentAutoScaleDimensions.Width / scale,
+                                                                     form.CurrentAutoScaleDimensions.Height / scale)
                                 form.PerformAutoScale()
                                 Application.DoEvents()
                             End If
@@ -109,14 +111,14 @@ Friend Module ReceiptUiAcceptance
                             Equal("入力保持の確認", form.ItemNameComboBox.Text)
                             Equal("23*2", form.FeeTextBox.Text)
                             Equal("入力中のメモ", form.DetailTagTextBox.Text)
-                            Dim suffix = CInt(factor * 100).ToString(CultureInfo.InvariantCulture)
+                            Dim suffix = CInt(scale * 100).ToString(CultureInfo.InvariantCulture)
                             Using bitmap As New Bitmap(form.Width, form.Height)
                                 form.DrawToBitmap(bitmap, New Rectangle(Point.Empty, bitmap.Size))
                                 bitmap.Save(Path.Combine(outputFolder, "receipt-ui-" & suffix & ".png"), ImageFormat.Png)
                             End Using
                             Using graphics = form.CreateGraphics()
                                 evidence.AppendLine(String.Join(",", New String() {
-                                    factor.ToString(CultureInfo.InvariantCulture), graphics.DpiX.ToString(CultureInfo.InvariantCulture),
+                                    scale.ToString(CultureInfo.InvariantCulture), graphics.DpiX.ToString(CultureInfo.InvariantCulture),
                                     graphics.DpiY.ToString(CultureInfo.InvariantCulture), form.ClientSize.Width.ToString(CultureInfo.InvariantCulture),
                                     form.ClientSize.Height.ToString(CultureInfo.InvariantCulture), form.DetailTaxRateComboBox.Width.ToString(CultureInfo.InvariantCulture),
                                     form.DetailTaxRateComboBox.Height.ToString(CultureInfo.InvariantCulture)}))
