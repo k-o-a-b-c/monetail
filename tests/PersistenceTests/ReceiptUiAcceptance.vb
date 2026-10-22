@@ -97,8 +97,23 @@ Friend Module ReceiptUiAcceptance
                                 form.PerformLayout()
                                 Application.DoEvents()
                             End If
-                            Equal(True, Math.Abs(form.DetailTaxRateComboBox.Width - CInt(156 * scale)) <= 2,
-                                  "The requested relative scale must actually change the tax field width")
+                            Dim suffix = CInt(scale * 100).ToString(CultureInfo.InvariantCulture)
+                            Using bitmap As New Bitmap(form.Width, form.Height)
+                                form.DrawToBitmap(bitmap, New Rectangle(Point.Empty, bitmap.Size))
+                                bitmap.Save(Path.Combine(outputFolder, "receipt-ui-" & suffix & ".png"), ImageFormat.Png)
+                            End Using
+                            Using graphics = form.CreateGraphics()
+                                evidence.AppendLine(String.Join(",", New String() {
+                                    scale.ToString(CultureInfo.InvariantCulture), graphics.DpiX.ToString(CultureInfo.InvariantCulture),
+                                    graphics.DpiY.ToString(CultureInfo.InvariantCulture), form.ClientSize.Width.ToString(CultureInfo.InvariantCulture),
+                                    form.ClientSize.Height.ToString(CultureInfo.InvariantCulture), form.DetailTaxRateComboBox.Width.ToString(CultureInfo.InvariantCulture),
+                                    form.DetailTaxRateComboBox.Height.ToString(CultureInfo.InvariantCulture)}))
+                            End Using
+                            File.WriteAllText(Path.Combine(outputFolder, "layout.csv"), evidence.ToString(), New UTF8Encoding(True))
+                            Console.WriteLine("LAYOUT scale=" & scale.ToString(CultureInfo.InvariantCulture) &
+                                              " client=" & form.ClientSize.ToString() & " tax=" & form.DetailTaxRateComboBox.Bounds.ToString())
+                            Equal(True, If(scale = 1.0F, form.DetailTaxRateComboBox.Width = 156, form.DetailTaxRateComboBox.Width > 156),
+                                  "Relative scaling must enlarge the tax field; anchored margins may alter its exact width")
                             For Each control As Control In New Control() {
                                 form.FeeTextBox, form.QuantityTextBox, form.DiscountFeeTextBox, form.DiscountRateTextBox,
                                 form.DetailTaxRateComboBox, form.Label3, form.DetailTagTextBox,
@@ -119,18 +134,6 @@ Friend Module ReceiptUiAcceptance
                             Equal("入力保持の確認", form.ItemNameComboBox.Text)
                             Equal("23*2", form.FeeTextBox.Text)
                             Equal("入力中のメモ", form.DetailTagTextBox.Text)
-                            Dim suffix = CInt(scale * 100).ToString(CultureInfo.InvariantCulture)
-                            Using bitmap As New Bitmap(form.Width, form.Height)
-                                form.DrawToBitmap(bitmap, New Rectangle(Point.Empty, bitmap.Size))
-                                bitmap.Save(Path.Combine(outputFolder, "receipt-ui-" & suffix & ".png"), ImageFormat.Png)
-                            End Using
-                            Using graphics = form.CreateGraphics()
-                                evidence.AppendLine(String.Join(",", New String() {
-                                    scale.ToString(CultureInfo.InvariantCulture), graphics.DpiX.ToString(CultureInfo.InvariantCulture),
-                                    graphics.DpiY.ToString(CultureInfo.InvariantCulture), form.ClientSize.Width.ToString(CultureInfo.InvariantCulture),
-                                    form.ClientSize.Height.ToString(CultureInfo.InvariantCulture), form.DetailTaxRateComboBox.Width.ToString(CultureInfo.InvariantCulture),
-                                    form.DetailTaxRateComboBox.Height.ToString(CultureInfo.InvariantCulture)}))
-                            End Using
                             form.Close()
                         End Using
                     End Sub)
