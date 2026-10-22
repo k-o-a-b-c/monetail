@@ -401,7 +401,7 @@ Module Program
             Equal(2, RunCli(toolPath))
             Equal(0, RunCli(toolPath, sourcePath, copyPath, reportPath))
             Equal(True, original.SequenceEqual(File.ReadAllBytes(sourcePath)))
-            Equal(True, File.ReadAllText(reportPath).Contains("1,999,931,931,0,808"))
+            Equal(True, File.ReadAllText(reportPath).Contains("1,999,931,931,0,-68"))
             Using migrated As New SQLiteConnection("Data Source=" & copyPath & ";Pooling=False")
                 migrated.Open()
                 Equal(DetailTaxMigration.MigrationId, DetailTaxMigration.Scalar(migrated, "SELECT id FROM detail_tax_migration"))

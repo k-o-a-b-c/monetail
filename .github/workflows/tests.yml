@@ -53,6 +53,10 @@ jobs:
       - name: Verify migration CLI exit codes and copy safety
         run: dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48 -- --cli "$((Resolve-Path tools/DetailTaxMigration/bin/Debug/net48/DetailTaxMigration.exe).Path)"
       - uses: NuGet/setup-nuget@v2
+        if: ${{ !cancelled() }}
       - uses: microsoft/setup-msbuild@v2
+        if: ${{ !cancelled() }}
       - run: nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln
+        if: ${{ !cancelled() }}
       - run: msbuild HouseholdAccountsBeta/HouseholdAccountsBeta.sln /p:Configuration=Debug /p:Platform="Any CPU" /verbosity:minimal
+        if: ${{ !cancelled() }}
