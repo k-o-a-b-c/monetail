@@ -2,6 +2,7 @@ Imports System.Drawing.Imaging
 Imports System.Globalization
 Imports System.IO
 Imports System.Reflection
+Imports System.Runtime.InteropServices
 Imports System.Text
 
 Friend Module ReceiptUiAcceptance
@@ -80,10 +81,7 @@ Friend Module ReceiptUiAcceptance
                     "VALUES(1,1,2,'標準税率の商品',19,1,0,'0',5,''),(1,1,3,'対象外の商品',100,1,0,'0',0,'');")
                 BalanceBoundaryTests.ReadOnlyCase(fixture,
                     Sub()
-                        Using canvas As New Panel With {.Size = New Size(4096, 4096)}
-                        Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = fixture.Data.GetReceipts(2026, 10).Single(), .TopLevel = False}
-                            canvas.Controls.Add(form)
-                            canvas.CreateControl()
+                        Using form As New ReceiptUiRenderForm With {.DataAccess = fixture.Data, .Receipt = fixture.Data.GetReceipts(2026, 10).Single()}
                             Program.OpenForm(form)
                             TaxDefaultTests.SelectGroup(form, 0)
                             form.ItemNameComboBox.Text = "入力保持の確認"
@@ -94,6 +92,7 @@ Friend Module ReceiptUiAcceptance
                             Equal("標準税率の商品", form.DetailListView.Items(1).Text)
                             Equal("対象外の商品（対象外）", form.DetailListView.Items(2).Text)
                             If scale <> 1.0F Then
+                                form.RenderOutsideDesktop = True
                                 form.AutoScaleMode = AutoScaleMode.None
                                 form.Font = New Font(form.Font.FontFamily, form.Font.Size * scale, form.Font.Style, form.Font.Unit)
                                 form.Scale(New SizeF(scale, scale))
@@ -141,7 +140,6 @@ Friend Module ReceiptUiAcceptance
                             Equal("入力中のメモ", form.DetailTagTextBox.Text)
                             form.Close()
                         End Using
-                        End Using
                     End Sub)
             End Using
         Next
@@ -155,3 +153,38 @@ Friend Module ReceiptUiAcceptance
               first.Name & " must not overlap " & second.Name)
     End Sub
 End Module
+
+' 画像検証のときだけ外枠を画面外へ広げ、登録フォームの子コントロールをそのまま描画する。
+Friend Class ReceiptUiRenderForm
+    Inherits RegisterForm
+
+    ' 小さいCI画面の制約を外して描画するかを保持する。
+    Friend Property RenderOutsideDesktop As Boolean
+
+    ' 非クライアント領域を維持し、描画用の拡大後サイズを計算する。
+    Protected Overrides Function GetScaledBounds(bounds As Rectangle, factor As SizeF, specified As BoundsSpecified) As Rectangle
+        Dim result = MyBase.GetScaledBounds(bounds, factor, specified)
+        If Not RenderOutsideDesktop Then Return result
+        Dim frameWidth = Width - ClientSize.Width
+        Dim frameHeight = Height - ClientSize.Height
+        If (specified And BoundsSpecified.Width) <> 0 Then result.Width = CInt((bounds.Width - frameWidth) * factor.Width) + frameWidth
+        If (specified And BoundsSpecified.Height) <> 0 Then result.Height = CInt((bounds.Height - frameHeight) * factor.Height) + frameHeight
+        Return result
+    End Function
+
+    ' 画面サイズへ制限された外枠を、画像検証で要求したサイズへ設定する。
+    Protected Overrides Sub SetBoundsCore(x As Integer, y As Integer, width As Integer, height As Integer, specified As BoundsSpecified)
+        MyBase.SetBoundsCore(x, y, width, height, specified)
+        If Not RenderOutsideDesktop OrElse Not IsHandleCreated OrElse Disposing Then Return
+        If (specified And BoundsSpecified.Size) = 0 OrElse (Me.Width = width AndAlso Me.Height = height) Then Return
+        If Not SetWindowPos(Handle, IntPtr.Zero, 0, 0, width, height, &H416UI) Then
+            Throw New System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "Could not size the receipt image window.")
+        End If
+    End Sub
+
+    ' 描画用ウィンドウの位置・前後関係を変えずにサイズだけを設定する。
+    <DllImport("user32.dll", SetLastError:=True)>
+    Private Shared Function SetWindowPos(window As IntPtr, insertAfter As IntPtr, x As Integer, y As Integer,
+                                         width As Integer, height As Integer, flags As UInteger) As Boolean
+    End Function
+End Class
