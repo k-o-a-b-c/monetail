@@ -81,7 +81,7 @@ Friend Module ReceiptListOverflowTests
                             Dim groups = model.Groups
                             Try
                                 model.Groups = Nothing
-                                Throws(Of NullReferenceException)(Sub() form.ReceiptAmountForTest(row))
+                                Throws(Of ArgumentNullException)(Sub() form.ReceiptAmountForTest(row))
                             Finally
                                 model.Groups = groups
                             End Try

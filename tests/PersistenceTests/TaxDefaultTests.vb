@@ -67,7 +67,7 @@ Friend Module TaxDefaultTests
                     Equal(4, DirectCast(form.DetailTaxRateComboBox.SelectedItem, TaxRate).Code)
                     Equal(4, receipt.Groups(0).Details(0).TaxRate.Code)
                     form.ReceiptTagTextBox.Text = "header"
-                    Program.ClickAndAnswer(form.RegiserButton, DialogResult.Yes, "Header save keeps fixed detail tax")
+                    Program.ClickAndAnswer(form.RegiserButton, DialogResult.Yes, "Header save keeps fixed detail tax", expectedConfirmations:=2, acceptAllConfirmations:=True)
                 End Using
                 Equal(4, fixture.Data.GetReceipts(2030, 1).Single().Groups(0).Details(0).TaxRate.Code)
             End Using

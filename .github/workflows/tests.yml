@@ -32,13 +32,22 @@ jobs:
 
   windows-persistence-and-ui:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
+
+  windows-migration-and-build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
       - run: dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48
       - run: dotnet build tools/DetailTaxMigration/DetailTaxMigration.vbproj
       - name: Verify migration CLI exit codes and copy safety

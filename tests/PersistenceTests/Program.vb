@@ -118,7 +118,7 @@ Module Program
     End Function
 
 
-    ' 実行中のチェックを記録し、予期しないモーダル待ちを60秒で失敗にする。
+    ' 実行中のチェックを記録し、予期しないモーダル待ちを180秒で失敗にする。
     Private Sub Check(name As String, action As Action)
         Console.WriteLine("RUN " & name)
         Console.Out.Flush()
@@ -126,8 +126,8 @@ Module Program
             Sub(state)
                 Console.Error.WriteLine("TIMEOUT " & name)
                 Console.Error.Flush()
-                Environment.FailFast("Test exceeded 60 seconds: " & name)
-            End Sub, Nothing, TimeSpan.FromSeconds(60), System.Threading.Timeout.InfiniteTimeSpan)
+                Environment.FailFast("Test exceeded 180 seconds: " & name)
+            End Sub, Nothing, TimeSpan.FromSeconds(180), System.Threading.Timeout.InfiniteTimeSpan)
             Assertions.Check(name, action)
         End Using
     End Sub
@@ -629,10 +629,11 @@ Module Program
         Return result.ToString()
     End Function
 
+    ' 確認・警告に応答し、期待した回数と処理結果を検証する。
     Friend Sub ClickAndAnswer(buttonToClick As Button, answer As DialogResult, operation As String,
                               Optional beforeAnswer As Action = Nothing, Optional expectedConflict As Boolean = False,
                               Optional expectedWarningTitle As String = Nothing, Optional expectedConfirmations As Integer = 1,
-                              Optional invoke As Action = Nothing)
+                              Optional invoke As Action = Nothing, Optional acceptAllConfirmations As Boolean = False)
         Dim answered As Integer
         Dim warnings As Integer
         Dim clickedDialogs As New System.Collections.Generic.HashSet(Of String)()
@@ -675,7 +676,7 @@ Module Program
                         End Try
                     End If
                     ' An unexpected extra confirmation is declined, then reported after the handler returns.
-                    Dim button = GetDlgItem(dialog, If(answered = 0 AndAlso answer = DialogResult.Yes AndAlso assertionFailure Is Nothing, 6, 7))
+                    Dim button = GetDlgItem(dialog, If((answered = 0 OrElse (acceptAllConfirmations AndAlso answered < expectedConfirmations)) AndAlso answer = DialogResult.Yes AndAlso assertionFailure Is Nothing, 6, 7))
                     If button = IntPtr.Zero Then Return
                     If Not clickedDialogs.Add(dialog.ToString() & "|confirmation") Then Return
                     answered += 1

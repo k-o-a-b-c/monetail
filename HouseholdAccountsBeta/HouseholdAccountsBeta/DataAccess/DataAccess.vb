@@ -678,6 +678,7 @@ Public Class DataAccess
 
     End Function
 
+    ' 残高明細の金額・評価額・メモを対応する列から読み込む。
     Private Sub LoadBalanceGroupData(ByVal balance As Balance)
         balance.Groups.Clear()
 
@@ -691,7 +692,7 @@ Public Class DataAccess
                         .BalanceSeq = groupReader.GetInt32(0),
                         .PaymentClassification = PaymentClassification(groupReader.GetInt32(1)),
                         .Balance = groupReader.GetInt32(2),
-                        .Tag = If(groupReader.IsDBNull(3), String.Empty, groupReader.GetString(3))
+                        .Tag = If(groupReader.IsDBNull(4), String.Empty, groupReader.GetString(4))
                     }
                     If groupReader.IsDBNull(3) Then
                         balanceGroup.ValuationAmount = Nothing
