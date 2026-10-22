@@ -1,6 +1,6 @@
 # 12 現行の金額・税・参考集計契約
 
-2026-10-22。[42 Windows版切替](42-detail-tax-application.md)の実装に対応する。Windowsでの実行・実データ確認は[未完了テスト](../tests/README.md#未完了テストまとめて実施するもの)を参照。[切替前の契約](history/12-calculation-contract-before-detail-tax.md)は履歴として保持し、過去専用モードには使わない。
+2026-10-22。[42 Windows版切替](42-detail-tax-application.md)の実装に対応する。Windowsの手動操作・実データ確認は[未完了テスト](../tests/README.md#未完了テストまとめて実施するもの)を参照。[切替前の契約](history/12-calculation-contract-before-detail-tax.md)は履歴として保持し、過去専用モードには使わない。
 
 ## 型・値引
 

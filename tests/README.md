@@ -4,33 +4,42 @@
 
 | 対象 | 件数 | 今回の確認 |
 | --- | ---: | --- |
-| 計算（JSON11＋VB24） | 35 | ローカル実行成功 |
-| 旧SQLite移行SQL（税端数5＋更新版5） | 10 | ローカル実行成功 |
-| 明細税率コピー移行 | 13 | .NET 8実行成功、Framework実行未完了 |
-| Windows実SQLite・画面・起動設定 | 97 | 参照アセンブリでコンパイル成功、実行未完了 |
-| 合計 | 155 | 全件成功とは扱わない |
+| 計算（JSON11＋VB24） | 35 | Linux CI・標準SDKで成功 |
+| 旧SQLite移行SQL（税端数5＋更新版5） | 10 | Linux CIで成功 |
+| 明細税率コピー移行 | 13 | .NET 8とWindows／Framework 4.8で成功 |
+| 移行CLIの起動・入出力保護 | 1 | Windows／Framework 4.8で成功 |
+| Windows実SQLite・画面・起動設定 | 97 | Windows CIで全件成功 |
+| 合計 | 156 | 全件成功（移行13件の実行環境違いは重複加算しない） |
 
 [現ブランチのCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fdetail-tax-application)。各実行のコミットと全ジョブ結果を確認する。今回の[42 明細税率へのアプリ切替](../docs/42-detail-tax-application.md)で、グループ税率のテストを明細税率・1分類1グループ・区分別の期間ルールへ更新した。過去のWindows成功を新コードの合格として流用しない。
 
-計算は.NET SDK 8.0.426のRoslynと.NET 8参照でプロジェクトの製品／テストソースを直接コンパイルして実行した。標準CLIとMSBuild経由のNuGet復元は、この環境の`NuGet-Migrations` mutexエラーで実行できない。独自コントロール・全製品VBソース・更新したWindowsテストは.NET Framework 4.8参照と製品と同じSQLite DLLでコンパイルした。これはWindows実行や標準ソリューションビルドの成功を意味しない。Windowsテストには変更前からのループ変数キャプチャ警告が1件残る。
+2026-10-22、公開後の[Tests #39866571306](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39866571306)（`d331707`）で、計算35件・旧移行10件・コピー移行13件のLinux実行、Windows97件・コピー移行13件・CLI1件、移行ツールの標準ビルド、既存ソリューションのNuGet復元・MSBuild、性能12ケースに成功した。4ジョブすべて成功。性能CSVは同runの`receipt-read-performance` artifactを参照する。
+
+性能CSVの12ケースで、一覧／支払方法別の保持済みSELECT数は各1回。合成データ1,200件の支払方法別では、従来13,201回／中央値417.337ms、新方式1回／79.595msだった。共有CI上の測定であり、実データ・利用者端末の性能確認は別途行う。
+
+[最初の公開後CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39776377681)で見つかった残高メモの読込列を修正した。日付変更の二重確認への応答と例外型の期待値、空グループの税率参照、分類を分けた後の表示条件も現行仕様へ合わせた。[再検証時の92/97件](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39865397843)は失敗の履歴として保持し、上記の修正後CIを現在の結果とする。Windowsテストは実行中のチェック名を記録し、UI例外をテストへ伝播させ、1チェック180秒／ジョブ30分を上限にする。CLI・移行・元ソリューションは別ジョブとし、画面テストの失敗で検証全体が止まらないようにした。
+
+以下のローカル検証は公開前の記録として保持する。
+
+計算は.NET SDK 8.0.426のRoslynと.NET 8参照でプロジェクトの製品／テストソースを直接コンパイルして実行した。当時のローカル環境では、標準CLIとMSBuild経由のNuGet復元は`NuGet-Migrations` mutexエラーで実行できなかった。独自コントロール・全製品VBソース・更新したWindowsテストは.NET Framework 4.8参照と製品と同じSQLite DLLでコンパイルした。これはWindows実行や標準ソリューションビルドの成功を意味しない。Windowsテストには変更前からのループ変数キャプチャ警告が1件残る。
 
 会計890円、負額単独−110円、0.14%値引14円、明細内の混合税率／対象外、28桁の割引率、巨大な中間値と100%値引、1/3の正負按分とメモ保持を確認する。按分の固定期待値は独立したPython Fractionの検算でも確認し、旧Double・旧参考額の誤差維持を契約にしない。参考税額と最終円額を丸める新方式では、10%の−5円を2人按分したfloorが−4円となる。
 
-コピー移行は元DB非変更、WAL、出力保護、キー・対象者・NULL／空／重複メモ、FK ON/OFF、4段階の失敗復元・同じ接続での再実行、不正値／独自構造拒否を検証する。.NET 8／Microsoft.Data.SqliteのSQLite 3.41.2と公式ソースをビルドした3.32.0で成功した。Framework 4.8では製品と同じSystem.Data.SQLite 1.0.113.1を使う同じ13チェックを用意し、実行は未完了。
+コピー移行は元DB非変更、WAL、出力保護、キー・対象者・NULL／空／重複メモ、FK ON/OFF、4段階の失敗復元・同じ接続での再実行、不正値／独自構造拒否を検証する。.NET 8／Microsoft.Data.SqliteのSQLite 3.41.2と公式ソースをビルドした3.32.0で成功した。Framework 4.8でも製品と同じSystem.Data.SQLite 1.0.113.1を使い、同じ13チェックに成功した。
 
 ## 未完了テスト（まとめて実施するもの）
 
 利用者の2026-10-22の指示により、実行できていない以下をまとめて実施する。実DBは未適用。結果・対象コミット・残る問題をこの一覧へ追記し、完了するまでチェックを付けない。
 
-- [ ] Windows／Framework 4.8でコピー移行13チェックと実行ツールのビルドを確認する（PR #35からの未完了分）。
-- [ ] ビルド済みCLIを別プロセスで実行し、引数不足・正常移行・既存出力・元DBと同一パス・元DB不存在・移行失敗の終了コードと出力保護を確認する。空白を含むパスと元DB非変更も検証する（通常155件とは別のCLI受入チェック）。
-- [ ] 更新後のWindows97チェックを全実行し、失敗を修正する。明細税率の保存・3読込・更新・即時流用、初期値／手動選択、取消と再表示、メモ統合、FK・版競合、範囲超過、集計と残高推算を含む。
-- [ ] 標準SDKで計算・コピー移行を実行し、元ソリューションをNuGet復元・MSBuildする。参照コンパイルで確認できないリソース・設定・native DLL配置も確認する。
-- [ ] Windowsの読込性能ジョブを実行し、新仕様の一覧／支払方法別1 SELECTと比較CSV（12ケース）を確認する。
+- [x] Windows／Framework 4.8でコピー移行13チェックと実行ツールのビルドを確認する（PR #35からの未完了分）。
+- [x] ビルド済みCLIを別プロセスで実行し、引数不足・正常移行・既存出力・元DBと同一パス・元DB不存在・移行失敗の終了コードと出力保護を確認する。空白を含むパスと元DB非変更も検証した（移行13件とは別の1チェック）。
+- [x] 更新後のWindows97チェックを全実行し、失敗を修正する。明細税率の保存・3読込・更新・即時流用、初期値／手動選択、取消と再表示、メモ統合、FK・版競合、範囲超過、集計と残高推算を含む。
+- [x] 標準SDKで計算・コピー移行を実行し、元ソリューションをNuGet復元・MSBuildする。リソース・設定を含む既存ソリューションのビルドと、SQLite native DLLを使うWindowsテスト／CLI実行に成功した。
+- [x] Windowsの読込性能ジョブを実行し、新仕様の一覧／支払方法別1 SELECTと比較CSV（12ケース）を確認する。
 - [ ] Windowsの画面で税率欄の配置・Tab移動、標準以外の明細表示、入力保持・ラジオの独立性・確認取消・即時流用を手動確認する。
 - [ ] 実際の分類→区分と適用期間を確認・設定し、実DBのバックアップからコピー移行する。旧保存／旧再計算／新計算の全差分・対象者・メモと実レシート金額を照合する。
 
-前段のCI [#39699307457](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39699307457)は支払い／利用上限により全ジョブが開始前に停止（steps=0、annotation確認済み）。課金制限中は同じCIの明示的な再実行を繰り返さない。今回のCI状態は上のブランチリンクで確認する。
+前段のCI [#39699307457](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39699307457)は支払い／利用上限により全ジョブが開始前に停止（steps=0、annotation確認済み）。公開後は実行できるようになり、上記CIで未実施分を検証した。現在のCI状態は上のブランチリンクで確認する。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
@@ -42,6 +51,7 @@ dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbpro
 dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48
 dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
 dotnet build tools/DetailTaxMigration/DetailTaxMigration.vbproj
+dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48 -- --cli "$((Resolve-Path tools/DetailTaxMigration/bin/Debug/net48/DetailTaxMigration.exe).Path)"
 nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln
 msbuild HouseholdAccountsBeta/HouseholdAccountsBeta.sln /p:Configuration=Debug /p:Platform="Any CPU"
 ```
