@@ -29,18 +29,21 @@
         Points = New List(Of ReceiptPoint)()
     End Sub
 
+    ' 全明細を税率別に合算したレシート総額を返す。
     Public ReadOnly Property Total As Integer
         Get
             Return GetTotal(TaxType, TaxRoundingMode)
         End Get
     End Property
 
+    ' 収入明細を税率別に合算した金額を返す。
     Public ReadOnly Property Incomes As Integer
         Get
             Return CalculateTotal(-1, TaxType, TaxRoundingMode)
         End Get
     End Property
 
+    ' 支出明細を税率別に合算した金額を返す。
     Public ReadOnly Property Expenses As Integer
         Get
             Return CalculateTotal(1, TaxType, TaxRoundingMode)
@@ -52,10 +55,12 @@
         Return CalculateTotal(0, taxType, taxRoundingMode)
     End Function
 
+    ' 収支の抽出条件に従って明細を合算・端数処理する。
     Private Function CalculateTotal(signFilter As Integer, taxType As Integer, mode As String) As Integer
         Return CInt(Calculation.SumDetails(Groups.SelectMany(Function(g) g.Details), taxType, mode, signFilter).Rounded(mode))
     End Function
 
+    ' 対象者で明細を絞り、分類別の統計金額を計算する。
     Public Function GetGroupStatisticsList(users As List(Of User), IsAnd As Boolean, IsOnlyPerson As Boolean) As List(Of GroupStatistics)
         Dim result As New List(Of GroupStatistics)
         For Each group As ReceiptGroup In Groups

@@ -22,6 +22,7 @@ Public NotInheritable Class ReceiptAmountValidation
         End Try
     End Function
 
+    ' 元の明細を変更せずに追加・更新後の金額範囲を検証する。
     Public Shared Function CanApplyDetail(receipt As Receipt, target As ReceiptGroup, previous As ReceiptDetail,
                                           pending As ReceiptDetail, taxType As Integer, roundingMode As String) As Boolean
         If Not receipt.Groups.Contains(target) Then Throw New ArgumentException("対象グループがレシートにありません。", NameOf(target))

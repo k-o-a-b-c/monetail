@@ -3,6 +3,7 @@
 Public Class Calculation
     Public Shared DataAccess As DataAccess
 
+    ' 統合するグループのメモを順序と重複を保ってまとめる。
     Public Shared Function MergeGroupNotes(notes As IList(Of String)) As String
         If notes.Count = 1 Then Return notes(0)
         Dim nonempty = notes.Where(Function(note) Not String.IsNullOrEmpty(note)).ToList()
@@ -10,6 +11,7 @@ Public Class Calculation
         Return String.Join(vbLf, nonempty.Select(Function(note, index) "【統合元 " & (index + 1).ToString() & "】" & vbLf & note))
     End Function
 
+    ' 税端数方式が切り捨て・四捨五入のいずれかを検証する。
     Public Shared Sub ValidateTaxRoundingMode(mode As String)
         If mode <> "floor" AndAlso mode <> "half_up" Then Throw New ArgumentException("税端数処理は floor または half_up を指定してください。", NameOf(mode))
     End Sub
@@ -82,10 +84,12 @@ Public Class Calculation
         End If
     End Function
 
+    ' グループ内の明細を税率別に合算した参考金額を返す。
     Public Shared Function GroupCalculatedFee(receipt As Receipt, group As ReceiptGroup) As Integer
         Return CInt(SumDetails(group.Details, receipt.TaxType, receipt.TaxRoundingMode).Rounded(receipt.TaxRoundingMode))
     End Function
 
+    ' 明細単体の税率と端数方式で参考金額を計算する。
     Public Shared Function DetailCalculatedFee(receipt As Receipt, group As ReceiptGroup, detail As ReceiptDetail) As Integer
         Return CInt(SumDetails({detail}, receipt.TaxType, receipt.TaxRoundingMode).Rounded(receipt.TaxRoundingMode))
     End Function

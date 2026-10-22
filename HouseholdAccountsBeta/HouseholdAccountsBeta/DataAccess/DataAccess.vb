@@ -65,6 +65,7 @@ Public Class DataAccess
             Return _GroupClassificationList
         End Get
     End Property
+    ' 分類と初期税率区分をマスタから読み込む。
     Private Sub ReadGroupClassification()
         If _GroupClassificationList IsNot Nothing Then
             Return
@@ -217,8 +218,10 @@ Public Class DataAccess
 
     End Sub
 
+    ' 税率区分・開始日・税率コードの適用履歴を保持する。
     Private TaxRules As List(Of Tuple(Of Integer, DateTime, Integer))
 
+    ' 分類の税率区分と日付から最新の適用税率を取得する。
     Public Function GetInitialTaxRate(classification As GroupClassification, receiptDate As DateTime) As TaxRate
         If classification Is Nothing Then Return Nothing
         If TaxRules Is Nothing Then
@@ -237,6 +240,7 @@ Public Class DataAccess
         Return If(rule Is Nothing, Nothing, TaxRate(rule.Item3))
     End Function
 
+    ' 税率と課税種別のマスタを保持する。
     Private _TaxRateList As List(Of TaxRate)
     Private ReadOnly Property TaxRate(ByVal code As Integer) As TaxRate
         Get
@@ -250,6 +254,7 @@ Public Class DataAccess
             Return _TaxRateList
         End Get
     End Property
+    ' 税率と課税種別をマスタから読み込む。
     Private Sub ReadTaxRate()
         If _TaxRateList IsNot Nothing Then
             Return
@@ -467,6 +472,7 @@ Public Class DataAccess
     End Function
 
     ' 子が空でも親を残す。分類の絞り込みも親のWHEREではなくJOIN条件に置く。
+    ' レシート・グループ・明細・対象者を一括取得するSQLを保持する。
     Private Const ReceiptHierarchySelect As String =
         "select r.seq, r.date, r.shop_name, r.shop_location, r.tax_type, r.payment_classification_code, r.tag, r.tax_rounding_mode, r.revision_token, " &
         "g.seq, g.group_classification_code, g.tag, " &
@@ -476,6 +482,7 @@ Public Class DataAccess
         "left join t_receipt_details d on d.receipt_seq = g.receipt_seq and d.group_seq = g.seq " &
         "left join t_receipt_detail_users u on u.receipt_seq = d.receipt_seq and u.group_seq = d.group_seq and u.detail_seq = d.seq "
 
+    ' 検索結果から明細税率を含むレシート階層を組み立てる。
     Private Function ReadReceiptHierarchy(command As SQLiteCommand) As List(Of Receipt)
         Dim receiptList As New List(Of Receipt)()
         Using reader As SQLiteDataReader = command.ExecuteReader
@@ -544,6 +551,7 @@ Public Class DataAccess
         receipt.Groups.AddRange(pending.Groups)
     End Sub
 
+    ' レシートの分類グループと子明細を読み込む。
     Private Sub LoadReceiptGroupData(ByVal receipt As Receipt, Optional ByVal GroupCode As Integer = -1)
         receipt.Groups.Clear()
 
@@ -567,6 +575,7 @@ Public Class DataAccess
 
     End Sub
 
+    ' グループの明細・税率・対象者を読み込む。
     Private Sub LoadReceiptDetailData(ByVal receiptGroup As ReceiptGroup)
 
         Using detailCommand As SQLiteCommand = Connection.CreateCommand
@@ -924,6 +933,7 @@ Public Class DataAccess
         Next
     End Sub
 
+    ' グループ・明細税率・対象者を保存する。
     Private Sub InsertReceiptGroups(ByVal receipt As Receipt)
 
         Using groupCommand As SQLiteCommand = Connection.CreateCommand()

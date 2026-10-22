@@ -860,6 +860,7 @@ Partial Class RegisterForm
     Friend WithEvents TotalPointColumn As DataGridViewTextBoxColumn
     Friend WithEvents CopyButton As Button
     Friend WithEvents Label3 As Label
+    ' 明細の税率・対象外を選択する。
     Friend WithEvents DetailTaxRateComboBox As OriginalControls.OriginalComboBox
     Friend WithEvents Label7 As Label
     Friend WithEvents TotalTextBox2 As OriginalControls.OriginalTextBox

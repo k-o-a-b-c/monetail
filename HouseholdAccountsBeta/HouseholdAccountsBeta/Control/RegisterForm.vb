@@ -23,12 +23,14 @@ Public Class RegisterForm
 
     Private InitializingReceiptControls As Boolean = True
 
+    ' 明細税率を手動で選択したかを保持する。
     Private DetailTaxManuallyChanged As Boolean
 
     Private UpdatingTaxRoundingMode As Boolean
 
     Private TaxRoundingModeManuallyChanged As Boolean
 
+    ' レシートとマスタを入力欄へ読み込む。
     Private Sub RegisterForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
         InitializingReceiptControls = True
@@ -102,6 +104,7 @@ Public Class RegisterForm
         UpdateGroupNames()
     End Sub
 
+    ' グループ一覧の分類名を更新する。
     Private Sub UpdateGroupNames()
         If Receipt Is Nothing Then Return
         For index As Integer = 0 To Math.Min(GroupListView.Items.Count, Receipt.Groups.Count) - 1
@@ -121,6 +124,7 @@ Public Class RegisterForm
         Next
     End Sub
 
+    ' 選択中グループの明細を一覧に表示する。
     Private Sub SetDetailListView()
         DetailListView.Items.Clear()
         If SelectedGroup IsNot Nothing Then
@@ -246,27 +250,32 @@ Public Class RegisterForm
 
     End Sub
 
+    ' 日付に応じて初期税率と明細名を更新する。
     Private Sub ReceiptDateTextBox_TextChanged(sender As Object, e As EventArgs) Handles ReceiptDateTextBox.TextChanged
         SetInitialDetailTaxRate()
         UpdateDetailNames()
     End Sub
 
+    ' 分類と日付に対応する初期税率を取得する。
     Private Function InitialDetailTaxRate() As TaxRate
         Dim classification = If(SelectedGroup Is Nothing, TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification), SelectedGroup.GroupClassification)
         Return DataAccess.GetInitialTaxRate(classification, ReceiptDateTextBox.Value)
     End Function
 
+    ' 手動選択・編集中の税率を保ち、新規明細の初期税率を設定する。
     Private Sub SetInitialDetailTaxRate()
         If DetailTaxRateComboBox.DataSource Is Nothing OrElse Detail IsNot Nothing OrElse DetailTaxManuallyChanged Then Return
         DetailTaxRateComboBox.SelectedItem = InitialDetailTaxRate()
     End Sub
 
+    ' 初期税率と異なる明細の名前に税率を付ける。
     Private Function DetailDisplayName(line As ReceiptDetail) As String
         Dim standard = InitialDetailTaxRate()
         If standard IsNot Nothing AndAlso standard.Rate = line.TaxRate.Rate AndAlso standard.TaxTreatment = line.TaxRate.TaxTreatment Then Return line.Name
         Return line.Name & "（" & line.TaxRate.DisplayName & "）"
     End Function
 
+    ' 編集中の入力を保ったまま明細一覧の名前を更新する。
     Private Sub UpdateDetailNames()
         If SelectedGroup Is Nothing Then Return
         For index = 0 To Math.Min(DetailListView.Items.Count, SelectedGroup.Details.Count) - 1
@@ -324,12 +333,14 @@ Public Class RegisterForm
 
 #Region "Group"
 
+    ' 同じ分類の統合先グループを検索する。
     Private Function FindGroupDestination() As ReceiptGroup
         Dim classification = TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification)
         If classification Is Nothing Then Return Nothing
         Return Receipt.Groups.FirstOrDefault(Function(g) g IsNot SelectedGroup AndAlso g.GroupClassification.Code = classification.Code)
     End Function
 
+    ' 分類の選択状態に応じてグループ操作ボタンを更新する。
     Private Sub UpdateAddGroupButton()
         Dim destination = FindGroupDestination()
         Dim hasClassification = GroupClassificationComboBox.SelectedItem IsNot Nothing
@@ -339,14 +350,17 @@ Public Class RegisterForm
         UpdateState()
     End Sub
 
+    ' 税率の選択状態に応じて明細操作ボタンを更新する。
     Private Sub DetailTaxRateComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles DetailTaxRateComboBox.SelectedIndexChanged
         UpdateAddDetailButton()
     End Sub
 
+    ' 税率の手動選択を記録して自動変更を防ぐ。
     Private Sub DetailTaxRateComboBox_SelectionChangeCommitted(sender As Object, e As EventArgs) Handles DetailTaxRateComboBox.SelectionChangeCommitted
         DetailTaxManuallyChanged = True
     End Sub
 
+    ' 分類に応じてグループ操作ボタンと初期税率を更新する。
     Private Sub GroupClassificationComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles GroupClassificationComboBox.SelectedIndexChanged
 
         UpdateAddGroupButton()
@@ -354,6 +368,7 @@ Public Class RegisterForm
 
     End Sub
 
+    ' 選択したグループを入力欄と明細一覧へ反映する。
     Private Sub GroupListView_SelectedIndexChanged(sender As Object, e As EventArgs) Handles GroupListView.SelectedIndexChanged
 
         ClearDetailControl(True)
@@ -390,6 +405,7 @@ Public Class RegisterForm
 
     End Sub
 
+    ' 分類に応じてグループを追加・更新・統合する。
     Private Sub AddGroupButton_Click(sender As Object, e As EventArgs) Handles AddGroupButton.Click
 
         UpdateAddGroupButton()
@@ -442,6 +458,7 @@ Public Class RegisterForm
 
 #Region "Detail"
 
+    ' 明細の入力欄をリセットして初期税率を設定する。
     Private Sub ClearDetailControl(ByVal isAllClear As Boolean)
         ItemNameComboBox.Text = String.Empty
         FeeTextBox.Text = String.Empty
@@ -459,14 +476,17 @@ Public Class RegisterForm
         SetInitialDetailTaxRate()
     End Sub
 
+    ' 品名の入力状態に応じて明細操作ボタンを更新する。
     Private Sub ItemNameComboBox_TextChanged(sender As Object, e As EventArgs) Handles ItemNameComboBox.TextChanged
         UpdateAddDetailButton()
     End Sub
 
+    ' グループ・品名・税率が揃ったときに明細操作を有効にする。
     Private Sub UpdateAddDetailButton()
         AddDetailButton.Enabled = SelectedGroup IsNot Nothing AndAlso Not String.IsNullOrEmpty(ItemNameComboBox.Text) AndAlso TypeOf DetailTaxRateComboBox.SelectedItem Is TaxRate
     End Sub
 
+    ' 選択した明細の金額・税率・対象者を入力欄へ反映する。
     Private Sub DetailListView_SelectedIndexChanged(sender As Object, e As EventArgs) Handles DetailListView.SelectedIndexChanged
 
         If DetailListView.SelectedItems.Count = 0 Then
@@ -500,6 +520,7 @@ Public Class RegisterForm
         Return value
     End Function
 
+    ' 割引率を精度を失わず読み取り、0～100に補正する。
     Private Function NormalizeDiscountRate() As Decimal
         Dim value As Decimal
         Dim format = CultureInfo.CurrentCulture.NumberFormat
@@ -525,6 +546,7 @@ Public Class RegisterForm
         NormalizeDiscountRate()
     End Sub
 
+    ' 入力した明細を金額検証後に追加・更新する。
     Private Sub AddDetailButton_Click(sender As Object, e As EventArgs) Handles AddDetailButton.Click
 
         UpdateAddDetailButton()

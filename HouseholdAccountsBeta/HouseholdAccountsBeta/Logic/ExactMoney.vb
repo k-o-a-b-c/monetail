@@ -4,9 +4,11 @@ Imports System.Text.RegularExpressions
 
 ' 移行とアプリの会計処理で使う十進値。途中の乗除算も暗黙に丸めない。
 Public NotInheritable Class ExactMoney
+    ' 共有計算クラスのインスタンス化を防ぐ。
     Private Sub New()
     End Sub
 
+    ' 割引率の文字列を丸めずにDecimalへ変換する。
     Public Shared Function ParseRate(text As String) As Decimal
         If text Is Nothing OrElse text.Length > 1024 Then Throw New FormatException("割引率の桁数が不正です。")
         Dim match = Regex.Match(text, "\A([+-]?)([0-9]+)(?:\.([0-9]+))?(?:[eE]([+-]?[0-9]+))?\z")
@@ -38,14 +40,17 @@ Public NotInheritable Class ExactMoney
                            SignedWord((coefficient >> 64) And mask), negative, CByte(scale))
     End Function
 
+    ' 32ビット値のビット列を保って符号付き整数へ変換する。
     Private Shared Function SignedWord(value As BigInteger) As Integer
         Return BitConverter.ToInt32(BitConverter.GetBytes(CUInt(value)), 0)
     End Function
 
+    ' 割引率を精度を保って保存用の共通書式へ変換する。
     Public Shared Function RateText(value As Decimal) As String
         Return value.ToString("G29", CultureInfo.InvariantCulture)
     End Function
 
+    ' 単価・数量・値引額・割引率から値引き後の金額を計算する。
     Public Shared Function Net(fee As Integer, discount As Integer, quantity As Integer, rate As Decimal) As BigInteger
         Dim basis = (New BigInteger(fee) - discount) * quantity
         Dim bits = Decimal.GetBits(rate)
@@ -62,6 +67,7 @@ Public NotInheritable Class ExactMoney
         Return basis - reduction
     End Function
 
+    ' 整数金額から内税・外税と端数方式に応じた税込金額を計算する。
     Public Shared Function Taxed(net As BigInteger, rate As Integer, taxType As Integer, mode As String) As BigInteger
         If mode <> "floor" AndAlso mode <> "half_up" Then Throw New ArgumentException("不正な税端数方式です。")
         If taxType <> 0 AndAlso taxType <> 1 Then Throw New ArgumentException("不正な内税／外税区分です。")
@@ -80,13 +86,17 @@ End Class
 
 ' 人数按分を十進小数へ近似せず、最後の業務上の丸めまで分数で保持する。
 Public Structure MoneyFraction
+    ' 分数金額の分子を保持する。
     Private ReadOnly numerator As BigInteger
+    ' 分数金額の分母を保持する。
     Private ReadOnly denominator As BigInteger
 
+    ' 金額と整数の分母から分数金額を生成する。
     Public Sub New(value As BigInteger, Optional divisor As Integer = 1)
         Me.New(value, New BigInteger(divisor))
     End Sub
 
+    ' 分子と分母を約分して分数金額を生成する。
     Private Sub New(value As BigInteger, divisor As BigInteger)
         If divisor <= 0 Then Throw New ArgumentOutOfRangeException(NameOf(divisor))
         Dim gcd = BigInteger.GreatestCommonDivisor(BigInteger.Abs(value), divisor)
@@ -94,16 +104,19 @@ Public Structure MoneyFraction
         denominator = divisor / gcd
     End Sub
 
+    ' 未初期化時も計算できるよう分母を補完する。
     Private ReadOnly Property Divisor As BigInteger
         Get
             Return If(denominator.IsZero, BigInteger.One, denominator)
         End Get
     End Property
 
+    ' 二つの分数金額を誤差なく加算する。
     Public Shared Operator +(left As MoneyFraction, right As MoneyFraction) As MoneyFraction
         Return New MoneyFraction(left.numerator * right.Divisor + right.numerator * left.Divisor, left.Divisor * right.Divisor)
     End Operator
 
+    ' 分数金額を指定された端数方式で整数へ丸める。
     Public Function Rounded(mode As String) As BigInteger
         If mode <> "floor" AndAlso mode <> "half_up" Then Throw New ArgumentException("不正な税端数方式です。")
         Dim result = numerator / Divisor
@@ -116,6 +129,7 @@ Public Structure MoneyFraction
         Return result
     End Function
 
+    ' 分数金額から内税・外税と端数方式に応じた税込金額を計算する。
     Public Function WithTax(rate As Integer, taxType As Integer, mode As String) As MoneyFraction
         If taxType <> 0 AndAlso taxType <> 1 Then Throw New ArgumentException("不正な内税／外税区分です。")
         If taxType = 0 Then Return Me

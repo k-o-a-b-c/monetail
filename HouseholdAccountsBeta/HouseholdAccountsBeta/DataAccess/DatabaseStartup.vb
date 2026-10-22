@@ -11,7 +11,7 @@ Friend NotInheritable Class DatabaseSetupException
 End Class
 
 Friend NotInheritable Class DatabaseStartup
-    ' 元DDLの必要列。列の型・値・追加列・索引・FK設定はこの検証では変更しない。
+    ' 明細税率への移行後に必要なテーブルと列を定義する。
     Private Shared ReadOnly RequiredColumns As String() = {
         "t_receipts:seq,date,shop_name,shop_location,tax_type,payment_classification_code,tag,update_user,update_datetime,total",
         "m_payment_classification:code,name,seq,default_point_code,user_code,valid_from,valid_to",
@@ -97,6 +97,7 @@ Friend NotInheritable Class DatabaseStartup
         End Try
     End Function
 
+    ' 移行済みのテーブル・列・完了IDを確認する。
     Private Shared Sub ValidateSchema(connection As SQLiteConnection, databasePath As String)
         Dim tables As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
         Using command = connection.CreateCommand()
