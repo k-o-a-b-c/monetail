@@ -7,17 +7,33 @@
 | 対象 | 件数 |
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの20チェック） | 31 |
-| SQLite移行（税端数5＋更新版5） | 10 |
+| SQLite移行SQL（税端数5＋更新版5） | 10 |
+| 明細税率コピー移行（.NET 8／Framework 4.8で同じチェックを実行） | 13 |
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋同分類の複数税率5） | 97 |
-| 合計 | 138 |
+| 合計（同じチェックの実行環境違いは重複加算しない） | 151 |
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Adocs%2Fdetail-tax-unified-design)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fdetail-tax-migration)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
-明細税率への[統一設計](../docs/40-detail-tax-unified-design.md)に向け、既存チェック内に現行の会計890円・収入−111円・支出1,000円と、10,000円の0.14%値引が現行Doubleでは15円になる境界を固定した。利用者はDecimalへ統一して誤差を修正する方針を決定した。採用する新期待値は会計890円・収入−110円・支出1,000円、0.14%値引は14円。[比較JSON](../docs/tests/detail-tax-migration-cases.json)は採用設計の資料であり、製品のDecimal化・移行実装は未完了。設計検算を現在の製品自動テスト件数へ加算しない。
+明細税率への[統一設計](../docs/40-detail-tax-unified-design.md)に向け、既存チェック内に現行の会計890円・収入−111円・支出1,000円と、10,000円の0.14%値引が現行Doubleでは15円になる境界を固定した。利用者はDecimalへ統一して誤差を修正する方針を決定した。採用する新期待値は会計890円・収入−110円・支出1,000円、0.14%値引は14円。[比較JSON](../docs/tests/detail-tax-migration-cases.json)は採用設計の資料であり、コピーDB移行は実装済みだがWindowsアプリは未切替。設計検算を現在の製品自動テスト件数へ加算しない。
 
 採用設計の比較JSONは10ケース。金額11項目をPythonのDecimalで照合し、0.14%値引も検算した。.NETのDecimalでも890円・−110円・値引14円／差引9,986円・負税額のfloor／half_up・税率別合算の8項目を検算した。これらは新計算の設計検証であり、製品コードやDB移行の実装テスト成功を示すものではない。
 
-今回の設計ブランチでは、計算31チェック（上記の追加固定値を含む）と移行10テストをローカルで確認した。計算は.NET SDK 8.0.426のRoslynでプロジェクトと同じ製品／テストソース・.NET 8参照を直接コンパイルして実行した。標準CLIは環境のNuGet初回処理のmutexで起動できなかったため、この方法を用いた。Windowsと製品コードは変更しておらず、変更前の[Tests #39583504358](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39583504358)の全件・既存ビルド成功を参照する。今回のGitHub Actionsは支払い／利用上限の問題で全ジョブが実行前に停止しており、CI成功とは扱わない。
+前段の設計PR #34では、計算31チェック（上記の追加固定値を含む）と移行10テストをローカルで確認した。計算は.NET SDK 8.0.426のRoslynでプロジェクトと同じ製品／テストソース・.NET 8参照を直接コンパイルして実行した。標準CLIは環境のNuGet初回処理のmutexで起動できなかったため、この方法を用いた。Windowsと製品コードは変更しておらず、変更前の[Tests #39583504358](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39583504358)の全件・既存ビルド成功を参照する。今回のGitHub Actionsは支払い／利用上限の問題で全ジョブが実行前に停止しており、CI成功とは扱わない。
+
+明細税率の[コピーDB移行](../docs/41-detail-tax-copy-migration.md)に13チェックを追加した。精度・整数範囲・税率別合算・両税区分／両端数方式・890円と旧誤差修正、異なる親の同一番号・対象者・空グループ・NULL／重複メモ、関係しない全表とヘッダー保存値、更新版・PRAGMAを確認する。FK ON/OFFで4段階の途中失敗からの完全復元と同じ接続での再実行、再適用拒否、不正データ／独自構造の拒否、索引再作成、追加可能な区分と未設定期間、呼出元トランザクション保持も検証する。ファイル実行はWALの確定値を含むコピー・比較CSV、元DBの非変更、既存出力保護と失敗時の出力削除を確認する。
+
+このブランチでは上記13チェックを.NET 8・Microsoft.Data.Sqliteでローカル実行して成功した。SQLite 3.41.2に加え、公式3.32.0 amalgamationをビルドしたライブラリでも同じ13チェックを実行して成功した。ツールとテストの.NET Framework 4.8参照・製品と同じSystem.Data.SQLite 1.0.113.1によるコンパイルも成功したが、LinuxでFramework版を実行した結果ではない。既存の計算31・移行SQL10も変更前に再確認済み。Windowsアプリ本体は未変更で、既存97チェックは前段の成功CIを参照する。[Tests #39699307457](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39699307457)はGitHubアカウントの支払い／利用上限により全ジョブが開始前に停止した（steps=0、annotationで確認）。新しいWindows実行とツールのSDKビルドは未確認であり、CI成功とは扱わない。更新後の結果は上のブランチリンクで確認する。
+
+```sh
+dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net8.0
+```
+
+Windowsでは同じチェックを製品のSQLiteプロバイダーでも実行する。CIに両方の実行とツールのビルドを追加した。
+
+```powershell
+dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48
+dotnet build tools/DetailTaxMigration/DetailTaxMigration.vbproj
+```
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
