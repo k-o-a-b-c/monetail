@@ -122,7 +122,6 @@ Friend Module ReceiptReadMeasurements
                 Equal(receipt.Seq, group.ReceiptSeq)
                 Equal(groupIndex + 1, group.Seq)
                 Equal(groupIndex + 1, group.GroupClassification.Code)
-                Equal(5, group.TaxRate.Code)
                 Equal(4, group.Details.Count)
                 For detailIndex = 0 To 3
                     Dim detail = group.Details(detailIndex)
@@ -132,8 +131,8 @@ Friend Module ReceiptReadMeasurements
                     Equal(101, detail.Fee)
                     Equal(1, detail.Quantity)
                     Equal(0, detail.DiscountFee)
-                    Equal(0.0, detail.DiscountRate)
-                    Equal(True, detail.TaxTarget)
+                    Equal(0D, detail.DiscountRate)
+                    Equal(True, detail.TaxRate.IsTaxable)
                     Equal("1,2", String.Join(",", detail.Users.Select(Function(u) u.Code)))
                 Next
             Next
@@ -155,17 +154,17 @@ Friend Module ReceiptReadMeasurements
                         "DELETE FROM t_receipt_detail_users; DELETE FROM t_receipt_details; " &
                         "DELETE FROM t_receipt_groups; DELETE FROM t_receipts; " &
                         "INSERT INTO m_user(code,name,account_name,seq) VALUES(2,'synthetic user','synthetic-account',2); " &
-                        "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'synthetic group',2,1,0); " &
+                        "INSERT INTO m_group_classification(code,name,seq,default_tax_category_code) VALUES(2,'synthetic group',2,1); " &
                         "WITH RECURSIVE months(m) AS (VALUES(1) UNION ALL SELECT m+1 FROM months WHERE m<12), " &
                         "items(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM items WHERE n<@monthly) " &
                         "INSERT INTO t_receipts(seq,date,shop_name,shop_location,tax_type,payment_classification_code,tag,update_user,update_datetime,total,tax_rounding_mode) " &
                         "SELECT (m-1)*@monthly+n,printf('2026-%02d-%02d 12:00:00',m,(n-1)%28+1),'synthetic shop','',1,1,'','synthetic','2026-01-01', " &
                         "CASE WHEN ((m-1)*@monthly+n)%2=0 THEN 889 ELSE 888 END, " &
                         "CASE WHEN ((m-1)*@monthly+n)%2=0 THEN 'half_up' ELSE 'floor' END FROM months CROSS JOIN items; " &
-                        "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tax,tag) " &
-                        "SELECT r.seq,g.n,g.n,5,'' FROM t_receipts r CROSS JOIN (SELECT 1 n UNION ALL SELECT 2) g; " &
-                        "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag) " &
-                        "SELECT g.receipt_seq,g.seq,d.n,'synthetic item',101,1,0,0,1,'' FROM t_receipt_groups g " &
+                        "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tag) " &
+                        "SELECT r.seq,g.n,g.n,'' FROM t_receipts r CROSS JOIN (SELECT 1 n UNION ALL SELECT 2) g; " &
+                        "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_code,tag) " &
+                        "SELECT g.receipt_seq,g.seq,d.n,'synthetic item',101,1,0,'0',5,'' FROM t_receipt_groups g " &
                         "CROSS JOIN (SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4) d; " &
                         "INSERT INTO t_receipt_detail_users(receipt_seq,group_seq,detail_seq,user_code) " &
                         "SELECT d.receipt_seq,d.group_seq,d.seq,u.code FROM t_receipt_details d CROSS JOIN m_user u;"

@@ -15,17 +15,22 @@ Friend Class DatabaseFixture
         Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "monetail_schema.sql")))
         Execute("INSERT INTO m_user(code,name,account_name,seq) VALUES(1,'test',@account,1);", Environment.UserName)
         Execute("INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(1,'cash',1,1);" &
-                "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(1,'food',1,1,0);" &
+                "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(1,'food',1,1,0),(92,'second',92,1,0),(93,'third',93,1,0),(94,'fourth',94,1,0);" &
                 "INSERT INTO m_tax_rate(code,rate,start_date) VALUES(4,8,'2014-04-01'),(5,10,'2019-10-01');" &
                 "INSERT INTO m_shop(code,name,seq,user_code) VALUES(1,'registered shop',1,1);" &
                 "INSERT INTO t_receipts(seq,date,shop_name,shop_location,tax_type,payment_classification_code,tag,update_user,update_datetime,total) " &
                 "VALUES(1,'2026-10-16 12:00:00','history shop','',1,1,'','test','2026-10-16',41);" &
-                "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tax,tag) VALUES(1,1,1,5,''),(1,2,1,5,'');" &
+                "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tax,tag) VALUES(1,1,1,5,''),(1,2,92,5,'');" &
                 "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag) " &
                 "VALUES(1,1,1,'item',19,1,0,0,1,''),(1,2,1,'item',19,1,0,0,1,'');" &
                 "INSERT INTO t_receipt_detail_users(receipt_seq,group_seq,detail_seq,user_code) VALUES(1,1,1,1);")
         Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "tax_rounding.sql")))
         Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "revision_tokens.sql")))
+        Using connection As New SQLiteConnection(ConnectionString)
+            connection.Open()
+            DetailTaxMigration.Run(connection)
+        End Using
+        Execute("INSERT INTO m_tax_category_rule VALUES(1,'2014-04-01',4),(1,'2019-10-01',5),(2,'2014-04-01',4),(3,'0001-01-01',0)")
         Data = New DataAccess(ConnectionString)
     End Sub
 
@@ -65,9 +70,9 @@ Friend Class DatabaseFixture
                 command.CommandText = "INSERT INTO t_receipts " &
                     "(seq,date,shop_name,shop_location,tax_type,tax_rounding_mode,payment_classification_code,tag,update_user,update_datetime,total) " &
                     "VALUES (@seq,@date,@shop,'',1,@mode,@payment,'','test',@date,0);" &
-                    "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tax,tag) VALUES(@seq,1,1,5,'');" &
-                    "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag) " &
-                    "VALUES(@seq,1,1,'history item',0,1,0,0,1,'')"
+                    "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tag) VALUES(@seq,1,1,'');" &
+                    "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_code,tag) " &
+                    "VALUES(@seq,1,1,'history item',0,1,0,'0',5,'')"
                 command.Parameters.AddWithValue("seq", seq)
                 command.Parameters.AddWithValue("date", receiptDate)
                 command.Parameters.AddWithValue("shop", shopName)

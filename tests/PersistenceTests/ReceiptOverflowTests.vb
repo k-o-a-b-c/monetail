@@ -97,7 +97,7 @@ Friend Module ReceiptOverflowTests
         form.DiscountFeeTextBox.Text = discount.ToString(CultureInfo.InvariantCulture)
         form.DiscountRateTextBox.Text = "0"
         form.DetailTagTextBox.Text = "pending tag"
-        form.TaxTargetCheckBox.Checked = taxable
+        form.DetailTaxRateComboBox.SelectedValue = If(taxable, 5, 0)
         form.UserListBox.ClearSelected()
     End Sub
 
@@ -109,7 +109,7 @@ Friend Module ReceiptOverflowTests
     Private Function InputState(form As RegisterForm) As String
         Return String.Join("|", form.ItemNameComboBox.Text, form.FeeTextBox.Text, form.QuantityTextBox.Text,
             form.DiscountFeeTextBox.Text, form.DiscountRateTextBox.Text, form.DetailTagTextBox.Text,
-            form.TaxTargetCheckBox.Checked.ToString(), form.AddDetailButton.Text,
+            Convert.ToString(form.DetailTaxRateComboBox.SelectedValue), form.AddDetailButton.Text,
             form.TaxExclusiveRadioButton.Checked.ToString(), form.TaxRoundingHalfUpRadioButton.Checked.ToString(),
             form.TotalTextBox.Text, form.TotalTextBox2.Text,
             String.Join(",", form.DetailListView.SelectedIndices.Cast(Of Integer)()),

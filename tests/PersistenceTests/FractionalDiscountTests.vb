@@ -3,7 +3,7 @@ Imports System.Globalization
 Imports System.Linq
 
 Friend Module FractionalDiscountTests
-    Private ReadOnly Rates As Double() = {0, 3, 2.5, 2.6}
+    Private ReadOnly Rates As Decimal() = {0D, 3D, 2.5D, 2.6D}
     Private ReadOnly FloorTotals As Integer() = {216, 209, 210, 209}
     Private ReadOnly HalfUpTotals As Integer() = {216, 210, 211, 210}
 
@@ -37,8 +37,8 @@ Friend Module FractionalDiscountTests
                             End If
                             Dim detailFilter = " FROM t_receipt_details WHERE receipt_seq=" &
                                 receipt.Seq.ToString(CultureInfo.InvariantCulture)
-                            Equal(rate, Convert.ToDouble(fixture.Scalar("SELECT CAST(discount_rate AS REAL)" & detailFilter)), context & " saved rate")
-                            Equal(If(rate = Math.Truncate(rate), "integer", "real"),
+                            Equal(rate, ExactMoney.ParseRate(Convert.ToString(fixture.Scalar("SELECT discount_rate" & detailFilter))), context & " saved rate")
+                            Equal("text",
                                 Convert.ToString(fixture.Scalar("SELECT typeof(discount_rate)" & detailFilter)), context & " SQLite storage class")
                             Equal(expectedTotal, Convert.ToInt32(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=" &
                                 receipt.Seq.ToString(CultureInfo.InvariantCulture))), context & " saved total")
@@ -76,7 +76,7 @@ Friend Module FractionalDiscountTests
         If failures.Count > 0 Then Throw New Exception(String.Join(Environment.NewLine, failures))
     End Sub
 
-    Private Sub AssertReceipt(receipt As Receipt, mode As String, rate As Double, total As Integer, context As String)
+    Private Sub AssertReceipt(receipt As Receipt, mode As String, rate As Decimal, total As Integer, context As String)
         Dim detail = receipt.Groups.Single().Details.Single()
         Equal(mode, receipt.TaxRoundingMode, context & " rounding mode")
         Equal(1, receipt.TaxType, context & " tax type")
@@ -84,13 +84,13 @@ Friend Module FractionalDiscountTests
         Equal(103, detail.Fee, context & " fee")
         Equal(3, detail.DiscountFee, context & " manual discount per unit")
         Equal(2, detail.Quantity, context & " quantity")
-        Equal(True, detail.TaxTarget, context & " tax target")
+        Equal(True, detail.TaxRate.IsTaxable, context & " tax target")
         Equal(total, receipt.Total, context & " total")
     End Sub
 
     Private Function SavedValues(fixture As DatabaseFixture, receiptSeq As Integer) As String
         Return Convert.ToString(fixture.Scalar("SELECT quote(d.discount_rate)||'|'||typeof(d.discount_rate)||'|'||" &
-            "r.total||'|'||d.fee||'|'||d.discount_fee||'|'||d.quantity||'|'||d.tax_target " &
+            "r.total||'|'||d.fee||'|'||d.discount_fee||'|'||d.quantity||'|'||d.tax_code " &
             "FROM t_receipt_details d JOIN t_receipts r ON r.seq=d.receipt_seq WHERE r.seq=" &
             receiptSeq.ToString(CultureInfo.InvariantCulture)))
     End Function

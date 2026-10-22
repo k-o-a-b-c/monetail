@@ -1,4 +1,5 @@
 ﻿Imports System.ComponentModel
+Imports System.Globalization
 
 Public Class RegisterForm
 
@@ -21,6 +22,8 @@ Public Class RegisterForm
     Public PaymentClassification As PaymentClassification
 
     Private InitializingReceiptControls As Boolean = True
+
+    Private DetailTaxManuallyChanged As Boolean
 
     Private UpdatingTaxRoundingMode As Boolean
 
@@ -51,11 +54,11 @@ Public Class RegisterForm
             RegiserButton.Text = "更新"
         End If
 
-        GroupTaxRateComboBox.DataSource = DataAccess.TaxRateList
+        DetailTaxRateComboBox.DataSource = DataAccess.TaxRateList
         GroupClassificationComboBox.DataSource = DataAccess.GroupClassificationList
         GroupClassificationComboBox.SelectedIndex = -1
 
-        SetGroupTaxRate()
+        SetInitialDetailTaxRate()
 
         UserListBox.DataSource = DataAccess.UserList()
         UserListBox.Height = DetailListView.Top - UserListBox.Top
@@ -103,11 +106,7 @@ Public Class RegisterForm
         If Receipt Is Nothing Then Return
         For index As Integer = 0 To Math.Min(GroupListView.Items.Count, Receipt.Groups.Count) - 1
             Dim group = Receipt.Groups(index)
-            Dim initialTaxRate = GetInitialGroupTaxRate(group.GroupClassification)
             Dim name = group.GroupClassification.Name
-            If initialTaxRate Is Nothing OrElse group.TaxRate.Rate <> initialTaxRate.Rate Then
-                name &= "（" & group.TaxRate.Rate.ToString() & "%）"
-            End If
             ' 行を作り直さず、日付変更中の選択と未反映の入力を保持する。
             GroupListView.Items(index).Text = name
         Next
@@ -126,7 +125,7 @@ Public Class RegisterForm
         DetailListView.Items.Clear()
         If SelectedGroup IsNot Nothing Then
             For Each Detail As ReceiptDetail In SelectedGroup.Details
-                Dim item As New ListViewItem(New String() {Detail.Name, Detail.Fee.ToString(), Detail.Tag})
+                Dim item As New ListViewItem(New String() {DetailDisplayName(Detail), Detail.Fee.ToString(), Detail.Tag})
                 DetailListView.Items.Add(item)
             Next
         End If
@@ -248,22 +247,31 @@ Public Class RegisterForm
     End Sub
 
     Private Sub ReceiptDateTextBox_TextChanged(sender As Object, e As EventArgs) Handles ReceiptDateTextBox.TextChanged
-        SetGroupTaxRate()
-        UpdateGroupNames()
+        SetInitialDetailTaxRate()
+        UpdateDetailNames()
     End Sub
 
-    Private Function GetInitialGroupTaxRate(classification As GroupClassification) As TaxRate
-        Dim standardRate = ReceiptDateTextBox.Value.CompareTo(New Date(2019, 10, 1)) >= 0 AndAlso
-            (classification Is Nothing OrElse Not classification.ReducedTaxTarget)
-        Dim rate = If(standardRate, 10, 8)
-        ' 初期選択と一覧の標準税率を同じ判定にする。同率ならコード順で選ぶ。
-        Return DataAccess.TaxRateList.OrderBy(Function(candidate) candidate.Code).
-            FirstOrDefault(Function(candidate) candidate.Rate = rate)
+    Private Function InitialDetailTaxRate() As TaxRate
+        Dim classification = If(SelectedGroup Is Nothing, TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification), SelectedGroup.GroupClassification)
+        Return DataAccess.GetInitialTaxRate(classification, ReceiptDateTextBox.Value)
     End Function
 
-    Private Sub SetGroupTaxRate()
-        If GroupClassificationComboBox.DataSource Is Nothing Then Return
-        GroupTaxRateComboBox.SelectedItem = GetInitialGroupTaxRate(TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification))
+    Private Sub SetInitialDetailTaxRate()
+        If DetailTaxRateComboBox.DataSource Is Nothing OrElse Detail IsNot Nothing OrElse DetailTaxManuallyChanged Then Return
+        DetailTaxRateComboBox.SelectedItem = InitialDetailTaxRate()
+    End Sub
+
+    Private Function DetailDisplayName(line As ReceiptDetail) As String
+        Dim standard = InitialDetailTaxRate()
+        If standard IsNot Nothing AndAlso standard.Rate = line.TaxRate.Rate AndAlso standard.TaxTreatment = line.TaxRate.TaxTreatment Then Return line.Name
+        Return line.Name & "（" & line.TaxRate.DisplayName & "）"
+    End Function
+
+    Private Sub UpdateDetailNames()
+        If SelectedGroup Is Nothing Then Return
+        For index = 0 To Math.Min(DetailListView.Items.Count, SelectedGroup.Details.Count) - 1
+            DetailListView.Items(index).Text = DetailDisplayName(SelectedGroup.Details(index))
+        Next
     End Sub
 
 #End Region
@@ -318,49 +326,31 @@ Public Class RegisterForm
 
     Private Function FindGroupDestination() As ReceiptGroup
         Dim classification = TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification)
-        Dim taxRate = TryCast(GroupTaxRateComboBox.SelectedItem, TaxRate)
         If classification Is Nothing Then Return Nothing
-
-        ' 分類・税率が変わらない更新では、既存の重複グループを勝手に統合しない。
-        If SelectedGroup IsNot Nothing AndAlso classification.Code = SelectedGroup.GroupClassification.Code AndAlso
-            (taxRate Is Nothing OrElse taxRate.Code = SelectedGroup.TaxRate.Code) Then Return Nothing
-
-        Dim candidates = Receipt.Groups.Where(Function(g) g IsNot SelectedGroup AndAlso g.GroupClassification.Code = classification.Code)
-        If taxRate IsNot Nothing Then
-            Return candidates.FirstOrDefault(Function(g) g.TaxRate.Code = taxRate.Code)
-        End If
-
-        ' 初期税率が欠ける場合も、分類変更の統合先が一意なら従来の操作を維持する。
-        If SelectedGroup Is Nothing Then Return Nothing
-        Dim destinations = candidates.Take(2).ToArray()
-        Return If(destinations.Length = 1, destinations(0), Nothing)
+        Return Receipt.Groups.FirstOrDefault(Function(g) g IsNot SelectedGroup AndAlso g.GroupClassification.Code = classification.Code)
     End Function
 
     Private Sub UpdateAddGroupButton()
         Dim destination = FindGroupDestination()
         Dim hasClassification = GroupClassificationComboBox.SelectedItem IsNot Nothing
-        Dim hasTaxRate = GroupTaxRateComboBox.SelectedItem IsNot Nothing
-        If SelectedGroup Is Nothing Then
-            AddGroupButton.Text = "追加"
-            AddGroupButton.Enabled = hasClassification AndAlso hasTaxRate AndAlso destination Is Nothing
-            GroupTagTextBox.Enabled = True
-        Else
-            Dim mergeExisting = destination IsNot Nothing
-            AddGroupButton.Text = If(mergeExisting, "統合", "更新")
-            AddGroupButton.Enabled = hasClassification AndAlso (hasTaxRate OrElse mergeExisting)
-            GroupTagTextBox.Enabled = Not mergeExisting
-        End If
+        AddGroupButton.Text = If(SelectedGroup Is Nothing, "追加", If(destination Is Nothing, "更新", "統合"))
+        AddGroupButton.Enabled = hasClassification AndAlso (SelectedGroup IsNot Nothing OrElse destination Is Nothing)
+        GroupTagTextBox.Enabled = True
         UpdateState()
     End Sub
 
-    Private Sub GroupTaxRateComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles GroupTaxRateComboBox.SelectedIndexChanged
-        If Receipt IsNot Nothing Then UpdateAddGroupButton()
+    Private Sub DetailTaxRateComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles DetailTaxRateComboBox.SelectedIndexChanged
+        UpdateAddDetailButton()
+    End Sub
+
+    Private Sub DetailTaxRateComboBox_SelectionChangeCommitted(sender As Object, e As EventArgs) Handles DetailTaxRateComboBox.SelectionChangeCommitted
+        DetailTaxManuallyChanged = True
     End Sub
 
     Private Sub GroupClassificationComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles GroupClassificationComboBox.SelectedIndexChanged
 
         UpdateAddGroupButton()
-        SetGroupTaxRate()
+        SetInitialDetailTaxRate()
 
     End Sub
 
@@ -380,7 +370,6 @@ Public Class RegisterForm
             DetailPanel.Enabled = True
 
             GroupClassificationComboBox.SelectedItem = SelectedGroup.GroupClassification
-            GroupTaxRateComboBox.SelectedItem = SelectedGroup.TaxRate
             GroupTagTextBox.Text = SelectedGroup.Tag
 
             Dim ItemNameList As List(Of String) = DataAccess.GetItemNameList(ShopNameComboBox.Text, SelectedGroup.GroupClassification.Code)
@@ -395,6 +384,8 @@ Public Class RegisterForm
         End If
 
         UpdateAddGroupButton()
+        SetInitialDetailTaxRate()
+        UpdateAddDetailButton()
         SetDetailListView()
 
     End Sub
@@ -408,25 +399,27 @@ Public Class RegisterForm
         If SelectedGroup Is Nothing Then
             group = New ReceiptGroup() With {
                 .GroupClassification = DirectCast(GroupClassificationComboBox.SelectedItem, GroupClassification),
-                .TaxRate = DirectCast(GroupTaxRateComboBox.SelectedItem, TaxRate),
                 .Tag = GroupTagTextBox.Text
             }
             Receipt.Groups.Add(group)
         ElseIf destination IsNot Nothing Then
             group = destination
+            Dim notes = Receipt.Groups.Where(Function(g) g Is destination OrElse g Is SelectedGroup).
+                Select(Function(g) If(g Is SelectedGroup, GroupTagTextBox.Text, g.Tag)).ToList()
+            group.Tag = Calculation.MergeGroupNotes(notes)
             group.Details.AddRange(SelectedGroup.Details)
-            RemoveGroupButton.PerformClick()
+            Receipt.Groups.Remove(SelectedGroup)
         Else
             group = SelectedGroup
             group.GroupClassification = DirectCast(GroupClassificationComboBox.SelectedItem, GroupClassification)
-            group.TaxRate = DirectCast(GroupTaxRateComboBox.SelectedItem, TaxRate)
             group.Tag = GroupTagTextBox.Text
         End If
 
         SetGroupListView()
 
         GroupListView.Items(Receipt.Groups.IndexOf(group)).Selected = True
-        TaxTargetCheckBox.Checked = group.GroupClassification.DefaultTaxTarget
+        DetailTaxManuallyChanged = False
+        SetInitialDetailTaxRate()
 
         ItemNameComboBox.Select()
         ItemNameComboBox.SelectAll()
@@ -459,14 +452,19 @@ Public Class RegisterForm
         End If
         DetailTagTextBox.Text = String.Empty
         If isAllClear Then
-            TaxTargetCheckBox.Checked = True
+            DetailTaxManuallyChanged = False
         End If
         DetailListView.SelectedItems.Clear()
         RemoveDetailButton.Enabled = False
+        SetInitialDetailTaxRate()
     End Sub
 
     Private Sub ItemNameComboBox_TextChanged(sender As Object, e As EventArgs) Handles ItemNameComboBox.TextChanged
-        AddDetailButton.Enabled = Not String.IsNullOrEmpty(ItemNameComboBox.Text)
+        UpdateAddDetailButton()
+    End Sub
+
+    Private Sub UpdateAddDetailButton()
+        AddDetailButton.Enabled = SelectedGroup IsNot Nothing AndAlso Not String.IsNullOrEmpty(ItemNameComboBox.Text) AndAlso TypeOf DetailTaxRateComboBox.SelectedItem Is TaxRate
     End Sub
 
     Private Sub DetailListView_SelectedIndexChanged(sender As Object, e As EventArgs) Handles DetailListView.SelectedIndexChanged
@@ -486,7 +484,7 @@ Public Class RegisterForm
             DiscountFeeTextBox.Text = Detail.DiscountFee.ToString()
             DiscountRateTextBox.Text = Detail.DiscountRate.ToString()
             DetailTagTextBox.Text = Detail.Tag
-            TaxTargetCheckBox.Checked = Detail.TaxTarget
+            DetailTaxRateComboBox.SelectedItem = Detail.TaxRate
             UserListBox.ClearSelected()
             Detail.Users.ForEach(Sub(u) UserListBox.SelectedItem = u)
 
@@ -502,14 +500,20 @@ Public Class RegisterForm
         Return value
     End Function
 
-    Private Function NormalizeDiscountRate() As Double
-        Dim value As Double
-        If Not Double.TryParse(DiscountRateTextBox.Text, value) OrElse Double.IsNaN(value) OrElse Double.IsInfinity(value) Then
-            value = 0
-        Else
-            value = Math.Min(100, Math.Max(0, value))
-        End If
-        DiscountRateTextBox.Text = value.ToString()
+    Private Function NormalizeDiscountRate() As Decimal
+        Dim value As Decimal
+        Dim format = CultureInfo.CurrentCulture.NumberFormat
+        Dim text = DiscountRateTextBox.Text.Trim()
+        If format.NumberGroupSeparator.Length > 0 Then text = text.Replace(format.NumberGroupSeparator, "")
+        text = text.Replace(format.NumberDecimalSeparator, ".")
+        Try
+            value = ExactMoney.ParseRate(text)
+            value = Math.Min(100D, Math.Max(0D, value))
+        Catch ex As FormatException
+            ' 不正入力は従来どおり0に補正する。桁を落として別の率にはしない。
+            value = 0D
+        End Try
+        DiscountRateTextBox.Text = value.ToString(CultureInfo.CurrentCulture)
         Return value
     End Function
 
@@ -523,18 +527,20 @@ Public Class RegisterForm
 
     Private Sub AddDetailButton_Click(sender As Object, e As EventArgs) Handles AddDetailButton.Click
 
+        UpdateAddDetailButton()
+        If Not AddDetailButton.Enabled Then Return
         ' 欄を離れるイベントが発生しない操作でも、両欄を同じ式評価で確定する。
         Dim fee As Integer = NormalizeMoney(FeeTextBox)
         Dim discountFee As Integer = NormalizeMoney(DiscountFeeTextBox)
         Dim quantity As Integer = NormalizeQuantity()
-        Dim discountRate As Double = NormalizeDiscountRate()
+        Dim discountRate As Decimal = NormalizeDiscountRate()
 
         Dim previous As ReceiptDetail = If(DetailListView.SelectedItems.Count = 0, Nothing,
             SelectedGroup.Details(DetailListView.SelectedIndices(0)))
         Dim pending As New ReceiptDetail With {
             .Name = ItemNameComboBox.Text, .Fee = fee, .Quantity = quantity,
             .DiscountFee = discountFee, .DiscountRate = discountRate, .Tag = DetailTagTextBox.Text,
-            .TaxTarget = TaxTargetCheckBox.Checked
+            .TaxRate = DirectCast(DetailTaxRateComboBox.SelectedItem, TaxRate)
         }
         pending.Users.AddRange(UserListBox.SelectedItems.Cast(Of User))
         If Not ReceiptAmountValidation.CanApplyDetail(Receipt, SelectedGroup, previous, pending,
@@ -553,7 +559,7 @@ Public Class RegisterForm
             previous.DiscountFee = pending.DiscountFee
             previous.DiscountRate = pending.DiscountRate
             previous.Tag = pending.Tag
-            previous.TaxTarget = pending.TaxTarget
+            previous.TaxRate = pending.TaxRate
             previous.Users.Clear()
             previous.Users.AddRange(pending.Users)
             AddDetailButton.Text = "追加"

@@ -1,6 +1,8 @@
 # 02 現行SQLiteデータベース仕様（実DDL照合済み）
 
-> 明細税率・対象外・同分類統合は[40の設計](40-detail-tax-unified-design.md)。[41 コピーDB移行](41-detail-tax-copy-migration.md)を実装したが、Windowsアプリの切替は未完了。本書は現行アプリの構造を説明する。
+> 現行アプリは[41 コピーDB移行](41-detail-tax-copy-migration.md)後の構造を必須とする。[42 切替](42-detail-tax-application.md)。以下の提出時DDL・旧移行の数値は履歴として保持し、旧列を現行の必須列とはしない。
+
+現行では`m_tax_rate.tax_treatment`、`m_group_classification.default_tax_category_code`、`t_receipt_details.tax_code`とTEXTの`discount_rate`を使う。旧グループ`tax`、明細`tax_target`、分類の2フラグは廃止。追加表は`m_tax_category`・`m_tax_category_rule`と、41に示す4つの監査／対応表。元DDLと最初の2移行後は16表・95列・17FK、コピー移行後は22表・122列・21FKとなる。`UNIQUE(receipt_seq,group_classification_code)`で同分類の重複グループを禁止する。
 
 更新日: 2026-10-19。対象: `monetail-legacy`、VB.NET / .NET Framework 4.8 / SQLite。
 

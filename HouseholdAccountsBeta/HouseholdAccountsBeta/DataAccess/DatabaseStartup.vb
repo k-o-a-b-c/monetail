@@ -18,17 +18,20 @@ Friend NotInheritable Class DatabaseStartup
         "m_point_classification:code,name,seq,default_rate",
         "t_receipt_points:receipt_seq,seq,code,rate,fixed_points,total_points",
         "t_transfers:seq,date,name,fee,from_payment_classification_code,to_payment_classification_code,tag,update_user,update_datetime",
-        "m_group_classification:code,name,seq,default_tax_target,reduced_tax_target",
-        "t_receipt_groups:receipt_seq,seq,group_classification_code,tag,tax",
-        "t_receipt_details:receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag",
+        "m_group_classification:code,name,seq,default_tax_category_code",
+        "t_receipt_groups:receipt_seq,seq,group_classification_code,tag",
+        "t_receipt_details:receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_code,tag",
         "m_shop:code,name,seq,default_point_code,default_group_classification_code,user_code",
-        "m_tax_rate:code,rate,start_date",
+        "m_tax_rate:code,rate,start_date,tax_treatment",
         "t_balances:seq,date,tag,update_user,update_datetime",
         "t_balance_groups:balance_seq,payment_classification_code,balance,tag,valuation_amount",
         "m_user:code,name,account_name,seq",
         "t_receipt_detail_users:receipt_seq,group_seq,detail_seq,user_code",
         "t_payment_memo:payment_classification_code,check_date,tag",
-        "t_exchange_rates:rate_date,base_currency,quote_currency,middle_rate"
+        "t_exchange_rates:rate_date,base_currency,quote_currency,middle_rate",
+        "m_tax_category:code,name",
+        "m_tax_category_rule:tax_category_code,start_date,tax_code",
+        "detail_tax_migration:id,completed_utc"
     }
 
     Friend Shared ReadOnly Property ConfigurationFilePath As String
@@ -104,6 +107,10 @@ Friend NotInheritable Class DatabaseStartup
                 End While
             End Using
         End Using
+        If Not tables.Contains("t_receipts") Then Throw SetupError("Monetailの必要なテーブルがありません: t_receipts", databasePath)
+        If Not tables.Contains("detail_tax_migration") Then
+            Throw SetupError("明細税率のコピーDB移行が必要です。docs/41-detail-tax-copy-migration.mdの手順を確認してください。", databasePath)
+        End If
         Dim columns As New Dictionary(Of String, HashSet(Of String))(StringComparer.OrdinalIgnoreCase)
         For Each requirement In RequiredColumns
             Dim parts = requirement.Split(":"c)
@@ -126,6 +133,10 @@ Friend NotInheritable Class DatabaseStartup
                 RequireColumn(columns, table, name, "Monetailの必要な列がありません。", databasePath)
             Next
         Next
+        Using command = connection.CreateCommand()
+            command.CommandText = "SELECT COUNT(*) FROM detail_tax_migration WHERE id='20261022_detail_tax_decimal'"
+            If Convert.ToInt32(command.ExecuteScalar()) <> 1 Then Throw SetupError("明細税率の移行が完了していません。", databasePath)
+        End Using
         For Each table In New String() {"t_receipts", "m_shop"}
             RequireColumn(columns, table, "tax_rounding_mode",
                 "税端数のDB移行が必要です。バックアップ後、20261017_01_shop_tax_rounding.sqlの手順を確認してください。", databasePath)

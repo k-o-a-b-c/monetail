@@ -58,7 +58,8 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [38 税率の初期選択](docs/38-tax-default-selection.md) | マスタの並び順に依存せず8%／10%を選択し、保存済み税率を保持 |
 | [39 同じ分類の複数税率](docs/39-classification-tax-groups.md) | 分類と税率でグループを区別し、追加・更新・統合と保存を維持 |
 | [40 明細税率への統一設計](docs/40-detail-tax-unified-design.md) | 対象外・同分類統合とDecimal計算の採用仕様 |
-| [41 明細税率のコピーDB移行](docs/41-detail-tax-copy-migration.md) | 元DBを保持する移行ツール、旧新金額・キーの記録（アプリ切替は未完了） |
+| [42 明細税率へのWindows版切替](docs/42-detail-tax-application.md) | 明細税設定・正確な計算・期間別初期値と未完了の受入確認 |
+| [41 明細税率のコピーDB移行](docs/41-detail-tax-copy-migration.md) | 元DBを保持する移行ツール、旧新金額・キーの記録 |
 
 ### 読む順番
 

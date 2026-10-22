@@ -273,7 +273,7 @@ Friend Module DetailInputTests
         form.DiscountFeeTextBox.Text = "3"
         form.DiscountRateTextBox.Text = rate
         form.DetailTagTextBox.Text = "pending tag"
-        form.TaxTargetCheckBox.Checked = False
+        form.DetailTaxRateComboBox.SelectedValue = 0
         form.UserListBox.ClearSelected()
         Equal(True, form.AddDetailButton.Enabled)
     End Sub
@@ -281,7 +281,7 @@ Friend Module DetailInputTests
     Private Function InputState(form As RegisterForm) As String
         Return String.Join("|", form.ItemNameComboBox.Text, form.FeeTextBox.Text,
             form.DiscountFeeTextBox.Text, form.DetailTagTextBox.Text,
-            form.TaxTargetCheckBox.Checked.ToString(), form.AddDetailButton.Text,
+            Convert.ToString(form.DetailTaxRateComboBox.SelectedValue), form.AddDetailButton.Text,
             String.Join(",", form.DetailListView.SelectedIndices.Cast(Of Integer)()),
             String.Join(",", form.UserListBox.SelectedItems.Cast(Of User)().Select(Function(u) u.Code)))
     End Function

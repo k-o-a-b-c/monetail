@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net48" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.1" ExcludeAssets="native" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/ExactMoney.vb" Link="ExactMoney.vb" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Data" />
   </ItemGroup>

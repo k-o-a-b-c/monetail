@@ -1,4 +1,5 @@
 ﻿Imports System.Data.SQLite
+Imports System.Globalization
 
 Public Class DataAccess
     Implements IDisposable
@@ -70,14 +71,13 @@ Public Class DataAccess
         End If
         _GroupClassificationList = New List(Of GroupClassification)()
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select code, name, default_tax_target, reduced_tax_target from m_group_classification order by seq, code"
+            command.CommandText = "select code, name, default_tax_category_code from m_group_classification order by seq, code"
             Using reader As SQLiteDataReader = command.ExecuteReader
                 While reader.Read()
                     Dim groupClassification As New GroupClassification() With {
                         .Code = reader.GetInt32(0),
                         .Name = reader.GetString(1),
-                        .DefaultTaxTarget = (reader.GetInt32(2) = 1),
-                        .ReducedTaxTarget = (reader.GetInt32(3) = 1)
+                        .DefaultTaxCategoryCode = reader.GetInt32(2)
                     }
                     _GroupClassificationList.Add(groupClassification)
                 End While
@@ -217,6 +217,26 @@ Public Class DataAccess
 
     End Sub
 
+    Private TaxRules As List(Of Tuple(Of Integer, DateTime, Integer))
+
+    Public Function GetInitialTaxRate(classification As GroupClassification, receiptDate As DateTime) As TaxRate
+        If classification Is Nothing Then Return Nothing
+        If TaxRules Is Nothing Then
+            Dim pending As New List(Of Tuple(Of Integer, DateTime, Integer))
+            Using command = Connection.CreateCommand()
+                command.CommandText = "SELECT tax_category_code,start_date,tax_code FROM m_tax_category_rule ORDER BY tax_category_code,start_date DESC"
+                Using reader = command.ExecuteReader()
+                    While reader.Read()
+                        pending.Add(Tuple.Create(reader.GetInt32(0), DateTime.ParseExact(reader.GetString(1), "yyyy-MM-dd", CultureInfo.InvariantCulture), reader.GetInt32(2)))
+                    End While
+                End Using
+            End Using
+            TaxRules = pending
+        End If
+        Dim rule = TaxRules.FirstOrDefault(Function(r) r.Item1 = classification.DefaultTaxCategoryCode AndAlso r.Item2 <= receiptDate.Date)
+        Return If(rule Is Nothing, Nothing, TaxRate(rule.Item3))
+    End Function
+
     Private _TaxRateList As List(Of TaxRate)
     Private ReadOnly Property TaxRate(ByVal code As Integer) As TaxRate
         Get
@@ -236,12 +256,13 @@ Public Class DataAccess
         End If
         _TaxRateList = New List(Of TaxRate)()
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select code, rate from m_tax_rate where code >= '4' order by start_date desc"
+            command.CommandText = "select code, rate, tax_treatment from m_tax_rate order by code"
             Using reader As SQLiteDataReader = command.ExecuteReader()
                 While reader.Read()
                     Dim taxRate As New TaxRate() With {
                         .Code = reader.GetInt32(0),
-                        .Name = reader.GetInt32(1).ToString()
+                        .Name = reader.GetInt32(1).ToString(CultureInfo.InvariantCulture),
+                        .TaxTreatment = reader.GetString(2)
                     }
                     _TaxRateList.Add(taxRate)
                 End While
@@ -448,8 +469,8 @@ Public Class DataAccess
     ' 子が空でも親を残す。分類の絞り込みも親のWHEREではなくJOIN条件に置く。
     Private Const ReceiptHierarchySelect As String =
         "select r.seq, r.date, r.shop_name, r.shop_location, r.tax_type, r.payment_classification_code, r.tag, r.tax_rounding_mode, r.revision_token, " &
-        "g.seq, g.group_classification_code, g.tax, g.tag, " &
-        "d.seq, d.name, d.fee, d.quantity, d.discount_fee, d.discount_rate, d.tax_target, d.tag, u.user_code " &
+        "g.seq, g.group_classification_code, g.tag, " &
+        "d.seq, d.name, d.fee, d.quantity, d.discount_fee, d.discount_rate, d.tax_code, d.tag, u.user_code " &
         "from t_receipts r " &
         "left join t_receipt_groups g on g.receipt_seq = r.seq and (g.group_classification_code = :group_code or :group_code = -1) " &
         "left join t_receipt_details d on d.receipt_seq = g.receipt_seq and d.group_seq = g.seq " &
@@ -485,30 +506,29 @@ Public Class DataAccess
                         .ReceiptSeq = receipt.Seq,
                         .Seq = reader.GetInt32(9),
                         .GroupClassification = GroupClassification(reader.GetInt32(10)),
-                        .TaxRate = TaxRate(reader.GetInt32(11)),
-                        .Tag = If(reader.IsDBNull(12), String.Empty, reader.GetString(12))
+                        .Tag = If(reader.IsDBNull(11), String.Empty, reader.GetString(11))
                     }
                     receipt.Groups.Add(receiptGroup)
                     receiptDetail = Nothing
                 End If
-                If reader.IsDBNull(13) Then Continue While
-                If receiptDetail Is Nothing OrElse receiptDetail.Seq <> reader.GetInt32(13) Then
+                If reader.IsDBNull(12) Then Continue While
+                If receiptDetail Is Nothing OrElse receiptDetail.Seq <> reader.GetInt32(12) Then
                     receiptDetail = New ReceiptDetail() With {
                         .ReceiptSeq = receipt.Seq,
                         .GroupSeq = receiptGroup.Seq,
-                        .Seq = reader.GetInt32(13),
-                        .Name = reader.GetString(14),
-                        .Fee = reader.GetInt32(15),
-                        .Quantity = reader.GetInt32(16),
-                        .DiscountFee = reader.GetInt32(17),
-                        .DiscountRate = reader.GetDouble(18),
-                        .TaxTarget = (reader.GetInt32(19) = 1),
-                        .Tag = If(reader.IsDBNull(20), String.Empty, reader.GetString(20))
+                        .Seq = reader.GetInt32(12),
+                        .Name = reader.GetString(13),
+                        .Fee = reader.GetInt32(14),
+                        .Quantity = reader.GetInt32(15),
+                        .DiscountFee = reader.GetInt32(16),
+                        .DiscountRate = ExactMoney.ParseRate(reader.GetString(17)),
+                        .TaxRate = TaxRate(reader.GetInt32(18)),
+                        .Tag = If(reader.IsDBNull(19), String.Empty, reader.GetString(19))
                     }
                     receiptGroup.Details.Add(receiptDetail)
                 End If
-                If Not reader.IsDBNull(21) Then
-                    receiptDetail.Users.Add(UserList.First(Function(u) u.Code = reader.GetInt32(21)))
+                If Not reader.IsDBNull(20) Then
+                    receiptDetail.Users.Add(UserList.First(Function(u) u.Code = reader.GetInt32(20)))
                 End If
             End While
         End Using
@@ -528,7 +548,7 @@ Public Class DataAccess
         receipt.Groups.Clear()
 
         Using groupCommand As SQLiteCommand = Connection.CreateCommand
-            groupCommand.CommandText = "select receipt_seq, seq, group_classification_code, tax, tag from t_receipt_groups where receipt_seq = :receipt_seq and (group_classification_code = :group_classification_code or :group_classification_code = -1) order by seq"
+            groupCommand.CommandText = "select receipt_seq, seq, group_classification_code, tag from t_receipt_groups where receipt_seq = :receipt_seq and (group_classification_code = :group_classification_code or :group_classification_code = -1) order by seq"
             groupCommand.Parameters.AddWithValue("receipt_seq", receipt.Seq)
             groupCommand.Parameters.AddWithValue("group_classification_code", GroupCode)
 
@@ -538,8 +558,7 @@ Public Class DataAccess
                     receiptGroup.ReceiptSeq = groupReader.GetInt32(0)
                     receiptGroup.Seq = groupReader.GetInt32(1)
                     receiptGroup.GroupClassification = GroupClassification(groupReader.GetInt32(2))
-                    receiptGroup.TaxRate = TaxRate(groupReader.GetInt32(3))
-                    receiptGroup.Tag = If(groupReader.IsDBNull(4), String.Empty, groupReader.GetString(4))
+                    receiptGroup.Tag = If(groupReader.IsDBNull(3), String.Empty, groupReader.GetString(3))
                     LoadReceiptDetailData(receiptGroup)
                     receipt.Groups.Add(receiptGroup)
                 End While
@@ -551,7 +570,7 @@ Public Class DataAccess
     Private Sub LoadReceiptDetailData(ByVal receiptGroup As ReceiptGroup)
 
         Using detailCommand As SQLiteCommand = Connection.CreateCommand
-            detailCommand.CommandText = "select receipt_seq, group_seq, seq, name, fee, quantity, discount_fee, discount_rate, tax_target, tag from t_receipt_details where receipt_seq = :receipt_seq and group_seq = :group_seq order by seq"
+            detailCommand.CommandText = "select receipt_seq, group_seq, seq, name, fee, quantity, discount_fee, discount_rate, tax_code, tag from t_receipt_details where receipt_seq = :receipt_seq and group_seq = :group_seq order by seq"
             detailCommand.Parameters.AddWithValue("receipt_seq", receiptGroup.ReceiptSeq)
             detailCommand.Parameters.AddWithValue("group_seq", receiptGroup.Seq)
 
@@ -565,8 +584,8 @@ Public Class DataAccess
                     receiptDetail.Fee = detailReader.GetInt32(4)
                     receiptDetail.Quantity = detailReader.GetInt32(5)
                     receiptDetail.DiscountFee = detailReader.GetInt32(6)
-                    receiptDetail.DiscountRate = detailReader.GetDouble(7)
-                    receiptDetail.TaxTarget = (detailReader.GetInt32(8) = 1)
+                    receiptDetail.DiscountRate = ExactMoney.ParseRate(detailReader.GetString(7))
+                    receiptDetail.TaxRate = TaxRate(detailReader.GetInt32(8))
                     receiptDetail.Tag = If(detailReader.IsDBNull(9), String.Empty, detailReader.GetString(9))
                     LoadReceiptDetailUsersData(receiptDetail)
                     receiptGroup.Details.Add(receiptDetail)
@@ -663,7 +682,7 @@ Public Class DataAccess
                         .BalanceSeq = groupReader.GetInt32(0),
                         .PaymentClassification = PaymentClassification(groupReader.GetInt32(1)),
                         .Balance = groupReader.GetInt32(2),
-                        .Tag = If(groupReader.IsDBNull(4), String.Empty, groupReader.GetString(4))
+                        .Tag = If(groupReader.IsDBNull(3), String.Empty, groupReader.GetString(3))
                     }
                     If groupReader.IsDBNull(3) Then
                         balanceGroup.ValuationAmount = Nothing
@@ -908,17 +927,16 @@ Public Class DataAccess
     Private Sub InsertReceiptGroups(ByVal receipt As Receipt)
 
         Using groupCommand As SQLiteCommand = Connection.CreateCommand()
-            groupCommand.CommandText = "insert into t_receipt_groups (receipt_seq, seq, group_classification_code, tax, tag) values (:receipt_seq, :seq, :group_classification_code, :tax, :tag)"
+            groupCommand.CommandText = "insert into t_receipt_groups (receipt_seq, seq, group_classification_code, tag) values (:receipt_seq, :seq, :group_classification_code, :tag)"
             For Each group As ReceiptGroup In receipt.Groups
                 groupCommand.Parameters.Clear()
                 groupCommand.Parameters.AddWithValue("receipt_seq", group.ReceiptSeq)
                 groupCommand.Parameters.AddWithValue("seq", group.Seq)
                 groupCommand.Parameters.AddWithValue("group_classification_code", group.GroupClassification.Code)
-                groupCommand.Parameters.AddWithValue("tax", group.TaxRate.Code)
                 groupCommand.Parameters.AddWithValue("tag", group.Tag)
                 groupCommand.ExecuteNonQuery()
                 Using detailCommand As SQLiteCommand = Connection.CreateCommand()
-                    detailCommand.CommandText = "insert into t_receipt_details (receipt_seq, group_seq, seq, name, fee, quantity, discount_fee, discount_rate, tax_target, tag) values (:receipt_seq, :group_seq, :seq, :name, :fee, :quantity, :discount_fee, :discount_rate, :tax_target, :tag)"
+                    detailCommand.CommandText = "insert into t_receipt_details (receipt_seq, group_seq, seq, name, fee, quantity, discount_fee, discount_rate, tax_code, tag) values (:receipt_seq, :group_seq, :seq, :name, :fee, :quantity, :discount_fee, :discount_rate, :tax_code, :tag)"
                     For Each detail As ReceiptDetail In group.Details
                         detailCommand.Parameters.Clear()
                         detailCommand.Parameters.AddWithValue("receipt_seq", detail.ReceiptSeq)
@@ -928,8 +946,8 @@ Public Class DataAccess
                         detailCommand.Parameters.AddWithValue("fee", detail.Fee)
                         detailCommand.Parameters.AddWithValue("quantity", detail.Quantity)
                         detailCommand.Parameters.AddWithValue("discount_fee", detail.DiscountFee)
-                        detailCommand.Parameters.AddWithValue("discount_rate", detail.DiscountRate)
-                        detailCommand.Parameters.AddWithValue("tax_target", detail.TaxTarget)
+                        detailCommand.Parameters.AddWithValue("discount_rate", ExactMoney.RateText(detail.DiscountRate))
+                        detailCommand.Parameters.AddWithValue("tax_code", detail.TaxRate.Code)
                         detailCommand.Parameters.AddWithValue("tag", detail.Tag)
                         detailCommand.ExecuteNonQuery()
                         Using detailUserCommand As SQLiteCommand = Connection.CreateCommand()

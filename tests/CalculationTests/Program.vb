@@ -14,7 +14,7 @@ Module Program
         Check("malformed and non integer expressions normalize to zero", AddressOf IntegerExpressionTests.InvalidInputs)
         Check("integer literal and intermediate arithmetic overflow normalize to zero", AddressOf IntegerExpressionTests.Overflow)
         Check("default and validated modes", AddressOf ModesAreValidated)
-        Check("legacy floor snapshots including signed binary boundary", AddressOf LegacyFloorSnapshots)
+        Check("exact decimal floor including signed boundaries", AddressOf DecimalFloorSnapshots)
         Check("manual discount_fee and Ceiling percentage discount", AddressOf ExistingDiscounts)
         Check("receipt tax aggregation is authoritative over group estimates", AddressOf ReceiptVsGroups)
         Check("income and expense signs remain separate", AddressOf IncomeAndExpenseSigns)
@@ -26,6 +26,10 @@ Module Program
         Check("person statistics round within each group and retain empty groups and metadata", AddressOf PersonStatisticsTests.GroupBoundaries)
         Check("person matching ignores order and currently compares User references", AddressOf PersonStatisticsTests.UserReferenceMatching)
         Check("balance estimation uses receipt mode", AddressOf BalanceEstimation)
+        Check("each detail keeps independent mixed taxable and excluded rates", AddressOf DetailTaxTests.MixedRates)
+        Check("fractional shares remain exact at integer boundaries", AddressOf DetailTaxTests.ExactShares)
+        Check("percentage precision and extreme intermediates stay exact", AddressOf DetailTaxTests.Precision)
+        Check("merging group notes preserves null empty whitespace and duplicates", AddressOf DetailTaxTests.Notes)
         Return Finish()
     End Function
 
@@ -44,7 +48,9 @@ Module Program
                                 groups.Add(key, Group(line.GetProperty("tax_rate_percent").GetInt32()))
                                 receipt.Groups.Add(groups(key))
                             End If
-                            groups(key).Details.Add(Detail(line.GetProperty("net_amount_yen").GetInt32(), line.GetProperty("taxable").GetBoolean()))
+                            Dim detailLine = Detail(line.GetProperty("net_amount_yen").GetInt32(), line.GetProperty("taxable").GetBoolean())
+                            If detailLine.TaxRate.IsTaxable Then detailLine.TaxRate = New TaxRate With {.Code = line.GetProperty("tax_rate_percent").GetInt32(), .Name = line.GetProperty("tax_rate_percent").GetInt32().ToString()}
+                            groups(key).Details.Add(detailLine)
                         Next
                         Equal(item.GetProperty("expected_total_yen").GetInt32(), receipt.Total)
                     End Sub)
@@ -70,12 +76,11 @@ Module Program
         Equal(0, MakeReceipt("half_up").Total)
     End Sub
 
-    Private Sub LegacyFloorSnapshots()
-        ' Frozen outputs of the old Math.Floor(Double gross) calculation. In particular,
-        ' -100 at 10% was -111; converting legacy receipts to Decimal would change it.
+    Private Sub DecimalFloorSnapshots()
+        ' 新旧共通の正確な十進期待値。旧Doubleの-111円は-110円へ修正する。
         Dim amounts = {-1000, -575, -100, -50, -25, -5, -1, 0, 1, 5, 19, 25, 50, 100, 575, 1000}
         Dim expected8 = {-1080, -621, -108, -54, -27, -6, -2, 0, 1, 5, 20, 27, 54, 108, 621, 1080}
-        Dim expected10 = {-1100, -633, -111, -56, -28, -6, -2, 0, 1, 5, 20, 27, 55, 110, 632, 1100}
+        Dim expected10 = {-1100, -633, -110, -55, -28, -6, -2, 0, 1, 5, 20, 27, 55, 110, 632, 1100}
         For index = 0 To amounts.Length - 1
             Equal(expected8(index), MakeReceipt("floor", Group(8, Detail(amounts(index)))).Total, "8% " & amounts(index))
             Equal(expected10(index), MakeReceipt("floor", Group(10, Detail(amounts(index)))).Total, "10% " & amounts(index))
@@ -83,7 +88,7 @@ Module Program
         ' 対象外を独立集計すると、参考額だけでなく会計合計も変わる境界を固定する。
         Dim excludedBoundary = MakeReceipt("floor", Group(10, Detail(-100), Detail(1000, False)))
         Equal(890, excludedBoundary.Total, "Mixed negative taxable and excluded amounts")
-        Equal(-111, excludedBoundary.Incomes)
+        Equal(-110, excludedBoundary.Incomes)
         Equal(1000, excludedBoundary.Expenses)
         Dim mixed = MakeReceipt("floor", Group(8, Detail(19), Detail(3, False)), Group(10, Detail(19)), Group(10, Detail(19)))
         Equal(64, mixed.Total)
@@ -92,16 +97,16 @@ Module Program
     End Sub
 
     Private Sub ExistingDiscounts()
-        ' Decimal移行で修正する予定の二進誤差。現行製品の値として記録する。
-        Equal(9985, MakeReceipt("floor", Group(10, Detail(10000, taxable:=False, discountRate:=0.14))).Total)
+        ' 0.14%値引の二進誤差を修正し、値引14円・差引9986円にする。
+        Equal(9986, MakeReceipt("floor", Group(10, Detail(10000, taxable:=False, discountRate:=0.14D))).Total)
         ' The manual three-yen discount remains an amount, not an automatic 3/103 rule.
         For Each mode In New String() {"floor", "half_up"}
             Equal(108, MakeReceipt(mode, Group(8, Detail(103, discountFee:=3))).Total)
         Next
         ' (103 - 3) * 2 - Ceiling(200 * 2.6 / 100) = 194.
-        Equal(209, MakeReceipt("floor", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6))).Total)
-        Equal(210, MakeReceipt("half_up", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6))).Total)
-        Equal(-211, MakeReceipt("floor", Group(8, Detail(-103, quantity:=2, discountFee:=-3, discountRate:=2.6))).Total)
+        Equal(209, MakeReceipt("floor", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6D))).Total)
+        Equal(210, MakeReceipt("half_up", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6D))).Total)
+        Equal(-211, MakeReceipt("floor", Group(8, Detail(-103, quantity:=2, discountFee:=-3, discountRate:=2.6D))).Total)
     End Sub
 
     Private Sub ReceiptVsGroups()

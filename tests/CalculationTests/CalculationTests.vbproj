@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/**/*.vb" Link="Production/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/ExactMoney.vb" Link="Production/ExactMoney.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb" Link="Production/Calculation.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/IntegerExpression.vb" Link="Production/IntegerExpression.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/ReceiptAmountValidation.vb" Link="Production/ReceiptAmountValidation.vb" />

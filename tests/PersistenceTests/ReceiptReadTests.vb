@@ -23,7 +23,7 @@ Friend Module ReceiptReadTests
                         Equal("1,3", String.Join(",", receipt.Groups(1).Details.Select(Function(d) d.Seq)))
                         Equal("1,2", String.Join(",", receipt.Groups(1).Details(0).Users.Select(Function(u) u.Code)))
                         Equal("2", String.Join(",", receipt.Groups(1).Details(1).Users.Select(Function(u) u.Code)))
-                        Equal(2.5, receipt.Groups(1).Details(0).DiscountRate)
+                        Equal(2.5D, receipt.Groups(1).Details(0).DiscountRate)
                         Equal(0, receipt.Groups(2).Details.Count)
                         Equal(0, receipts.Single(Function(r) r.Seq = 2).Groups.Count)
                         Equal(0, receipts.Single(Function(r) r.Seq = 0).Total)
@@ -60,9 +60,9 @@ Friend Module ReceiptReadTests
                             AssertIds("5,3,2,1,0", receipts)
                             Equal(True, receipts.SelectMany(Function(r) r.Groups).All(Function(g) g.GroupClassification.Code = classification))
                             Dim receipt = receipts.Single(Function(r) r.Seq = 1)
-                            Equal(If(classification = 1, "0,1", If(classification = 2, "2", "")),
+                            Equal(If(classification = 1, "1", If(classification = 2, "2", "")),
                                 String.Join(",", receipt.Groups.Select(Function(g) g.Seq)))
-                            Equal(If(classification = 1, 225, 0), receipt.Total)
+                            Equal(If(classification = 1, 204, 0), receipt.Total)
                         Next
                         Dim combined = fixture.Data.GetReceipts(2026, 10, GroupCode:=2, PaymentCode:=1)
                         AssertIds("5,3,1,0", combined)
@@ -132,7 +132,6 @@ Friend Module ReceiptReadTests
             Equal(before.Seq, after.Seq)
             Equal(before.Tag, after.Tag)
             Equal(True, Object.ReferenceEquals(before.GroupClassification, after.GroupClassification))
-            Equal(True, Object.ReferenceEquals(before.TaxRate, after.TaxRate))
             Equal(before.Details.Count, after.Details.Count)
             For detailIndex = 0 To before.Details.Count - 1
                 Dim original = before.Details(detailIndex)
@@ -145,7 +144,7 @@ Friend Module ReceiptReadTests
                 Equal(original.Quantity, loaded.Quantity)
                 Equal(original.DiscountFee, loaded.DiscountFee)
                 Equal(original.DiscountRate, loaded.DiscountRate)
-                Equal(original.TaxTarget, loaded.TaxTarget)
+                Equal(True, Object.ReferenceEquals(original.TaxRate, loaded.TaxRate))
                 Equal(original.Tag, loaded.Tag)
                 Equal(original.Users.Count, loaded.Users.Count)
                 For userIndex = 0 To original.Users.Count - 1
@@ -158,17 +157,17 @@ Friend Module ReceiptReadTests
     Friend Sub Seed(fixture As DatabaseFixture)
         fixture.Execute("INSERT INTO m_user(code,name,account_name,seq) VALUES(2,'second user','synthetic-account',2);" &
             "INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(2,'second payment',2,1);" &
-            "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'second group',2,1,0);" &
+            "INSERT INTO m_group_classification(code,name,seq,default_tax_category_code) VALUES(2,'second group',2,1);" &
             "UPDATE t_receipts SET shop_location=NULL,tag=NULL,tax_rounding_mode='half_up',revision_token='reader-token' WHERE seq=1;" &
             "DELETE FROM t_receipt_details WHERE receipt_seq=1 AND group_seq=2;" &
-            "UPDATE t_receipt_groups SET tax=4,tag='group ''tag''' WHERE receipt_seq=1 AND seq=1;" &
+            "UPDATE t_receipt_details SET tax_code=4 WHERE receipt_seq=1 AND group_seq=1;UPDATE t_receipt_groups SET tag='group ''tag''' WHERE receipt_seq=1 AND seq=1;" &
             "UPDATE t_receipt_groups SET group_classification_code=2,tag=NULL WHERE receipt_seq=1 AND seq=2;" &
             "UPDATE t_receipt_details SET fee=103,quantity=2,discount_fee=3,discount_rate=2.5,tag=NULL WHERE receipt_seq=1 AND group_seq=1;" &
             "INSERT INTO t_receipt_detail_users VALUES(1,1,1,2);" &
             "INSERT INTO t_receipt_details VALUES(1,1,3,'negative',-7,1,0,0,0,'detail ''tag''');" &
             "INSERT INTO t_receipt_detail_users VALUES(1,1,3,2);" &
-            "INSERT INTO t_receipt_groups VALUES(1,0,1,NULL,5);" &
-            "INSERT INTO t_receipt_details VALUES(1,0,0,'zero sequence',19,1,0,0,1,NULL);")
+            "INSERT INTO t_receipt_groups VALUES(1,0,93,NULL);" &
+            "INSERT INTO t_receipt_details VALUES(1,0,0,'zero sequence',19,1,0,'0',5,NULL);")
         fixture.AddReceipt(0, "same date", "floor", New Date(2026, 10, 16, 12, 0, 0))
         fixture.AddReceipt(2, "no groups", "floor", New Date(2026, 10, 16, 12, 0, 0), paymentCode:=2)
         fixture.Execute("DELETE FROM t_receipt_details WHERE receipt_seq=2;DELETE FROM t_receipt_groups WHERE receipt_seq=2;")

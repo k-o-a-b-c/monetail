@@ -257,7 +257,7 @@ Public NotInheritable Class DetailTaxMigration
         Dim taxable As New Dictionary(Of Integer, Double)
         Dim excluded As New Dictionary(Of Integer, Double)
         Dim grouped = lines.ToLookup(Function(r) Int(r, "group_seq"))
-        For Each group In groups.Values.Where(Function(r) Int(r, "receipt_seq") = receipt).OrderBy(Function(r) Int(r, "seq"))
+        For Each group As DataRow In groups.Values.Where(Function(r) Int(r, "receipt_seq") = receipt).OrderBy(Function(r) Int(r, "seq"))
             Dim taxFee As Double = 0
             Dim nonTaxFee As Double = 0
             ' 旧製品と同じくグループ内で合算してから税率別へ加える。

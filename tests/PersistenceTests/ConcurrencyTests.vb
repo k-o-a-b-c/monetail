@@ -260,13 +260,15 @@ Friend Module ConcurrencyTests
                 receipt.Groups.Clear()
                 For index As Integer = 1 To If(shapeNumber = 2, 2, 1)
                     Dim group = ReceiptFixtures.Group(If(index = 1, 8, 10))
+                    group.GroupClassification.Code = If(index = 1, 1, 92)
                     group.Tag = label & " group " & index.ToString(CultureInfo.InvariantCulture)
                     For detailIndex As Integer = 1 To If(shapeNumber = 3, 2, 1)
-                        Dim detail = ReceiptFixtures.Detail(100 * shapeNumber + detailIndex, taxable:=(detailIndex = 1), quantity:=shapeNumber, discountFee:=3, discountRate:=2.5)
+                        Dim detail = ReceiptFixtures.Detail(100 * shapeNumber + detailIndex, taxable:=(detailIndex = 1), quantity:=shapeNumber, discountFee:=3, discountRate:=2.5D)
                         detail.Name = label & " item " & detailIndex.ToString(CultureInfo.InvariantCulture)
                         detail.Tag = label & " detail " & detailIndex.ToString(CultureInfo.InvariantCulture)
                         detail.Users.Add(New User With {.Code = 2})
                         If index = 2 Then detail.Users.Add(New User With {.Code = 1})
+                        If detail.TaxRate.IsTaxable Then detail.TaxRate = New TaxRate With {.Code = If(index = 1, 4, 5), .Name = If(index = 1, "8", "10")}
                         group.Details.Add(detail)
                     Next
                     receipt.Groups.Add(group)
@@ -317,18 +319,18 @@ Friend Module ConcurrencyTests
                 Dim groups As New List(Of Object())(), details As New List(Of Object())(), users As New List(Of Object())()
                 For groupIndex As Integer = 0 To receipt.Groups.Count - 1
                     Dim group = receipt.Groups(groupIndex)
-                    groups.Add(New Object() {seq, groupIndex + 1, group.GroupClassification.Code, group.TaxRate.Code, group.Tag})
+                    groups.Add(New Object() {seq, groupIndex + 1, group.GroupClassification.Code, group.Tag})
                     For detailIndex As Integer = 0 To group.Details.Count - 1
                         Dim detail = group.Details(detailIndex)
-                        details.Add(New Object() {seq, groupIndex + 1, detailIndex + 1, detail.Name, detail.Fee, detail.Quantity, detail.DiscountFee, detail.DiscountRate, If(detail.TaxTarget, 1, 0), detail.Tag})
+                        details.Add(New Object() {seq, groupIndex + 1, detailIndex + 1, detail.Name, detail.Fee, detail.Quantity, detail.DiscountFee, ExactMoney.RateText(detail.DiscountRate), detail.TaxRate.Code, detail.Tag})
                         For Each user In detail.Users.OrderBy(Function(value) value.Code)
                             users.Add(New Object() {seq, groupIndex + 1, detailIndex + 1, user.Code})
                         Next
                     Next
                 Next
                 Dim childCondition = " WHERE receipt_seq=" & seq.ToString(CultureInfo.InvariantCulture)
-                AssertRows(fixture, "SELECT receipt_seq,seq,group_classification_code,tax,tag FROM t_receipt_groups" & childCondition & " ORDER BY seq", groups.ToArray())
-                AssertRows(fixture, "SELECT receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,CAST(discount_rate AS REAL),tax_target,tag FROM t_receipt_details" & childCondition & " ORDER BY group_seq,seq", details.ToArray())
+                AssertRows(fixture, "SELECT receipt_seq,seq,group_classification_code,tag FROM t_receipt_groups" & childCondition & " ORDER BY seq", groups.ToArray())
+                AssertRows(fixture, "SELECT receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_code,tag FROM t_receipt_details" & childCondition & " ORDER BY group_seq,seq", details.ToArray())
                 AssertRows(fixture, "SELECT receipt_seq,group_seq,detail_seq,user_code FROM t_receipt_detail_users" & childCondition & " ORDER BY group_seq,detail_seq,user_code", users.ToArray())
             Case EntityKind.Transfer
                 Dim transfer = DirectCast(item, Transfer)

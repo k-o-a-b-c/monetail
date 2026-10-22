@@ -249,7 +249,7 @@ Friend Module ReceiptListOverflowTests
                 fixture.AddReceipt(seq, "shop " & seq.ToString(CultureInfo.InvariantCulture), mode, New Date(2026, 10, 16, 12, 0, seq), If(seq >= 5, If(seq = 8, 3, 2), 1))
             Next
             fixture.Execute("UPDATE t_receipts SET tax_type=0 WHERE seq BETWEEN 2 AND 8 AND seq<>4;" &
-                "UPDATE t_receipt_details SET tax_target=0 WHERE receipt_seq BETWEEN 2 AND 8 AND receipt_seq<>4;" &
+                "UPDATE t_receipt_details SET tax_code=0 WHERE receipt_seq BETWEEN 2 AND 8 AND receipt_seq<>4;" &
                 "UPDATE t_receipt_details SET fee=2000000000,quantity=2 WHERE receipt_seq=2;" &
                 "UPDATE t_receipt_details SET fee=-2000000000,quantity=2 WHERE receipt_seq=3;" &
                 "UPDATE t_receipt_details SET fee=2000000000 WHERE receipt_seq=4;" &

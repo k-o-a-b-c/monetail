@@ -23,7 +23,7 @@ Friend Module ForeignKeyTests
                 Equal(receipt.Total, Convert.ToInt32(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=1")))
                 Equal(2, saved.Groups.Count)
                 Equal(1, saved.Groups(0).Seq)
-                Equal(8, saved.Groups(0).TaxRate.Rate)
+                Equal(8, saved.Groups(0).Details(0).TaxRate.Rate)
                 Equal("empty replacement group", saved.Groups(0).Tag)
                 Equal(0, saved.Groups(0).Details.Count)
                 Equal(2, saved.Groups(1).Seq)
@@ -126,9 +126,9 @@ Friend Module ForeignKeyTests
 
     Private Sub SeedRelatedRows(fixture As DatabaseFixture)
         fixture.Execute("INSERT INTO m_user(code,name,account_name,seq) VALUES(2,'second','second-test-account',2),(3,'third','third-test-account',3);" &
-            "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'other group',2,0,0);" &
-            "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tax,tag) VALUES(1,3,2,4,'original empty group');" &
-            "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag) " &
+            "INSERT INTO m_group_classification(code,name,seq,default_tax_category_code) VALUES(2,'other group',2,3);" &
+            "INSERT INTO t_receipt_groups(receipt_seq,seq,group_classification_code,tag) VALUES(1,3,2,'original empty group');" &
+            "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_code,tag) " &
             "VALUES(1,2,2,'original extra',31,2,1,5,0,'original extra tag');" &
             "INSERT INTO t_receipt_detail_users(receipt_seq,group_seq,detail_seq,user_code) " &
             "VALUES(1,1,1,2),(1,2,1,3),(1,2,2,1),(1,2,2,2);")

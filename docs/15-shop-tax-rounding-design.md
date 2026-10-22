@@ -1,5 +1,7 @@
 # 15 レシート単位の税端数処理 — 詳細設計（レガシー版）
 
+> 本書はこの改修時点の履歴。税率・課税フラグ・Doubleの旧記述は[42 明細税率への切替](42-detail-tax-application.md)と[12 現行計算](12-calculation-contract.md)に置き換わった。税端数のレシート保存、入力補正、即時流用の操作は維持する。新版の検証状態は[tests/README](../tests/README.md)。
+
 - 作成: 2026-10-17
 - 更新: 2026-10-19 / 店舗履歴による初期選択、ラジオボタン、登録確定までReceiptの両税設定を変更しない方式を反映
 - 状態: **税端数処理はmainへ反映済み。現行コード全体のテスト構成・件数・最新CI結果は [tests/README.md](../tests/README.md) を参照。手動のWindows画面確認・実データでの検証は未実施。実行方法は [tests/README.md](../tests/README.md)**

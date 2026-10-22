@@ -18,7 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../tools/DetailTaxMigration/Migration.vb" Link="Migration.vb" />
-    <Compile Include="../../tools/DetailTaxMigration/ExactMoney.vb" Link="ExactMoney.vb" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/ExactMoney.vb" Link="ExactMoney.vb" />
     <Compile Include="../../tools/DetailTaxMigration/MigrationFiles.vb" Link="MigrationFiles.vb" />
     <None Include="../../docs/schema/monetail_schema.sql" Link="schema.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../docs/migrations/20261017_01_shop_tax_rounding.sql" Link="rounding.sql" CopyToOutputDirectory="PreserveNewest" />

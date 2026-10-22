@@ -206,7 +206,7 @@ Friend Module ReceiptInputTests
         Dim fixture As New DatabaseFixture(foreignKeys)
         Try
             fixture.Execute("INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(2,'bank',2,1);" &
-                "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'other',2,1,0)")
+                "INSERT INTO m_group_classification(code,name,seq,default_tax_category_code) VALUES(2,'other',2,1)")
             Return fixture
         Catch
             fixture.Dispose()
@@ -236,7 +236,7 @@ Friend Module ReceiptInputTests
         form.QuantityTextBox.Text = "1"
         form.DiscountFeeTextBox.Text = "0"
         form.DiscountRateTextBox.Text = "0"
-        form.TaxTargetCheckBox.Checked = True
+        form.DetailTaxRateComboBox.SelectedValue = 5
         form.AddDetailButton.PerformClick()
         Equal(True, form.Receipt.Groups.Any(Function(g) g.Details.Count > 0))
     End Sub

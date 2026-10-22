@@ -27,7 +27,7 @@ Public NotInheritable Class ReceiptAmountValidation
         If Not receipt.Groups.Contains(target) Then Throw New ArgumentException("対象グループがレシートにありません。", NameOf(target))
         ' 更新対象のリストだけを複製し、検証前に元の明細を差し替えない。
         Dim replacement As New ReceiptGroup With {
-            .GroupClassification = target.GroupClassification, .TaxRate = target.TaxRate,
+            .GroupClassification = target.GroupClassification,
             .Details = New List(Of ReceiptDetail)(target.Details)
         }
         If previous Is Nothing Then

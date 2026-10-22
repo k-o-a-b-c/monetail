@@ -95,10 +95,11 @@ Friend Module StartupTests
         Using area As New TemporaryArea
             Dim legacy = area.FilePath("legacy.sqlite")
             Execute(legacy, Script("monetail_schema.sql"))
-            UnchangedRejection(legacy, "20261017_01_shop_tax_rounding.sql")
+            UnchangedRejection(legacy, "41-detail-tax-copy-migration.md")
             Execute(legacy, Script("tax_rounding.sql"))
-            UnchangedRejection(legacy, "20261019_01_revision_tokens.sql")
+            UnchangedRejection(legacy, "41-detail-tax-copy-migration.md")
             Execute(legacy, Script("revision_tokens.sql"))
+            Migrate(legacy)
             Execute(legacy, "ALTER TABLE m_user ADD COLUMN extra TEXT; CREATE INDEX extra_index ON m_user(extra);")
             Dim complete = FileBytes(legacy)
             Using data As New DataAccess(ConnectionString(legacy))
@@ -137,8 +138,9 @@ Friend Module StartupTests
             Equal(True, DatabaseStartup.TryOpenConfiguredDatabase(readSetting, AddressOf messages.Add) Is Nothing)
             Equal(1, reads)
             Equal(1, messages.Count)
-            Equal(True, messages(0).Contains("20261017_01_shop_tax_rounding.sql"))
+            Equal(True, messages(0).Contains("41-detail-tax-copy-migration.md"))
             Execute(databasePath, Script("tax_rounding.sql") & Environment.NewLine & Script("revision_tokens.sql"))
+            Migrate(databasePath)
             messages.Clear()
             Using data = DatabaseStartup.TryOpenConfiguredDatabase(readSetting, AddressOf messages.Add)
                 Equal(False, data Is Nothing)
@@ -234,4 +236,10 @@ Friend Module StartupTests
             Directory.Delete(DirectoryPath, recursive:=True)
         End Sub
     End Class
+    Private Sub Migrate(path As String)
+        Using connection As New SQLiteConnection(ConnectionString(path))
+            connection.Open()
+            DetailTaxMigration.Run(connection)
+        End Using
+    End Sub
 End Module

@@ -74,6 +74,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Numerics" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Data" />
@@ -188,6 +189,7 @@
     <Compile Include="Data\Master\User.vb" />
     <Compile Include="Data\Statistics\BalanceStatistics.vb" />
     <Compile Include="Data\Statistics\GroupStatistics.vb" />
+    <Compile Include="Logic\ExactMoney.vb" />
     <Compile Include="Logic\Calculation.vb" />
     <Compile Include="Logic\IntegerExpression.vb" />
     <Compile Include="Logic\ReceiptAmountValidation.vb" />

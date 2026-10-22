@@ -1,31 +1,45 @@
-﻿Public Class Calculation
+﻿Imports System.Numerics
 
+Public Class Calculation
     Public Shared DataAccess As DataAccess
 
-    Public Shared Sub ValidateTaxRoundingMode(ByVal mode As String)
-        If mode <> "floor" AndAlso mode <> "half_up" Then
-            Throw New ArgumentException("税端数処理は floor または half_up を指定してください。", NameOf(mode))
-        End If
+    Public Shared Function MergeGroupNotes(notes As IList(Of String)) As String
+        If notes.Count = 1 Then Return notes(0)
+        Dim nonempty = notes.Where(Function(note) Not String.IsNullOrEmpty(note)).ToList()
+        If nonempty.Count = 0 Then Return If(notes.All(Function(note) note Is Nothing), Nothing, String.Empty)
+        Return String.Join(vbLf, nonempty.Select(Function(note, index) "【統合元 " & (index + 1).ToString() & "】" & vbLf & note))
+    End Function
+
+    Public Shared Sub ValidateTaxRoundingMode(mode As String)
+        If mode <> "floor" AndAlso mode <> "half_up" Then Throw New ArgumentException("税端数処理は floor または half_up を指定してください。", NameOf(mode))
     End Sub
 
-    ''' <summary>
-    ''' 同一税率で合算済みの課税額・非課税額から税込額を求める。
-    ''' </summary>
-    Public Shared Function TaxRateSubtotal(ByVal taxFee As Double, ByVal nonTaxFee As Double,
-                                           ByVal taxRate As Integer, ByVal taxType As Integer,
-                                           ByVal taxRoundingMode As String) As Double
-        ValidateTaxRoundingMode(taxRoundingMode)
-        If taxType <> 1 Then
-            Return Math.Floor(taxFee + nonTaxFee)
-        End If
-        If taxRoundingMode = "floor" Then
-            ' 負額や浮動小数点の境界を含め、既存レシートの計算式を維持する。
-            Return Math.Floor(taxFee * (1 + taxRate / 100) + nonTaxFee)
-        End If
-
-        ' half_up は税額を Decimal で求め、負の中間値もゼロから遠い側へ丸める。
-        Dim tax As Decimal = Math.Round(CDec(taxFee) * taxRate / 100D, 0, MidpointRounding.AwayFromZero)
-        Return Decimal.ToDouble(CDec(taxFee) + tax + CDec(nonTaxFee))
+    ' レシート・分類・明細・人数按分を同じ税率別合算へ集約する。
+    Public Shared Function SumDetails(details As IEnumerable(Of ReceiptDetail), taxType As Integer, mode As String,
+                                      Optional signFilter As Integer = 0, Optional allocate As Boolean = False) As MoneyFraction
+        ValidateTaxRoundingMode(mode)
+        If taxType <> 0 AndAlso taxType <> 1 Then Throw New ArgumentException("不正な内税／外税区分です。")
+        Dim taxable As New Dictionary(Of Integer, MoneyFraction)
+        Dim excluded As New MoneyFraction(BigInteger.Zero)
+        For Each detail As ReceiptDetail In details
+            If detail.TaxRate Is Nothing Then Throw New InvalidOperationException("明細の税設定がありません。")
+            Dim net = ExactMoney.Net(detail.Fee, detail.DiscountFee, detail.Quantity, detail.DiscountRate)
+            If signFilter <> 0 AndAlso net.Sign <> signFilter Then Continue For
+            Dim divisor = If(allocate, detail.Users.Count, 1)
+            If divisor = 0 Then Continue For
+            Dim amount As New MoneyFraction(net, divisor)
+            If detail.TaxRate.IsTaxable Then
+                Dim rate = detail.TaxRate.Rate
+                If Not taxable.ContainsKey(rate) Then taxable.Add(rate, New MoneyFraction(BigInteger.Zero))
+                taxable(rate) += amount
+            Else
+                excluded += amount
+            End If
+        Next
+        For Each pair In taxable
+            excluded += pair.Value.WithTax(pair.Key, taxType, mode)
+        Next
+        Return excluded
     End Function
 
     Public Shared Function AutoBalance(ByVal BaseDate As DateTime, ByVal PaymentClassification As PaymentClassification) As Nullable(Of Integer)
@@ -68,35 +82,11 @@
         End If
     End Function
 
-    Public Shared Function GroupCalculatedFee(ByVal Receipt As Receipt, ByVal Group As ReceiptGroup) As Integer
-        Dim taxFee As Double = 0
-        Dim nonTaxFee As Double = 0
-        For Each detail As ReceiptDetail In Group.Details
-            Dim fee As Double = detail.Fee
-            fee -= detail.DiscountFee
-            fee *= detail.Quantity
-            fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
-            If detail.TaxTarget Then
-                taxFee += fee
-            Else
-                nonTaxFee += fee
-            End If
-        Next
-        If Receipt.TaxType = 1 Then
-            taxFee = TaxRateSubtotal(taxFee, 0, Group.TaxRate.Rate, Receipt.TaxType, Receipt.TaxRoundingMode)
-        End If
-        Return Convert.ToInt32(taxFee + nonTaxFee)
+    Public Shared Function GroupCalculatedFee(receipt As Receipt, group As ReceiptGroup) As Integer
+        Return CInt(SumDetails(group.Details, receipt.TaxType, receipt.TaxRoundingMode).Rounded(receipt.TaxRoundingMode))
     End Function
 
-    Public Shared Function DetailCalculatedFee(ByVal Receipt As Receipt, ByVal Group As ReceiptGroup, ByVal Detail As ReceiptDetail) As Integer
-        Dim fee As Double = Detail.Fee
-        fee -= detail.DiscountFee
-        fee *= Detail.Quantity
-        fee -= Math.Ceiling(fee * Detail.DiscountRate / 100)
-        If Detail.TaxTarget AndAlso Receipt.TaxType = 1 Then
-            fee = TaxRateSubtotal(fee, 0, Group.TaxRate.Rate, Receipt.TaxType, Receipt.TaxRoundingMode)
-        End If
-        Return Convert.ToInt32(fee)
+    Public Shared Function DetailCalculatedFee(receipt As Receipt, group As ReceiptGroup, detail As ReceiptDetail) As Integer
+        Return CInt(SumDetails({detail}, receipt.TaxType, receipt.TaxRoundingMode).Rounded(receipt.TaxRoundingMode))
     End Function
-
 End Class

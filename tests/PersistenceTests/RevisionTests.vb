@@ -53,7 +53,11 @@ Friend Module RevisionTests
         EachCase(
             Sub(fixture, second, kind)
                 Dim item = LoadItem(fixture.Data, kind)
-                Equal("0", Token(kind, item), "Migrated rows begin at the documented initial token")
+                If kind = EntityKind.Receipt Then
+                    AssertFreshToken(fixture, kind, item)
+                Else
+                    Equal("0", Token(kind, item), "Unchanged transfer and balance migrations keep the initial token")
+                End If
                 Dim unaffected = Snapshot(fixture, kind, 1, 2)
                 Dim previous = Token(kind, item)
                 For Each shapeNumber In New Integer() {2, 3}

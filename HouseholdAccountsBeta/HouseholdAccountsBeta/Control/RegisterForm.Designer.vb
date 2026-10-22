@@ -82,13 +82,12 @@ Partial Class RegisterForm
         Me.TaxInclusiveRadioButton = New OriginalControls.OriginalRadioButton()
         Me.TaxExclusiveRadioButton = New OriginalControls.OriginalRadioButton()
         Me.QuantityTextBox = New OriginalControls.OriginalTextBox()
-        Me.TaxTargetCheckBox = New OriginalControls.OriginalCheckBox()
         Me.DetailTagTextBox = New OriginalControls.OriginalTextBox()
         Me.FeeTextBox = New OriginalControls.OriginalTextBox()
         Me.DiscountRateTextBox = New OriginalControls.OriginalTextBox()
         Me.DiscountFeeTextBox = New OriginalControls.OriginalTextBox()
         Me.ItemNameComboBox = New OriginalControls.OriginalComboBox()
-        Me.GroupTaxRateComboBox = New OriginalControls.OriginalComboBox()
+        Me.DetailTaxRateComboBox = New OriginalControls.OriginalComboBox()
         Me.GroupTagTextBox = New OriginalControls.OriginalTextBox()
         Me.GroupClassificationComboBox = New OriginalControls.OriginalComboBox()
         Me.PaymentClassificationComboBox = New OriginalControls.OriginalComboBox()
@@ -210,7 +209,6 @@ Partial Class RegisterForm
         Me.DetailPanel.Controls.Add(Me.DetailListView)
         Me.DetailPanel.Controls.Add(Me.Label11)
         Me.DetailPanel.Controls.Add(Me.AddDetailButton)
-        Me.DetailPanel.Controls.Add(Me.TaxTargetCheckBox)
         Me.DetailPanel.Controls.Add(Me.Label14)
         Me.DetailPanel.Controls.Add(Me.RemoveDetailButton)
         Me.DetailPanel.Controls.Add(Me.DetailTagTextBox)
@@ -229,7 +227,7 @@ Partial Class RegisterForm
         'Label18
         '
         Me.Label18.AutoSize = True
-        Me.Label18.Location = New System.Drawing.Point(3, 152)
+        Me.Label18.Location = New System.Drawing.Point(3, 181)
         Me.Label18.Name = "Label18"
         Me.Label18.Size = New System.Drawing.Size(43, 15)
         Me.Label18.TabIndex = 12
@@ -342,8 +340,8 @@ Partial Class RegisterForm
         '
         Me.GroupPanel.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
             Or System.Windows.Forms.AnchorStyles.Left), System.Windows.Forms.AnchorStyles)
-        Me.GroupPanel.Controls.Add(Me.Label3)
-        Me.GroupPanel.Controls.Add(Me.GroupTaxRateComboBox)
+        Me.DetailPanel.Controls.Add(Me.Label3)
+        Me.DetailPanel.Controls.Add(Me.DetailTaxRateComboBox)
         Me.GroupPanel.Controls.Add(Me.Label8)
         Me.GroupPanel.Controls.Add(Me.GroupListView)
         Me.GroupPanel.Controls.Add(Me.Label9)
@@ -359,7 +357,7 @@ Partial Class RegisterForm
         'Label3
         '
         Me.Label3.AutoSize = True
-        Me.Label3.Location = New System.Drawing.Point(3, 36)
+        Me.Label3.Location = New System.Drawing.Point(3, 152)
         Me.Label3.Name = "Label3"
         Me.Label3.Size = New System.Drawing.Size(31, 15)
         Me.Label3.TabIndex = 2
@@ -381,11 +379,11 @@ Partial Class RegisterForm
         Me.GroupListView.Columns.AddRange(New System.Windows.Forms.ColumnHeader() {Me.ClassificationNameColumnHeader, Me.FeeColumnHeader, Me.TagColumnHeader})
         Me.GroupListView.FullRowSelect = True
         Me.GroupListView.HideSelection = False
-        Me.GroupListView.Location = New System.Drawing.Point(39, 91)
+        Me.GroupListView.Location = New System.Drawing.Point(39, 62)
         Me.GroupListView.MultiSelect = False
         Me.GroupListView.Name = "GroupListView"
-        Me.GroupListView.Size = New System.Drawing.Size(170, 263)
-        Me.GroupListView.TabIndex = 7
+        Me.GroupListView.Size = New System.Drawing.Size(170, 292)
+        Me.GroupListView.TabIndex = 5
         Me.GroupListView.UseCompatibleStateImageBehavior = False
         Me.GroupListView.View = System.Windows.Forms.View.Details
         '
@@ -404,7 +402,7 @@ Partial Class RegisterForm
         'Label9
         '
         Me.Label9.AutoSize = True
-        Me.Label9.Location = New System.Drawing.Point(3, 65)
+        Me.Label9.Location = New System.Drawing.Point(3, 36)
         Me.Label9.Name = "Label9"
         Me.Label9.Size = New System.Drawing.Size(25, 15)
         Me.Label9.TabIndex = 4
@@ -412,20 +410,20 @@ Partial Class RegisterForm
         '
         'AddGroupButton
         '
-        Me.AddGroupButton.Location = New System.Drawing.Point(215, 62)
+        Me.AddGroupButton.Location = New System.Drawing.Point(215, 33)
         Me.AddGroupButton.Name = "AddGroupButton"
         Me.AddGroupButton.Size = New System.Drawing.Size(75, 23)
-        Me.AddGroupButton.TabIndex = 6
+        Me.AddGroupButton.TabIndex = 3
         Me.AddGroupButton.Text = "追加"
         Me.AddGroupButton.UseVisualStyleBackColor = True
         '
         'RemoveGroupButton
         '
         Me.RemoveGroupButton.Enabled = False
-        Me.RemoveGroupButton.Location = New System.Drawing.Point(215, 91)
+        Me.RemoveGroupButton.Location = New System.Drawing.Point(215, 62)
         Me.RemoveGroupButton.Name = "RemoveGroupButton"
         Me.RemoveGroupButton.Size = New System.Drawing.Size(75, 23)
-        Me.RemoveGroupButton.TabIndex = 8
+        Me.RemoveGroupButton.TabIndex = 4
         Me.RemoveGroupButton.Text = "削除"
         Me.RemoveGroupButton.UseVisualStyleBackColor = True
         '
@@ -653,49 +651,6 @@ Partial Class RegisterForm
         Me.QuantityTextBox.TabIndex = 5
         Me.QuantityTextBox.Text = "1"
         '
-        'TaxTargetCheckBox
-        '
-        Me.TaxTargetCheckBox.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.TaxTargetCheckBox.AutoSize = True
-        Me.TaxTargetCheckBox.Checked = True
-        Me.TaxTargetCheckBox.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.TaxTargetCheckBox.Location = New System.Drawing.Point(227, 5)
-        Me.TaxTargetCheckBox.Name = "TaxTargetCheckBox"
-        Me.TaxTargetCheckBox.Size = New System.Drawing.Size(62, 19)
-        Me.TaxTargetCheckBox.TabIndex = 14
-        Me.TaxTargetCheckBox.Text = "税対象"
-        Me.TaxTargetCheckBox.UseVisualStyleBackColor = True
-        '
-        'DetailTagTextBox
-        '
-        Me.DetailTagTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.DetailTagTextBox.ImeMode = System.Windows.Forms.ImeMode.[On]
-        Me.DetailTagTextBox.Location = New System.Drawing.Point(52, 120)
-        Me.DetailTagTextBox.Name = "DetailTagTextBox"
-        Me.DetailTagTextBox.Size = New System.Drawing.Size(156, 23)
-        Me.DetailTagTextBox.TabIndex = 11
-        '
-        'FeeTextBox
-        '
-        Me.FeeTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.FeeTextBox.ImeMode = System.Windows.Forms.ImeMode.Off
-        Me.FeeTextBox.Location = New System.Drawing.Point(52, 33)
-        Me.FeeTextBox.Name = "FeeTextBox"
-        Me.FeeTextBox.Size = New System.Drawing.Size(156, 23)
-        Me.FeeTextBox.TabIndex = 3
-        '
-        'DiscountRateTextBox
-        '
-        Me.DiscountRateTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.DiscountRateTextBox.ImeMode = System.Windows.Forms.ImeMode.Off
-        Me.DiscountRateTextBox.Location = New System.Drawing.Point(52, 91)
-        Me.DiscountRateTextBox.Name = "DiscountRateTextBox"
-        Me.DiscountRateTextBox.Size = New System.Drawing.Size(156, 23)
-        Me.DiscountRateTextBox.TabIndex = 9
-        '
         'DiscountFeeTextBox
         '
         Me.DiscountFeeTextBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
@@ -716,24 +671,25 @@ Partial Class RegisterForm
         Me.ItemNameComboBox.Size = New System.Drawing.Size(156, 23)
         Me.ItemNameComboBox.TabIndex = 1
         '
-        'GroupTaxRateComboBox
+        'DetailTaxRateComboBox
         '
-        Me.GroupTaxRateComboBox.DisplayMember = "Name"
-        Me.GroupTaxRateComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.GroupTaxRateComboBox.FormattingEnabled = True
-        Me.GroupTaxRateComboBox.Location = New System.Drawing.Point(39, 33)
-        Me.GroupTaxRateComboBox.Name = "GroupTaxRateComboBox"
-        Me.GroupTaxRateComboBox.Size = New System.Drawing.Size(170, 23)
-        Me.GroupTaxRateComboBox.TabIndex = 3
-        Me.GroupTaxRateComboBox.ValueMember = "Code"
+        Me.DetailTaxRateComboBox.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.DetailTaxRateComboBox.DisplayMember = "DisplayName"
+        Me.DetailTaxRateComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.DetailTaxRateComboBox.FormattingEnabled = True
+        Me.DetailTaxRateComboBox.Location = New System.Drawing.Point(52, 149)
+        Me.DetailTaxRateComboBox.Name = "DetailTaxRateComboBox"
+        Me.DetailTaxRateComboBox.Size = New System.Drawing.Size(156, 23)
+        Me.DetailTaxRateComboBox.TabIndex = 12
+        Me.DetailTaxRateComboBox.ValueMember = "Code"
         '
         'GroupTagTextBox
         '
         Me.GroupTagTextBox.ImeMode = System.Windows.Forms.ImeMode.[On]
-        Me.GroupTagTextBox.Location = New System.Drawing.Point(39, 62)
+        Me.GroupTagTextBox.Location = New System.Drawing.Point(39, 33)
         Me.GroupTagTextBox.Name = "GroupTagTextBox"
         Me.GroupTagTextBox.Size = New System.Drawing.Size(170, 23)
-        Me.GroupTagTextBox.TabIndex = 5
+        Me.GroupTagTextBox.TabIndex = 2
         '
         'GroupClassificationComboBox
         '
@@ -782,10 +738,10 @@ Partial Class RegisterForm
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.UserListBox.FormattingEnabled = True
         Me.UserListBox.ItemHeight = 15
-        Me.UserListBox.Location = New System.Drawing.Point(52, 149)
+        Me.UserListBox.Location = New System.Drawing.Point(52, 178)
         Me.UserListBox.Name = "UserListBox"
         Me.UserListBox.SelectionMode = System.Windows.Forms.SelectionMode.MultiSimple
-        Me.UserListBox.Size = New System.Drawing.Size(156, 79)
+        Me.UserListBox.Size = New System.Drawing.Size(156, 50)
         Me.UserListBox.TabIndex = 13
         '
         'RegisterForm
@@ -881,7 +837,6 @@ Partial Class RegisterForm
     Friend WithEvents Label17 As Label
     Friend WithEvents ShopNameComboBox As OriginalControls.OriginalComboBox
     Friend WithEvents TotalTextBox As OriginalControls.OriginalTextBox
-    Friend WithEvents TaxTargetCheckBox As OriginalControls.OriginalCheckBox
     Friend WithEvents FeeTextBox As OriginalControls.OriginalTextBox
     Friend WithEvents ItemNameComboBox As OriginalControls.OriginalComboBox
     Friend WithEvents GroupClassificationComboBox As OriginalControls.OriginalComboBox
@@ -905,7 +860,7 @@ Partial Class RegisterForm
     Friend WithEvents TotalPointColumn As DataGridViewTextBoxColumn
     Friend WithEvents CopyButton As Button
     Friend WithEvents Label3 As Label
-    Friend WithEvents GroupTaxRateComboBox As OriginalControls.OriginalComboBox
+    Friend WithEvents DetailTaxRateComboBox As OriginalControls.OriginalComboBox
     Friend WithEvents Label7 As Label
     Friend WithEvents TotalTextBox2 As OriginalControls.OriginalTextBox
     Friend WithEvents HelpToolTip As ToolTip

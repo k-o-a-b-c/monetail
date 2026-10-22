@@ -128,7 +128,7 @@ Friend Module NullTextTests
     End Sub
 
     Private Sub SeedAmounts(fixture As DatabaseFixture, mode As String)
-        fixture.Execute("INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag) " &
+        fixture.Execute("INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_code,tag) " &
             "VALUES(1,2,2,'refund',-7,1,0,0,0,'');" &
             "INSERT INTO t_receipt_detail_users(receipt_seq,group_seq,detail_seq,user_code) VALUES(1,2,2,1);" &
             "UPDATE t_receipts SET tax_rounding_mode='" & mode & "',total=" & ExpectedTotal(mode).ToString(CultureInfo.InvariantCulture) & " WHERE seq=1;")

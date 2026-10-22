@@ -90,7 +90,7 @@ Friend Module StatisticsOverflowTests
         Using fixture As New DatabaseFixture(foreignKeys)
             fixture.Execute("INSERT INTO m_user(code,name,account_name,seq) VALUES(2,'other','other-account',2);" &
                 "INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(2,'other cash',2,2);" &
-                "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'other group',2,1,0)")
+                "INSERT INTO m_group_classification(code,name,seq,default_tax_category_code) VALUES(2,'other group',2,1)")
             ' マスタの読込キャッシュが作られる前に、テスト用マスタを揃える。
             fixture.Data.DeleteReceipt(fixture.Data.GetReceipts(2026, 10).Single())
             For index As Integer = 0 To amounts.Length - 1

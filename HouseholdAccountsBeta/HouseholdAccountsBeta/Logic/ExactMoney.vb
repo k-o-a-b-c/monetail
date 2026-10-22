@@ -2,7 +2,7 @@ Imports System.Globalization
 Imports System.Numerics
 Imports System.Text.RegularExpressions
 
-' 移行と将来の会計処理で使う十進値。途中の乗除算も暗黙に丸めない。
+' 移行とアプリの会計処理で使う十進値。途中の乗除算も暗黙に丸めない。
 Public NotInheritable Class ExactMoney
     Private Sub New()
     End Sub
@@ -77,3 +77,49 @@ Public NotInheritable Class ExactMoney
         Return net + tax
     End Function
 End Class
+
+' 人数按分を十進小数へ近似せず、最後の業務上の丸めまで分数で保持する。
+Public Structure MoneyFraction
+    Private ReadOnly numerator As BigInteger
+    Private ReadOnly denominator As BigInteger
+
+    Public Sub New(value As BigInteger, Optional divisor As Integer = 1)
+        Me.New(value, New BigInteger(divisor))
+    End Sub
+
+    Private Sub New(value As BigInteger, divisor As BigInteger)
+        If divisor <= 0 Then Throw New ArgumentOutOfRangeException(NameOf(divisor))
+        Dim gcd = BigInteger.GreatestCommonDivisor(BigInteger.Abs(value), divisor)
+        numerator = value / gcd
+        denominator = divisor / gcd
+    End Sub
+
+    Private ReadOnly Property Divisor As BigInteger
+        Get
+            Return If(denominator.IsZero, BigInteger.One, denominator)
+        End Get
+    End Property
+
+    Public Shared Operator +(left As MoneyFraction, right As MoneyFraction) As MoneyFraction
+        Return New MoneyFraction(left.numerator * right.Divisor + right.numerator * left.Divisor, left.Divisor * right.Divisor)
+    End Operator
+
+    Public Function Rounded(mode As String) As BigInteger
+        If mode <> "floor" AndAlso mode <> "half_up" Then Throw New ArgumentException("不正な税端数方式です。")
+        Dim result = numerator / Divisor
+        Dim remainder = numerator Mod Divisor
+        If mode = "floor" Then
+            If remainder < 0 Then result -= 1
+        ElseIf BigInteger.Abs(remainder) * 2 >= Divisor Then
+            result += numerator.Sign
+        End If
+        Return result
+    End Function
+
+    Public Function WithTax(rate As Integer, taxType As Integer, mode As String) As MoneyFraction
+        If taxType <> 0 AndAlso taxType <> 1 Then Throw New ArgumentException("不正な内税／外税区分です。")
+        If taxType = 0 Then Return Me
+        Dim tax = New MoneyFraction(numerator * rate, Divisor * 100).Rounded(mode)
+        Return Me + New MoneyFraction(tax)
+    End Function
+End Structure

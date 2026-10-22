@@ -144,25 +144,25 @@ Friend Module DetailViewOverflowTests
         Dim fixture As New DatabaseFixture(foreignKeys)
         Try
             fixture.Execute("INSERT INTO m_payment_classification(code,name,seq,user_code) VALUES(2,'other cash',2,1);" &
-                "INSERT INTO m_group_classification(code,name,seq,default_tax_target,reduced_tax_target) VALUES(2,'other group',2,1,0);" &
+                "INSERT INTO m_group_classification(code,name,seq,default_tax_category_code) VALUES(2,'other group',2,1);" &
                 "UPDATE t_receipts SET tax_type=0,total=19,shop_location='original location',tag='original tag',tax_rounding_mode='" & mode & "';" &
-                "UPDATE t_receipt_details SET tax_target=0;")
+                "UPDATE t_receipt_details SET tax_code=0;")
             ' 現在の入力防御を迂回し、既存DBにあり得る範囲外の明細を読ませる。
             If kind < 2 Then
                 Dim amount = (sign * 1500000000).ToString(CultureInfo.InvariantCulture)
                 Dim opposite = If(kind = 0, amount, (-sign * 1500000000).ToString(CultureInfo.InvariantCulture))
                 Dim quantity = If(kind = 0, "1", "2")
                 fixture.Execute("UPDATE t_receipt_details SET fee=" & amount & ",quantity=" & quantity & " WHERE group_seq=2;" &
-                    "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_target,tag) " &
+                    "INSERT INTO t_receipt_details(receipt_seq,group_seq,seq,name,fee,quantity,discount_fee,discount_rate,tax_code,tag) " &
                     "VALUES(1,2,2,'second item'," & opposite & "," & quantity & ",0,0,0,'');")
             ElseIf kind = 2 Then
-                fixture.Execute("UPDATE t_receipts SET tax_type=1;UPDATE t_receipt_details SET tax_target=1;" &
+                fixture.Execute("UPDATE t_receipts SET tax_type=1;UPDATE t_receipt_details SET tax_code=5;" &
                     "UPDATE t_receipt_details SET fee=" & (sign * 2000000000).ToString(CultureInfo.InvariantCulture) & " WHERE group_seq=2;")
             ElseIf kind = 3 Then
                 fixture.Execute("UPDATE t_receipt_details SET fee=2147483647,name='" & New String("x"c, 600) & "' WHERE group_seq=1;" &
                     "UPDATE t_receipt_details SET fee=-2147483648 WHERE group_seq=2;")
             Else
-                fixture.Execute("UPDATE t_receipts SET tax_type=1;UPDATE t_receipt_details SET tax_target=1;")
+                fixture.Execute("UPDATE t_receipts SET tax_type=1;UPDATE t_receipt_details SET tax_code=5;")
             End If
             Return fixture
         Catch

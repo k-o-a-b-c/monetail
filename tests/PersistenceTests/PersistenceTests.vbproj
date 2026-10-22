@@ -15,12 +15,14 @@
     <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.Configuration" />
+    <Reference Include="System.Numerics" />
     <Reference Include="System.Xml.Linq" />
     <Import Include="System.Windows.Forms" />
     <Import Include="System.Drawing" />
     <ProjectReference Include="../OriginalControls.TestBuild/OriginalControls.TestBuild.vbproj" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/**/*.vb" Link="Production/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/*.vb" Link="Production/%(Filename)%(Extension)" />
+    <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/ExactMoney.vb" Link="Production/ExactMoney.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb" Link="Production/Calculation.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/IntegerExpression.vb" Link="Production/IntegerExpression.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/ReceiptAmountValidation.vb" Link="Production/ReceiptAmountValidation.vb" />
@@ -35,6 +37,7 @@
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_ListStatistics.vb" Link="Production/ViewForm_ListStatistics.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Expenses.vb" Link="Production/ViewForm_Expenses.vb" />
     <Compile Include="../../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm*.vb" Link="Production/%(Filename)%(Extension)" />
+    <Compile Include="../../tools/DetailTaxMigration/Migration.vb" Link="Production/DetailTaxMigration.vb" />
     <Compile Include="../Shared/Assertions.vb" Link="Assertions.vb" />
     <Compile Include="../Shared/IntegerExpressionCases.vb" Link="IntegerExpressionCases.vb" />
     <Compile Include="../Shared/ReceiptFixtures.vb" Link="ReceiptFixtures.vb" />

@@ -7,9 +7,9 @@ Public Class ReceiptDetail
     Public Property Name As String
     Public Property Fee As Integer
     Public Property Quantity As Integer
-    Public Property TaxTarget As Boolean
+    Public Property TaxRate As TaxRate
     Public Property DiscountFee As Integer
-    Public Property DiscountRate As Double
+    Public Property DiscountRate As Decimal
     Public Property Tag As String
     Public Property Users As List(Of User)
 

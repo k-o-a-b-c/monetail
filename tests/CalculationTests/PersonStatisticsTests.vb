@@ -55,8 +55,8 @@ Friend Module PersonStatisticsTests
                         expected = If(mode = "floor", New Integer() {2, -3, 0, -1, 13, -14, 2, -3, 14, 5},
                             New Integer() {3, -3, 0, 0, 14, -14, 3, -3, 14, 6})
                     ElseIf mode = "floor" Then
-                        expected = If(rate = 8, New Integer() {2, -3, 0, -1, 14, -15, 2, -3, 15, 5},
-                            New Integer() {2, -3, 0, -1, 14, -15, 2, -3, 15, 6})
+                        expected = If(rate = 8, New Integer() {2, -4, 0, -2, 14, -16, 2, -3, 15, 5},
+                            New Integer() {2, -4, 0, -2, 14, -16, 2, -3, 15, 5})
                     Else
                         expected = If(rate = 8, New Integer() {3, -3, 0, 0, 15, -15, 3, -3, 15, 6},
                             New Integer() {3, -3, 0, 0, 15, -15, 3, -3, 15, 7})
@@ -74,9 +74,10 @@ Friend Module PersonStatisticsTests
         For Each mode In New String() {"floor", "half_up"}
             Dim receipt = MakeReceipt(mode, Group(10, Line(3, True, a, b), Line(3, True, a, b)),
                 Group(10, Line(3, True, a, b)), Group(10, Line(19, True, b)), Group(8))
-            receipt.Groups(2).GroupClassification.Code = 2
-            receipt.Groups(3).GroupClassification.Code = 3
-            ' 同分類の2グループを合併せず、各グループ内で合算してから丸める。
+            For index = 0 To receipt.Groups.Count - 1
+                receipt.Groups(index).GroupClassification.Code = index + 1
+            Next
+            ' 異なる分類ごとの参考額を丸め、レシート会計は税率別に合算する。
             AssertFees(receipt, selected, False, True, If(mode = "floor", New Integer() {3, 1, 0, 0}, New Integer() {3, 2, 0, 0}))
             AssertFees(receipt, selected, False, False, If(mode = "floor", New Integer() {6, 3, 0, 0}, New Integer() {7, 3, 0, 0}))
             For Each isAnd In New Boolean() {False, True}

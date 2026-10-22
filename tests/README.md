@@ -1,39 +1,53 @@
 # 計算・保存・外部キーの自動テスト
 
-リポジトリのルートで実行します。
+現在の構成。実行環境違いは同じチェックとして数え、未実行を成功に含めない。
 
-現在の自動テスト構成です。各チェック内の値・モード・経路の組合せは、件数へ重複加算しません。
+| 対象 | 件数 | 今回の確認 |
+| --- | ---: | --- |
+| 計算（JSON11＋VB24） | 35 | ローカル実行成功 |
+| 旧SQLite移行SQL（税端数5＋更新版5） | 10 | ローカル実行成功 |
+| 明細税率コピー移行 | 13 | .NET 8実行成功、Framework実行未完了 |
+| Windows実SQLite・画面・起動設定 | 97 | 参照アセンブリでコンパイル成功、実行未完了 |
+| 合計 | 155 | 全件成功とは扱わない |
 
-| 対象 | 件数 |
-| --- | ---: |
-| 計算（JSONの11ケース＋VBの20チェック） | 31 |
-| SQLite移行SQL（税端数5＋更新版5） | 10 |
-| 明細税率コピー移行（.NET 8／Framework 4.8で同じチェックを実行） | 13 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋同分類の複数税率5） | 97 |
-| 合計（同じチェックの実行環境違いは重複加算しない） | 151 |
+[現ブランチのCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fdetail-tax-application)。各実行のコミットと全ジョブ結果を確認する。今回の[42 明細税率へのアプリ切替](../docs/42-detail-tax-application.md)で、グループ税率のテストを明細税率・1分類1グループ・区分別の期間ルールへ更新した。過去のWindows成功を新コードの合格として流用しない。
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fdetail-tax-migration)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+計算は.NET SDK 8.0.426のRoslynと.NET 8参照でプロジェクトの製品／テストソースを直接コンパイルして実行した。標準CLIとMSBuild経由のNuGet復元は、この環境の`NuGet-Migrations` mutexエラーで実行できない。独自コントロール・全製品VBソース・更新したWindowsテストは.NET Framework 4.8参照と製品と同じSQLite DLLでコンパイルした。これはWindows実行や標準ソリューションビルドの成功を意味しない。Windowsテストには変更前からのループ変数キャプチャ警告が1件残る。
 
-明細税率への[統一設計](../docs/40-detail-tax-unified-design.md)に向け、既存チェック内に現行の会計890円・収入−111円・支出1,000円と、10,000円の0.14%値引が現行Doubleでは15円になる境界を固定した。利用者はDecimalへ統一して誤差を修正する方針を決定した。採用する新期待値は会計890円・収入−110円・支出1,000円、0.14%値引は14円。[比較JSON](../docs/tests/detail-tax-migration-cases.json)は採用設計の資料であり、コピーDB移行は実装済みだがWindowsアプリは未切替。設計検算を現在の製品自動テスト件数へ加算しない。
+会計890円、負額単独−110円、0.14%値引14円、明細内の混合税率／対象外、28桁の割引率、巨大な中間値と100%値引、1/3の正負按分とメモ保持を確認する。按分の固定期待値は独立したPython Fractionの検算でも確認し、旧Double・旧参考額の誤差維持を契約にしない。参考税額と最終円額を丸める新方式では、10%の−5円を2人按分したfloorが−4円となる。
 
-採用設計の比較JSONは10ケース。金額11項目をPythonのDecimalで照合し、0.14%値引も検算した。.NETのDecimalでも890円・−110円・値引14円／差引9,986円・負税額のfloor／half_up・税率別合算の8項目を検算した。これらは新計算の設計検証であり、製品コードやDB移行の実装テスト成功を示すものではない。
+コピー移行は元DB非変更、WAL、出力保護、キー・対象者・NULL／空／重複メモ、FK ON/OFF、4段階の失敗復元・同じ接続での再実行、不正値／独自構造拒否を検証する。.NET 8／Microsoft.Data.SqliteのSQLite 3.41.2と公式ソースをビルドした3.32.0で成功した。Framework 4.8では製品と同じSystem.Data.SQLite 1.0.113.1を使う同じ13チェックを用意し、実行は未完了。
 
-前段の設計PR #34では、計算31チェック（上記の追加固定値を含む）と移行10テストをローカルで確認した。計算は.NET SDK 8.0.426のRoslynでプロジェクトと同じ製品／テストソース・.NET 8参照を直接コンパイルして実行した。標準CLIは環境のNuGet初回処理のmutexで起動できなかったため、この方法を用いた。Windowsと製品コードは変更しておらず、変更前の[Tests #39583504358](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39583504358)の全件・既存ビルド成功を参照する。今回のGitHub Actionsは支払い／利用上限の問題で全ジョブが実行前に停止しており、CI成功とは扱わない。
+## 未完了テスト（まとめて実施するもの）
 
-明細税率の[コピーDB移行](../docs/41-detail-tax-copy-migration.md)に13チェックを追加した。精度・整数範囲・税率別合算・両税区分／両端数方式・890円と旧誤差修正、異なる親の同一番号・対象者・空グループ・NULL／重複メモ、関係しない全表とヘッダー保存値、更新版・PRAGMAを確認する。FK ON/OFFで4段階の途中失敗からの完全復元と同じ接続での再実行、再適用拒否、不正データ／独自構造の拒否、索引再作成、追加可能な区分と未設定期間、呼出元トランザクション保持も検証する。ファイル実行はWALの確定値を含むコピー・比較CSV、元DBの非変更、既存出力保護と失敗時の出力削除を確認する。
+利用者の2026-10-22の指示により、実行できていない以下をまとめて実施する。実DBは未適用。結果・対象コミット・残る問題をこの一覧へ追記し、完了するまでチェックを付けない。
 
-このブランチでは上記13チェックを.NET 8・Microsoft.Data.Sqliteでローカル実行して成功した。SQLite 3.41.2に加え、公式3.32.0 amalgamationをビルドしたライブラリでも同じ13チェックを実行して成功した。ツールとテストの.NET Framework 4.8参照・製品と同じSystem.Data.SQLite 1.0.113.1によるコンパイルも成功したが、LinuxでFramework版を実行した結果ではない。既存の計算31・移行SQL10も変更前に再確認済み。Windowsアプリ本体は未変更で、既存97チェックは前段の成功CIを参照する。[Tests #39699307457](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39699307457)はGitHubアカウントの支払い／利用上限により全ジョブが開始前に停止した（steps=0、annotationで確認）。新しいWindows実行とツールのSDKビルドは未確認であり、CI成功とは扱わない。更新後の結果は上のブランチリンクで確認する。
+- [ ] Windows／Framework 4.8でコピー移行13チェックと実行ツールのビルド・CLI操作を確認する（PR #35からの未完了分）。
+- [ ] 更新後のWindows97チェックを全実行し、失敗を修正する。明細税率の保存・3読込・更新・即時流用、初期値／手動選択、取消と再表示、メモ統合、FK・版競合、範囲超過、集計と残高推算を含む。
+- [ ] 標準SDKで計算・コピー移行を実行し、元ソリューションをNuGet復元・MSBuildする。参照コンパイルで確認できないリソース・設定・native DLL配置も確認する。
+- [ ] Windowsの読込性能ジョブを実行し、新仕様の一覧／支払方法別1 SELECTと比較CSV（12ケース）を確認する。
+- [ ] Windowsの画面で税率欄の配置・Tab移動、標準以外の明細表示、入力保持・ラジオの独立性・確認取消・即時流用を手動確認する。
+- [ ] 実際の分類→区分と適用期間を確認・設定し、実DBのバックアップからコピー移行する。旧保存／旧再計算／新計算の全差分・対象者・メモと実レシート金額を照合する。
+
+前段のCI [#39699307457](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39699307457)は支払い／利用上限により全ジョブが開始前に停止（steps=0、annotation確認済み）。課金制限中は同じCIの明示的な再実行を繰り返さない。今回のCI状態は上のブランチリンクで確認する。
 
 ```sh
+dotnet run --project tests/CalculationTests/CalculationTests.vbproj
+python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net8.0
 ```
 
-Windowsでは同じチェックを製品のSQLiteプロバイダーでも実行する。CIに両方の実行とツールのビルドを追加した。
-
 ```powershell
 dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48
+dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
 dotnet build tools/DetailTaxMigration/DetailTaxMigration.vbproj
+nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln
+msbuild HouseholdAccountsBeta/HouseholdAccountsBeta.sln /p:Configuration=Debug /p:Platform="Any CPU"
 ```
+
+## 旧改修から引き継ぐ検証範囲
+
+PR #34時点の31計算チェックは旧Double境界を記録した。PR #35はコピー移行13チェックを追加した。変更前の[Tests #39583504358](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39583504358)の138チェック・既存ビルド成功は旧コードの履歴。以下は各改修時の範囲の記録であり、新版でのWindows全件成功を示さない。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
@@ -51,14 +65,14 @@ GetReceiptsの一括読込は3チェックを追加しています。FK ON/OFF�
 
 税率の初期選択に3チェックを追加しています。FK ON/OFFで税率マスタの並び替え・将来税率・同率の重複を含め、2019年10月1日の境界と軽減対象による8%／10%選択を確認します。該当税率なしでの追加抑止、手動選択と既存グループ統合、保存済みの税率コード・計算結果の保持を検証します。初期値変更・取消はモデルとDBを変更しないことも比較します。[38 仕様と範囲](../docs/38-tax-default-selection.md)。
 
-同分類の複数税率に5チェックを追加しています。FK ON/OFFで分類コード＋税率コードによる追加／更新／統合と正しい行の選択、初期税率を標準とした表示省略（日付境界・軽減対象・同率コード・マスタ欠損）と日付変更中の選択／未反映入力の保持、重複追加・税率欠損の抑止、統合先の明細参照・メモと既存重複の保持を確認します。内税／外税・両端数方式の新規保存／再読込／更新／即時流用、対象者と分類別の月額／年額を検証し、メモリ編集・表示時のDB非変更も確認します。[39 仕様と範囲](../docs/39-classification-tax-groups.md)。
+同分類の旧複数グループ方式に用意した5チェックは、新版で明細混合税率・分類のみの統合・メモ保持・標準表示・欠損時の手動選択へ置換しました。以下は旧39方式の検証履歴です。FK ON/OFFで分類コード＋税率コードによる追加／更新／統合と正しい行の選択、初期税率を標準とした表示省略（日付境界・軽減対象・同率コード・マスタ欠損）と日付変更中の選択／未反映入力の保持、重複追加・税率欠損の抑止、統合先の明細参照・メモと既存重複の保持を確認します。内税／外税・両端数方式の新規保存／再読込／更新／即時流用、対象者と分類別の月額／年額を検証し、メモリ編集・表示時のDB非変更も確認します。[39 仕様と範囲](../docs/39-classification-tax-groups.md)。
 
 ```sh
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
 python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 ```
 
-計算テストは .NET 8 SDK を使い、実アプリの VB ソースを直接コンパイルします。JSON の全11ケース、税率別合算、旧 `floor` の負数・浮動小数点境界、手入力値引・率値引、収入／支出、人別参考配分、残高推算、内税／外税・端数方式を指定した合計プレビューでReceiptの状態を変更しないことを検証します。残高推算の入出力だけをメモリ上で供給し、計算処理は製品コードを実行します。
+計算テストは .NET 8 SDK を使い、実アプリの VB ソースを直接コンパイルします。JSON の全11ケース、税率別合算、正確な `floor` の負数境界と旧Double誤差の修正、手入力値引・率値引、収入／支出、人別参考配分、残高推算、内税／外税・端数方式を指定した合計プレビューでReceiptの状態を変更しないことを検証します。残高推算の入出力だけをメモリ上で供給し、計算処理は製品コードを実行します。
 
 人別集計は、対象者なし・1〜3名と無関係な選択者を含む全16選択集合、完全一致／部分一致、按分あり／なし、内税／外税、両端数方式を固定値で比較します。2人／3人の正負按分、8%／10%、課税／非課税混在、グループ内合算・空グループ・分類／日時の保持も確認します。Userの参照一致を現行挙動として記録し、各呼出前後でレシートの値・会計合計／収入／支出と選択者の値・参照順序が変わらないことを検証します。製品コードやDBは変更しません。[22 検証範囲と残る仕様判断](../docs/22-person-group-statistics.md)参照。
 
