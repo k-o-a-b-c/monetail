@@ -28,6 +28,7 @@ jobs:
           dotnet-version: 8.0.x
       - run: dotnet run --project tests/CalculationTests/CalculationTests.vbproj
       - run: python3 -m unittest discover -s tests -p 'test_*migration.py' -v
+      - run: dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net8.0
 
   windows-persistence-and-ui:
     runs-on: windows-latest
@@ -37,6 +38,8 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
+      - run: dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48
+      - run: dotnet build tools/DetailTaxMigration/DetailTaxMigration.vbproj
       - uses: NuGet/setup-nuget@v2
       - uses: microsoft/setup-msbuild@v2
       - run: nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln

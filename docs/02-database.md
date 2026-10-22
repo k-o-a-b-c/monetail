@@ -1,6 +1,6 @@
 # 02 現行SQLiteデータベース仕様（実DDL照合済み）
 
-> 明細税率・対象外・同分類統合の変更は[40の設計案](40-detail-tax-unified-design.md)。本書の構造は現行のままで、40の移行SQLは未実装。
+> 明細税率・対象外・同分類統合は[40の設計](40-detail-tax-unified-design.md)。[41 コピーDB移行](41-detail-tax-copy-migration.md)を実装したが、Windowsアプリの切替は未完了。本書は現行アプリの構造を説明する。
 
 更新日: 2026-10-19。対象: `monetail-legacy`、VB.NET / .NET Framework 4.8 / SQLite。
 
