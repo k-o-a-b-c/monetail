@@ -264,7 +264,7 @@ Module Program
     End Sub
 
     Private Sub InvalidData()
-        For Each sql In {"UPDATE t_receipt_groups SET tax=99", "UPDATE t_receipt_details SET discount_rate='NaN'", "UPDATE t_receipt_details SET discount_rate='0.10000000000000000000000000001x'", "UPDATE t_receipt_details SET discount_rate=1e-29", "UPDATE t_receipt_details SET tax_target=2", "UPDATE t_receipt_details SET fee=1.5", "UPDATE t_receipt_details SET fee=2147483648", "UPDATE t_receipt_details SET fee=2147483647,quantity=2147483647", "UPDATE t_receipt_detail_users SET user_code=99 WHERE user_code=1", "UPDATE t_receipts SET tax_rounding_mode='other'", "UPDATE t_receipts SET tax_type=3"}
+        For Each sql As String In {"UPDATE t_receipt_groups SET tax=99", "UPDATE t_receipt_details SET discount_rate='NaN'", "UPDATE t_receipt_details SET discount_rate='0.10000000000000000000000000001x'", "UPDATE t_receipt_details SET discount_rate=1e-29", "UPDATE t_receipt_details SET tax_target=2", "UPDATE t_receipt_details SET fee=1.5", "UPDATE t_receipt_details SET fee=2147483648", "UPDATE t_receipt_details SET fee=2147483647,quantity=2147483647", "UPDATE t_receipt_detail_users SET user_code=99 WHERE user_code=1", "UPDATE t_receipts SET tax_rounding_mode='other'", "UPDATE t_receipts SET tax_type=3"}
             Using db = Database(0)
                 If sql.Contains("tax_rounding_mode") Then DetailTaxMigration.Execute(db, "PRAGMA ignore_check_constraints=ON")
                 DetailTaxMigration.Execute(db, sql)
@@ -276,7 +276,7 @@ Module Program
     End Sub
 
     Private Sub CustomSchema()
-        For Each sql In {"ALTER TABLE t_receipt_details ADD COLUMN custom TEXT", "CREATE TRIGGER custom AFTER UPDATE ON t_receipts BEGIN SELECT 1;END", "CREATE VIEW custom AS SELECT * FROM t_receipt_groups", "CREATE INDEX custom ON t_receipt_groups(tax)", "CREATE TABLE custom(receipt_seq INTEGER,group_seq INTEGER,FOREIGN KEY(receipt_seq,group_seq) REFERENCES t_receipt_groups(receipt_seq,seq))"}
+        For Each sql As String In {"ALTER TABLE t_receipt_details ADD COLUMN custom TEXT", "CREATE TRIGGER custom AFTER UPDATE ON t_receipts BEGIN SELECT 1;END", "CREATE VIEW custom AS SELECT * FROM t_receipt_groups", "CREATE INDEX custom ON t_receipt_groups(tax)", "CREATE TABLE custom(receipt_seq INTEGER,group_seq INTEGER,FOREIGN KEY(receipt_seq,group_seq) REFERENCES t_receipt_groups(receipt_seq,seq))"}
             Using db = Database()
                 DetailTaxMigration.Execute(db, sql)
                 Dim before = Snapshot(db)
@@ -305,7 +305,7 @@ Module Program
             Equal(1, DetailTaxMigration.Scalar(db, "SELECT code FROM m_tax_rate WHERE tax_treatment='out_of_scope'"))
             Equal(0, DetailTaxMigration.Scalar(db, "SELECT tax_code FROM t_receipt_details WHERE name='Zero taxable'"))
             Equal(1, DetailTaxMigration.Scalar(db, "SELECT tax_code FROM t_receipt_details WHERE name='Excluded' AND group_seq=8"))
-            For Each sql In {"INSERT INTO t_receipt_groups VALUES(1,99,1,NULL)", "UPDATE t_receipt_details SET tax_code=99", "UPDATE m_tax_rate SET rate=1 WHERE tax_treatment='out_of_scope'", "INSERT INTO m_tax_category_rule VALUES(1,'invalid',4)", "INSERT INTO m_tax_category_rule VALUES(1,'2030-02-31',4)", "INSERT INTO m_tax_category_rule VALUES(99,'2030-01-01',4)"}
+            For Each sql As String In {"INSERT INTO t_receipt_groups VALUES(1,99,1,NULL)", "UPDATE t_receipt_details SET tax_code=99", "UPDATE m_tax_rate SET rate=1 WHERE tax_treatment='out_of_scope'", "INSERT INTO m_tax_category_rule VALUES(1,'invalid',4)", "INSERT INTO m_tax_category_rule VALUES(1,'2030-02-31',4)", "INSERT INTO m_tax_category_rule VALUES(99,'2030-01-01',4)"}
                 Reject(Sub() DetailTaxMigration.Execute(db, sql))
             Next
         End Using
