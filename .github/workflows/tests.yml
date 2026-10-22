@@ -5,6 +5,22 @@ on:
   pull_request:
 
 jobs:
+  receipt-ui-acceptance:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --check-receipt-ui "$env:RUNNER_TEMP/receipt-ui-review"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: receipt-ui-review
+          path: ${{ runner.temp }}/receipt-ui-review
+          if-no-files-found: error
+
   receipt-read-performance:
     runs-on: windows-latest
     steps:

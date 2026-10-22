@@ -10,11 +10,14 @@ Module Program
     <STAThread>
     Function Main(args As String()) As Integer
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException)
+        If args.Length = 2 AndAlso args(0) = "--check-receipt-ui" Then
+            Return ReceiptUiAcceptance.Run(args(1))
+        End If
         If args.Length = 2 AndAlso args(0) = "--measure-receipt-reads" Then
             Return ReceiptReadMeasurements.Run(args(1))
         End If
         If args.Length <> 0 Then
-            Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
+            Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv | --check-receipt-ui output-folder]")
             Return 2
         End If
         Check("only nondefault detail tax rates appear without losing selection or pending edits", AddressOf ClassificationTaxTests.StandardRateLabels)

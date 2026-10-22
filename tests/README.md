@@ -9,7 +9,8 @@
 | 明細税率コピー移行 | 13 | .NET 8とWindows／Framework 4.8で成功 |
 | 移行CLIの起動・入出力保護 | 1 | Windows／Framework 4.8で成功 |
 | Windows実SQLite・画面・起動設定 | 97 | Windows CIで全件成功 |
-| 合計 | 156 | 全件成功（移行13件の実行環境違いは重複加算しない） |
+| Windows画面受入（Tab・拡大描画） | 2 | 追加・CIで検証中 |
+| 合計 | 158 | 従来156件成功、追加2件は検証中 |
 
 [現ブランチのCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fdetail-tax-application)。各実行のコミットと全ジョブ結果を確認する。今回の[42 明細税率へのアプリ切替](../docs/42-detail-tax-application.md)で、グループ税率のテストを明細税率・1分類1グループ・区分別の期間ルールへ更新した。過去のWindows成功を新コードの合格として流用しない。
 
@@ -26,6 +27,8 @@
 会計890円、負額単独−110円、0.14%値引14円、明細内の混合税率／対象外、28桁の割引率、巨大な中間値と100%値引、1/3の正負按分とメモ保持を確認する。按分の固定期待値は独立したPython Fractionの検算でも確認し、旧Double・旧参考額の誤差維持を契約にしない。参考税額と最終円額を丸める新方式では、10%の−5円を2人按分したfloorが−4円となる。
 
 コピー移行は元DB非変更、WAL、出力保護、キー・対象者・NULL／空／重複メモ、FK ON/OFF、4段階の失敗復元・同じ接続での再実行、不正値／独自構造拒否を検証する。.NET 8／Microsoft.Data.SqliteのSQLite 3.41.2と公式ソースをビルドした3.32.0で成功した。Framework 4.8でも製品と同じSystem.Data.SQLite 1.0.113.1を使い、同じ13チェックに成功した。
+
+Windows画面受入は`--check-receipt-ui 出力フォルダー`で別実行する。実際のWinFormsのTab／Shift+Tab／矢印キー処理、入力と元レシート・DBの保持、税率欄とラジオの可視性・重なり・親領域内の配置を検証する。標準と相対125／150／200%の自動拡大で描画し、`receipt-ui-review` artifactへPNG4枚と実DPI・寸法CSVを保存する。相対拡大はWindowsの実DPI切替や利用者の端末を再現したものではない。画像の目視確認と実データの照合は、結果を確認するまで完了扱いにしない。
 
 ## 未完了テスト（まとめて実施するもの）
 
@@ -50,6 +53,7 @@ dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbpro
 ```powershell
 dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48
 dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
+dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --check-receipt-ui "$env:TEMP/receipt-ui-review"
 dotnet build tools/DetailTaxMigration/DetailTaxMigration.vbproj
 dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48 -- --cli "$((Resolve-Path tools/DetailTaxMigration/bin/Debug/net48/DetailTaxMigration.exe).Path)"
 nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln
@@ -142,12 +146,12 @@ GitHub Actions の `Tests` は上記テストと、Windows で既存ソリュー
 ## Windowsで画面を手動確認する手順（利用者環境では未実施）
 
 1. 確認対象の作業ブランチ（mainへの取り込み後は `main`）をチェックアウトし、READMEの開発手順で既存ソリューションをビルドします。
-2. DBをバックアップしてテスト用コピーを作ります。税端数の2列が未追加なら`docs/migrations/20261017_01_shop_tax_rounding.sql`を一度適用します。次にレシート・振替・残高の3表を`PRAGMA table_info`で確認し、`revision_token`が未追加なら`docs/migrations/20261019_01_revision_tokens.sql`を一度適用します。適用済みの移行は再実行しません。`App.config`の接続先をそのコピーに変更して起動します。
-3. 未登録の店舗名で新規レシートを作成し、「外税」、税率10%、19円の明細2件を入力します。「税端数」のラジオボタンを切り替え、切り捨て41円／四捨五入42円を確認します。端数を切り替えても「外税」が選択されたままで、「内税」に切り替えても端数の選択が保持されることを確認します。
+2. DBをバックアップして作業用コピーを作ります。税端数の2列が未追加なら`docs/migrations/20261017_01_shop_tax_rounding.sql`を一度適用します。レシート・振替・残高の`revision_token`が未追加なら`docs/migrations/20261019_01_revision_tokens.sql`も適用します。その後、[41のコピー移行CLI](../docs/41-detail-tax-copy-migration.md)で別名の移行済みDBと比較CSVを作成し、`App.config`の接続先をその移行済みDBに変更します。初期値を確認する場合は確認済みの分類・適用期間データも設定します。適用済みの移行は再実行しません。
+3. 未登録の店舗名で新規レシートを作成し、「外税」を選び、同じ分類に税率10%・19円の明細2件を入力します。税率は明細欄で選択します。「税端数」のラジオボタンを切り替え、切り捨て41円／四捨五入42円を確認します。端数を切り替えても「外税」が選択されたままで、「内税」に切り替えても端数の選択が保持されることを確認します。
 4. 四捨五入で保存して開き直し、方式と42円が保持されることを確認します。店名を変えても方式が変わらないことを確認します。「内税」と別の端数方式へ変更して保存せず閉じ、同じレシートを再度開くと元の「外税」と方式・合計に戻ることを確認します。「内税」から「外税」への取消も同様です。保存した場合には変更後の設定が保持されます。編集中の選択は画面側だけで保持され、Receiptの両設定は登録確認後に転記されます。
 5. 同じ店舗の新規レシートを開き、候補を選ぶか店名を入力して別の欄へ移動すると、直近の四捨五入が初期選択されることを確認します。その店舗で切り捨てのレシートを後の日付で保存すると、次の新規入力は切り捨てになります。履歴のない店舗は切り捨てです。レシートで方式を手動選択した後は、店舗を変えても選択を保持します。
 6. 既存レシートを開き、必要なら画面上の税端数を変更して「流用」を押します。従来の確認後に新しいレシートが保存され、画面が閉じることを確認します。「登録」の押し直しは不要です。元レシートのDB上の内容は変わらず、流用先には画面上の端数方式が保存されます。流用確認で「いいえ」を選ぶと、画面は開いたままで追加保存されません。
-7. 税込入力で方式を変えても合計が変わらないことと、既存レシートの金額・オーケーの手入力割引に変化がないことを確認します。
+7. 税込入力で方式を変えても合計が変わらないことと、オーケーの手入力割引の操作・業務上の丸めを確認します。既存レシートは比較CSVの新計算額と照合し、旧Double由来の差は移行仕様で説明できることを確認します。
 8. 外税8%、単価103円・単価値引3円・数量2・値引率2.5%で保存し、開き直して率と合計（切り捨て210円／四捨五入211円）が保持されることを確認します。率を2.6%へ更新して再表示し、切り捨て209円／四捨五入210円を確認します。0%・3%の整数率も従来どおり保存・再表示できることを確認します。
 
 旧アプリと新アプリで同じDBを同時に使わないでください。
