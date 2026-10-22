@@ -32,6 +32,7 @@ jobs:
 
   windows-persistence-and-ui:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -40,6 +41,8 @@ jobs:
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
       - run: dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48
       - run: dotnet build tools/DetailTaxMigration/DetailTaxMigration.vbproj
+      - name: Verify migration CLI exit codes and copy safety
+        run: dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net48 -- --cli "$((Resolve-Path tools/DetailTaxMigration/bin/Debug/net48/DetailTaxMigration.exe).Path)"
       - uses: NuGet/setup-nuget@v2
       - uses: microsoft/setup-msbuild@v2
       - run: nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln

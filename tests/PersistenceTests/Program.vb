@@ -9,6 +9,7 @@ Imports System.Windows.Forms
 Module Program
     <STAThread>
     Function Main(args As String()) As Integer
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException)
         If args.Length = 2 AndAlso args(0) = "--measure-receipt-reads" Then
             Return ReceiptReadMeasurements.Run(args(1))
         End If
@@ -115,6 +116,21 @@ Module Program
         Check("receipt/transfer/balance edit and delete conflicts warn and preserve open forms and input", AddressOf RevisionUiTests.ConflictsKeepInput)
         Return Finish()
     End Function
+
+
+    ' 実行中のチェックを記録し、予期しないモーダル待ちを60秒で失敗にする。
+    Private Sub Check(name As String, action As Action)
+        Console.WriteLine("RUN " & name)
+        Console.Out.Flush()
+        Using deadline As New System.Threading.Timer(
+            Sub(state)
+                Console.Error.WriteLine("TIMEOUT " & name)
+                Console.Error.Flush()
+                Environment.FailFast("Test exceeded 60 seconds: " & name)
+            End Sub, Nothing, TimeSpan.FromSeconds(60), System.Threading.Timeout.InfiniteTimeSpan)
+            Assertions.Check(name, action)
+        End Using
+    End Sub
 
     Private Sub ReceiptPersistence()
         Using fixture As New DatabaseFixture

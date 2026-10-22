@@ -11,7 +11,16 @@ Imports Microsoft.Data.Sqlite
 Module Program
     Private passed As Integer
 
-    Sub Main()
+    ' 通常の移行チェック、またはビルド済みCLIの入出力を検証する。
+    Sub Main(args As String())
+#If NETFRAMEWORK Then
+        If args.Length = 2 AndAlso args(0) = "--cli" Then
+            Check("migration CLI exit codes outputs and source protection", Sub() CliSmoke(args(1)))
+            Console.WriteLine("1/1 CLI checks passed.")
+            Return
+        End If
+#End If
+        If args.Length <> 0 Then Throw New ArgumentException("Usage: DetailTaxMigrationTests [--cli tool.exe]")
 #If Not NETFRAMEWORK Then
         SQLitePCL.raw.SetProvider(New SQLitePCL.SQLite3Provider_e_sqlite3())
 #End If
@@ -373,4 +382,72 @@ Module Program
             Directory.Delete(folder, True)
         End Try
     End Sub
+
+#If NETFRAMEWORK Then
+    ' 実行ファイルの終了コード・コピー結果・失敗時の元DB保護を検証する。
+    Private Sub CliSmoke(toolPath As String)
+        If Not File.Exists(toolPath) Then Throw New FileNotFoundException("Migration CLI was not built.", toolPath)
+        Dim folder = Path.Combine(Path.GetTempPath(), "monetail CLI " & Guid.NewGuid().ToString("N"))
+        Directory.CreateDirectory(folder)
+        Try
+            Dim sourcePath = Path.Combine(folder, "source database.sqlite")
+            Dim copyPath = Path.Combine(folder, "copy database.sqlite")
+            Dim reportPath = Path.Combine(folder, "comparison report.csv")
+            Using seed = Database(), fileDb As New SQLiteConnection("Data Source=" & sourcePath & ";Pooling=False")
+                fileDb.Open()
+                DirectCast(seed, SQLiteConnection).BackupDatabase(fileDb, "main", "main", -1, Nothing, 0)
+            End Using
+            Dim original = File.ReadAllBytes(sourcePath)
+            Equal(2, RunCli(toolPath))
+            Equal(0, RunCli(toolPath, sourcePath, copyPath, reportPath))
+            Equal(True, original.SequenceEqual(File.ReadAllBytes(sourcePath)))
+            Equal(True, File.ReadAllText(reportPath).Contains("1,999,931,931,0,808"))
+            Using migrated As New SQLiteConnection("Data Source=" & copyPath & ";Pooling=False")
+                migrated.Open()
+                Equal(DetailTaxMigration.MigrationId, DetailTaxMigration.Scalar(migrated, "SELECT id FROM detail_tax_migration"))
+                Equal(931, DetailTaxMigration.Scalar(migrated, "SELECT total FROM t_receipts WHERE seq=1"))
+            End Using
+            Dim copyBytes = File.ReadAllBytes(copyPath)
+            Dim reportBytes = File.ReadAllBytes(reportPath)
+            Equal(1, RunCli(toolPath, sourcePath, copyPath, reportPath))
+            Equal(True, copyBytes.SequenceEqual(File.ReadAllBytes(copyPath)))
+            Equal(True, reportBytes.SequenceEqual(File.ReadAllBytes(reportPath)))
+            Equal(1, RunCli(toolPath, sourcePath, sourcePath, reportPath))
+            Equal(True, original.SequenceEqual(File.ReadAllBytes(sourcePath)))
+            File.Delete(copyPath)
+            File.Delete(reportPath)
+            Equal(1, RunCli(toolPath, Path.Combine(folder, "missing.sqlite"), copyPath, reportPath))
+            Equal(False, File.Exists(copyPath))
+            Equal(False, File.Exists(reportPath))
+            Using broken As New SQLiteConnection("Data Source=" & sourcePath & ";Pooling=False")
+                broken.Open()
+                DetailTaxMigration.Execute(broken, "UPDATE t_receipt_groups SET tax=99")
+            End Using
+            Dim brokenBytes = File.ReadAllBytes(sourcePath)
+            Equal(1, RunCli(toolPath, sourcePath, copyPath, reportPath))
+            Equal(True, brokenBytes.SequenceEqual(File.ReadAllBytes(sourcePath)))
+            Equal(False, File.Exists(copyPath))
+            Equal(False, File.Exists(reportPath))
+        Finally
+            Directory.Delete(folder, True)
+        End Try
+    End Sub
+
+    ' 空白を含むパスを引数に渡してCLIを起動し、終了コードを返す。
+    Private Function RunCli(toolPath As String, ParamArray arguments As String()) As Integer
+        Dim startInfo As New System.Diagnostics.ProcessStartInfo With {
+            .FileName = Path.GetFullPath(toolPath),
+            .Arguments = String.Join(" ", arguments.Select(Function(argument) """" & argument & """")),
+            .UseShellExecute = False,
+            .CreateNoWindow = True
+        }
+        Using process = System.Diagnostics.Process.Start(startInfo)
+            If Not process.WaitForExit(30000) Then
+                process.Kill()
+                Throw New TimeoutException("Migration CLI did not finish within 30 seconds.")
+            End If
+            Return process.ExitCode
+        End Using
+    End Function
+#End If
 End Module
