@@ -80,6 +80,11 @@ Module Program
             Equal(expected8(index), MakeReceipt("floor", Group(8, Detail(amounts(index)))).Total, "8% " & amounts(index))
             Equal(expected10(index), MakeReceipt("floor", Group(10, Detail(amounts(index)))).Total, "10% " & amounts(index))
         Next
+        ' 対象外を独立集計すると、参考額だけでなく会計合計も変わる境界を固定する。
+        Dim excludedBoundary = MakeReceipt("floor", Group(10, Detail(-100), Detail(1000, False)))
+        Equal(890, excludedBoundary.Total, "Mixed negative taxable and excluded amounts")
+        Equal(-111, excludedBoundary.Incomes)
+        Equal(1000, excludedBoundary.Expenses)
         Dim mixed = MakeReceipt("floor", Group(8, Detail(19), Detail(3, False)), Group(10, Detail(19)), Group(10, Detail(19)))
         Equal(64, mixed.Total)
         mixed.TaxType = 0
@@ -87,6 +92,8 @@ Module Program
     End Sub
 
     Private Sub ExistingDiscounts()
+        ' Decimal移行で修正する予定の二進誤差。現行製品の値として記録する。
+        Equal(9985, MakeReceipt("floor", Group(10, Detail(10000, taxable:=False, discountRate:=0.14))).Total)
         ' The manual three-yen discount remains an amount, not an automatic 3/103 rule.
         For Each mode In New String() {"floor", "half_up"}
             Equal(108, MakeReceipt(mode, Group(8, Detail(103, discountFee:=3))).Total)
