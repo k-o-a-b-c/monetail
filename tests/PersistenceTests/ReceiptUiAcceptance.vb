@@ -91,6 +91,7 @@ Friend Module ReceiptUiAcceptance
                             Equal("標準税率の商品", form.DetailListView.Items(1).Text)
                             Equal("対象外の商品（対象外）", form.DetailListView.Items(2).Text)
                             If scale <> 1.0F Then
+                                form.MaximumSize = New Size(4096, 4096)
                                 form.AutoScaleMode = AutoScaleMode.None
                                 form.Font = New Font(form.Font.FontFamily, form.Font.Size * scale, form.Font.Style, form.Font.Unit)
                                 form.Scale(New SizeF(scale, scale))
