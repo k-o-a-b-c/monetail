@@ -91,7 +91,6 @@ Friend Module ReceiptUiAcceptance
                             Equal("標準税率の商品", form.DetailListView.Items(1).Text)
                             Equal("対象外の商品（対象外）", form.DetailListView.Items(2).Text)
                             If scale <> 1.0F Then
-                                form.MaximumSize = New Size(4096, 4096)
                                 form.AutoScaleMode = AutoScaleMode.None
                                 form.Font = New Font(form.Font.FontFamily, form.Font.Size * scale, form.Font.Style, form.Font.Unit)
                                 form.Scale(New SizeF(scale, scale))
@@ -116,6 +115,8 @@ Friend Module ReceiptUiAcceptance
                             Equal(True, If(scale = 1.0F, form.DetailTaxRateComboBox.Width = 156, form.DetailTaxRateComboBox.Width > 156),
                                   "Relative scaling must enlarge the tax field; anchored margins may alter its exact width")
                             For Each control As Control In New Control() {
+                                form.GroupBox1, form.CloseButton, form.CopyButton, form.RegiserButton, form.DeleteButton,
+                                form.TotalTextBox2, form.DetailListView,
                                 form.FeeTextBox, form.QuantityTextBox, form.DiscountFeeTextBox, form.DiscountRateTextBox,
                                 form.DetailTaxRateComboBox, form.Label3, form.DetailTagTextBox,
                                 form.TaxRoundingModePanel, form.TaxRoundingModeLabel,
