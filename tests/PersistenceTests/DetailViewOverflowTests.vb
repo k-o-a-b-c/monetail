@@ -41,7 +41,7 @@ Friend Module DetailViewOverflowTests
                                             form.Code = 2
                                             Refresh(form)
                                             AssertRows(form)
-                                            form.Code = 1
+                                            form.Code = If(viewMode = DetailViewFormMode.Group, -1, 1)
                                             form.Month = 11
                                             Refresh(form)
                                             AssertRows(form)
@@ -171,8 +171,9 @@ Friend Module DetailViewOverflowTests
         End Try
     End Function
 
+    ' 分類別では全分類を表示し、支払方法別では口座1の明細を表示する。
     Private Function Editor(fixture As DatabaseFixture, mode As DetailViewFormMode) As DetailViewForm
-        Return New DetailViewForm With {.DataAccess = fixture.Data, .Year = 2026, .Month = 10, .Code = 1, .Mode = mode}
+        Return New DetailViewForm With {.DataAccess = fixture.Data, .Year = 2026, .Month = 10, .Code = If(mode = DetailViewFormMode.Group, -1, 1), .Mode = mode}
     End Function
 
     Private Sub Refresh(form As DetailViewForm)
