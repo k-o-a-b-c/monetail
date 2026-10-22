@@ -22,7 +22,7 @@
 
 明細税率の[コピーDB移行](../docs/41-detail-tax-copy-migration.md)に13チェックを追加した。精度・整数範囲・税率別合算・両税区分／両端数方式・890円と旧誤差修正、異なる親の同一番号・対象者・空グループ・NULL／重複メモ、関係しない全表とヘッダー保存値、更新版・PRAGMAを確認する。FK ON/OFFで4段階の途中失敗からの完全復元と同じ接続での再実行、再適用拒否、不正データ／独自構造の拒否、索引再作成、追加可能な区分と未設定期間、呼出元トランザクション保持も検証する。ファイル実行はWALの確定値を含むコピー・比較CSV、元DBの非変更、既存出力保護と失敗時の出力削除を確認する。
 
-このブランチでは上記13チェックを.NET 8・Microsoft.Data.Sqliteでローカル実行して成功した。SQLite 3.41.2に加え、公式3.32.0 amalgamationをビルドしたライブラリでも同じ13チェックを実行して成功した。ツールとテストの.NET Framework 4.8参照・製品と同じSystem.Data.SQLite 1.0.113.1によるコンパイルも成功したが、LinuxでFramework版を実行した結果ではない。既存の計算31・移行SQL10も変更前に再確認済み。Windowsアプリ本体は未変更で、既存97チェックは前段の成功CIを参照する。新しいWindows実行・ビルドとCIの結果は上のブランチリンクで確認する。
+このブランチでは上記13チェックを.NET 8・Microsoft.Data.Sqliteでローカル実行して成功した。SQLite 3.41.2に加え、公式3.32.0 amalgamationをビルドしたライブラリでも同じ13チェックを実行して成功した。ツールとテストの.NET Framework 4.8参照・製品と同じSystem.Data.SQLite 1.0.113.1によるコンパイルも成功したが、LinuxでFramework版を実行した結果ではない。既存の計算31・移行SQL10も変更前に再確認済み。Windowsアプリ本体は未変更で、既存97チェックは前段の成功CIを参照する。[Tests #39699307457](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39699307457)はGitHubアカウントの支払い／利用上限により全ジョブが開始前に停止した（steps=0、annotationで確認）。新しいWindows実行とツールのSDKビルドは未確認であり、CI成功とは扱わない。更新後の結果は上のブランチリンクで確認する。
 
 ```sh
 dotnet run --project tests/DetailTaxMigrationTests/DetailTaxMigrationTests.vbproj --framework net8.0
