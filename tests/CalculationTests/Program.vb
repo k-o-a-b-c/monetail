@@ -5,9 +5,6 @@ Imports System.Text.Json
 
 Module Program
     Function Main() As Integer
-        Check("default tax selection preserves the date boundary and reduced rules in either order", AddressOf TaxRateSelectionTests.DateAndClassification)
-        Check("default tax selection matches the rate rather than code or unrelated master entries", AddressOf TaxRateSelectionTests.MatchesRateRatherThanCode)
-        Check("missing default tax rates return no selection", AddressOf TaxRateSelectionTests.MissingRate)
         CheckJsonExpectations()
         Check("receipt amount validation catches signed overflow and income expense cancellation", AddressOf ReceiptAmountValidationTests.AmountRanges)
         Check("pending amount validation preserves the original receipt lists details and settings", AddressOf ReceiptAmountValidationTests.CandidateIsReadOnly)

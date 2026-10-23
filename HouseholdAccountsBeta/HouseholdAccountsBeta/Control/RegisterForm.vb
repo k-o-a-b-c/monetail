@@ -243,7 +243,8 @@ Public Class RegisterForm
         End If
         Dim classification = TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification)
         Dim reducedTaxTarget As Boolean = classification IsNot Nothing AndAlso classification.ReducedTaxTarget
-        GroupTaxRateComboBox.SelectedItem = TaxRateSelection.GetDefaultRate(ReceiptDateTextBox.Value, reducedTaxTarget, DataAccess.TaxRateList)
+        Dim rate As Integer = If(ReceiptDateTextBox.Value.Date >= New Date(2019, 10, 1) AndAlso Not reducedTaxTarget, 10, 8)
+        GroupTaxRateComboBox.SelectedItem = DataAccess.TaxRateList.FirstOrDefault(Function(taxRate) taxRate.Rate = rate)
     End Sub
 
 #End Region

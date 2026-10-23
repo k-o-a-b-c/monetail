@@ -4,30 +4,37 @@ Imports System.Reflection
 Friend Module TaxRateSelectionUiTests
     Public Sub OrderAndDateChanges()
         For Each foreignKeys In {False, True}
-            Using fixture As New DatabaseFixture(foreignKeys)
-                fixture.Data.TaxRateList.Reverse()
-                Dim reduced As New GroupClassification With {.Code = 2, .Name = "reduced", .ReducedTaxTarget = True}
-                fixture.Data.GroupClassificationList.Add(reduced)
-                BalanceBoundaryTests.ReadOnlyCase(fixture,
-                    Sub()
-                        Using form As New RegisterForm With {.DataAccess = fixture.Data}
-                            Program.OpenForm(form)
-                            Equal(10, SelectedRate(form))
-                            form.GroupClassificationComboBox.SelectedItem = reduced
-                            Equal(8, SelectedRate(form))
-                            form.ReceiptDateTextBox.Value = New Date(2019, 9, 30)
-                            Equal(8, SelectedRate(form))
-                            form.GroupClassificationComboBox.SelectedIndex = 0
-                            Equal(8, SelectedRate(form))
-                            form.ReceiptDateTextBox.Value = New Date(2019, 10, 1)
-                            Equal(10, SelectedRate(form))
-                            form.GroupClassificationComboBox.SelectedIndex = -1
-                            Equal(10, SelectedRate(form))
-                            Equal(0, form.Receipt.Groups.Count)
-                            form.Close()
-                        End Using
-                    End Sub)
-            End Using
+            For Each reversed In {False, True}
+                Using fixture As New DatabaseFixture(foreignKeys)
+                    ' 税率とは異なるコードと追加候補で、値・並び順への依存を確認する。
+                    Dim rates = fixture.Data.TaxRateList
+                    Dim reducedRate As New TaxRate With {.Code = 81, .Name = "8"}
+                    Dim standardRate As New TaxRate With {.Code = 101, .Name = "10"}
+                    rates.Clear()
+                    rates.AddRange({New TaxRate With {.Code = 10, .Name = "0"}, New TaxRate With {.Code = 8, .Name = "5"}, reducedRate, standardRate})
+                    If reversed Then rates.Reverse()
+                    Dim originalOrder = rates.ToArray()
+                    Dim reduced As New GroupClassification With {.Code = 2, .Name = "reduced", .ReducedTaxTarget = True}
+                    fixture.Data.GroupClassificationList.Add(reduced)
+                    BalanceBoundaryTests.ReadOnlyCase(fixture,
+                        Sub()
+                            Using form As New RegisterForm With {.DataAccess = fixture.Data}
+                                Program.OpenForm(form)
+                                For Each receiptDate In {New Date(2019, 9, 30, 23, 59, 59), New Date(2019, 10, 1), New Date(2026, 10, 23)}
+                                    form.ReceiptDateTextBox.Value = receiptDate
+                                    For Each classificationIndex In {-1, 0, 1}
+                                        form.GroupClassificationComboBox.SelectedIndex = classificationIndex
+                                        Dim expected = If(receiptDate.Date < New Date(2019, 10, 1) OrElse classificationIndex = 1, reducedRate, standardRate)
+                                        Equal(True, Object.ReferenceEquals(expected, form.GroupTaxRateComboBox.SelectedItem))
+                                    Next
+                                Next
+                                Equal(True, originalOrder.SequenceEqual(rates))
+                                Equal(0, form.Receipt.Groups.Count)
+                                form.Close()
+                            End Using
+                        End Sub)
+                End Using
+            Next
         Next
     End Sub
 
@@ -48,7 +55,19 @@ Friend Module TaxRateSelectionUiTests
                             form.GroupTaxRateComboBox.SelectedIndex = 0
                             Equal(True, form.AddGroupButton.Enabled)
                             form.AddGroupButton.PerformClick()
-                            Equal(8, form.Receipt.Groups.Single().TaxRate.Rate)
+                            Dim savedGroup = form.Receipt.Groups.Single()
+                            Equal(8, savedGroup.TaxRate.Rate)
+                            ' 候補が空でも未選択となり、直接呼出で既存グループを変更しない。
+                            fixture.Data.TaxRateList.Clear()
+                            form.GroupTaxRateComboBox.DataSource = Nothing
+                            form.GroupTaxRateComboBox.DataSource = fixture.Data.TaxRateList
+                            form.ReceiptDateTextBox.Value = New Date(2019, 9, 30)
+                            Equal(-1, form.GroupTaxRateComboBox.SelectedIndex)
+                            Equal(False, form.AddGroupButton.Enabled)
+                            GetType(RegisterForm).GetMethod("AddGroupButton_Click", BindingFlags.Instance Or BindingFlags.NonPublic).
+                                Invoke(form, New Object() {form.AddGroupButton, EventArgs.Empty})
+                            Equal(True, Object.ReferenceEquals(savedGroup, form.Receipt.Groups.Single()))
+                            Equal(8, savedGroup.TaxRate.Rate)
                             form.Close()
                         End Using
                     End Sub)
