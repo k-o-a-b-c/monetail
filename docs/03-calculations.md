@@ -34,11 +34,11 @@
 税率 `r` の課税額合計を `T`、非課税額合計を `N` とした税抜入力の実装式は次のとおり。
 
 ```text
-floor:   Math.Floor(T * (1 + r / 100) + N)       ← 従来のDouble式を保持
-half_up: T + Round(Decimal(T) * r / 100, 0, AwayFromZero) + N
+floor:   Math.Floor(T * (1D + r / 100D) + N)  // T・N・戻り値はDecimal
+half_up: T + Round(T * r / 100D, 0, AwayFromZero) + N
 ```
 
-`floor` は負額・二進浮動小数点の境界も含め既存結果を維持する。単に税額だけをDecimalで切り捨てる式へ置き換えない。`half_up` は税額をDecimalで計算し、ちょうど半分の負額もゼロから遠い側へ丸める（税額−0.5円→−1円）。
+`floor`も税率別の合算と税込額の計算をDecimalで行う。従来のDouble境界による−100円・10%の−111円は−110円へ修正する。負数の切り捨て方向は維持する。値引計算のDoubleと人数按分のルールは維持し、保存済みtotalは変更しない。[40 Decimal税計算](40-decimal-tax-calculation.md)。`half_up` は税額をDecimalで計算し、ちょうど半分の負額もゼロから遠い側へ丸める（税額−0.5円→−1円）。
 
 明細表示 `DetailCalculatedFee` は**明細ごと**、グループ表示 `GroupCalculatedFee` と分類集計は**グループごと**に当該レシートの方式を適用する参考額。その合計で会計上の `Receipt.Total` を上書きしない。
 

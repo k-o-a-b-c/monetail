@@ -49,11 +49,11 @@ DBの`discount_rate`は元DDLの`INTEGER NOT NULL`を維持し、小数率はSQL
 2. **レシート内の税率`Rate`ごと**に課税対象／非課税対象の金額をそれぞれ合算（分類が違っても税率が同じなら合算）。
 3. 税率ごとの課税額を`T`、非課税額を`N`として、`Calculation.TaxRateSubtotal`を適用する。
    - 税込: `Math.Floor(T + N)`。整数円の明細では方式によって変化しない。
-   - 税抜・`floor`: 従来のDouble式`Math.Floor(T * (1 + rate / 100) + N)`をそのまま維持する。
+   - 税抜・`floor`: T・NをDecimalとし、`Math.Floor(T * (1D + rate / 100D) + N)`。税率別合算と戻り値もDecimalとする。
    - 税抜・`half_up`: Decimalで税額を計算し、`T + Math.Round(Decimal(T) * rate / 100, 0, AwayFromZero) + N`。
 4. 税率ごとの結果を合計して`Convert.ToInt32`。
 
-既存レシートは移行時に`floor`となる。`floor`をDecimalの税額切り捨てへ置き換えると、負額の浮動小数点境界で既存結果が変わる。例えば税抜10%の−100円は旧Double式で−111円となり、この結果を回帰テストで保持している。新しい`half_up`は税額−0.5円を−1円へ丸める`AwayFromZero`を採用済み。
+当初は旧floor式の互換性として−100円・10%の−111円を固定していた。現在は利用者承認に基づき税率乗算をDecimalに統一し、−110円へ修正する。−50円の−56円も−55円となる。過去／新規を分岐せず、保存済みtotalは比較用として維持する。half_upの税額−0.5円を−1円へ丸める規則は維持する。[40 Decimal税計算](40-decimal-tax-calculation.md)。
 
 `Receipt.GetTotal(taxType, taxRoundingMode)`は同じ集計処理へ引数を渡すプレビュー用の入口。Receiptのプロパティを変更せず、`Total`・`Incomes`・`Expenses`も変えない。登録画面は内税／外税と端数方式を画面だけに保持し、確認後の保存時に転記する。編集用オブジェクトのディープコピーやキャンセル時の設定復元は使わない。
 
@@ -146,7 +146,7 @@ balance = （起点となる登録残高。なければ0）
 | 項目 | 避けるべき変更 |
 | --- | --- |
 | 金額演算 | `Double`→整数・`Decimal`の変更で端数が変わる場合がある。変更する場合は期待値を確認 |
-| 税計算 | 税率別合算の単位と保存済み方式を維持。`floor`は旧Double式、`half_up`はDecimal税額の`AwayFromZero` |
+| 税計算 | 税率別合算の単位と保存済み方式を維持。両方式とも合算・税計算はDecimal。floorは負の方向への切り捨て、half_upは税額の`AwayFromZero` |
 | 負額 | `floor`は0方向でなく負の無限大方向。`half_up`は税額の中間値をゼロから遠い側へ丸める |
 | 割引 | `discount_fee`は数量を掛ける前、`discount_rate`は数量を掛けた後 |
 | 按分 | 人数割りの後にグループ単位で税計算。既存`floor`の切り捨てを保持し、`half_up`の個人最終端数は四捨五入 |

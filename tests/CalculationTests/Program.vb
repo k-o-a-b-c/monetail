@@ -6,6 +6,8 @@ Imports System.Text.Json
 Module Program
     Function Main() As Integer
         CheckJsonExpectations()
+        Check("decimal tax preserves integer boundaries signed rounding and exact large subtotals", AddressOf DecimalTaxTests.TaxBoundaries)
+        Check("decimal receipt and reference totals preserve aggregation filters preview and saved totals", AddressOf DecimalTaxTests.ReceiptAndReferenceTotals)
         Check("receipt amount validation catches signed overflow and income expense cancellation", AddressOf ReceiptAmountValidationTests.AmountRanges)
         Check("pending amount validation preserves the original receipt lists details and settings", AddressOf ReceiptAmountValidationTests.CandidateIsReadOnly)
         Check("amount validation uses selected tax settings without changing saved settings", AddressOf ReceiptAmountValidationTests.SelectedTaxSettings)
@@ -14,7 +16,7 @@ Module Program
         Check("malformed and non integer expressions normalize to zero", AddressOf IntegerExpressionTests.InvalidInputs)
         Check("integer literal and intermediate arithmetic overflow normalize to zero", AddressOf IntegerExpressionTests.Overflow)
         Check("default and validated modes", AddressOf ModesAreValidated)
-        Check("legacy floor snapshots including signed binary boundary", AddressOf LegacyFloorSnapshots)
+        Check("floor snapshots correct signed binary tax boundaries", AddressOf FloorSnapshots)
         Check("manual discount_fee and Ceiling percentage discount", AddressOf ExistingDiscounts)
         Check("receipt tax aggregation is authoritative over group estimates", AddressOf ReceiptVsGroups)
         Check("income and expense signs remain separate", AddressOf IncomeAndExpenseSigns)
@@ -70,12 +72,11 @@ Module Program
         Equal(0, MakeReceipt("half_up").Total)
     End Sub
 
-    Private Sub LegacyFloorSnapshots()
-        ' Frozen outputs of the old Math.Floor(Double gross) calculation. In particular,
-        ' -100 at 10% was -111; converting legacy receipts to Decimal would change it.
+    Private Sub FloorSnapshots()
+        ' 旧Double式の-111円・-56円を、Decimalでは-110円・-55円へ修正する。その他の固定値も確認する。
         Dim amounts = {-1000, -575, -100, -50, -25, -5, -1, 0, 1, 5, 19, 25, 50, 100, 575, 1000}
         Dim expected8 = {-1080, -621, -108, -54, -27, -6, -2, 0, 1, 5, 20, 27, 54, 108, 621, 1080}
-        Dim expected10 = {-1100, -633, -111, -56, -28, -6, -2, 0, 1, 5, 20, 27, 55, 110, 632, 1100}
+        Dim expected10 = {-1100, -633, -110, -55, -28, -6, -2, 0, 1, 5, 20, 27, 55, 110, 632, 1100}
         For index = 0 To amounts.Length - 1
             Equal(expected8(index), MakeReceipt("floor", Group(8, Detail(amounts(index)))).Total, "8% " & amounts(index))
             Equal(expected10(index), MakeReceipt("floor", Group(10, Detail(amounts(index)))).Total, "10% " & amounts(index))

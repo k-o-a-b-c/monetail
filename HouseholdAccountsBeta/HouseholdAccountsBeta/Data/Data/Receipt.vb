@@ -104,15 +104,15 @@
     End Function
 
     ' signFilter: 0 = 全明細、-1 = 収入、1 = 支出。
-    ' 同じ税率の全グループを合算してから、一度だけ税端数を処理する。
+    ' 同じ税率の全グループをDecimalで合算してから、一度だけ税端数を処理する。
     Private Function CalculateTotal(ByVal signFilter As Integer, ByVal taxType As Integer,
                                     ByVal taxRoundingMode As String) As Integer
         Calculation.ValidateTaxRoundingMode(taxRoundingMode)
-        Dim groupTaxFee As New Dictionary(Of Integer, Double)()
-        Dim groupNoTaxFee As New Dictionary(Of Integer, Double)()
+        Dim groupTaxFee As New Dictionary(Of Integer, Decimal)()
+        Dim groupNoTaxFee As New Dictionary(Of Integer, Decimal)()
         For Each group As ReceiptGroup In Groups
-            Dim taxFee As Double = 0
-            Dim nonTaxFee As Double = 0
+            Dim taxFee As Decimal = 0D
+            Dim nonTaxFee As Decimal = 0D
             For Each detail As ReceiptDetail In group.Details
                 Dim fee As Double = detail.Fee
                 fee -= detail.DiscountFee
@@ -123,9 +123,9 @@
                     Continue For
                 End If
                 If detail.TaxTarget Then
-                    taxFee += fee
+                    taxFee += CDec(fee)
                 Else
-                    nonTaxFee += fee
+                    nonTaxFee += CDec(fee)
                 End If
             Next
             If groupTaxFee.ContainsKey(group.TaxRate.Rate) Then
@@ -137,13 +137,14 @@
             End If
         Next
 
-        Dim subTotals As Double = 0
+        Dim subTotals As Decimal = 0D
         For Each taxRate As Integer In groupTaxFee.Keys
             subTotals += Calculation.TaxRateSubtotal(groupTaxFee(taxRate), groupNoTaxFee(taxRate), taxRate, taxType, taxRoundingMode)
         Next
         Return Convert.ToInt32(subTotals)
     End Function
 
+    ' 対象者の条件と人数割りを適用し、共通のDecimal税計算で参考額を求める。
     Public Function GetGroupStatisticsList(ByVal users As List(Of User), ByVal IsAnd As Boolean, ByVal IsOnlyPerson As Boolean) As List(Of GroupStatistics)
 
         Dim GroupStatisticsList As New List(Of GroupStatistics)
@@ -186,14 +187,14 @@
                 .YearMonth = Me.Date
             }
             ' 分類・個人別の参考額。レシートの会計合計には使用しない。
-            Dim calculatedFee As Double = Calculation.TaxRateSubtotal(taxFee, nonTaxFee, group.TaxRate.Rate, TaxType, TaxRoundingMode)
+            Dim calculatedFee As Decimal = Calculation.TaxRateSubtotal(CDec(taxFee), CDec(nonTaxFee), group.TaxRate.Rate, TaxType, TaxRoundingMode)
             If IsOnlyPerson AndAlso TaxRoundingMode = "half_up" Then
                 If TaxType <> 1 Then
-                    calculatedFee = taxFee + nonTaxFee
+                    calculatedFee = CDec(taxFee) + CDec(nonTaxFee)
                 End If
                 GroupStatistics.Fee = Convert.ToInt32(Math.Round(calculatedFee, 0, MidpointRounding.AwayFromZero))
             Else
-                ' 既存 floor レシートの分類・個人別参考額も従来どおり維持する。
+                ' 分類・個人別の参考額にも、共通の税端数処理を適用する。
                 GroupStatistics.Fee = Convert.ToInt32(calculatedFee)
             End If
 
