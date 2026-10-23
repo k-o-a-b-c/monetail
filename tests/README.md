@@ -11,7 +11,7 @@
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1） | 96 |
 | 合計 | 139 |
 
-変更前のmain `a0f4610`は[CI 39925481165](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39925481165)で全136件とWindowsビルドが成功済み。今回のDecimal税計算では計算2チェック・Windows1チェックを追加する。旧Doubleの−100円・10%の−111円、−50円の−56円は、境界誤差の修正として−110円・−55円へ期待値を変更した。変更後の結果は次のCIで確認する。
+変更前のmain `a0f4610`は[CI 39925481165](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39925481165)で全136件とWindowsビルドが成功済み。今回のDecimal税計算では計算2チェック・Windows1チェックを追加する。旧Doubleの−100円・10%の−111円、−50円の−56円は、境界誤差の修正として−110円・−55円へ期待値を変更した。変更後の`7fa604c`は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)で全139件・読込性能・既存WindowsソリューションのNuGet復元／ビルドが成功した。以降の変更は仕様記録とこの検証記録だけで、製品・テストコードは同一。
 
 最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fdecimal-tax-calculation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
