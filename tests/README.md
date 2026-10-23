@@ -13,7 +13,7 @@
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
 
-明細計算共通化の変更元main `695a77e`は検証済み最終 `e672a79`と同一のGit treeで、[CI 40037645532](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40037645532)で全143件・Windowsビルド成功。共通化では既存の計算チェックを拡張し、総件数は143件を維持する。
+明細計算共通化の変更元main `695a77e`は検証済み最終 `e672a79`と同一のGit treeで、[CI 40037645532](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40037645532)で全143件・Windowsビルド成功。共通化では既存の計算チェックを拡張し、総件数は143件を維持する。 製品・テストコード `a2fa7c7`は[CI 40038869857](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40038869857)で全143件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
 最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Arefactor%2Fshared-detail-discount-calculation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
