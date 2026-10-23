@@ -97,3 +97,5 @@
 ```
 
 関連: [現行機能](01-features.md) / [DB仕様](02-database.md) / [計算契約](12-calculation-contract.md) / [店舗端数・オーケー要件](08-requested-enhancements.md) / [課題](05-issues.md)
+
+税率の初期選択は`TaxRateSelection.GetDefaultRate`へ分離し、従来の日付・軽減対象のルールを保って税率値でマスタを選ぶ。グループ／明細やWinFormsに依存しない処理で、将来の明細入力にも再利用できる。期間による税率マスタ選択は未実装。[38 仕様](38-tax-default-selection.md)。

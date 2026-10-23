@@ -189,6 +189,7 @@
     <Compile Include="Data\Statistics\BalanceStatistics.vb" />
     <Compile Include="Data\Statistics\GroupStatistics.vb" />
     <Compile Include="Logic\Calculation.vb" />
+    <Compile Include="Logic\TaxRateSelection.vb" />
     <Compile Include="Logic\IntegerExpression.vb" />
     <Compile Include="Logic\ReceiptAmountValidation.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
