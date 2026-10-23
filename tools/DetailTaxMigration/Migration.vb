@@ -22,6 +22,7 @@ Public NotInheritable Class DetailTaxMigration
 
     ' 呼出元は閉じた元DBのコピーを渡す。アプリ起動時には呼び出さない。
     ' checkpointはテストの失敗注入用。どの段階の例外もDDLを含めて戻す。
+    ' totalは仕様変更の比較基準として保持し、構造変更に伴う更新版だけを進める。
     Public Shared Sub Run(connection As DbConnection, Optional checkpoint As Action(Of String) = Nothing)
         If connection.State <> ConnectionState.Open Then Throw New InvalidOperationException("開いたコピーDB接続が必要です。")
         Dim foreignKeys = CInt(Scalar(connection, "PRAGMA foreign_keys"))
@@ -134,7 +135,6 @@ Public NotInheritable Class DetailTaxMigration
                 Next
                 Execute(connection, "INSERT INTO detail_tax_receipt_audit VALUES(@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9)",
                         receipt, header("total"), oldAmounts(0), expected(0), oldAmounts(1), expected(1), oldAmounts(2), expected(2), header("revision_token"), Guid.NewGuid().ToString("N"))
-                ' totalは仕様変更の比較基準として保持し、構造変更に伴う更新版だけを進める。
                 Execute(connection, "UPDATE t_receipts SET revision_token=(SELECT new_revision FROM detail_tax_receipt_audit WHERE receipt_seq=@p0) WHERE seq=@p0", receipt)
             Next
             If Read(connection, "PRAGMA foreign_key_check").Rows.Count <> 0 Then Throw New InvalidOperationException("移行後の外部キー違反です。")
