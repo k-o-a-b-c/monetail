@@ -2,6 +2,7 @@ Public NotInheritable Class ReceiptAmountValidation
     Private Sub New()
     End Sub
 
+    ' レシートの確定税額を使い、会計・収支・参考額の整数範囲を検証する。
     Public Shared Function IsInRange(receipt As Receipt, taxType As Integer, roundingMode As String) As Boolean
         ' 計算用の税設定だけを持ち、元レシートや明細は変更しない。
         Dim preview As New Receipt With {.Groups = receipt.Groups, .TaxType = taxType, .TaxRoundingMode = roundingMode}

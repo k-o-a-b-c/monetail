@@ -27,6 +27,7 @@ Public Class DetailViewForm
         pi.SetValue(GroupDetailGridView, True, Nothing)
     End Sub
 
+    ' レシート全体の確定税額を使い、対象分類・支払方法の詳細を表示する。
     Private Sub ShowGroupStatistics(ByVal Year As Integer, ByVal Month As Integer, ByVal Code As Integer)
 
         ' 処理高速化（開始）
