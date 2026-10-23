@@ -49,15 +49,15 @@ Friend Module ReceiptSavedTotalTests
                                 CultureInfo.CurrentCulture = previousCulture
                             End Try
                             Dim equalCell = TotalCell(form, 1)
-                            Equal(Color.MistyRose, FormatTotal(form, 1).BackColor)
+                            AssertNormalColor(form, 1)
                             Equal("", equalCell.ToolTipText)
-                            Equal(Color.MistyRose, FormatTotal(form, 8).BackColor)
+                            AssertNormalColor(form, 8)
                             Equal("", TotalCell(form, 8).ToolTipText)
                             Dim missing = TotalCell(form, 4)
-                            Equal(Color.MistyRose, FormatTotal(form, 4).BackColor)
+                            AssertNormalColor(form, 4)
                             Equal("保存時の合計が未記録のため比較できません。", missing.ToolTipText)
                             Dim overflow = TotalCell(form, 7)
-                            Equal(Color.MistyRose, FormatTotal(form, 7).BackColor)
+                            AssertNormalColor(form, 7)
                             Equal("範囲超過", CStr(overflow.Value))
                             Equal(True, overflow.ToolTipText.Contains("扱える範囲を超えています"))
                             Equal(0, form.ReceiptListNotifications)
@@ -78,7 +78,7 @@ Friend Module ReceiptSavedTotalTests
                             Dim receipt = form.ReceiptModelForTest(2)
                             Equal(Color.LightYellow, FormatTotal(form, 2).BackColor)
                             receipt.Groups(0).Details(0).Fee = 100
-                            Equal(Color.MistyRose, FormatTotal(form, 2).BackColor)
+                            AssertNormalColor(form, 2)
                             Equal("", TotalCell(form, 2).ToolTipText)
                             Equal(100L, receipt.SavedTotal.Value)
                             receipt.Groups(0).Details(0).Fee = 102
@@ -98,6 +98,14 @@ Friend Module ReceiptSavedTotalTests
                         End Using
                     End Sub)
             End Sub)
+    End Sub
+
+    ' 不一致色を指定せず、既存の行色を継承できることを確認する。
+    Private Sub AssertNormalColor(form As ViewForm, seq As Integer)
+        Dim style = FormatTotal(form, seq)
+        Equal(False, style.BackColor = Color.LightYellow)
+        Equal(False, style.SelectionBackColor = Color.Goldenrod)
+        Equal(Color.MistyRose, TotalCell(form, seq).OwningRow.DefaultCellStyle.BackColor)
     End Sub
 
     Private Sub AssertMismatch(form As ViewForm, seq As Integer, saved As Long, calculated As Integer, difference As Decimal)
