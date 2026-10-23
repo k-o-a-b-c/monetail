@@ -16,14 +16,6 @@ Module Program
             Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
             Return 2
         End If
-        Check("only nondefault tax rates appear in group labels without losing selection or pending edits", AddressOf ClassificationTaxTests.StandardRateLabels)
-        Check("same classification accepts separate tax groups and selects the exact added group", AddressOf ClassificationTaxTests.AdditionAndSelection)
-        Check("classification and tax edits merge only into the matching group and preserve destination details", AddressOf ClassificationTaxTests.EditsAndMerges)
-        Check("mixed-tax classification survives save reload update copy and category statistics", AddressOf ClassificationTaxTests.SaveAndStatistics)
-        Check("ambiguous missing-tax destinations are blocked and legacy duplicate groups remain separate", AddressOf ClassificationTaxTests.MissingTaxAndLegacyGroups)
-        Check("tax defaults preserve date and reduced rules across reordered future and duplicate master rates", AddressOf TaxDefaultTests.DefaultsIgnoreMasterOrder)
-        Check("missing tax defaults prevent invalid groups and preserve manual choices and merge behavior", AddressOf TaxDefaultTests.MissingRatesAndManualChoices)
-        Check("existing receipt tax codes survive selection cancellation and header-only saving", AddressOf TaxDefaultTests.ExistingRatesAndSave)
         Check("native late integer read failures preserve receipt children and permit same-connection retry", AddressOf ReceiptChildReloadTests.NumericFailureAndRetry)
         Check("missing users during child reload preserve the full model and recover after repair", AddressOf ReceiptChildReloadTests.MissingUserAndRetry)
         Check("successful and empty child reloads preserve the collection headers points and tax settings", AddressOf ReceiptChildReloadTests.SuccessAndEmptyChildren)
