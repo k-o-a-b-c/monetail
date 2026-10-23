@@ -2,6 +2,35 @@ Imports System.Globalization
 Imports System.Linq
 
 Friend Module ReceiptSavedTotalTests
+    Public Sub TaxCorrectionKeepsSavedTotal()
+        EachMode(
+            Sub(fixture, mode)
+                Dim historicalTotal As Long = If(mode = "floor", -111L, -110L)
+                fixture.Execute("UPDATE t_receipts SET tax_type=1,total=" & historicalTotal.ToString(CultureInfo.InvariantCulture) & " WHERE seq=2;" &
+                                "UPDATE t_receipt_details SET fee=-100,tax_target=1 WHERE receipt_seq=2;")
+                BalanceBoundaryTests.ReadOnlyCase(fixture,
+                    Sub()
+                        Using form As New ViewForm(fixture.Data)
+                            Program.OpenForm(form)
+                            form.InitReceiptList()
+                            Dim receipt = form.ReceiptModelForTest(2)
+                            Equal(-110, receipt.Total)
+                            Equal(historicalTotal, receipt.SavedTotal.Value)
+                            If mode = "floor" Then
+                                AssertMismatch(form, 2, -111L, -110, 1D)
+                            Else
+                                AssertNormalColor(form, 2)
+                                Equal("", TotalCell(form, 2).ToolTipText)
+                            End If
+                            form.RefreshReceiptList(New Date(2026, 10, 1))
+                            Equal(historicalTotal, form.ReceiptModelForTest(2).SavedTotal.Value)
+                            Equal(historicalTotal, CLng(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=2")))
+                            form.Close()
+                        End Using
+                    End Sub)
+            End Sub)
+    End Sub
+
     Public Sub StoredValuesAndReadPaths()
         EachMode(
             Sub(fixture, mode)

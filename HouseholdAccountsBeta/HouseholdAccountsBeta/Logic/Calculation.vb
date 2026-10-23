@@ -9,23 +9,21 @@
     End Sub
 
     ''' <summary>
-    ''' 同一税率で合算済みの課税額・非課税額から税込額を求める。
+    ''' 同一税率の合算額から税込額をDecimalで求め、税率乗算の誤差を防ぐ。
     ''' </summary>
-    Public Shared Function TaxRateSubtotal(ByVal taxFee As Double, ByVal nonTaxFee As Double,
+    Public Shared Function TaxRateSubtotal(ByVal taxFee As Decimal, ByVal nonTaxFee As Decimal,
                                            ByVal taxRate As Integer, ByVal taxType As Integer,
-                                           ByVal taxRoundingMode As String) As Double
+                                           ByVal taxRoundingMode As String) As Decimal
         ValidateTaxRoundingMode(taxRoundingMode)
         If taxType <> 1 Then
             Return Math.Floor(taxFee + nonTaxFee)
         End If
         If taxRoundingMode = "floor" Then
-            ' 負額や浮動小数点の境界を含め、既存レシートの計算式を維持する。
-            Return Math.Floor(taxFee * (1 + taxRate / 100) + nonTaxFee)
+            Return Math.Floor(taxFee * (1D + taxRate / 100D) + nonTaxFee)
         End If
 
-        ' half_up は税額を Decimal で求め、負の中間値もゼロから遠い側へ丸める。
-        Dim tax As Decimal = Math.Round(CDec(taxFee) * taxRate / 100D, 0, MidpointRounding.AwayFromZero)
-        Return Decimal.ToDouble(CDec(taxFee) + tax + CDec(nonTaxFee))
+        Dim tax As Decimal = Math.Round(taxFee * taxRate / 100D, 0, MidpointRounding.AwayFromZero)
+        Return taxFee + tax + nonTaxFee
     End Function
 
     Public Shared Function AutoBalance(ByVal BaseDate As DateTime, ByVal PaymentClassification As PaymentClassification) As Nullable(Of Integer)
@@ -68,18 +66,19 @@
         End If
     End Function
 
+    ' 分類内で合算した金額に税と端数処理を適用し、分類の参考額を求める。
     Public Shared Function GroupCalculatedFee(ByVal Receipt As Receipt, ByVal Group As ReceiptGroup) As Integer
-        Dim taxFee As Double = 0
-        Dim nonTaxFee As Double = 0
+        Dim taxFee As Decimal = 0D
+        Dim nonTaxFee As Decimal = 0D
         For Each detail As ReceiptDetail In Group.Details
             Dim fee As Double = detail.Fee
             fee -= detail.DiscountFee
             fee *= detail.Quantity
             fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
             If detail.TaxTarget Then
-                taxFee += fee
+                taxFee += CDec(fee)
             Else
-                nonTaxFee += fee
+                nonTaxFee += CDec(fee)
             End If
         Next
         If Receipt.TaxType = 1 Then
@@ -88,13 +87,14 @@
         Return Convert.ToInt32(taxFee + nonTaxFee)
     End Function
 
+    ' 明細の値引後金額に税と端数処理を適用し、明細の参考額を求める。
     Public Shared Function DetailCalculatedFee(ByVal Receipt As Receipt, ByVal Group As ReceiptGroup, ByVal Detail As ReceiptDetail) As Integer
         Dim fee As Double = Detail.Fee
         fee -= detail.DiscountFee
         fee *= Detail.Quantity
         fee -= Math.Ceiling(fee * Detail.DiscountRate / 100)
         If Detail.TaxTarget AndAlso Receipt.TaxType = 1 Then
-            fee = TaxRateSubtotal(fee, 0, Group.TaxRate.Rate, Receipt.TaxType, Receipt.TaxRoundingMode)
+            Return Convert.ToInt32(TaxRateSubtotal(CDec(fee), 0D, Group.TaxRate.Rate, Receipt.TaxType, Receipt.TaxRoundingMode))
         End If
         Return Convert.ToInt32(fee)
     End Function

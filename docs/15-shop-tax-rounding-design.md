@@ -14,7 +14,7 @@
 4. **移行前から存在するレシートは従来の`floor`を維持**。後から別のレシートが保存されても、過去分・編集中の伝票を自動で変えない。
 5. 消費税は**税率ごとに合算してから端数処理**。分類・商品ごとの丸めの合計を会計上の正本にしない。
 6. **オーケーの3/103割引は現行の`discount_fee`への手入力を継続**。割引の専用入力欄／分数自動計算／追加DB列は作らない。
-7. 個人別金額の配分は概算とし、新しい`half_up`では最終端数を四捨五入する。既存`floor`の参考集計は従来結果を維持する。個人配分の合計で会計総額を上書きしない。
+7. 個人別金額の配分は概算とし、新しい`half_up`では最終端数を四捨五入する。floorの参考集計は切り捨て規則を維持し、共通税計算はDecimalを使う。個人配分の合計で会計総額を上書きしない。
 
 **設計変更（2026-10-17）**: 以前検討した`t_receipts.shop_code`の追加・FK・店舗マスタへの強制紐付け・店の新規登録導線は**採用しない**。
 
@@ -90,7 +90,7 @@ lineNet = (fee - discount_fee) * quantity
 
 ```text
 floor:
-  tax_rate_subtotal = Math.Floor(T_r * (1 + r / 100) + N_r)  // 従来のDouble式
+  tax_rate_subtotal = Math.Floor(T_r * (1D + r / 100D) + N_r)  // 合算額・税込額はDecimal
 half_up:
   tax = Math.Round(Decimal(T_r) * r / 100, 0, AwayFromZero)
   tax_rate_subtotal = T_r + tax + N_r
@@ -100,7 +100,7 @@ Receipt.Total = sum(tax_rate_subtotal for all r)
 **税率が同じ複数グループを必ず合算**してから端数処理する。異なる税率を混ぜてから丸めない。
 
 - `TaxType=0`（税込入力）は`Math.Floor(T_r + N_r)`。整数円の明細では税額を追加しないため、方式を変更しても`Receipt.Total`は変わらない。
-- `floor`は既存のDouble式をそのまま保持する。Decimalで税額だけを切り捨てる式への置換はしない。負額や浮動小数点境界も含め互換性を回帰テストで確認済み。
+- `floor`も合算額・税計算・戻り値をDecimalに統一する。負の方向への切り捨ては維持し、Double由来の境界誤差は修正する。[40 Decimal税計算](40-decimal-tax-calculation.md)。
 - `half_up`は税額をDecimalで計算し、`MidpointRounding.AwayFromZero`で丸める実装を採用済み。税額の二進小数誤差による中間値の変化を抑える。
 - `Total`／`Incomes`／`Expenses`は対象明細の符号フィルターを変えて同じ集計処理・税率ヘルパーを使用する。画面の合計プレビューは同じ処理へ未確定の選択値を引数で渡す。
 
@@ -108,7 +108,7 @@ Receipt.Total = sum(tax_rate_subtotal for all r)
 
 現行コードの`Math.Floor(-1.1) = -2`は、ゼロ方向へ切り捨てる計算とは異なる。
 
-- **既存の`floor`レシート**は旧Double式と同じ結果を維持する。例えば税抜10%の−100円は浮動小数点境界により−111円となり、この出力も回帰テストで保持している。
+- 過去レシートもDecimalで再計算する。旧Double式の−100円・10%は−111円から−110円へ、−50円は−56円から−55円へ修正する。保存済みtotalは変更せず、不一致は一覧で確認する。
 - 新`half_up`のマイナス税額は`MidpointRounding.AwayFromZero`を**採用済み**（税額−0.5円→−1円）。負額のみ・正負混在の計算回帰テストが成功している。実運用の返品期待値は導入前に別途確認する。
 - `Receipt.Incomes`／`Expenses`は正負を分けて集計する現行挙動を維持する。同じ丸めヘルパーを適用するが、`Total = Incomes + Expenses`を一律保証しない。
 - `Calculation.GroupCalculatedFee`／`DetailCalculatedFee`と`Receipt.GetGroupStatisticsList`はグループ／明細単位でレシートの方式を適用する参考計算。粒度による端数差を自動テストし、**会計のレシート合計は税率別合算値を正本**とする。個人配分の`half_up`は最終端数を四捨五入、既存`floor`は従来結果を維持する。
@@ -158,7 +158,7 @@ Receipt.Total = sum(tax_rate_subtotal for all r)
 | RT-008 | 税込レシートは方式を変更しても合計が変わらない |
 | RT-009 | オーケーは`discount_fee`を従来どおり手入力。追加UI・専用割引計算なし |
 | RT-010 | 店舗変更の操作中に手動選択したモードが不用意に上書きされない。選択済みのラジオボタンを再クリックした場合も保持 |
-| RT-011 | `floor`の負額は旧Double式の結果を保持、`half_up`は税額−0.5円→−1円。負額・正負混在を自動テストし、返品の実運用確認は別途行う |
+| RT-011 | `floor`の負額はDecimalで負の方向へ切り捨て、Double境界誤差を修正。`half_up`は税額−0.5円→−1円。負額・正負混在を自動テストし、返品の実運用確認は別途行う |
 | RT-012 | 新規保存／編集／流用でモードが混同されない。編集・履歴設定・確認取消中はReceiptの内税／外税と端数方式を変更せず、登録確認後にだけ選択値を反映 |
 | RT-013 | 端数方式のラジオボタンは内税／外税の選択を解除しない。両グループの切替と合計表示を確認 |
 | RT-014 | 内税／外税・端数方式を渡す合計プレビューはReceiptの設定・Total・Incomes・Expensesを変更しない |
