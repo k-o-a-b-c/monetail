@@ -75,9 +75,10 @@ Friend Module DetailTaxTests
         Dim first = Detail(19)
         first.Users.AddRange({a, b})
         Dim second = Detail(19)
-        second.TaxRate = New TaxRate With {.Code = 99, .Name = "10"}
         second.Users.Add(b)
         Dim receipt = MakeReceipt("floor", Group(10, first), Group(10, second))
+        second.TaxRate = New TaxRate With {.Code = 99, .Name = "10"}
+        Equal(99, second.TaxRate.Code)
         Dim selected As New List(Of User) From {a}
         Equal(41, receipt.Total)
         Equal(21, Calculation.GroupCalculatedFee(receipt, receipt.Groups(0)))
@@ -91,6 +92,14 @@ Friend Module DetailTaxTests
         Equal(19, first.Fee)
         Equal(19, second.Fee)
         Equal("floor", receipt.TaxRoundingMode)
+        For Each rate In {8, 10}
+            For Each mode In {"floor", "half_up"}
+                Dim line = Detail(11)
+                line.Users.AddRange({a, b})
+                Dim singleReceipt = MakeReceipt(mode, Group(rate, line))
+                Equal(If(rate = 8 AndAlso mode = "floor", 5, 6), singleReceipt.GetGroupStatisticsList(selected, False, True).Single().Fee)
+            Next
+        Next
     End Sub
 
     Public Sub Notes()
