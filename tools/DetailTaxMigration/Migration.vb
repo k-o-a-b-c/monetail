@@ -123,12 +123,14 @@ Public NotInheritable Class DetailTaxMigration
                 Dim type = Int(header, "tax_type")
                 Dim mode = CStr(header("tax_rounding_mode"))
                 Dim oldLines = linesByReceipt(receipt).ToList()
+                Dim orderedLines = oldLines.OrderBy(Function(r) detailMap(Key(receipt, Int(r, "group_seq"), Int(r, "seq"))).Item1).
+                    ThenBy(Function(r) detailMap(Key(receipt, Int(r, "group_seq"), Int(r, "seq"))).Item2).ToList()
                 Dim expected = New Integer(2) {}
                 Dim oldAmounts = New Integer(2) {}
                 Dim migrated = Read(connection, "SELECT d.*,t.rate,t.tax_treatment FROM t_receipt_details d JOIN m_tax_rate t ON t.code=d.tax_code WHERE receipt_seq=@p0 ORDER BY group_seq,seq", receipt)
                 For i = 0 To 2
                     Dim sign = If(i = 0, 0, If(i = 1, -1, 1))
-                    expected(i) = ExpectedTotal(oldLines, oldGroups, taxes, type, mode, sign)
+                    expected(i) = ExpectedTotal(orderedLines, oldGroups, taxes, type, mode, sign)
                     Dim actual = MigratedTotal(migrated, type, mode, sign)
                     If expected(i) <> actual Then Throw New InvalidOperationException("移行後の金額が期待値と一致しません: " & receipt.ToString(CultureInfo.InvariantCulture))
                     oldAmounts(i) = LegacyTotal(oldLines, oldGroups, taxes, type, mode, sign, receipt)
@@ -211,46 +213,36 @@ Public NotInheritable Class DetailTaxMigration
             "CREATE TABLE detail_tax_migration(id TEXT NOT NULL PRIMARY KEY,completed_utc TEXT NOT NULL);")
     End Sub
 
+    ' 旧明細を移行後の順序で読み、レシートの確定税額を配分した収支を求める。
     Private Shared Function ExpectedTotal(lines As List(Of DataRow), groups As Dictionary(Of String, DataRow), taxes As Dictionary(Of Integer, Integer), type As Integer, mode As String, sign As Integer) As Integer
-        Dim totals As New Dictionary(Of Integer, BigInteger)
-        Dim excluded = BigInteger.Zero
+        Dim amounts As New List(Of BigInteger)
+        Dim rates As New List(Of Integer?)
         For Each line In lines
-            Dim amount = ExactMoney.Net(Int(line, "fee"), Int(line, "discount_fee"), Int(line, "quantity"), ReadRate(line))
-            If sign <> 0 AndAlso amount.Sign <> sign Then Continue For
-            If Int(line, "tax_target") = 0 Then
-                excluded += amount
-            Else
-                Dim rate = taxes(Int(groups(Key(Int(line, "receipt_seq"), Int(line, "group_seq"))), "tax"))
-                If Not totals.ContainsKey(rate) Then totals.Add(rate, BigInteger.Zero)
-                totals(rate) += amount
-            End If
+            amounts.Add(ExactMoney.Net(Int(line, "fee"), Int(line, "discount_fee"), Int(line, "quantity"), ReadRate(line)))
+            rates.Add(If(Int(line, "tax_target") = 0, Nothing, New Integer?(taxes(Int(groups(Key(Int(line, "receipt_seq"), Int(line, "group_seq"))), "tax")))))
         Next
-        For Each pair In totals
-            excluded += ExactMoney.Taxed(pair.Value, pair.Key, type, mode)
-        Next
-        ' 空レシートでも税区分と端数方式を検証する。
-        ExactMoney.Taxed(BigInteger.Zero, 0, type, mode)
-        Return CInt(excluded)
+        Return SumReceiptAmounts(amounts, rates, type, mode, sign)
     End Function
 
+    ' 移行後の全明細で税額を確定し、その配分額から収支を検算する。
     Private Shared Function MigratedTotal(lines As DataTable, type As Integer, mode As String, sign As Integer) As Integer
-        Dim excluded = BigInteger.Zero
-        Dim taxable As New Dictionary(Of Integer, BigInteger)
+        Dim amounts As New List(Of BigInteger)
+        Dim rates As New List(Of Integer?)
         For Each line As DataRow In lines.Rows
-            Dim amount = ExactMoney.Net(Int(line, "fee"), Int(line, "discount_fee"), Int(line, "quantity"), ExactMoney.ParseRate(CStr(line("discount_rate"))))
-            If sign <> 0 AndAlso amount.Sign <> sign Then Continue For
-            If CStr(line("tax_treatment")) = "out_of_scope" Then
-                excluded += amount
-            Else
-                Dim rate = Int(line, "rate")
-                If Not taxable.ContainsKey(rate) Then taxable.Add(rate, BigInteger.Zero)
-                taxable(rate) += amount
-            End If
+            amounts.Add(ExactMoney.Net(Int(line, "fee"), Int(line, "discount_fee"), Int(line, "quantity"), ExactMoney.ParseRate(CStr(line("discount_rate")))))
+            rates.Add(If(CStr(line("tax_treatment")) = "out_of_scope", Nothing, New Integer?(Int(line, "rate"))))
         Next
-        For Each pair In taxable
-            excluded += ExactMoney.Taxed(pair.Value, pair.Key, type, mode)
+        Return SumReceiptAmounts(amounts, rates, type, mode, sign)
+    End Function
+
+    ' レシート全体の確定税込額を税抜金額の符号で抽出し、収入または支出を合算する。
+    Private Shared Function SumReceiptAmounts(amounts As IList(Of BigInteger), rates As IList(Of Integer?), type As Integer, mode As String, sign As Integer) As Integer
+        Dim calculated = ExactMoney.ReceiptAmounts(amounts, rates, type, mode)
+        Dim total = BigInteger.Zero
+        For i = 0 To amounts.Count - 1
+            If sign = 0 OrElse amounts(i).Sign = sign Then total += calculated(i)
         Next
-        Return CInt(excluded)
+        Return CInt(total)
     End Function
 
     ' 移行前の製品式の記録専用。新しい金額の計算経路へは使用しない。

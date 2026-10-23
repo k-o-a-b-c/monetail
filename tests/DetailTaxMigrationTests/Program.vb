@@ -182,6 +182,8 @@ Module Program
     Private Sub MonetaryCases()
         Dim cases = {
             New Object() {19, 19, 0, 0D, 1, "floor", 41, 41, 0, 41},
+            New Object() {5, -1, 0, 0D, 1, "floor", 4, 4, -1, 5},
+            New Object() {5, -1, 0, 0D, 1, "half_up", 4, 4, -1, 5},
             New Object() {-100, 0, 1000, 0D, 1, "floor", 890, 890, -110, 1000},
             New Object() {-100, 0, 0, 0D, 1, "floor", -111, -110, -110, 0},
             New Object() {0, 0, 10000, 0.14D, 1, "floor", 9985, 9986, 0, 9986},
@@ -211,6 +213,15 @@ Module Program
                 Equal(1, DetailTaxMigration.Scalar(db, "SELECT COUNT(*) FROM t_receipt_groups WHERE group_classification_code=1"))
             End Using
         Next
+        Using db = Database()
+            DetailTaxMigration.Execute(db, "DELETE FROM t_receipt_detail_users;DELETE FROM t_receipt_details;UPDATE t_receipts SET tax_rounding_mode='half_up';UPDATE t_receipt_groups SET group_classification_code=2 WHERE seq=4;UPDATE t_receipt_groups SET group_classification_code=1,tax=4 WHERE seq=6")
+            DetailTaxMigration.Execute(db, "INSERT INTO t_receipt_details VALUES(1,2,1,'First',5,1,0,0,1,NULL),(1,4,1,'Refund',-5,1,0,0,1,NULL),(1,6,1,'Merged',5,1,0,0,1,NULL)")
+            DetailTaxMigration.Run(db)
+            Equal(6, DetailTaxMigration.Scalar(db, "SELECT new_total FROM detail_tax_receipt_audit"))
+            Equal(-6, DetailTaxMigration.Scalar(db, "SELECT new_incomes FROM detail_tax_receipt_audit"))
+            Equal(12, DetailTaxMigration.Scalar(db, "SELECT new_expenses FROM detail_tax_receipt_audit"))
+            Equal(999, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts"))
+        End Using
     End Sub
 
     Private Sub MergedKeys()

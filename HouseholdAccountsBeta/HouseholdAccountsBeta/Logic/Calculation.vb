@@ -16,32 +16,34 @@ Public Class Calculation
         If mode <> "floor" AndAlso mode <> "half_up" Then Throw New ArgumentException("税端数処理は floor または half_up を指定してください。", NameOf(mode))
     End Sub
 
-    ' レシート・分類・明細・人数按分を同じ税率別合算へ集約する。
+    ' レシート全体で確定した税込額を各明細に対応付ける。
+    Public Shared Function GetReceiptDetailAmounts(details As IEnumerable(Of ReceiptDetail), taxType As Integer, mode As String) As Dictionary(Of ReceiptDetail, BigInteger)
+        Dim lines = details.ToList()
+        Dim rates As New List(Of Integer?)
+        For Each detail As ReceiptDetail In lines
+            If detail.TaxRate Is Nothing Then Throw New InvalidOperationException("明細の税設定がありません。")
+            rates.Add(If(detail.TaxRate.IsTaxable, New Integer?(detail.TaxRate.Rate), Nothing))
+        Next
+        Dim net = lines.Select(Function(detail) ExactMoney.Net(detail.Fee, detail.DiscountFee, detail.Quantity, detail.DiscountRate)).ToArray()
+        Dim amounts = ExactMoney.ReceiptAmounts(net, rates, taxType, mode)
+        Return Enumerable.Range(0, lines.Count).ToDictionary(Function(i) lines(i), Function(i) amounts(i))
+    End Function
+
+    ' レシートで確定した税込明細額を抽出し、必要なら人数按分して合算する。
     Public Shared Function SumDetails(details As IEnumerable(Of ReceiptDetail), taxType As Integer, mode As String,
-                                      Optional signFilter As Integer = 0, Optional allocate As Boolean = False) As MoneyFraction
+                                      Optional signFilter As Integer = 0, Optional allocate As Boolean = False,
+                                      Optional receiptAmounts As IDictionary(Of ReceiptDetail, BigInteger) = Nothing) As MoneyFraction
         ValidateTaxRoundingMode(mode)
         If taxType <> 0 AndAlso taxType <> 1 Then Throw New ArgumentException("不正な内税／外税区分です。")
-        Dim taxable As New Dictionary(Of Integer, MoneyFraction)
-        Dim excluded As New MoneyFraction(BigInteger.Zero)
-        For Each detail As ReceiptDetail In details
-            If detail.TaxRate Is Nothing Then Throw New InvalidOperationException("明細の税設定がありません。")
-            Dim net = ExactMoney.Net(detail.Fee, detail.DiscountFee, detail.Quantity, detail.DiscountRate)
-            If signFilter <> 0 AndAlso net.Sign <> signFilter Then Continue For
+        Dim lines = details.ToList()
+        Dim amounts = If(receiptAmounts, GetReceiptDetailAmounts(lines, taxType, mode))
+        Dim result As New MoneyFraction(BigInteger.Zero)
+        For Each detail As ReceiptDetail In lines
+            If signFilter <> 0 AndAlso ExactMoney.Net(detail.Fee, detail.DiscountFee, detail.Quantity, detail.DiscountRate).Sign <> signFilter Then Continue For
             Dim divisor = If(allocate, detail.Users.Count, 1)
-            If divisor = 0 Then Continue For
-            Dim amount As New MoneyFraction(net, divisor)
-            If detail.TaxRate.IsTaxable Then
-                Dim rate = detail.TaxRate.Rate
-                If Not taxable.ContainsKey(rate) Then taxable.Add(rate, New MoneyFraction(BigInteger.Zero))
-                taxable(rate) += amount
-            Else
-                excluded += amount
-            End If
+            If divisor > 0 Then result += New MoneyFraction(amounts(detail), divisor)
         Next
-        For Each pair In taxable
-            excluded += pair.Value.WithTax(pair.Key, taxType, mode)
-        Next
-        Return excluded
+        Return result
     End Function
 
     Public Shared Function AutoBalance(ByVal BaseDate As DateTime, ByVal PaymentClassification As PaymentClassification) As Nullable(Of Integer)
@@ -84,13 +86,15 @@ Public Class Calculation
         End If
     End Function
 
-    ' グループ内の明細を税率別に合算した参考金額を返す。
-    Public Shared Function GroupCalculatedFee(receipt As Receipt, group As ReceiptGroup) As Integer
-        Return CInt(SumDetails(group.Details, receipt.TaxType, receipt.TaxRoundingMode).Rounded(receipt.TaxRoundingMode))
+    ' レシートで確定した税込明細額からグループの参考金額を返す。
+    Public Shared Function GroupCalculatedFee(receipt As Receipt, group As ReceiptGroup, Optional receiptAmounts As IDictionary(Of ReceiptDetail, BigInteger) = Nothing) As Integer
+        Dim amounts = If(receiptAmounts, GetReceiptDetailAmounts(receipt.Groups.SelectMany(Function(g) g.Details), receipt.TaxType, receipt.TaxRoundingMode))
+        Return CInt(SumDetails(group.Details, receipt.TaxType, receipt.TaxRoundingMode, receiptAmounts:=amounts).Rounded(receipt.TaxRoundingMode))
     End Function
 
-    ' 明細単体の税率と端数方式で参考金額を計算する。
-    Public Shared Function DetailCalculatedFee(receipt As Receipt, group As ReceiptGroup, detail As ReceiptDetail) As Integer
-        Return CInt(SumDetails({detail}, receipt.TaxType, receipt.TaxRoundingMode).Rounded(receipt.TaxRoundingMode))
+    ' レシートの確定税額を配分した明細の参考金額を返す。
+    Public Shared Function DetailCalculatedFee(receipt As Receipt, group As ReceiptGroup, detail As ReceiptDetail, Optional receiptAmounts As IDictionary(Of ReceiptDetail, BigInteger) = Nothing) As Integer
+        Dim amounts = If(receiptAmounts, GetReceiptDetailAmounts(receipt.Groups.SelectMany(Function(g) g.Details), receipt.TaxType, receipt.TaxRoundingMode))
+        Return CInt(amounts(detail))
     End Function
 End Class

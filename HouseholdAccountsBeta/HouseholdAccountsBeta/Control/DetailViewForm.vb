@@ -53,6 +53,7 @@ Public Class DetailViewForm
                 GroupDetailGridView.Columns("ItemColumn").Visible = True
                 GroupDetailGridView.Columns("QuantityColumn").Visible = True
                 For Each Receipt As Receipt In Receipts
+                    Dim amounts = Calculation.GetReceiptDetailAmounts(Receipt.Groups.SelectMany(Function(g) g.Details), Receipt.TaxType, Receipt.TaxRoundingMode)
                     For Each Group As ReceiptGroup In Receipt.Groups
                         For Each Detail As ReceiptDetail In Group.Details
                             Dim rowIndex As Integer = GroupDetailGridView.Rows.Add()
@@ -66,7 +67,7 @@ Public Class DetailViewForm
                             row.Cells("GroupColumn").Value = Group.GroupClassification.Name
                             row.Cells("ItemColumn").Value = Detail.Name
                             row.Cells("QuantityColumn").Value = Detail.Quantity
-                            row.Cells("FeeColumn").Value = Calculation.DetailCalculatedFee(Receipt, Group, Detail)
+                            row.Cells("FeeColumn").Value = Calculation.DetailCalculatedFee(Receipt, Group, Detail, amounts)
                         Next
                     Next
                 Next
@@ -74,6 +75,7 @@ Public Class DetailViewForm
                 GroupDetailGridView.Columns("ItemColumn").Visible = False
                 GroupDetailGridView.Columns("QuantityColumn").Visible = False
                 For Each Receipt As Receipt In Receipts
+                    Dim amounts = Calculation.GetReceiptDetailAmounts(Receipt.Groups.SelectMany(Function(g) g.Details), Receipt.TaxType, Receipt.TaxRoundingMode)
                     For Each Group As ReceiptGroup In Receipt.Groups
                         Dim rowIndex As Integer = GroupDetailGridView.Rows.Add()
                         Dim row As DataGridViewRow = GroupDetailGridView.Rows(rowIndex)
@@ -84,7 +86,7 @@ Public Class DetailViewForm
                         row.Cells("PaymentColumn").Value = Receipt.PaymentClassification.Name
                         row.Cells("TagColumn").Value = Receipt.Tag
                         row.Cells("GroupColumn").Value = Group.GroupClassification.Name
-                        row.Cells("FeeColumn").Value = Calculation.GroupCalculatedFee(Receipt, Group)
+                        row.Cells("FeeColumn").Value = Calculation.GroupCalculatedFee(Receipt, Group, amounts)
                     Next
                 Next
             End If

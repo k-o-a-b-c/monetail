@@ -42,6 +42,57 @@ Friend Module DetailTaxTests
         Equal("0.1", ExactMoney.RateText(ExactMoney.ParseRate("0.10000000000000000000000000001")))
     End Sub
 
+    ' 確定税額の1円配分・正負相殺・ゼロ合計・大きな中間値を固定期待値で検証する。
+    Public Sub ReceiptTaxAllocations()
+        Dim cases = {
+            Tuple.Create("floor", New Integer() {19, 19}, New Integer() {21, 20}),
+            Tuple.Create("half_up", New Integer() {19, 19}, New Integer() {21, 21}),
+            Tuple.Create("half_up", New Integer() {15, 15}, New Integer() {17, 16}),
+            Tuple.Create("floor", New Integer() {-15, -15}, New Integer() {-16, -17}),
+            Tuple.Create("floor", New Integer() {5, -1}, New Integer() {5, -1}),
+            Tuple.Create("half_up", New Integer() {5, -1}, New Integer() {5, -1}),
+            Tuple.Create("floor", New Integer() {5, -5}, New Integer() {6, -6}),
+            Tuple.Create("floor", New Integer() {100, -101}, New Integer() {110, -112}),
+            Tuple.Create("half_up", New Integer() {100, -101}, New Integer() {110, -111}),
+            Tuple.Create("floor", New Integer() {0, 0}, New Integer() {0, 0})}
+        For Each test In cases
+            Dim amounts = test.Item2.Select(Function(n) New BigInteger(n)).ToArray()
+            Dim rates = Enumerable.Repeat(Of Integer?)(10, amounts.Length).ToArray()
+            Dim result = ExactMoney.ReceiptAmounts(amounts, rates, 1, test.Item1)
+            Equal(String.Join(",", test.Item3), String.Join(",", result))
+            Equal(String.Join(",", test.Item2), String.Join(",", ExactMoney.ReceiptAmounts(amounts, rates, 0, test.Item1)))
+        Next
+        Dim large = ExactMoney.ReceiptAmounts({New BigInteger(Integer.MaxValue), New BigInteger(Integer.MinValue)}, {New Integer?(10), New Integer?(10)}, 1, "floor")
+        Equal("2362232011,-2362232013", String.Join(",", large))
+        Dim untaxed = ExactMoney.ReceiptAmounts({New BigInteger(19), New BigInteger(-19)}, {CType(Nothing, Integer?), New Integer?(0)}, 1, "floor")
+        Equal("19,-19", String.Join(",", untaxed))
+    End Sub
+
+    ' 税額確定後の分類抽出・対象者抽出・人数割と、別レシート間の独立性を検証する。
+    Public Sub ReceiptTaxBeforeFilters()
+        Dim a As New User With {.Code = 1}
+        Dim b As New User With {.Code = 2}
+        Dim first = Detail(19)
+        first.Users.AddRange({a, b})
+        Dim second = Detail(19)
+        second.TaxRate = New TaxRate With {.Code = 99, .Name = "10"}
+        second.Users.Add(b)
+        Dim receipt = MakeReceipt("floor", Group(10, first), Group(10, second))
+        Dim selected As New List(Of User) From {a}
+        Equal(41, receipt.Total)
+        Equal(21, Calculation.GroupCalculatedFee(receipt, receipt.Groups(0)))
+        Equal(20, Calculation.GroupCalculatedFee(receipt, receipt.Groups(1)))
+        Equal(21, Calculation.DetailCalculatedFee(receipt, receipt.Groups(0), first))
+        Equal("21,0", String.Join(",", receipt.GetGroupStatisticsList(selected, False, False).Select(Function(row) row.Fee)))
+        Equal("10,0", String.Join(",", receipt.GetGroupStatisticsList(selected, False, True).Select(Function(row) row.Fee)))
+        Equal(41, receipt.Incomes + receipt.Expenses)
+        Dim other = MakeReceipt("floor", Group(10, Detail(19)))
+        Equal(40, other.Total + MakeReceipt("floor", Group(10, Detail(19))).Total)
+        Equal(19, first.Fee)
+        Equal(19, second.Fee)
+        Equal("floor", receipt.TaxRoundingMode)
+    End Sub
+
     Public Sub Notes()
         Equal(Nothing, Calculation.MergeGroupNotes(New List(Of String) From {Nothing, Nothing}))
         Equal("", Calculation.MergeGroupNotes(New List(Of String) From {Nothing, ""}))

@@ -26,6 +26,8 @@ Module Program
         Check("person statistics round within each group and retain empty groups and metadata", AddressOf PersonStatisticsTests.GroupBoundaries)
         Check("person matching ignores order and currently compares User references", AddressOf PersonStatisticsTests.UserReferenceMatching)
         Check("balance estimation uses receipt mode", AddressOf BalanceEstimation)
+        Check("receipt tax allocations preserve signed totals zero buckets ties and integer limits", AddressOf DetailTaxTests.ReceiptTaxAllocations)
+        Check("receipt tax stays fixed before category person and period filters", AddressOf DetailTaxTests.ReceiptTaxBeforeFilters)
         Check("each detail keeps independent mixed taxable and excluded rates", AddressOf DetailTaxTests.MixedRates)
         Check("fractional shares remain exact at integer boundaries", AddressOf DetailTaxTests.ExactShares)
         Check("percentage precision and extreme intermediates stay exact", AddressOf DetailTaxTests.Precision)
@@ -112,17 +114,17 @@ Module Program
     Private Sub ReceiptVsGroups()
         Dim receipt = MakeReceipt("floor", Group(10, Detail(19)), Group(10, Detail(19)))
         Equal(41, receipt.Total)
-        Equal(40, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
-        Equal(40, receipt.GetGroupStatisticsList(New List(Of User), False, False).Sum(Function(s) s.Fee))
+        Equal(41, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
+        Equal(41, receipt.GetGroupStatisticsList(New List(Of User), False, False).Sum(Function(s) s.Fee))
         receipt.TaxRoundingMode = "half_up"
         Equal(42, receipt.Total)
         Equal(42, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
         Equal(21, Calculation.DetailCalculatedFee(receipt, receipt.Groups(0), receipt.Groups(0).Details(0)))
-        ' Two rounded group estimates must not replace one tax-rate aggregate.
+        ' レシート確定税額を配分するので、分類の合計も会計と一致する。
         receipt = MakeReceipt("half_up", Group(10, Detail(15)), Group(10, Detail(15)))
         Equal(33, receipt.Total)
-        Equal(34, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
-        Equal(34, receipt.GetGroupStatisticsList(New List(Of User), False, False).Sum(Function(s) s.Fee))
+        Equal(33, receipt.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(receipt, g)))
+        Equal(33, receipt.GetGroupStatisticsList(New List(Of User), False, False).Sum(Function(s) s.Fee))
         Dim nonTax = Detail(15, False)
         receipt.Groups(0).Details.Add(nonTax)
         Equal(15, Calculation.DetailCalculatedFee(receipt, receipt.Groups(0), nonTax))
@@ -133,10 +135,10 @@ Module Program
         Dim receipt = MakeReceipt("floor", Group(10, Detail(5), Detail(-1)))
         Equal(4, receipt.Total)
         Equal(5, receipt.Expenses)
-        Equal(-2, receipt.Incomes)
+        Equal(-1, receipt.Incomes)
         receipt.TaxRoundingMode = "half_up"
         Equal(4, receipt.Total)
-        Equal(6, receipt.Expenses)
+        Equal(5, receipt.Expenses)
         Equal(-1, receipt.Incomes)
         receipt.TaxType = 0
         Equal(4, receipt.Total)
@@ -156,8 +158,8 @@ Module Program
                 Dim originalIncomes = receipt.Incomes
                 Dim originalExpenses = receipt.Expenses
                 Equal(If(taxType = 0, 55, If(mode = "floor", 59, 60)), originalTotal)
-                Equal(If(taxType = 0, -5, If(mode = "floor", -6, -5)), originalIncomes)
-                Equal(If(taxType = 0, 60, If(mode = "floor", 64, 66)), originalExpenses)
+                Equal(-5, originalIncomes)
+                Equal(If(taxType = 0, 60, If(mode = "floor", 64, 65)), originalExpenses)
 
                 For Each previewMode In New String() {"floor", "half_up"}
                     Equal(55, receipt.GetTotal(0, previewMode))

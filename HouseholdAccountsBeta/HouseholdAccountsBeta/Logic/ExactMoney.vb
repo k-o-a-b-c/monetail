@@ -1,4 +1,6 @@
 Imports System.Globalization
+Imports System.Collections.Generic
+Imports System.Linq
 Imports System.Numerics
 
 ' 移行とアプリの会計処理で使う十進値。途中の乗除算も暗黙に丸めない。
@@ -36,6 +38,42 @@ Public NotInheritable Class ExactMoney
         Dim reduction = numerator / divisor
         If numerator Mod divisor > 0 Then reduction += 1
         Return basis - reduction
+    End Function
+
+    ' レシート全体で税率別の税額を確定し、元の明細順で税込額を返す。
+    Public Shared Function ReceiptAmounts(amounts As IList(Of BigInteger), rates As IList(Of Integer?), taxType As Integer, mode As String) As BigInteger()
+        Taxed(BigInteger.Zero, 0, taxType, mode)
+        If amounts.Count <> rates.Count Then Throw New ArgumentException("明細金額と税率の件数が一致しません。")
+        Dim result = amounts.ToArray()
+        If taxType = 0 Then Return result
+        For Each batch In Enumerable.Range(0, amounts.Count).Where(Function(i) rates(i).HasValue).GroupBy(Function(i) rates(i).Value)
+            Dim indexes = batch.ToArray()
+            Dim taxes = AllocateTax(indexes.Select(Function(i) amounts(i)).ToArray(), batch.Key, mode)
+            For i = 0 To indexes.Length - 1
+                result(indexes(i)) += taxes(i)
+            Next
+        Next
+        Return result
+    End Function
+
+    ' 確定税額を明細へ配分し、小数部分の大きい順・同率なら元の順で残りの1円を割り当てる。
+    Private Shared Function AllocateTax(amounts As IList(Of BigInteger), rate As Integer, mode As String) As BigInteger()
+        Dim total = amounts.Aggregate(BigInteger.Zero, Function(sum, amount) sum + amount)
+        Dim remaining = Taxed(total, rate, 1, mode) - total
+        Dim taxes(amounts.Count - 1) As BigInteger
+        Dim remainders(amounts.Count - 1) As BigInteger
+        For i = 0 To amounts.Count - 1
+            taxes(i) = BigInteger.DivRem(amounts(i) * rate, 100, remainders(i))
+            If remainders(i).Sign < 0 Then
+                taxes(i) -= 1
+                remainders(i) += 100
+            End If
+            remaining -= taxes(i)
+        Next
+        For Each index In Enumerable.Range(0, amounts.Count).OrderByDescending(Function(i) remainders(i)).ThenBy(Function(i) i).Take(CInt(remaining))
+            taxes(index) += 1
+        Next
+        Return taxes
     End Function
 
     ' 整数金額から内税・外税と端数方式に応じた税込金額を計算する。
@@ -100,11 +138,4 @@ Public Structure MoneyFraction
         Return result
     End Function
 
-    ' 分数金額から内税・外税と端数方式に応じた税込金額を計算する。
-    Public Function WithTax(rate As Integer, taxType As Integer, mode As String) As MoneyFraction
-        If taxType <> 0 AndAlso taxType <> 1 Then Throw New ArgumentException("不正な内税／外税区分です。")
-        If taxType = 0 Then Return Me
-        Dim tax = New MoneyFraction(numerator * rate, Divisor * 100).Rounded(mode)
-        Return Me + New MoneyFraction(tax)
-    End Function
 End Structure

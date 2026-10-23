@@ -109,7 +109,7 @@
 
 [12-calculation-contract.md](12-calculation-contract.md)の**CAL-001〜007**を参照。旧`floor`の税抜10%・`+19円`と`−1円`では式から`Total=19 / Expenses=20 / Incomes=−2`となり、合計と収支列の総和は一致しない。
 
-自動テストでは同じ性質を`+5円`と`−1円`で確認し、`floor`は`Total=4 / Expenses=5 / Incomes=−2`、`half_up`は`Total=4 / Expenses=6 / Incomes=−1`。小数率のDB往復には新規・更新の回帰を追加した。CAL全条件の網羅は未実施。月末・年跨ぎ・振替等の現行境界は実SQLite回帰を追加したが、対象者フィルタの全組合せ、同一日時の複数残高・別形式の日時、為替は残る。[21 日末残高](21-end-of-day-balance.md)参照。
+旧テストでは`+5円`と`−1円`の10%課税を収支別に丸め、`floor`は`Total=4 / Expenses=5 / Incomes=−2`、`half_up`は`Total=4 / Expenses=6 / Incomes=−1`だった。2026-10-23のレシート税額確定後配分へ更新し、両方式とも`Total=4 / Expenses=5 / Incomes=−1`となることを確認する。小数率のDB往復には新規・更新の回帰を追加した。CAL全条件の網羅は未実施。月末・年跨ぎ・振替等の現行境界は実SQLite回帰を追加したが、対象者フィルタの全組合せ、同一日時の複数残高・別形式の日時、為替は残る。[21 日末残高](21-end-of-day-balance.md)参照。
 
 ## B-4. オーケーの既存割引の受け入れ条件
 

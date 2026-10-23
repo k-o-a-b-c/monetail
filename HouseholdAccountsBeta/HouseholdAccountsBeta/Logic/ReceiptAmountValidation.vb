@@ -10,10 +10,11 @@ Public NotInheritable Class ReceiptAmountValidation
             Dim total As Integer = preview.Total
             Dim income As Integer = preview.Incomes
             Dim expense As Integer = preview.Expenses
+            Dim amounts = Calculation.GetReceiptDetailAmounts(preview.Groups.SelectMany(Function(g) g.Details), taxType, roundingMode)
             For Each group As ReceiptGroup In preview.Groups
-                Calculation.GroupCalculatedFee(preview, group)
+                Calculation.GroupCalculatedFee(preview, group, amounts)
                 For Each detail As ReceiptDetail In group.Details
-                    Calculation.DetailCalculatedFee(preview, group, detail)
+                    Calculation.DetailCalculatedFee(preview, group, detail, amounts)
                 Next
             Next
             Return True

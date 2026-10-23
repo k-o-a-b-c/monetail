@@ -55,11 +55,11 @@ Friend Module PersonStatisticsTests
                         expected = If(mode = "floor", New Integer() {2, -3, 0, -1, 13, -14, 2, -3, 14, 5},
                             New Integer() {3, -3, 0, 0, 14, -14, 3, -3, 14, 6})
                     ElseIf mode = "floor" Then
-                        expected = If(rate = 8, New Integer() {2, -4, 0, -2, 14, -16, 2, -3, 15, 5},
-                            New Integer() {2, -4, 0, -2, 14, -16, 2, -3, 15, 5})
+                        expected = If(rate = 8, New Integer() {2, -3, 0, -1, 14, -15, 2, -3, 15, 6},
+                            New Integer() {2, -3, 0, -1, 15, -15, 2, -3, 15, 6})
                     Else
                         expected = If(rate = 8, New Integer() {3, -3, 0, 0, 15, -15, 3, -3, 15, 6},
-                            New Integer() {3, -3, 0, 0, 15, -15, 3, -3, 15, 7})
+                            New Integer() {3, -3, 0, 0, 15, -15, 3, -3, 16, 6})
                     End If
                     AssertFees(receipt, selected, False, True, expected)
                 Next
@@ -78,7 +78,7 @@ Friend Module PersonStatisticsTests
                 receipt.Groups(index).GroupClassification.Code = index + 1
             Next
             ' 異なる分類ごとの参考額を丸め、レシート会計は税率別に合算する。
-            AssertFees(receipt, selected, False, True, If(mode = "floor", New Integer() {3, 1, 0, 0}, New Integer() {3, 2, 0, 0}))
+            AssertFees(receipt, selected, False, True, If(mode = "floor", New Integer() {3, 1, 0, 0}, New Integer() {4, 2, 0, 0}))
             AssertFees(receipt, selected, False, False, If(mode = "floor", New Integer() {6, 3, 0, 0}, New Integer() {7, 3, 0, 0}))
             For Each isAnd In New Boolean() {False, True}
                 For Each onlyPerson In New Boolean() {False, True}

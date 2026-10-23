@@ -89,6 +89,15 @@ Friend Module ClassificationTaxTests
                         Equal(DialogResult.OK, form.DialogResult)
                     End Using
                     Equal(3, fixture.Data.GetReceipts(2026, 10).Count)
+                    Dim split = MakeReceipt(mode, ReceiptFixtures.Group(10, Detail(19)), ReceiptFixtures.Group(10, Detail(19)))
+                    fixture.Data.RegisterReceipt(split)
+                    fixture.Execute("UPDATE t_receipts SET total=999 WHERE seq=" & split.Seq)
+                    Dim loaded = fixture.Data.GetReceipts(2026, 10).Single(Function(r) r.Seq = split.Seq)
+                    Equal(If(mode = "floor", "21,20", "21,21"), String.Join(",", loaded.GetGroupStatisticsList(New List(Of User), False, False).Select(Function(row) row.Fee)))
+                    Equal(loaded.Total, loaded.Incomes + loaded.Expenses)
+                    Equal(loaded.Total, loaded.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(loaded, g)))
+                    Equal(loaded.Total, loaded.Groups.Sum(Function(g) g.Details.Sum(Function(d) Calculation.DetailCalculatedFee(loaded, g, d))))
+                    Equal(999L, Convert.ToInt64(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=" & split.Seq)))
                 End Using
             Next
         Next

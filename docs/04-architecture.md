@@ -64,7 +64,7 @@ Windows デスクトップアプリ
 
 残高・支払方法別残高・振替のタグ3列も6箇所でNULLだけを`String.Empty`へ変換し、非NULL文字列・日時・金額・評価額・支払方法と保存済みNULLを維持する（LEG-028）。
 
-明細の割引率は階層一括読込・子読込ともTEXTを`ExactMoney.ParseRate`でDecimalへ変換する。保存も`RateText`で正確な十進文字列へ統一し、旧GetDouble／REAL経路は廃止した。
+税額は`ExactMoney.ReceiptAmounts`でレシート全体の税率別に確定・明細配分し、分類・対象者・収支の抽出と人数割はその後に行う。保存totalは比較基準として読込・移行では更新しない。明細の割引率は階層一括読込・子読込ともTEXTを`ExactMoney.ParseRate`でDecimalへ変換する。保存も`RateText`で正確な十進文字列へ統一し、旧GetDouble／REAL経路は廃止した。
 
 `ViewForm_Statistics.vb`は分類・収支集計の表示処理を共用する。範囲超過時は途中の行を消してエラー行を表示し、表示設定はFinallyで戻す。集計式・DataAccessは変更しない。[26 仕様](26-statistics-amount-overflow.md)。
 

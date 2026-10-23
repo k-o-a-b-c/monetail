@@ -36,14 +36,14 @@
         End Get
     End Property
 
-    ' 収入明細を税率別に合算した金額を返す。
+    ' レシートの確定税額を配分した収入明細の合計を返す。
     Public ReadOnly Property Incomes As Integer
         Get
             Return CalculateTotal(-1, TaxType, TaxRoundingMode)
         End Get
     End Property
 
-    ' 支出明細を税率別に合算した金額を返す。
+    ' レシートの確定税額を配分した支出明細の合計を返す。
     Public ReadOnly Property Expenses As Integer
         Get
             Return CalculateTotal(1, TaxType, TaxRoundingMode)
@@ -55,14 +55,15 @@
         Return CalculateTotal(0, taxType, taxRoundingMode)
     End Function
 
-    ' 収支の抽出条件に従って明細を合算・端数処理する。
+    ' レシートの税額を確定してから収支の抽出条件に従って合算する。
     Private Function CalculateTotal(signFilter As Integer, taxType As Integer, mode As String) As Integer
         Return CInt(Calculation.SumDetails(Groups.SelectMany(Function(g) g.Details), taxType, mode, signFilter).Rounded(mode))
     End Function
 
-    ' 対象者で明細を絞り、分類別の統計金額を計算する。
+    ' レシートの確定税込額を対象者で絞り、分類別の統計金額を計算する。
     Public Function GetGroupStatisticsList(users As List(Of User), IsAnd As Boolean, IsOnlyPerson As Boolean) As List(Of GroupStatistics)
         Dim result As New List(Of GroupStatistics)
+        Dim amounts = Calculation.GetReceiptDetailAmounts(Groups.SelectMany(Function(g) g.Details), TaxType, TaxRoundingMode)
         For Each group As ReceiptGroup In Groups
             Dim lines = group.Details.Where(Function(detail)
                                                 If users.Count > 0 Then
@@ -71,8 +72,8 @@
                                                 End If
                                                 Return Not IsAnd OrElse detail.Users.Count = 0
                                             End Function)
-            ' 1/3等を近似せず合算し、税額と最終参考円額だけ明示的に丸める。
-            Dim amount = Calculation.SumDetails(lines, TaxType, TaxRoundingMode, allocate:=IsOnlyPerson)
+            ' 確定税込額の1/3等を近似せず合算し、最終参考円額だけ丸める。
+            Dim amount = Calculation.SumDetails(lines, TaxType, TaxRoundingMode, allocate:=IsOnlyPerson, receiptAmounts:=amounts)
             result.Add(New GroupStatistics With {.GroupCode = group.GroupClassification.Code, .YearMonth = Me.Date,
                                                  .Fee = CInt(amount.Rounded(TaxRoundingMode))})
         Next
