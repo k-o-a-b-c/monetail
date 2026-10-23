@@ -11,7 +11,7 @@
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1＋Decimal率値引2） | 98 |
 | 合計 | 143 |
 
-変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。変更後の結果は次のCIを参照する。
+変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
 
 最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fdecimal-discount-calculation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
