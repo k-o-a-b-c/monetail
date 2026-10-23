@@ -236,15 +236,15 @@ Public Class RegisterForm
         SetGroupTaxRate()
     End Sub
 
+    ' 日付と分類に応じた税率を、マスタの並び順に依存せず初期選択する。
     Private Sub SetGroupTaxRate()
-        If GroupClassificationComboBox.DataSource Is Nothing Then
+        If GroupClassificationComboBox.DataSource Is Nothing OrElse GroupTaxRateComboBox.DataSource Is Nothing Then
             Return
         End If
-        If ReceiptDateTextBox.Value.CompareTo(New Date(2019, 10, 1)) >= 0 AndAlso (GroupClassificationComboBox.SelectedItem Is Nothing OrElse Not DirectCast(GroupClassificationComboBox.SelectedItem, GroupClassification).ReducedTaxTarget) Then
-            GroupTaxRateComboBox.SelectedIndex = 0
-        Else
-            GroupTaxRateComboBox.SelectedIndex = 1
-        End If
+        Dim classification = TryCast(GroupClassificationComboBox.SelectedItem, GroupClassification)
+        Dim reducedTaxTarget As Boolean = classification IsNot Nothing AndAlso classification.ReducedTaxTarget
+        Dim rate As Integer = If(ReceiptDateTextBox.Value.Date >= New Date(2019, 10, 1) AndAlso Not reducedTaxTarget, 10, 8)
+        GroupTaxRateComboBox.SelectedItem = DataAccess.TaxRateList.FirstOrDefault(Function(taxRate) taxRate.Rate = rate)
     End Sub
 
 #End Region
@@ -318,8 +318,14 @@ Public Class RegisterForm
             AddGroupButton.Enabled = True
         End If
 
+        AddGroupButton.Enabled = AddGroupButton.Enabled AndAlso GroupClassificationComboBox.SelectedItem IsNot Nothing AndAlso GroupTaxRateComboBox.SelectedItem IsNot Nothing
         UpdateState()
 
+    End Sub
+
+    ' 税率未選択時の追加・更新を止め、手動選択後に再び有効にする。
+    Private Sub GroupTaxRateComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles GroupTaxRateComboBox.SelectedIndexChanged
+        UpdateAddGroupButton()
     End Sub
 
     Private Sub GroupClassificationComboBox_SelectedIndexChanged(sender As Object, e As EventArgs) Handles GroupClassificationComboBox.SelectedIndexChanged
@@ -365,6 +371,8 @@ Public Class RegisterForm
     End Sub
 
     Private Sub AddGroupButton_Click(sender As Object, e As EventArgs) Handles AddGroupButton.Click
+
+        If GroupClassificationComboBox.SelectedItem Is Nothing OrElse GroupTaxRateComboBox.SelectedItem Is Nothing Then Return
 
         Dim group As ReceiptGroup
         If SelectedGroup Is Nothing Then
