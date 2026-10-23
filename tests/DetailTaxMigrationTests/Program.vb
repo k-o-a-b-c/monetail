@@ -137,15 +137,20 @@ Module Program
         Next
     End Sub
 
+    ' 保存合計の値・格納型と、移行対象外の全行を保持することを検証する。
     Private Sub PreservedRows()
         For Each enabled In {0, 1}
             Using db = Database(enabled)
                 Console.WriteLine("INFO " & db.GetType().Assembly.GetName().Name & " SQLite=" & CStr(DetailTaxMigration.Scalar(db, "SELECT sqlite_version()")) & " FK=" & enabled.ToString(CultureInfo.InvariantCulture))
                 Dim names = {"m_user", "m_shop", "m_payment_classification", "m_point_classification", "t_receipt_points", "t_transfers", "t_balances", "t_balance_groups", "t_payment_memo", "t_exchange_rates"}
                 Dim before = names.ToDictionary(Function(n) n, Function(n) TableSnapshot(db, n))
-                Dim headerBefore = TableSnapshot(db, "t_receipts", "total", "revision_token")
+                Dim savedTotals As Object() = {DBNull.Value, 0, -333, Integer.MinValue, Integer.MaxValue}
+                For i = 0 To savedTotals.Length - 1
+                    DetailTaxMigration.Execute(db, "INSERT INTO t_receipts(seq,date,shop_name,tax_type,tax_rounding_mode,payment_classification_code,update_user,update_datetime,total,revision_token) VALUES(@p0,'2026-10-02','Shop',0,'floor',1,'a','2026-10-02',@p1,'saved')", i + 20, savedTotals(i))
+                Next
+                Dim headerBefore = TableSnapshot(db, "t_receipts", "revision_token")
                 DetailTaxMigration.Run(db)
-                Equal(headerBefore, TableSnapshot(db, "t_receipts", "total", "revision_token"))
+                Equal(headerBefore, TableSnapshot(db, "t_receipts", "revision_token"))
                 For Each name In names
                     Equal(before(name), TableSnapshot(db, name))
                 Next
@@ -155,7 +160,9 @@ Module Program
                 Equal("2019-10-01", DetailTaxMigration.Scalar(db, "SELECT CAST(start_date AS TEXT) FROM m_tax_rate WHERE code=4"))
                 Equal(999, DetailTaxMigration.Scalar(db, "SELECT stored_total FROM detail_tax_receipt_audit"))
                 Equal("saved", DetailTaxMigration.Scalar(db, "SELECT old_revision FROM detail_tax_receipt_audit"))
-                Equal(1, DetailTaxMigration.Scalar(db, "SELECT COUNT(*) FROM t_receipts WHERE revision_token<>'saved' AND total=(SELECT new_total FROM detail_tax_receipt_audit)"))
+                Equal(999, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts WHERE seq=1"))
+                Equal(931, DetailTaxMigration.Scalar(db, "SELECT new_total FROM detail_tax_receipt_audit WHERE receipt_seq=1"))
+                Equal(0, DetailTaxMigration.Scalar(db, "SELECT COUNT(*) FROM t_receipts r JOIN detail_tax_receipt_audit a ON a.receipt_seq=r.seq WHERE r.revision_token='saved' OR r.revision_token<>a.new_revision"))
                 Equal(0, DetailTaxMigration.Read(db, "PRAGMA foreign_key_check").Rows.Count)
                 Equal("ok", DetailTaxMigration.Scalar(db, "PRAGMA integrity_check"))
             End Using
@@ -164,7 +171,8 @@ Module Program
         Using db = Database()
             DetailTaxMigration.Execute(db, "DELETE FROM t_receipt_detail_users;DELETE FROM t_receipt_details;DELETE FROM t_receipt_groups")
             DetailTaxMigration.Run(db)
-            Equal(0, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts"))
+            Equal(999, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts"))
+            Equal(0, DetailTaxMigration.Scalar(db, "SELECT new_total FROM detail_tax_receipt_audit"))
         End Using
     End Sub
 
@@ -185,6 +193,7 @@ Module Program
                 Equal(CInt(test(7)), DetailTaxMigration.Scalar(db, "SELECT new_total FROM detail_tax_receipt_audit"))
                 Equal(CInt(test(8)), DetailTaxMigration.Scalar(db, "SELECT new_incomes FROM detail_tax_receipt_audit"))
                 Equal(CInt(test(9)), DetailTaxMigration.Scalar(db, "SELECT new_expenses FROM detail_tax_receipt_audit"))
+                Equal(999, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts"))
                 Equal("text", DetailTaxMigration.Scalar(db, "SELECT typeof(discount_rate) FROM t_receipt_details LIMIT 1"))
                 Equal(ExactMoney.RateText(CDec(test(3))), DetailTaxMigration.Scalar(db, "SELECT discount_rate FROM t_receipt_details WHERE seq=3"))
             End Using
@@ -194,7 +203,8 @@ Module Program
                 DetailTaxMigration.Execute(db, "DELETE FROM t_receipt_detail_users;DELETE FROM t_receipt_details;UPDATE t_receipts SET tax_type=@p0,tax_rounding_mode=@p1;UPDATE t_receipt_groups SET tax=5 WHERE seq=2", scenario.Item1, scenario.Item2)
                 DetailTaxMigration.Execute(db, "INSERT INTO t_receipt_details VALUES(1,2,1,'8%',19,1,0,0,1,NULL),(1,4,1,'10%',19,2,0,0,1,NULL)")
                 DetailTaxMigration.Run(db)
-                Equal(scenario.Item3, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts"))
+                Equal(scenario.Item3, DetailTaxMigration.Scalar(db, "SELECT new_total FROM detail_tax_receipt_audit"))
+                Equal(999, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts"))
                 Equal(1, DetailTaxMigration.Scalar(db, "SELECT COUNT(*) FROM t_receipt_groups WHERE group_classification_code=1"))
             End Using
         Next
@@ -219,7 +229,8 @@ Module Program
                 "INSERT INTO t_receipt_details VALUES(2,2,1,'Other parent',7,1,0,0,1,NULL);" &
                 "INSERT INTO t_receipt_detail_users VALUES(2,2,1,2)")
             DetailTaxMigration.Run(db)
-            Equal(7, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts WHERE seq=2"))
+            Equal(True, DetailTaxMigration.Scalar(db, "SELECT total FROM t_receipts WHERE seq=2") Is DBNull.Value)
+            Equal(7, DetailTaxMigration.Scalar(db, "SELECT new_total FROM detail_tax_receipt_audit WHERE receipt_seq=2"))
             Equal(1, DetailTaxMigration.Scalar(db, "SELECT COUNT(*) FROM t_receipt_detail_users WHERE receipt_seq=2 AND group_seq=2 AND detail_seq=1 AND user_code=2"))
             Equal(True, DetailTaxMigration.Scalar(db, "SELECT stored_total FROM detail_tax_receipt_audit WHERE receipt_seq=2") Is DBNull.Value)
         End Using
@@ -356,6 +367,14 @@ Module Program
                     MigrationFiles.MigrateCopy(sourcePath, copyPath, reportPath)
                     Equal(before, Snapshot(fileDb))
                     Equal(True, File.ReadAllText(reportPath).Contains("1,123,931,931,0,808"))
+#If NETFRAMEWORK Then
+                    Using migrated As New SQLiteConnection("Data Source=" & copyPath & ";Pooling=False")
+#Else
+                    Using migrated As New SqliteConnection("Data Source=" & copyPath & ";Pooling=False")
+#End If
+                        migrated.Open()
+                        Equal(123, DetailTaxMigration.Scalar(migrated, "SELECT total FROM t_receipts WHERE seq=1"))
+                    End Using
                     Dim copyBytes = Convert.ToBase64String(File.ReadAllBytes(copyPath))
                     Reject(Sub() MigrationFiles.MigrateCopy(sourcePath, copyPath, reportPath))
                     Equal(copyBytes, Convert.ToBase64String(File.ReadAllBytes(copyPath)))
@@ -405,7 +424,7 @@ Module Program
             Using migrated As New SQLiteConnection("Data Source=" & copyPath & ";Pooling=False")
                 migrated.Open()
                 Equal(DetailTaxMigration.MigrationId, DetailTaxMigration.Scalar(migrated, "SELECT id FROM detail_tax_migration"))
-                Equal(931, DetailTaxMigration.Scalar(migrated, "SELECT total FROM t_receipts WHERE seq=1"))
+                Equal(999, DetailTaxMigration.Scalar(migrated, "SELECT total FROM t_receipts WHERE seq=1"))
             End Using
             Dim copyBytes = File.ReadAllBytes(copyPath)
             Dim reportBytes = File.ReadAllBytes(reportPath)

@@ -134,7 +134,8 @@ Public NotInheritable Class DetailTaxMigration
                 Next
                 Execute(connection, "INSERT INTO detail_tax_receipt_audit VALUES(@p0,@p1,@p2,@p3,@p4,@p5,@p6,@p7,@p8,@p9)",
                         receipt, header("total"), oldAmounts(0), expected(0), oldAmounts(1), expected(1), oldAmounts(2), expected(2), header("revision_token"), Guid.NewGuid().ToString("N"))
-                Execute(connection, "UPDATE t_receipts SET total=@p0,revision_token=(SELECT new_revision FROM detail_tax_receipt_audit WHERE receipt_seq=@p1) WHERE seq=@p1", expected(0), receipt)
+                ' totalは仕様変更の比較基準として保持し、構造変更に伴う更新版だけを進める。
+                Execute(connection, "UPDATE t_receipts SET revision_token=(SELECT new_revision FROM detail_tax_receipt_audit WHERE receipt_seq=@p0) WHERE seq=@p0", receipt)
             Next
             If Read(connection, "PRAGMA foreign_key_check").Rows.Count <> 0 Then Throw New InvalidOperationException("移行後の外部キー違反です。")
             If CStr(Scalar(connection, "PRAGMA integrity_check")) <> "ok" Then Throw New InvalidOperationException("移行後の整合性検査に失敗しました。")
