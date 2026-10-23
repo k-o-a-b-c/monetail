@@ -37,7 +37,7 @@ discount_by_rate = Math.Ceiling(x * discount_rate / 100)
 net = x - discount_by_rate
 ```
 
-算出した`net`を`tax_target`で課税・非課税に分配する。現在のコードは`Double`と`Math.Ceiling`を使い、途中で整数化しない。
+上記の明細計算はReceiptDetail.CalculateDiscountedFeeへ共通化する。Decimalで計算し、Math.Ceilingで値引額を整数化して差し引く。戻り値は整数金額を保持するDecimalとし、Int32への変換は従来の各呼出側で行う。算出した`net`を`tax_target`で課税・非課税に分配する。レシート合計・分類／明細／人別参考額はこの共通処理を利用する。
 
 DBの`discount_rate`は元DDLの`INTEGER NOT NULL`を維持し、小数率はSQLiteのREALとして保存できる。共通読込・子再読込はGetDecimalで率をDecimalモデルへ戻す。旧GetInt32のREAL読込例外をGetDoubleで修正した後、入力から明細計算までDecimalへ統一した。読込だけで保存済みの率や合計を書き換えず、値引額をCeilingで整数化する規則も維持する（LEG-005、[41](41-decimal-discount-calculation.md)）。
 

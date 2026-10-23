@@ -85,6 +85,8 @@
 
 - [x] 明細の率値引を入力・読込・計算までDecimalへ統一。値引額を切り上げて差し引く規則と保存済みtotalを維持し、3,000円・1.1%の1円誤差を修正（[41 明細のDecimal計算](41-decimal-discount-calculation.md)）
 
+- [x] 明細の値引後金額をReceiptDetail.CalculateDiscountedFeeへ共通化し、レシート合計・分類／明細／人別参考額の重複式を解消。計算順序と結果、保存済みtotalを維持（[41](41-decimal-discount-calculation.md)）
+
 ## 仕様の判断と次の候補
 
 [13 用語・意思決定](13-glossary-decisions.md)の各項目について、確定・実装済み・未決定を区別する。DDL受領、税端数、テスト／CI整備、レシート更新・削除と残高削除の外部キー対応、レシート・残高・振替のNULL読込、小数割引率の読込修正、支払メモ一括保存のトランザクション化は完了しており、再び未実装の前提で計画しない。

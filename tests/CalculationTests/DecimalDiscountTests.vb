@@ -12,6 +12,11 @@ Friend Module DecimalDiscountTests
         AssertNet(100, 125D, -25)
         AssertNet(3000, 1.001D, 2969)
         AssertNet(Integer.MaxValue, 100D, 0, quantity:=Integer.MaxValue, discountFee:=Integer.MinValue)
+        ' 共通計算はInt32変換を先送りし、変更後の明細値から毎回計算する。
+        Dim wide = Detail(Integer.MaxValue, quantity:=2)
+        Equal(4294967294D, wide.CalculateDiscountedFee())
+        wide.Quantity = 1
+        Equal(CDec(Integer.MaxValue), wide.CalculateDiscountedFee())
     End Sub
 
     Public Sub TaxAndAggregation()
@@ -41,6 +46,7 @@ Friend Module DecimalDiscountTests
         For Each mode In {"floor", "half_up"}
             Dim receipt = MakeReceipt(mode, Group(10, Detail(price, quantity:=quantity, discountFee:=discountFee, discountRate:=rate)))
             receipt.TaxType = 0
+            Equal(CDec(expected), receipt.Groups(0).Details(0).CalculateDiscountedFee())
             Equal(expected, receipt.Total)
             Equal(expected, Calculation.GroupCalculatedFee(receipt, receipt.Groups(0)))
             Equal(expected, Calculation.DetailCalculatedFee(receipt, receipt.Groups(0), receipt.Groups(0).Details(0)))

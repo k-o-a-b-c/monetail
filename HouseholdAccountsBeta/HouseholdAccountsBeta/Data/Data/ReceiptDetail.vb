@@ -14,6 +14,15 @@ Public Class ReceiptDetail
     Public Property Tag As String
     Public Property Users As List(Of User)
 
+    ' 単価値引・数量・率値引を適用し、税処理前の整数金額をDecimalで求める。
+    Public Function CalculateDiscountedFee() As Decimal
+        Dim fee As Decimal = Me.Fee
+        fee -= DiscountFee
+        fee *= Quantity
+        fee -= Math.Ceiling(fee * DiscountRate / 100D)
+        Return fee
+    End Function
+
     Public Sub New()
         Users = New List(Of User)()
     End Sub

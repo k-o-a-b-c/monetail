@@ -13,7 +13,9 @@
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fdecimal-discount-calculation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+明細計算共通化の変更元main `695a77e`は検証済み最終 `e672a79`と同一のGit treeで、[CI 40037645532](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40037645532)で全143件・Windowsビルド成功。共通化では既存の計算チェックを拡張し、総件数は143件を維持する。
+
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Arefactor%2Fshared-detail-discount-calculation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
@@ -110,3 +112,5 @@ GitHub Actions の `Tests` は上記テストと、Windows で既存ソリュー
 Decimal税計算は、正負の整数境界・税率別合算・両端数方式・税込／税抜・大きなDecimal戻り値、収入／支出・分類／明細参考額・プレビュー・保存済み合計保持を固定値で検証する。WindowsではFK ON/OFFで旧floorの保存値−111円を残し、再計算−110円との差額+1円が表示されることを確認する。値引・人数按分の既存回帰も継続する。[40 仕様](../docs/40-decimal-tax-calculation.md)。
 
 率値引Decimal化は、3,000円・1.1%の境界、負額と切り捨て方向、手入力値引・数量の順序、0／100%・既存の100%超・小数率、明細ごとの整数化と税率別合算を検証する。Windowsではen-US／de-DEの率入力、INTEGER／REALの新規・更新・3読込経路（追加率1.1／2.2／2.51%）、旧保存値2,966円を保った再計算2,967円と差額+1円を確認する。閲覧の書込0回・保存済みtotal／率・全行／型／版／スキーマの保持も比較する。[41 仕様](../docs/41-decimal-discount-calculation.md)。
+
+明細計算共通化では、既存の整数境界テストでReceiptDetail.CalculateDiscountedFeeの戻り値も固定期待値と比較する。Int32を超える税処理前金額をDecimalで返せること、数量変更後に最新値で再計算することを確認し、合計・分類／明細／人別参考額、保存・表示の既存回帰を継続する。
