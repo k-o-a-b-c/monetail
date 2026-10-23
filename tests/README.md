@@ -6,14 +6,14 @@
 
 | 対象 | 件数 |
 | --- | ---: |
-| 計算（JSONの11ケース＋VBの22チェック） | 33 |
+| 計算（JSONの11ケース＋VBの24チェック） | 35 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1） | 96 |
-| 合計 | 139 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1＋Decimal率値引2） | 98 |
+| 合計 | 143 |
 
-変更前のmain `a0f4610`は[CI 39925481165](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39925481165)で全136件とWindowsビルドが成功済み。今回のDecimal税計算では計算2チェック・Windows1チェックを追加する。旧Doubleの−100円・10%の−111円、−50円の−56円は、境界誤差の修正として−110円・−55円へ期待値を変更した。変更後の`7fa604c`は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)で全139件・読込性能・既存WindowsソリューションのNuGet復元／ビルドが成功した。以降の変更は仕様記録とこの検証記録だけで、製品・テストコードは同一。
+変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fdecimal-tax-calculation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fdecimal-discount-calculation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
@@ -82,7 +82,7 @@ NULL文字列の回帰テストでは、レシートの所在地・タグ、グ�
 
 [残高・振替タグの修正前CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39167506376)では、既存22件がPASSし、追加3チェックだけがSQL NULLの`GetString`による`InvalidCastException`で失敗しました。非NULL入力の失敗はありませんでした。[PR #8](https://github.com/k-o-a-b-c/monetail-legacy/pull/8)。
 
-小数割引率の回帰は新規・更新の2チェックです。率0%／3%／2.5%／2.6%、`floor`／`half_up`それぞれで、単価103円・単価値引3円・数量2・外税8%を保存し、一覧・残高・子再読込の3経路で率と合計を検証します。整数率はINTEGER、小数率はREALで格納され、読込では率・値引・数量・保存合計等を更新しないことも確認します。旧`GetInt32`がREAL値で`InvalidCastException`になることは、[修正前CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39125787720)で再現しています。製品修正は共通読込の`GetDouble`への変更だけで、DDL・保存・計算・入力操作は従来どおりです。[PR #5](https://github.com/k-o-a-b-c/monetail-legacy/pull/5)。
+小数割引率の回帰は新規・更新の2チェックです。率0%／3%／2.5%／2.6%、`floor`／`half_up`それぞれで、単価103円・単価値引3円・数量2・外税8%を保存し、一覧・残高・子再読込の3経路で率と合計を検証します。整数率はINTEGER、小数率はREALで格納され、読込では率・値引・数量・保存合計等を更新しないことも確認します。旧`GetInt32`がREAL値で`InvalidCastException`になることは、[修正前CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39125787720)で再現しています。初回のPR #5は共通読込のGetDouble化に限定しました。現在は後続改修で入力・モデル・明細計算と読込をDecimalに統一し、GetDecimalで取得します。DB宣言と保存SQLは維持します。[PR #5](https://github.com/k-o-a-b-c/monetail-legacy/pull/5)。
 
 支払メモ一括保存は、成功、末尾行のINSERT／UPDATE失敗時の巻き戻しと同じDataAccessでの再保存、空リストの3チェックに成功しました。FK ON/OFFで実際のDataAccessを使い、追加と更新の混在、NULL日付／タグ・空文字・日時・引用符／改行を含むメモ、対象外行・読込時の保存値の保持を確認します。[旧処理のCI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39158731495)では成功・空リストがPASSする一方、FK ONで末尾INSERTを失敗させると先行する1行目の更新と2行目の追加が残ることを再現しました。末尾失敗はテスト専用トリガーで起こし、その前に先行2行の変更が実行されたことも確認します。修正後は末尾INSERT／UPDATE失敗の両方をFK ON/OFFで通しています。製品の保存SQL・保存順・NULL仕様は維持し、画面の空メモは従来どおり空文字です。画面の確認・終了操作や実DBでの障害復旧を検証したものではありません。[PR #6](https://github.com/k-o-a-b-c/monetail-legacy/pull/6)。
 
@@ -108,3 +108,5 @@ GitHub Actions の `Tests` は上記テストと、Windows で既存ソリュー
 保存時合計比較は実SQLite・FK ON/OFF・両端数方式で、一覧／年次／支払方法別の読込と子再読込、NULL・0・SQLite INTEGERの両端、不一致の正負、合計セルと選択時の色、en-US／de-DEのツールチップ、既存の行色と範囲超過、表示中モデルの変更・フィルター・月の切替後の復帰を検証する。全保存値・型・スキーマ・版・PRAGMAとtotal／NULLの保持、書込0回も比較する。[39 仕様](../docs/39-receipt-saved-total-comparison.md)。
 
 Decimal税計算は、正負の整数境界・税率別合算・両端数方式・税込／税抜・大きなDecimal戻り値、収入／支出・分類／明細参考額・プレビュー・保存済み合計保持を固定値で検証する。WindowsではFK ON/OFFで旧floorの保存値−111円を残し、再計算−110円との差額+1円が表示されることを確認する。値引・人数按分の既存回帰も継続する。[40 仕様](../docs/40-decimal-tax-calculation.md)。
+
+率値引Decimal化は、3,000円・1.1%の境界、負額と切り捨て方向、手入力値引・数量の順序、0／100%・既存の100%超・小数率、明細ごとの整数化と税率別合算を検証する。Windowsではen-US／de-DEの率入力、INTEGER／REALの新規・更新・3読込経路（追加率1.1／2.2／2.51%）、旧保存値2,966円を保った再計算2,967円と差額+1円を確認する。閲覧の書込0回・保存済みtotal／率・全行／型／版／スキーマの保持も比較する。[41 仕様](../docs/41-decimal-discount-calculation.md)。

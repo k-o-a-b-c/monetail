@@ -3,9 +3,9 @@ Imports System.Globalization
 Imports System.Linq
 
 Friend Module FractionalDiscountTests
-    Private ReadOnly Rates As Double() = {0, 3, 2.5, 2.6}
-    Private ReadOnly FloorTotals As Integer() = {216, 209, 210, 209}
-    Private ReadOnly HalfUpTotals As Integer() = {216, 210, 211, 210}
+    Private ReadOnly Rates As Decimal() = {0D, 3D, 2.5D, 2.6D, 1.1D, 2.2D, 2.51D}
+    Private ReadOnly FloorTotals As Integer() = {216, 209, 210, 209, 212, 210, 209}
+    Private ReadOnly HalfUpTotals As Integer() = {216, 210, 211, 210, 213, 211, 210}
 
     Public Sub InsertRoundTrips()
         RoundTrips(False)
@@ -37,7 +37,7 @@ Friend Module FractionalDiscountTests
                             End If
                             Dim detailFilter = " FROM t_receipt_details WHERE receipt_seq=" &
                                 receipt.Seq.ToString(CultureInfo.InvariantCulture)
-                            Equal(rate, Convert.ToDouble(fixture.Scalar("SELECT CAST(discount_rate AS REAL)" & detailFilter)), context & " saved rate")
+                            Equal(rate, Convert.ToDecimal(fixture.Scalar("SELECT CAST(discount_rate AS REAL)" & detailFilter)), context & " saved rate")
                             Equal(If(rate = Math.Truncate(rate), "integer", "real"),
                                 Convert.ToString(fixture.Scalar("SELECT typeof(discount_rate)" & detailFilter)), context & " SQLite storage class")
                             Equal(expectedTotal, Convert.ToInt32(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=" &
@@ -76,7 +76,7 @@ Friend Module FractionalDiscountTests
         If failures.Count > 0 Then Throw New Exception(String.Join(Environment.NewLine, failures))
     End Sub
 
-    Private Sub AssertReceipt(receipt As Receipt, mode As String, rate As Double, total As Integer, context As String)
+    Private Sub AssertReceipt(receipt As Receipt, mode As String, rate As Decimal, total As Integer, context As String)
         Dim detail = receipt.Groups.Single().Details.Single()
         Equal(mode, receipt.TaxRoundingMode, context & " rounding mode")
         Equal(1, receipt.TaxType, context & " tax type")

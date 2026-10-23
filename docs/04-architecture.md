@@ -60,7 +60,7 @@ Windows デスクトップアプリ
 
 残高・支払方法別残高・振替のタグ3列も6箇所でNULLだけを`String.Empty`へ変換し、非NULL文字列・日時・金額・評価額・支払方法と保存済みNULLを維持する（LEG-028）。
 
-明細の割引率は共通の`LoadReceiptDetailData`で`GetDouble`により読み込む。SQLiteの`INTEGER`宣言でも小数はREALとして保存され、旧`GetInt32`は読込例外となった。読込型だけをモデルの`Double`へ合わせ、保存・計算・画面操作は変更していない。
+明細の割引率は共通読込・子再読込でGetDecimalによりDecimalモデルへ取得する。SQLiteのINTEGER宣言でも小数はREALとして保存される。旧GetInt32の例外をGetDoubleで修正した後、整数境界の誤差を防ぐため入力・モデル・明細計算をDecimalへ統一した。DB定義・保存SQL・操作は維持する。[41 明細のDecimal計算](41-decimal-discount-calculation.md)。
 
 `ViewForm_Statistics.vb`は分類・収支集計の表示処理を共用する。範囲超過時は途中の行を消してエラー行を表示し、表示設定はFinallyで戻す。集計式・DataAccessは変更しない。[26 仕様](26-statistics-amount-overflow.md)。
 

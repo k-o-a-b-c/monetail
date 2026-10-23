@@ -262,7 +262,7 @@ Friend Module ConcurrencyTests
                     Dim group = ReceiptFixtures.Group(If(index = 1, 8, 10))
                     group.Tag = label & " group " & index.ToString(CultureInfo.InvariantCulture)
                     For detailIndex As Integer = 1 To If(shapeNumber = 3, 2, 1)
-                        Dim detail = ReceiptFixtures.Detail(100 * shapeNumber + detailIndex, taxable:=(detailIndex = 1), quantity:=shapeNumber, discountFee:=3, discountRate:=2.5)
+                        Dim detail = ReceiptFixtures.Detail(100 * shapeNumber + detailIndex, taxable:=(detailIndex = 1), quantity:=shapeNumber, discountFee:=3, discountRate:=2.5D)
                         detail.Name = label & " item " & detailIndex.ToString(CultureInfo.InvariantCulture)
                         detail.Tag = label & " detail " & detailIndex.ToString(CultureInfo.InvariantCulture)
                         detail.Users.Add(New User With {.Code = 2})

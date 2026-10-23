@@ -473,12 +473,13 @@ Public Class RegisterForm
         Return value
     End Function
 
-    Private Function NormalizeDiscountRate() As Double
-        Dim value As Double
-        If Not Double.TryParse(DiscountRateTextBox.Text, value) OrElse Double.IsNaN(value) OrElse Double.IsInfinity(value) Then
+    ' 割引率をDecimalで読み取り、不正値を0・範囲外を0～100へ補正する。
+    Private Function NormalizeDiscountRate() As Decimal
+        Dim value As Decimal
+        If Not Decimal.TryParse(DiscountRateTextBox.Text, value) Then
             value = 0
         Else
-            value = Math.Min(100, Math.Max(0, value))
+            value = Math.Min(100D, Math.Max(0D, value))
         End If
         DiscountRateTextBox.Text = value.ToString()
         Return value
@@ -498,7 +499,7 @@ Public Class RegisterForm
         Dim fee As Integer = NormalizeMoney(FeeTextBox)
         Dim discountFee As Integer = NormalizeMoney(DiscountFeeTextBox)
         Dim quantity As Integer = NormalizeQuantity()
-        Dim discountRate As Double = NormalizeDiscountRate()
+        Dim discountRate As Decimal = NormalizeDiscountRate()
 
         Dim previous As ReceiptDetail = If(DetailListView.SelectedItems.Count = 0, Nothing,
             SelectedGroup.Details(DetailListView.SelectedIndices(0)))

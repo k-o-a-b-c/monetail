@@ -132,7 +132,7 @@ Friend Module ReceiptReadMeasurements
                     Equal(101, detail.Fee)
                     Equal(1, detail.Quantity)
                     Equal(0, detail.DiscountFee)
-                    Equal(0.0, detail.DiscountRate)
+                    Equal(0D, detail.DiscountRate)
                     Equal(True, detail.TaxTarget)
                     Equal("1,2", String.Join(",", detail.Users.Select(Function(u) u.Code)))
                 Next

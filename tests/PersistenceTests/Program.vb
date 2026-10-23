@@ -16,6 +16,8 @@ Module Program
             Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
             Return 2
         End If
+        Check("decimal discount fields preserve culture-specific input and pending model boundaries", AddressOf DetailInputTests.DecimalRateInput)
+        Check("decimal discount corrections retain historic totals and highlight one yen differences", AddressOf ReceiptSavedTotalTests.DiscountCorrectionKeepsSavedTotal)
         Check("decimal tax corrections highlight historic totals without rewriting saved values", AddressOf ReceiptSavedTotalTests.TaxCorrectionKeepsSavedTotal)
         Check("saved totals retain NULL and Int64 boundaries across receipt reads without writes", AddressOf ReceiptSavedTotalTests.StoredValuesAndReadPaths)
         Check("receipt total cells highlight signed differences while preserving missing overflow and row markers", AddressOf ReceiptSavedTotalTests.ColorsAndTooltips)

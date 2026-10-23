@@ -4,7 +4,7 @@ Imports System.Globalization
 Module ReceiptFixtures
     Public Function Detail(fee As Integer, Optional taxable As Boolean = True,
                            Optional quantity As Integer = 1, Optional discountFee As Integer = 0,
-                           Optional discountRate As Double = 0) As ReceiptDetail
+                           Optional discountRate As Decimal = 0D) As ReceiptDetail
         Return New ReceiptDetail With {
             .Name = "test item", .Fee = fee, .Quantity = quantity, .TaxTarget = taxable,
             .DiscountFee = discountFee, .DiscountRate = discountRate, .Tag = ""

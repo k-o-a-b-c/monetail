@@ -114,18 +114,18 @@
             Dim taxFee As Decimal = 0D
             Dim nonTaxFee As Decimal = 0D
             For Each detail As ReceiptDetail In group.Details
-                Dim fee As Double = detail.Fee
+                Dim fee As Decimal = detail.Fee
                 fee -= detail.DiscountFee
                 fee *= detail.Quantity
-                fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
+                fee -= Math.Ceiling(fee * detail.DiscountRate / 100D)
                 If (signFilter < 0 AndAlso fee >= 0) OrElse
                    (signFilter > 0 AndAlso fee <= 0) Then
                     Continue For
                 End If
                 If detail.TaxTarget Then
-                    taxFee += CDec(fee)
+                    taxFee += fee
                 Else
-                    nonTaxFee += CDec(fee)
+                    nonTaxFee += fee
                 End If
             Next
             If groupTaxFee.ContainsKey(group.TaxRate.Rate) Then
@@ -162,10 +162,10 @@
                 If IsAnd AndAlso users.Count = 0 AndAlso detail.Users.Count > 0 Then
                     Continue For
                 End If
-                Dim fee As Double = detail.Fee
+                Dim fee As Decimal = detail.Fee
                 fee -= detail.DiscountFee
                 fee *= detail.Quantity
-                fee -= Math.Ceiling(fee * detail.DiscountRate / 100)
+                fee -= Math.Ceiling(fee * detail.DiscountRate / 100D)
                 Dim personNumber As Double
                 If IsOnlyPerson Then
                     personNumber = detail.Users.Count
@@ -175,9 +175,9 @@
                 If personNumber = 0 Then
                 Else
                     If detail.TaxTarget Then
-                        taxFee += fee / personNumber
+                        taxFee += Decimal.ToDouble(fee) / personNumber
                     Else
-                        nonTaxFee += fee / personNumber
+                        nonTaxFee += Decimal.ToDouble(fee) / personNumber
                     End If
                 End If
             Next

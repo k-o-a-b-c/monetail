@@ -2,6 +2,35 @@ Imports System.Globalization
 Imports System.Linq
 
 Friend Module ReceiptSavedTotalTests
+    Public Sub DiscountCorrectionKeepsSavedTotal()
+        EachMode(
+            Sub(fixture, mode)
+                fixture.Execute("UPDATE t_receipts SET tax_type=0,total=2966 WHERE seq=2;" &
+                                "UPDATE t_receipt_details SET fee=3000,quantity=1,discount_rate=1.1,tax_target=0 WHERE receipt_seq=2;")
+                BalanceBoundaryTests.ReadOnlyCase(fixture,
+                    Sub()
+                        Dim receipt = fixture.Data.GetReceipts(2026, 10).Single(Function(r) r.Seq = 2)
+                        Equal(1.1D, receipt.Groups(0).Details(0).DiscountRate)
+                        Equal(2967, receipt.Total)
+                        fixture.Data.LoadReceiptChildData(receipt)
+                        Equal(1.1D, receipt.Groups(0).Details(0).DiscountRate)
+                        Equal(2966L, receipt.SavedTotal.Value)
+                        Dim paymentReceipt = fixture.Data.GetPaymentReceipts(New Date(2026, 10, 1), New Date(2026, 11, 1), fixture.Data.PaymentClassification(1)).Single(Function(r) r.Seq = 2)
+                        Equal(2967, paymentReceipt.Total)
+                        Using form As New ViewForm(fixture.Data)
+                            Program.OpenForm(form)
+                            form.InitReceiptList()
+                            AssertMismatch(form, 2, 2966L, 2967, 1D)
+                            form.RefreshReceiptList(New Date(2026, 10, 1))
+                            AssertMismatch(form, 2, 2966L, 2967, 1D)
+                            Equal(2966L, CLng(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=2")))
+                            Equal("real", CStr(fixture.Scalar("SELECT typeof(discount_rate) FROM t_receipt_details WHERE receipt_seq=2")))
+                            form.Close()
+                        End Using
+                    End Sub)
+            End Sub)
+    End Sub
+
     Public Sub TaxCorrectionKeepsSavedTotal()
         EachMode(
             Sub(fixture, mode)

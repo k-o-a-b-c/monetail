@@ -23,7 +23,7 @@ Friend Module ReceiptReadTests
                         Equal("1,3", String.Join(",", receipt.Groups(1).Details.Select(Function(d) d.Seq)))
                         Equal("1,2", String.Join(",", receipt.Groups(1).Details(0).Users.Select(Function(u) u.Code)))
                         Equal("2", String.Join(",", receipt.Groups(1).Details(1).Users.Select(Function(u) u.Code)))
-                        Equal(2.5, receipt.Groups(1).Details(0).DiscountRate)
+                        Equal(2.5D, receipt.Groups(1).Details(0).DiscountRate)
                         Equal(0, receipt.Groups(2).Details.Count)
                         Equal(0, receipts.Single(Function(r) r.Seq = 2).Groups.Count)
                         Equal(0, receipts.Single(Function(r) r.Seq = 0).Total)

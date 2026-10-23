@@ -102,7 +102,7 @@ ViewForm → DataAccess.GetReceipts(年月/年)
 
 **小数割引率の読込（LEG-005）**:
 
-- 一覧・残高・子再読込から共通で呼ぶ`LoadReceiptDetailData`の`DiscountRate`を`GetDouble(7)`で取得する。SQLiteのREAL値に旧`GetInt32(7)`を使うと`InvalidCastException`になるため、モデルの`Double`へ合わせた。
+- 一覧／支払方法別の共通階層読込と子再読込は、DiscountRateをGetDecimalでDecimalモデルへ取得する。初回のGetInt32→GetDoubleによる小数読込修正に続き、率値引の誤差対策として入力・モデル・計算もDecimalへ統一した。[41 明細のDecimal計算](41-decimal-discount-calculation.md)。
 - `discount_rate INTEGER NOT NULL`の宣言と保存SQLは維持する。小数率はREAL、整数率はINTEGERとして格納できる。新規・更新と3読込経路の回帰で、率と合計が保持され、読込で保存済みの率・単価値引・数量・合計等を更新しないことを自動検証済み。
 
 ## 4. 振替・残高のフロー
