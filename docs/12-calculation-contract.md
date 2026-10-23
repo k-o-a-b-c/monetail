@@ -9,7 +9,7 @@
 - `fee`: 明細の単価（`Integer`）
 - `quantity`: 数量（`Integer`）
 - `discount_fee`: 単価に対する金額値引（`Integer`）
-- `discount_rate`: 割引率（VB`Double`、%）
+- `discount_rate`: 割引率（VB`Decimal`、%。入力はDecimal.TryParse、DB読込はGetDecimal）
 - `tax_target`: 課税対象か否か
 - `TaxType`: レシートの税区分（`0`=税込、`1`=税抜）
 - `TaxRate.Rate`: グループに設定されている税率（%）
@@ -39,7 +39,7 @@ net = x - discount_by_rate
 
 算出した`net`を`tax_target`で課税・非課税に分配する。現在のコードは`Double`と`Math.Ceiling`を使い、途中で整数化しない。
 
-DBの`discount_rate`は元DDLの`INTEGER NOT NULL`を維持し、小数率はSQLiteのREALとして保存できる。`LoadReceiptDetailData`は`GetDouble`で率をモデルへ戻す。旧`GetInt32`はREAL値で`InvalidCastException`となったため修正した。読込だけで保存済みの率や合計を書き換えず、値引計算式も変更しない（LEG-005）。
+DBの`discount_rate`は元DDLの`INTEGER NOT NULL`を維持し、小数率はSQLiteのREALとして保存できる。共通読込・子再読込はGetDecimalで率をDecimalモデルへ戻す。旧GetInt32のREAL読込例外をGetDoubleで修正した後、入力から明細計算までDecimalへ統一した。読込だけで保存済みの率や合計を書き換えず、値引額をCeilingで整数化する規則も維持する（LEG-005、[41](41-decimal-discount-calculation.md)）。
 
 ## 2. 合計と内訳の丸め粒度の違い
 
@@ -181,3 +181,5 @@ balance = （起点となる登録残高。なければ0）
 集計詳細は明細・グループの既存計算が範囲外なら表内で通知し、途中行を残さない。表示を切り替えて再計算し、成功・超過・他の例外でも表示設定を復元する。式・丸め・保存値は変更しない。[31 詳細表示](31-detail-view-amount-overflow.md)。
 
 レシート一覧は表示用の行から元Receiptの金額を参照し、範囲外だけを表内の文字列へ変換する。正常時の整数とN0書式、Receipt.Totalの例外契約・計算・保存値は維持する。[32 一覧表示](32-receipt-list-amount-overflow.md)。
+
+明細の率値引もDecimalで行う。基礎金額からCeilingで整数化した値引額を差し引き、明細ごとに整数金額を確定してから税率別へ合算する。人数按分は整数化済みの明細金額を受け取り、従来のDoubleによる人数割りと条件を維持する。[41 明細のDecimal計算](41-decimal-discount-calculation.md)。

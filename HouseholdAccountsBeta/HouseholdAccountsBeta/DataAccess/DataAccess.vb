@@ -502,7 +502,7 @@ Public Class DataAccess
                         .Fee = reader.GetInt32(15),
                         .Quantity = reader.GetInt32(16),
                         .DiscountFee = reader.GetInt32(17),
-                        .DiscountRate = reader.GetDouble(18),
+                        .DiscountRate = reader.GetDecimal(18),
                         .TaxTarget = (reader.GetInt32(19) = 1),
                         .Tag = If(reader.IsDBNull(20), String.Empty, reader.GetString(20))
                     }
@@ -566,7 +566,7 @@ Public Class DataAccess
                     receiptDetail.Fee = detailReader.GetInt32(4)
                     receiptDetail.Quantity = detailReader.GetInt32(5)
                     receiptDetail.DiscountFee = detailReader.GetInt32(6)
-                    receiptDetail.DiscountRate = detailReader.GetDouble(7)
+                    receiptDetail.DiscountRate = detailReader.GetDecimal(7)
                     receiptDetail.TaxTarget = (detailReader.GetInt32(8) = 1)
                     receiptDetail.Tag = If(detailReader.IsDBNull(9), String.Empty, detailReader.GetString(9))
                     LoadReceiptDetailUsersData(receiptDetail)

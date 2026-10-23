@@ -6,6 +6,8 @@ Imports System.Text.Json
 Module Program
     Function Main() As Integer
         CheckJsonExpectations()
+        Check("decimal detail discounts preserve integer boundaries signs manual discounts and legacy rates", AddressOf DecimalDiscountTests.IntegerDiscountBoundaries)
+        Check("decimal discounts round per detail before tax aggregation and preserve saved totals", AddressOf DecimalDiscountTests.TaxAndAggregation)
         Check("decimal tax preserves integer boundaries signed rounding and exact large subtotals", AddressOf DecimalTaxTests.TaxBoundaries)
         Check("decimal receipt and reference totals preserve aggregation filters preview and saved totals", AddressOf DecimalTaxTests.ReceiptAndReferenceTotals)
         Check("receipt amount validation catches signed overflow and income expense cancellation", AddressOf ReceiptAmountValidationTests.AmountRanges)
@@ -93,9 +95,9 @@ Module Program
             Equal(108, MakeReceipt(mode, Group(8, Detail(103, discountFee:=3))).Total)
         Next
         ' (103 - 3) * 2 - Ceiling(200 * 2.6 / 100) = 194.
-        Equal(209, MakeReceipt("floor", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6))).Total)
-        Equal(210, MakeReceipt("half_up", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6))).Total)
-        Equal(-211, MakeReceipt("floor", Group(8, Detail(-103, quantity:=2, discountFee:=-3, discountRate:=2.6))).Total)
+        Equal(209, MakeReceipt("floor", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6D))).Total)
+        Equal(210, MakeReceipt("half_up", Group(8, Detail(103, quantity:=2, discountFee:=3, discountRate:=2.6D))).Total)
+        Equal(-211, MakeReceipt("floor", Group(8, Detail(-103, quantity:=2, discountFee:=-3, discountRate:=2.6D))).Total)
     End Sub
 
     Private Sub ReceiptVsGroups()

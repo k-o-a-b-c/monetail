@@ -308,7 +308,7 @@
 | 総数 | 15表 → **16表** | `t_receipt_points` は提出DDLに存在する。`ReceiptPoint` モデルもあるが、DataAccessでの保存・読込は未実装 |
 | `t_receipt_points` | `receipt_seq` はNOT NULL、**主キーは `seq` 単独**、ポイント種別へのFKのみ | **`t_receipts(seq)` へのFKなし**。孤児行・連番使用方法を調べる |
 | `m_payment_classification` | `valid_from DATE`、`valid_to DATE` はNULL許容 | 支払い方法の有効期間機能が使われているか確認する |
-| `t_receipt_details.discount_rate` | **INTEGER NOT NULL** | VBの `ReceiptDetail.DiscountRate` は `Double`。小数はSQLiteのREALとして保存される。共通読込を`GetInt32(7)`から`GetDouble(7)`へ修正し、宣言型・保存処理は維持（LEG-005） |
+| `t_receipt_details.discount_rate` | **INTEGER NOT NULL** | VBの`ReceiptDetail.DiscountRate`はDecimal。GetDecimalで整数／小数率を読み込む。INTEGER宣言と保存SQLは維持し、小数の格納クラスは従来どおりREAL。初回の小数読込修正はLEG-005、現行は[41](41-decimal-discount-calculation.md) |
 | `t_receipt_groups.tax` | **INTEGER NOT NULL DEFAULT 8**、`m_tax_rate` へのFKなし | VB側は税率マスタの**コード**として解釈。実データのコード対応を確認 |
 | `t_receipts` | 店名・店舗は文字列。`shop_code` なし。`total INTEGER` はNULL許容 | **丸め方式をレシート自体へ保存するため店舗マスタへのFKは不要**。保存合計と明細再計算の一致も検証 |
 | 削除の整合性 | レシート→グループ→明細→対象者、残高→支払方法別残高にFKがあるがCASCADEなし | レシート更新・削除（LEG-004）と残高削除（LEG-027）を子から削除する順序へ修正。FK ON/OFFで成功・失敗時の巻き戻しを自動テスト |
@@ -322,7 +322,7 @@
 - `DataAccess.DeleteBalance` は **`t_balance_groups` → `t_balances`** の順に削除する（LEG-027）。FK ON/OFFで削除成功（子0／2件）と、既存トランザクション内の親削除失敗からの復元・同じDataAccessでの再削除（子2件）を検証済み。製品の接続設定・DDL・画面操作は維持する。
 - レシートのNULL許容文字列4列（`t_receipts.shop_location`、`t_receipts.tag`、`t_receipt_groups.tag`、`t_receipt_details.tag`）は、`IsDBNull`で空文字へ正規化して読み込む。一覧・残高用の両読込経路と子データ再読込を対応済み。読込・画面の取消だけではDBのNULLや金額・対象者割当を変更せず、明示保存時は既存処理に従い空文字を保存する（LEG-024）。
 - 残高・支払方法別残高・振替の`tag`3列も、NULLだけを空文字として読み込む（LEG-028）。`GetBalances`・`GetLastBalance`・`GetLastValuationAmount`のヘッダー3箇所と共通の`LoadBalanceGroupData`、振替の`GetTransfers`・`GetPaymentTransfers`の計6箇所に限定する。DBのNULLや日時・金額・NULLを含む評価額・支払方法は読込で変更せず、既存の非NULL文字列・保存SQL・DDL・計算式・画面操作を維持する。全表・全列のNULL対応ではない。
-- 小数割引率の旧`GetInt32`読込は、製品と同じSQLiteプロバイダーで`InvalidCastException`になることを再現した。共通の`LoadReceiptDetailData`で`GetDouble`を使い、整数率・小数率の両方をモデルへ読み込む。DDLの`INTEGER`は変更せず、既存DBの移行や率・保存合計の一括更新は行わない。[検証範囲](06-test-cases.md)参照。
+- 小数割引率の旧`GetInt32`読込は、製品と同じSQLiteプロバイダーで`InvalidCastException`になることを再現した。初回はGetDoubleへ修正し、現在は共通読込・子再読込ともGetDecimalでDecimalモデルへ取得する（[41](41-decimal-discount-calculation.md)）。DDLの`INTEGER`は変更せず、既存DBの移行や率・保存合計の一括更新は行わない。[検証範囲](06-test-cases.md)参照。
 - `RegisterPaymentMemo`は、入力リスト全体の既存UPSERTを1つのトランザクションで処理し、全件成功時にCommit、失敗時にRollbackして例外を再送出する。空リストでは開始前に戻る。FK ON/OFFで成功・末尾INSERT／UPDATE失敗時の全件復元・同じDataAccessでの再保存・空リストを自動検証済み。`t_payment_memo`のDDL、保存順、日付・タグのNULL保存仕様は維持する。
 - `t_receipts.total`は仕様変更前後の照合用の保存時合計。共通の階層SELECTでNULLを保って`Receipt.SavedTotal`へ読み込み、一覧では`Receipt.Total`との不一致を表示する。表示・集計には従来どおり再計算値を使い、読込・比較による保存値の補正は行わない。明示的な登録・更新時に現在の合計を保存する既存SQLは維持する。[39 仕様](39-receipt-saved-total-comparison.md)。
 - `t_receipt_points.receipt_seq` にFKがなく、`t_receipt_groups.tax` に税率マスタのFKがない点は、移行前の整合性検証対象。

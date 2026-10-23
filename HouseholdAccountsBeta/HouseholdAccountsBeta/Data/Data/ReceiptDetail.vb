@@ -9,7 +9,8 @@ Public Class ReceiptDetail
     Public Property Quantity As Integer
     Public Property TaxTarget As Boolean
     Public Property DiscountFee As Integer
-    Public Property DiscountRate As Double
+    ' 割引率を十進数で保持し、率値引の整数境界で生じる誤差を防ぐ。
+    Public Property DiscountRate As Decimal
     Public Property Tag As String
     Public Property Users As List(Of User)
 

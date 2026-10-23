@@ -4,6 +4,33 @@ Imports System.Linq
 Imports System.Xml.Serialization
 
 Friend Module DetailInputTests
+    Public Sub DecimalRateInput()
+        EachForeignKeyMode(
+            Sub(fixture)
+                Dim previousCulture = CultureInfo.CurrentCulture
+                For Each editing In {False, True}
+                    Dim receipt = fixture.Data.GetReceipts(2026, 10).Single()
+                    Using form As New RegisterForm With {.DataAccess = fixture.Data, .Receipt = receipt}
+                        Program.OpenForm(form)
+                        form.ItemNameComboBox.Select()
+                        Application.DoEvents()
+                        Try
+                            For Each culture In {"en-US", "de-DE"}
+                                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture)
+                                For Each rate In {1.1D, 2.51D, 100D}
+                                    SelectDetail(form, editing)
+                                    CheckCorrection(form, fixture, "1", rate.ToString(CultureInfo.CurrentCulture), 1, rate)
+                                Next
+                            Next
+                        Finally
+                            CultureInfo.CurrentCulture = previousCulture
+                        End Try
+                        form.Close()
+                    End Using
+                Next
+            End Sub)
+    End Sub
+
     Public Sub NormalizedInputs()
         EachForeignKeyMode(
             Sub(fixture)
@@ -16,7 +43,7 @@ Friend Module DetailInputTests
                             CheckCorrection(form, fixture, quantity, "-1", 1, 0)
                         Next
                         Dim rates = {"", " ", "-1", "101", "100.1", "abc", "NaN", "Infinity", "-Infinity", "1e309", "2.5"}
-                        Dim expected = {0R, 0R, 0R, 100R, 100R, 0R, 0R, 0R, 0R, 0R, 2.5R}
+                        Dim expected = {0D, 0D, 0D, 100D, 100D, 0D, 0D, 0D, 0D, 0D, 2.5D}
                         For index As Integer = 0 To rates.Length - 1
                             SelectDetail(form, editing)
                             CheckCorrection(form, fixture, "2", rates(index), 2, expected(index))
@@ -42,7 +69,7 @@ Friend Module DetailInputTests
                             ' 数量上限は単価0で検証し、金額のオーバーフローと切り離す。
                             Dim quantities = {Integer.MaxValue, 1, 1, 2, 1, 2}
                             Dim rates = {"100", "", " ", "0", "100", "2.5"}
-                            Dim expectedRates = {100R, 0R, 0R, 0R, 100R, 2.5R}
+                            Dim expectedRates = {100D, 0D, 0D, 0D, 100D, 2.5D}
                             Dim added As New List(Of ReceiptDetail)
                             For index As Integer = 0 To quantities.Length - 1
                                 SelectDetail(form, editing)
@@ -209,7 +236,7 @@ Friend Module DetailInputTests
     End Sub
 
     Private Sub CheckCorrection(form As RegisterForm, fixture As DatabaseFixture, quantity As String, rate As String,
-                                expectedQuantity As Integer, expectedRate As Double)
+                                expectedQuantity As Integer, expectedRate As Decimal)
         SetInput(form, quantity, rate)
         Dim before = ReceiptState(form.Receipt)
         Dim saved = ConcurrencyTests.Snapshot(fixture)

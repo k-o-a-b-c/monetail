@@ -58,7 +58,7 @@
 | DB-002 | FK有効接続でレシート明細編集・レシート削除 | 親子のDELETE順が制約に適合する。Windows自動回帰テストでFK ON/OFFの更新・削除・途中失敗時のDB復元・別レシートの保持を検証 |
 | DB-003 | `t_receipt_points` と `t_receipts` を照合 | `receipt_seq` 孤児・主キー `seq` の競合がないか確認 |
 | DB-004 | `t_receipt_groups.tax` と `m_tax_rate.code` を照合 | 税率マスタ参照を失ったグループがないか確認 |
-| DB-005 | 小数 `discount_rate` を新規保存／更新→再読込 | 旧`GetInt32`のREAL読込例外を再現し、`GetDouble`へ修正。0%・3%・2.5%・2.6%、両端数方式を一覧・残高・子再読込で自動検証済み。読込でDBの率・保存合計等を更新しない |
+| DB-005 | 小数 `discount_rate` を新規保存／更新→再読込 | 旧GetInt32のREAL読込例外を再現し、初回はGetDoubleへ修正。現在はGetDecimalとDecimalモデルで0%・3%・2.5%・2.6%・1.1%・2.2%・2.51%、両端数方式を一覧・残高・子再読込で自動検証する。読込でDBの率・保存合計等を更新しない |
 | DB-006 | `m_payment_classification.valid_from/valid_to` の値を確認 | 有効期間の運用と絞り込みの現在の挙動を記録 |
 | DB-007 | `t_receipts.total` と明細再計算額を比較 | NULL行・不一致行の件数を数える（本番データをコミットしない） |
 

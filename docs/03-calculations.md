@@ -16,7 +16,7 @@
 
 単価・値引額の両欄では整数の`+`・`-`・`*`を評価し、乗算を優先する。不正な式と途中のInt32範囲超過は0へ補正し、明細へは評価した整数を反映する。式の評価後の金額計算式は変更しない。画面の明細反映・登録前には合計／収支・グループ／明細の各金額の整数変換を確認し、範囲超過は警告して中止する（[25 範囲確認](25-receipt-amount-overflow.md)）。[24 整数式](24-integer-money-expressions.md)参照。
 
-率値引は従来どおり `Double` と `Math.Ceiling` を使用する。手入力値引・数量への乗算・小数率の計算を自動テストで確認済み。小数率のDB読込（LEG-005）は共通処理を`GetInt32(7)`から`GetDouble(7)`へ修正した。旧処理は実SQLiteのREAL値2.5%・2.6%で`InvalidCastException`となる。DBの`INTEGER`宣言・保存処理・計算式は変更しない。
+率値引は割引率・基礎金額・乗算・除算をDecimalとし、値引額をMath.Ceilingで切り上げて差し引く。3,000円の1.1%引きは33円を引き、2,967円とする。入力はDecimal.TryParse、モデルはDecimal、一覧／支払方法別／子再読込はGetDecimalを使う。DBのINTEGER宣言と保存SQLは維持する。[41 明細のDecimal計算](41-decimal-discount-calculation.md)。
 
 読込だけでは保存された率や`total`を更新しない。既に小数率が保存されているレシートはその値で再計算するため、旧読込で例外になっていたレシートも表示・集計できる。新規・更新と一覧・残高・子再読込の回帰範囲は[06 テスト](06-test-cases.md)を参照。
 
@@ -38,7 +38,7 @@ floor:   Math.Floor(T * (1D + r / 100D) + N)  // T・N・戻り値はDecimal
 half_up: T + Round(T * r / 100D, 0, AwayFromZero) + N
 ```
 
-`floor`も税率別の合算と税込額の計算をDecimalで行う。従来のDouble境界による−100円・10%の−111円は−110円へ修正する。負数の切り捨て方向は維持する。値引計算のDoubleと人数按分のルールは維持し、保存済みtotalは変更しない。[40 Decimal税計算](40-decimal-tax-calculation.md)。`half_up` は税額をDecimalで計算し、ちょうど半分の負額もゼロから遠い側へ丸める（税額−0.5円→−1円）。
+`floor`も税率別の合算と税込額の計算をDecimalで行う。従来のDouble境界による−100円・10%の−111円は−110円へ修正する。負数の切り捨て方向は維持する。値引計算も後続改修でDecimalとした。人数按分のルールは維持し、保存済みtotalは変更しない。[40 Decimal税計算](40-decimal-tax-calculation.md)。`half_up` は税額をDecimalで計算し、ちょうど半分の負額もゼロから遠い側へ丸める（税額−0.5円→−1円）。
 
 明細表示 `DetailCalculatedFee` は**明細ごと**、グループ表示 `GroupCalculatedFee` と分類集計は**グループごと**に当該レシートの方式を適用する参考額。その合計で会計上の `Receipt.Total` を上書きしない。
 
