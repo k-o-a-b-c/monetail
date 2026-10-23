@@ -4,7 +4,7 @@
 
 ## モデル・保存・読込
 
-- `ReceiptDetail.TaxRate`が税設定を持ち、`DiscountRate`はDecimal。`ReceiptGroup.TaxRate`と`ReceiptDetail.TaxTarget`は廃止。
+- `ReceiptDetail.TaxRate`が税設定を持ち、`DiscountRate`はDecimal。文字列変換は共通の`Decimal.TryParse`を使い、詳細は[12の型・値引](12-calculation-contract.md#型値引)に従う。`ReceiptGroup.TaxRate`と`ReceiptDetail.TaxTarget`は廃止。
 - 税率マスタは`tax_treatment`で課税と対象外を区別し、0%課税を対象外に読み替えない。旧コードの表示制限を廃止し、全マスタコードを読める。
 - 分類は初期値用の`default_tax_category_code`を参照。区分別の開始日と税率コードで初期選択し、区分数・8%／10%・2019年の条件をコードへ固定しない。
 - 一覧・支払方法別は階層1 SELECTを維持し、子再読込も一時領域へ読み切ってから反映。登録・更新は明細の税率コードと割引率のInvariantCulture文字列を保存する。保存合計`total`は通常の登録・編集保存時だけ更新し、コピー移行や読込では比較基準として元の値を保持する。

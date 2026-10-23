@@ -4,7 +4,7 @@
 
 ## 型・値引
 
-単価・数量・金額値引・税率の整数保存は維持し、明細の率値引はDecimal。SQLiteではInvariantCultureの十進文字列をTEXT保存する。読込・入力でDecimalの桁数・範囲を確認し、暗黙の桁丸めやDouble変換を挟まない。
+単価・数量・金額値引・税率の整数保存は維持し、明細の率値引はDecimal。SQLiteではInvariantCultureの十進文字列をTEXT保存する。割引率の文字列は`Decimal.TryParse`（`NumberStyles.Float`・InvariantCulture）で変換し、書式不正・範囲超過を拒否する。小数2桁程度の利用を想定するが、2桁への制限・丸めは追加しない。極端に多桁・微小な値の扱いは標準のDecimal変換に委ねる。変換後の会計計算ではDouble変換を挟まない。
 
 `B = (fee - discount_fee) × quantity`、`net = B - Ceiling(B × discount_rate / 100)`。1単位あたりの金額値引を先に引く。オーケーの値引額は引き続き手入力で、3/103等を自動適用しない。率値引をCeilingする業務ルールは変えない。
 

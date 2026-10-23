@@ -520,7 +520,7 @@ Public Class RegisterForm
         Return value
     End Function
 
-    ' 割引率を精度を失わず読み取り、0～100に補正する。
+    ' 割引率をDecimalで読み取り、0～100に補正する。
     Private Function NormalizeDiscountRate() As Decimal
         Dim value As Decimal
         Dim format = CultureInfo.CurrentCulture.NumberFormat
@@ -531,7 +531,7 @@ Public Class RegisterForm
             value = ExactMoney.ParseRate(text)
             value = Math.Min(100D, Math.Max(0D, value))
         Catch ex As FormatException
-            ' 不正入力は従来どおり0に補正する。桁を落として別の率にはしない。
+            ' 不正入力は従来どおり0に補正する。
             value = 0D
         End Try
         DiscountRateTextBox.Text = value.ToString(CultureInfo.CurrentCulture)

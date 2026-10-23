@@ -39,7 +39,7 @@ Friend Module DetailTaxTests
         Dim line = Detail(1000000000, False, discountRate:=0.1234567890123456789012345678D)
         Equal(998765432, MakeReceipt("floor", Group(10, line)).Total)
         Equal(0, MakeReceipt("floor", Group(10, Detail(Integer.MaxValue, False, Integer.MaxValue, discountRate:=100D))).Total)
-        Throws(Of FormatException)(Sub() ExactMoney.ParseRate("0.12345678901234567890123456789"))
+        Equal("0.1", ExactMoney.RateText(ExactMoney.ParseRate("0.10000000000000000000000000001")))
     End Sub
 
     Public Sub Notes()

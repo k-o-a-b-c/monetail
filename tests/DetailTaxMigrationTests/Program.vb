@@ -118,6 +118,7 @@ Module Program
             Try
                 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture)
                 Equal("0.14", ExactMoney.RateText(ExactMoney.ParseRate("0.14")))
+                Equal("2.55", ExactMoney.RateText(ExactMoney.ParseRate("2.55")))
                 Equal("9986", ExactMoney.Net(10000, 0, 1, ExactMoney.ParseRate("0.14")))
                 Equal("998765432", ExactMoney.Net(1000000000, 0, 1, ExactMoney.ParseRate("0.1234567890123456789012345678")))
                 Equal("-998765433", ExactMoney.Net(-1000000000, 0, 1, ExactMoney.ParseRate("0.1234567890123456789012345678")))
@@ -127,7 +128,9 @@ Module Program
                 Equal("79228162514264337593543950335", ExactMoney.RateText(ExactMoney.ParseRate("79228162514264337593543950335")))
                 Equal("0.0000000000000000000000000001", ExactMoney.ParseRate("1e-28").ToString("F28", CultureInfo.InvariantCulture))
                 Equal("0.3", ExactMoney.RateText(ExactMoney.ParseRate("0.30000000000000000000000000000")))
-                For Each invalid In {"1e-29", "79228162514264337593543950336", "0.10000000000000000000000000001", "NaN", "Infinity", "0,14", "", "1e99999999999"}
+                Equal("0", ExactMoney.RateText(ExactMoney.ParseRate("1e-29")))
+                Equal("0.1", ExactMoney.RateText(ExactMoney.ParseRate("0.10000000000000000000000000001")))
+                For Each invalid In {Nothing, "79228162514264337593543950336", "NaN", "Infinity", "0,14", "", "1e99999999999"}
                     Reject(Sub() ExactMoney.ParseRate(invalid))
                 Next
                 Equal(New BigInteger(Integer.MaxValue) * Integer.MaxValue, ExactMoney.Net(Integer.MaxValue, 0, Integer.MaxValue, 0D))
@@ -275,7 +278,7 @@ Module Program
     End Sub
 
     Private Sub InvalidData()
-        For Each sql As String In {"UPDATE t_receipt_groups SET tax=99", "UPDATE t_receipt_details SET discount_rate='NaN'", "UPDATE t_receipt_details SET discount_rate='0.10000000000000000000000000001x'", "UPDATE t_receipt_details SET discount_rate=1e-29", "UPDATE t_receipt_details SET tax_target=2", "UPDATE t_receipt_details SET fee=1.5", "UPDATE t_receipt_details SET fee=2147483648", "UPDATE t_receipt_details SET fee=2147483647,quantity=2147483647", "UPDATE t_receipt_detail_users SET user_code=99 WHERE user_code=1", "UPDATE t_receipts SET tax_rounding_mode='other'", "UPDATE t_receipts SET tax_type=3"}
+        For Each sql As String In {"UPDATE t_receipt_groups SET tax=99", "UPDATE t_receipt_details SET discount_rate='NaN'", "UPDATE t_receipt_details SET discount_rate='0.10000000000000000000000000001x'", "UPDATE t_receipt_details SET discount_rate=1e30", "UPDATE t_receipt_details SET tax_target=2", "UPDATE t_receipt_details SET fee=1.5", "UPDATE t_receipt_details SET fee=2147483648", "UPDATE t_receipt_details SET fee=2147483647,quantity=2147483647", "UPDATE t_receipt_detail_users SET user_code=99 WHERE user_code=1", "UPDATE t_receipts SET tax_rounding_mode='other'", "UPDATE t_receipts SET tax_type=3"}
             Using db = Database(0)
                 If sql.Contains("tax_rounding_mode") Then DetailTaxMigration.Execute(db, "PRAGMA ignore_check_constraints=ON")
                 DetailTaxMigration.Execute(db, sql)

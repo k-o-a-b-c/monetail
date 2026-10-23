@@ -1,6 +1,5 @@
 Imports System.Globalization
 Imports System.Numerics
-Imports System.Text.RegularExpressions
 
 ' 移行とアプリの会計処理で使う十進値。途中の乗除算も暗黙に丸めない。
 Public NotInheritable Class ExactMoney
@@ -8,41 +7,13 @@ Public NotInheritable Class ExactMoney
     Private Sub New()
     End Sub
 
-    ' 割引率の文字列を丸めずにDecimalへ変換する。
+    ' 割引率の文字列を共通書式のDecimalへ変換する。
     Public Shared Function ParseRate(text As String) As Decimal
-        If text Is Nothing OrElse text.Length > 1024 Then Throw New FormatException("割引率の桁数が不正です。")
-        Dim match = Regex.Match(text, "\A([+-]?)([0-9]+)(?:\.([0-9]+))?(?:[eE]([+-]?[0-9]+))?\z")
-        If Not match.Success Then Throw New FormatException("割引率は十進数で指定してください。")
-        Dim scale = match.Groups(3).Value.Length
-        Dim exponent As Integer
-        If match.Groups(4).Success AndAlso
-           (Not Integer.TryParse(match.Groups(4).Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, exponent) OrElse
-            Math.Abs(CLng(exponent)) > 1000) Then Throw New FormatException("割引率の指数が範囲外です。")
-        scale -= exponent
-        Dim coefficient = BigInteger.Parse(match.Groups(2).Value & match.Groups(3).Value, CultureInfo.InvariantCulture)
-        If match.Groups(1).Value = "-" Then coefficient = -coefficient
-        If scale < 0 Then
-            coefficient *= BigInteger.Pow(10, -scale)
-            scale = 0
+        Dim value As Decimal
+        If Not Decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, value) Then
+            Throw New FormatException("割引率はDecimalの範囲内の数値で指定してください。")
         End If
-        While scale > 0 AndAlso coefficient Mod 10 = BigInteger.Zero
-            coefficient /= 10
-            scale -= 1
-        End While
-        If scale > 28 OrElse BigInteger.Abs(coefficient) > (BigInteger.One << 96) - 1 Then
-            Throw New FormatException("割引率はDecimalで正確に表現できません。")
-        End If
-        ' Decimal.Parseの暗黙の桁丸めに頼らず、検証済みの係数から生成する。
-        Dim negative = coefficient.Sign < 0
-        coefficient = BigInteger.Abs(coefficient)
-        Dim mask = (BigInteger.One << 32) - 1
-        Return New Decimal(SignedWord(coefficient And mask), SignedWord((coefficient >> 32) And mask),
-                           SignedWord((coefficient >> 64) And mask), negative, CByte(scale))
-    End Function
-
-    ' 32ビット値のビット列を保って符号付き整数へ変換する。
-    Private Shared Function SignedWord(value As BigInteger) As Integer
-        Return BitConverter.ToInt32(BitConverter.GetBytes(CUInt(value)), 0)
+        Return value
     End Function
 
     ' 割引率を精度を保って保存用の共通書式へ変換する。
