@@ -11,7 +11,7 @@
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3） | 92 |
 | 合計 | 136 |
 
-変更前の復元コミット`03d222c`は[CI 39910643289](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39910643289)で全ジョブ成功。変更後のローカル確認は.NET 8のVBコンパイラーで製品ソースを直接コンパイルし、計算チェックが全件成功。標準ビルドとWindows画面・実SQLiteの結果は次のCIを参照する。
+変更前の復元コミット`03d222c`は[CI 39910643289](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39910643289)で全ジョブ成功。変更後のコミット`0125189`は[CI 39913458471](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39913458471)で上表の全チェック、読込性能チェック、Windowsの既存ソリューション復元・ビルドが成功した。以降は文書の配置とこの検証記録のみ更新し、製品・テストコードは同一。ローカルの.NET 8 VB直接コンパイルでも計算チェックが全件成功。
 
 最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Ftax-default-selection-after-pr30)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
