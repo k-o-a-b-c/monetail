@@ -91,7 +91,7 @@ Friend Module DetailViewOverflowTests
                                 Using form = Editor(fixture, DetailViewFormMode.Payment)
                                     WithoutDialogs(Sub() Program.OpenForm(form))
                                     Dim expected = If(kind = 3, New Integer() {Integer.MaxValue, Integer.MinValue},
-                                        New Integer() {If(mode = "floor", 20, 21), If(mode = "floor", 20, 21)})
+                                        New Integer() {21, If(mode = "floor", 20, 21)})
                                     AssertRows(form, expected)
                                     WithoutDialogs(Sub() form.DetailCheckBox.Checked = True)
                                     AssertRows(form, expected)
@@ -126,14 +126,14 @@ Friend Module DetailViewOverflowTests
                     Sub()
                         Using form = Editor(fixture, DetailViewFormMode.Group)
                             WithoutDialogs(Sub() Program.OpenForm(form))
-                            AssertRows(form, 20, 20)
+                            AssertRows(form, 21, 20)
                             form.Month = 13
                             Throws(Of ArgumentOutOfRangeException)(Sub() Refresh(form))
                             Equal(0, form.GroupDetailGridView.Rows.Count)
                             AssertSizing(form)
                             form.Month = 10
                             Refresh(form)
-                            AssertRows(form, 20, 20)
+                            AssertRows(form, 21, 20)
                         End Using
                     End Sub)
             End Using
