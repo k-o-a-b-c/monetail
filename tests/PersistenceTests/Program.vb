@@ -16,6 +16,9 @@ Module Program
             Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
             Return 2
         End If
+        Check("saved totals retain NULL and Int64 boundaries across receipt reads without writes", AddressOf ReceiptSavedTotalTests.StoredValuesAndReadPaths)
+        Check("receipt total cells highlight signed differences while preserving missing overflow and row markers", AddressOf ReceiptSavedTotalTests.ColorsAndTooltips)
+        Check("receipt comparison refresh clears stale colors and tooltips across model changes and filters", AddressOf ReceiptSavedTotalTests.RefreshAndFilters)
         Check("tax controls select by rate after master reordering date and classification changes", AddressOf TaxRateSelectionUiTests.OrderAndDateChanges)
         Check("missing default tax disables group changes until manual selection", AddressOf TaxRateSelectionUiTests.MissingRateAndManualRecovery)
         Check("saved group tax and receipt totals survive default selection and cancellation", AddressOf TaxRateSelectionUiTests.ExistingReceiptAndManualSelection)

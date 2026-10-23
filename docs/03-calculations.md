@@ -26,6 +26,7 @@
 
 - `Receipt.TaxType=0`: 税込。税額を追加せず、端数方式を変えてもレシート合計は変わらない。
 - `Receipt.TaxType=1`: 税抜。`TaxTarget=True` の金額にだけ税額を加える。
+- DBの`t_receipts.total`は仕様変更時の照合用として`Receipt.SavedTotal`に保持する。会計・集計は再計算した`Receipt.Total`を使い、一覧の不一致表示だけで保存値を補正しない（[39 仕様](39-receipt-saved-total-comparison.md)）。
 - 税率はレシート**グループ**の `TaxRate.Rate`。分類／グループで異なる税率を指定できる。
 - `Receipt.Total` は課税額・非課税額を**レシート内の税率ごとに合算**し、各税率の税込額を `Calculation.TaxRateSubtotal` で計算して総和する。分類が違っても税率が同じなら先に合算する。
 - 方式は各レシートの `TaxRoundingMode`（`floor`／`half_up`）で保持し、`t_receipts.tax_rounding_mode` に保存する。移行済みの既存レシートは `floor`。

@@ -8,12 +8,12 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの20チェック） | 31 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3） | 92 |
-| 合計 | 133 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3） | 95 |
+| 合計 | 136 |
 
-変更前はコミット`0125189`の[CI 39913458471](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39913458471)で全136件・読込性能・Windowsビルドが成功した（以降の`5c9e82f`は文書のみ）。今回、税率初期選択を登録フォーム内へ戻し、独立クラスの3チェックは既存のWindows画面テストへ統合した。変更後の結果は次のCIを参照する。
+変更前のmain（`cd31cc2`）は、全133件・Windowsビルドが成功した`8a85ce4`（[CI 39917375714](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39917375714)）とGit treeが同一。以前の独立した税率選択クラスのチェックは実画面へ統合済み。今回の保存時合計比較で3チェックを追加し、変更後の結果は次のCIで確認する。
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Ftax-default-selection-after-pr30)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Freceipt-saved-total-comparison)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
@@ -104,3 +104,5 @@ GitHub Actions の `Tests` は上記テストと、Windows で既存ソリュー
 旧アプリと新アプリで同じDBを同時に使わないでください。
 
 税率の初期選択では、境界日・分類・並び順・コードと率の違い・余分な候補・該当なしを含め、WindowsのFK ON/OFFで実画面の日付／分類変更、該当なしでの追加抑止と手動選択後の復帰、保存済みグループの税率復元と取消を確認し、DB全値・型・スキーマ・PRAGMA・書込0回と保存済み合計の保持を検証する。[38 仕様](../docs/38-tax-default-selection.md)。
+
+保存時合計比較は実SQLite・FK ON/OFF・両端数方式で、一覧／年次／支払方法別の読込と子再読込、NULL・0・SQLite INTEGERの両端、不一致の正負、合計セルと選択時の色、en-US／de-DEのツールチップ、既存の行色と範囲超過、表示中モデルの変更・フィルター・月の切替後の復帰を検証する。全保存値・型・スキーマ・版・PRAGMAとtotal／NULLの保持、書込0回も比較する。[39 仕様](../docs/39-receipt-saved-total-comparison.md)。

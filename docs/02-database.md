@@ -324,7 +324,7 @@
 - 残高・支払方法別残高・振替の`tag`3列も、NULLだけを空文字として読み込む（LEG-028）。`GetBalances`・`GetLastBalance`・`GetLastValuationAmount`のヘッダー3箇所と共通の`LoadBalanceGroupData`、振替の`GetTransfers`・`GetPaymentTransfers`の計6箇所に限定する。DBのNULLや日時・金額・NULLを含む評価額・支払方法は読込で変更せず、既存の非NULL文字列・保存SQL・DDL・計算式・画面操作を維持する。全表・全列のNULL対応ではない。
 - 小数割引率の旧`GetInt32`読込は、製品と同じSQLiteプロバイダーで`InvalidCastException`になることを再現した。共通の`LoadReceiptDetailData`で`GetDouble`を使い、整数率・小数率の両方をモデルへ読み込む。DDLの`INTEGER`は変更せず、既存DBの移行や率・保存合計の一括更新は行わない。[検証範囲](06-test-cases.md)参照。
 - `RegisterPaymentMemo`は、入力リスト全体の既存UPSERTを1つのトランザクションで処理し、全件成功時にCommit、失敗時にRollbackして例外を再送出する。空リストでは開始前に戻る。FK ON/OFFで成功・末尾INSERT／UPDATE失敗時の全件復元・同じDataAccessでの再保存・空リストを自動検証済み。`t_payment_memo`のDDL、保存順、日付・タグのNULL保存仕様は維持する。
-- `t_receipts.total` を保存するが `GetReceipts` のSELECTから合計列を読まないため、DBに保存された`total`と、`Receipt.Total`で再計算する表示・集計額が異なり得る。
+- `t_receipts.total`は仕様変更前後の照合用の保存時合計。共通の階層SELECTでNULLを保って`Receipt.SavedTotal`へ読み込み、一覧では`Receipt.Total`との不一致を表示する。表示・集計には従来どおり再計算値を使い、読込・比較による保存値の補正は行わない。明示的な登録・更新時に現在の合計を保存する既存SQLは維持する。[39 仕様](39-receipt-saved-total-comparison.md)。
 - `t_receipt_points.receipt_seq` にFKがなく、`t_receipt_groups.tax` に税率マスタのFKがない点は、移行前の整合性検証対象。
 - `DataAccess`は`DatabaseStartup.OpenConnection`で既存ファイルと必須のテーブル／列・両移行を確認する。`FailIfMissing=True`とexe基準のパス解決を適用し、FK等の他の接続オプションは維持する。構造確認はデータ整合性検査ではなく、実運用時のFK有効状態は別途確認する。[19 接続設定](19-database-startup-settings.md)参照。
 
