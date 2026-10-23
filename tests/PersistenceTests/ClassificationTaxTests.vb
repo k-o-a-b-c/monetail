@@ -97,6 +97,17 @@ Friend Module ClassificationTaxTests
                     Equal(loaded.Total, loaded.Incomes + loaded.Expenses)
                     Equal(loaded.Total, loaded.Groups.Sum(Function(g) Calculation.GroupCalculatedFee(loaded, g)))
                     Equal(loaded.Total, loaded.Groups.Sum(Function(g) g.Details.Sum(Function(d) Calculation.DetailCalculatedFee(loaded, g, d))))
+                    For Each code In {1, 92}
+                        Using view As New DetailViewForm With {.DataAccess = fixture.Data, .Year = 2026, .Month = 10, .Code = code, .Mode = DetailViewFormMode.Group}
+                            Program.OpenForm(view)
+                            For Each showDetails In {False, True}
+                                view.DetailCheckBox.Checked = showDetails
+                                Dim rows = view.GroupDetailGridView.Rows.Cast(Of DataGridViewRow)().Where(Function(row) row.Cells("SeqColumn").Value IsNot Nothing AndAlso Convert.ToInt32(row.Cells("SeqColumn").Value) = split.Seq).ToArray()
+                                Equal(1, rows.Length)
+                                Equal(If(code = 1 OrElse mode = "half_up", 21, 20), Convert.ToInt32(rows(0).Cells("FeeColumn").Value))
+                            Next
+                        End Using
+                    Next
                     Equal(999L, Convert.ToInt64(fixture.Scalar("SELECT total FROM t_receipts WHERE seq=" & split.Seq)))
                 End Using
             Next

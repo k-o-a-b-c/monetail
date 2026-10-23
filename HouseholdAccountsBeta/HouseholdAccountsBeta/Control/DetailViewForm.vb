@@ -42,7 +42,7 @@ Public Class DetailViewForm
 
             Dim Receipts As List(Of Receipt)
             If Mode = DetailViewFormMode.Group Then
-                Receipts = DataAccess.GetReceipts(Year, Month, Code)
+                Receipts = DataAccess.GetReceipts(Year, Month)
             Else
                 Receipts = DataAccess.GetReceipts(Year, Month, -1, Code)
             End If
@@ -55,6 +55,7 @@ Public Class DetailViewForm
                 For Each Receipt As Receipt In Receipts
                     Dim amounts = Calculation.GetReceiptDetailAmounts(Receipt.Groups.SelectMany(Function(g) g.Details), Receipt.TaxType, Receipt.TaxRoundingMode)
                     For Each Group As ReceiptGroup In Receipt.Groups
+                        If Mode = DetailViewFormMode.Group AndAlso Code <> -1 AndAlso Group.GroupClassification.Code <> Code Then Continue For
                         For Each Detail As ReceiptDetail In Group.Details
                             Dim rowIndex As Integer = GroupDetailGridView.Rows.Add()
                             Dim row As DataGridViewRow = GroupDetailGridView.Rows(rowIndex)
@@ -77,6 +78,7 @@ Public Class DetailViewForm
                 For Each Receipt As Receipt In Receipts
                     Dim amounts = Calculation.GetReceiptDetailAmounts(Receipt.Groups.SelectMany(Function(g) g.Details), Receipt.TaxType, Receipt.TaxRoundingMode)
                     For Each Group As ReceiptGroup In Receipt.Groups
+                        If Mode = DetailViewFormMode.Group AndAlso Code <> -1 AndAlso Group.GroupClassification.Code <> Code Then Continue For
                         Dim rowIndex As Integer = GroupDetailGridView.Rows.Add()
                         Dim row As DataGridViewRow = GroupDetailGridView.Rows(rowIndex)
                         row.Cells("SeqColumn").Value = Receipt.Seq
