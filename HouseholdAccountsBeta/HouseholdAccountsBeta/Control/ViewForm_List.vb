@@ -124,11 +124,34 @@
 
     End Sub
 
+    ' 保存済み合計と再計算値の差を、合計セルの色とツールチップで知らせる。
     Private Sub HouseholdAccountDataGridView_CellFormatting(sender As Object, e As DataGridViewCellFormattingEventArgs) Handles HouseholdAccountDataGridView.CellFormatting
         If e.RowIndex < 0 OrElse e.ColumnIndex <> ReceiptTotalColumn.Index Then Return
-        Dim cell = HouseholdAccountDataGridView.Rows(e.RowIndex).Cells(e.ColumnIndex)
-        cell.ToolTipText = If(TypeOf e.Value Is String,
-            "合計金額が扱える範囲を超えています。レシートを開いて明細を確認してください。", String.Empty)
+        Dim row = HouseholdAccountDataGridView.Rows(e.RowIndex)
+        Dim cell = row.Cells(e.ColumnIndex)
+        cell.ToolTipText = String.Empty
+        If TypeOf e.Value Is String Then
+            cell.ToolTipText = "合計金額が扱える範囲を超えています。レシートを開いて明細を確認してください。"
+            Return
+        End If
+
+        Dim savedTotal = DirectCast(row.DataBoundItem, ReceiptListRow).Receipt.SavedTotal
+        If Not savedTotal.HasValue Then
+            cell.ToolTipText = "保存時の合計が未記録のため比較できません。"
+            Return
+        End If
+        If Not TypeOf e.Value Is Integer Then Return
+        Dim calculatedTotal As Integer = DirectCast(e.Value, Integer)
+        If savedTotal.Value = calculatedTotal Then Return
+
+        e.CellStyle.BackColor = Color.LightYellow
+        e.CellStyle.SelectionBackColor = Color.Goldenrod
+        e.CellStyle.SelectionForeColor = Color.Black
+        ' SQLiteの整数両端と比較しても差額が桁あふれしないよう、Decimalで引く。
+        Dim difference As Decimal = CDec(calculatedTotal) - CDec(savedTotal.Value)
+        cell.ToolTipText = "保存値: " & savedTotal.Value.ToString("N0") & " 円" & Environment.NewLine &
+            "再計算値: " & calculatedTotal.ToString("N0") & " 円" & Environment.NewLine &
+            "差額（再計算値－保存値）: " & difference.ToString("+#,0;-#,0;0") & " 円"
     End Sub
 
     Private Sub NewButton_Click(sender As Object, e As EventArgs) Handles NewButton.Click

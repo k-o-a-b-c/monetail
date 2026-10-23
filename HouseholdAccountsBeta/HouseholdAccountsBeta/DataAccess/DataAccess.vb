@@ -449,7 +449,7 @@ Public Class DataAccess
     Private Const ReceiptHierarchySelect As String =
         "select r.seq, r.date, r.shop_name, r.shop_location, r.tax_type, r.payment_classification_code, r.tag, r.tax_rounding_mode, r.revision_token, " &
         "g.seq, g.group_classification_code, g.tax, g.tag, " &
-        "d.seq, d.name, d.fee, d.quantity, d.discount_fee, d.discount_rate, d.tax_target, d.tag, u.user_code " &
+        "d.seq, d.name, d.fee, d.quantity, d.discount_fee, d.discount_rate, d.tax_target, d.tag, u.user_code, r.total " &
         "from t_receipts r " &
         "left join t_receipt_groups g on g.receipt_seq = r.seq and (g.group_classification_code = :group_code or :group_code = -1) " &
         "left join t_receipt_details d on d.receipt_seq = g.receipt_seq and d.group_seq = g.seq " &
@@ -473,7 +473,8 @@ Public Class DataAccess
                         .PaymentClassification = PaymentClassification(reader.GetInt32(5)),
                         .Tag = If(reader.IsDBNull(6), String.Empty, reader.GetString(6)),
                         .TaxRoundingMode = reader.GetString(7),
-                        .RevisionToken = reader.GetString(8)
+                        .RevisionToken = reader.GetString(8),
+                        .SavedTotal = If(reader.IsDBNull(22), CType(Nothing, Long?), reader.GetInt64(22))
                     }
                     receiptList.Add(receipt)
                     receiptGroup = Nothing

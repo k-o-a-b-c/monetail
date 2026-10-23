@@ -20,6 +20,9 @@
     Public Property PaymentClassification As PaymentClassification
     Public Property Tag As String
 
+    ' DB読込時の保存済み合計を、再計算値との比較用に保持する。未記録はNothingとする。
+    Public Property SavedTotal As Long?
+
     Public Property Groups As List(Of ReceiptGroup)
 
     Public Property Points As List(Of ReceiptPoint)

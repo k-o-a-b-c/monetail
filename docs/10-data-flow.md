@@ -90,7 +90,7 @@ ViewForm → DataAccess.GetReceipts(年月/年)
 
 - ソース上は親を取得した後、各子階層を別々に取得する。
 - 残高推算用の `GetPaymentReceipts(dateFrom, dateTo, payment)` も、ヘッダーから同じ子読込へ進む。一覧・残高の両経路で `tax_rounding_mode` を取得し、保存された方式で再計算する。
-- `t_receipts.total` はSELECTしておらず、`Receipt.Total` による再計算を用いる。
+- `t_receipts.total`は`Receipt.SavedTotal`（NULL許容のLong）へ読み込み、一覧で再計算値との差を表示する。計算・集計には`Receipt.Total`を用い、読込・比較だけではDBを書き換えない。[39 仕様](39-receipt-saved-total-comparison.md)。
 - グループと明細はそれぞれの `seq` で表示順が決まる。
 - 年次集計ではこの読込を1年分について行うため、将来的な件数増加時にSQL発行回数を計測したい。
 

@@ -288,7 +288,6 @@ Friend Module ReceiptListOverflowTests
             Equal(True, TypeOf cell.Value Is Integer)
             Equal(expected.Value, CInt(cell.Value))
             Equal(expected.Value.ToString("N0", CultureInfo.CurrentCulture), CStr(cell.FormattedValue))
-            Equal("", cell.ToolTipText)
         Else
             Equal("範囲超過", CStr(cell.Value))
             Equal("範囲超過", CStr(cell.FormattedValue))
