@@ -5,19 +5,47 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.select.outputs.api }}
+      docker: ${{ steps.select.outputs.docker }}
+      compose: ${{ steps.select.outputs.compose }}
+      calculations: ${{ steps.select.outputs.calculations }}
+      migrations: ${{ steps.select.outputs.migrations }}
+      windows_tests: ${{ steps.select.outputs.windows_tests }}
+      windows_build: ${{ steps.select.outputs.windows_build }}
+      performance: ${{ steps.select.outputs.performance }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+      - id: select
+        run: python3 .github/scripts/select_tests.py
+
   api-foundation:
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.docker == 'true' || needs.changes.outputs.compose == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
+        if: needs.changes.outputs.api == 'true'
         with:
           dotnet-version: 10.0.x
       - run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+        if: needs.changes.outputs.api == 'true'
       - run: docker compose config --quiet
+        if: needs.changes.outputs.compose == 'true'
       - run: docker build --tag monetail-api:ci .
+        if: needs.changes.outputs.docker == 'true'
       - run: bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
+        if: needs.changes.outputs.docker == 'true'
 
   receipt-read-performance:
+    needs: changes
+    if: needs.changes.outputs.performance == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,24 +60,37 @@ jobs:
           if-no-files-found: error
 
   calculations-and-migration:
+    needs: changes
+    if: needs.changes.outputs.calculations == 'true' || needs.changes.outputs.migrations == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
+        if: needs.changes.outputs.calculations == 'true'
         with:
           dotnet-version: 8.0.x
       - run: dotnet run --project tests/CalculationTests/CalculationTests.vbproj
+        if: needs.changes.outputs.calculations == 'true'
       - run: python3 -m unittest discover -s tests -p 'test_*migration.py' -v
+        if: needs.changes.outputs.migrations == 'true'
 
   windows-persistence-and-ui:
+    needs: changes
+    if: needs.changes.outputs.windows_tests == 'true' || needs.changes.outputs.windows_build == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
+        if: needs.changes.outputs.windows_tests == 'true'
         with:
           dotnet-version: 8.0.x
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
+        if: needs.changes.outputs.windows_tests == 'true'
       - uses: NuGet/setup-nuget@v2
+        if: needs.changes.outputs.windows_build == 'true'
       - uses: microsoft/setup-msbuild@v2
+        if: needs.changes.outputs.windows_build == 'true'
       - run: nuget restore HouseholdAccountsBeta/HouseholdAccountsBeta.sln
+        if: needs.changes.outputs.windows_build == 'true'
       - run: msbuild HouseholdAccountsBeta/HouseholdAccountsBeta.sln /p:Configuration=Debug /p:Platform="Any CPU" /verbosity:minimal
+        if: needs.changes.outputs.windows_build == 'true'

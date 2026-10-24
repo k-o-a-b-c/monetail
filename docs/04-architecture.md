@@ -42,6 +42,7 @@ Windows デスクトップアプリ
 | `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
 | `.github/workflows/tests.yml` | Linux／Windowsのテストと既存ソリューションのWindowsビルド |
+| `.github/scripts/` | Git差分・テストの依存先からCI実行対象を選ぶ処理と回帰テスト |
 
 残高推算の期間判定・加減算は`Calculation.AutoBalance`の内部3引数オーバーロードに集約する。従来の公開2引数版は共有`Calculation.DataAccess`、`DataAccess.GetAutoBalance`は自身のインスタンスを渡す。SQL読込は渡されたDataAccessが担い、インスタンス側の推算で共有接続を切り替えない。
 
@@ -87,7 +88,7 @@ Windows デスクトップアプリ
 
 ## 自動検証
 
-[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxの計算・移行テストとWindowsの実SQLite／画面テスト・既存ビルドを実行する。別のWindowsジョブでレシート読込のSQL数・時間を計測する。独立したLinuxジョブでAPIの統合テスト・Compose設定・Dockerビルドと起動を確認する。自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
+[Testsワークフロー](../.github/workflows/tests.yml)は変更ファイルとテストの参照先に応じて、Linuxの計算・移行、Windowsの実SQLite／画面・既存ビルド、レシート読込性能、API・Dockerの検証を選んで実行する。Markdownだけの変更では重い検証を省略し、未分類の変更は選択処理で停止する。選択規則・自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
 
 Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFのレシート更新／削除と失敗時DB復元、残高削除の成功・巻き戻しと再削除、レシートのNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。残高・振替のNULLタグ読込と両AutoBalanceの3チェックも成功した。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
 
