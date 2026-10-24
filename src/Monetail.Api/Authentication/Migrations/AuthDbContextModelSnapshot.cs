@@ -254,6 +254,40 @@ namespace Monetail.Api.Authentication.Migrations
                     b.ToTable("auth_user_links", (string)null);
                 });
 
+            modelBuilder.Entity("Monetail.Api.Authentication.EnrollmentCode", b =>
+                {
+                    b.Property<byte[]>("CodeHash")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("AuthUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ConsumedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("CodeHash");
+
+                    b.HasIndex("AuthUserId")
+                        .IsUnique()
+                        .HasFilter("\"ConsumedAtUtc\" IS NULL AND \"RevokedAtUtc\" IS NULL");
+
+                    b.ToTable("auth_enrollment_codes", (string)null);
+                });
+
             modelBuilder.Entity("Monetail.Api.Authentication.LegacyPerson", b =>
                 {
                     b.Property<int>("Code")
@@ -381,6 +415,15 @@ namespace Monetail.Api.Authentication.Migrations
                     b.HasOne("Monetail.Api.Authentication.LegacyPerson", null)
                         .WithMany()
                         .HasForeignKey("UserCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Authentication.EnrollmentCode", b =>
+                {
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

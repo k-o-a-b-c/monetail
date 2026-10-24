@@ -110,3 +110,5 @@
 ```
 
 関連: [現行機能](01-features.md) / [DB仕様](02-database.md) / [計算契約](12-calculation-contract.md) / [店舗端数・オーケー要件](08-requested-enhancements.md) / [課題](05-issues.md)
+
+初期管理者の作成と、既存アカウントへの登録コード再発行は[45](45-initial-admin-enrollment.md)まで実装した。Web管理画面・パスキー登録とログイン・全失効／緊急復旧は後続とする。
