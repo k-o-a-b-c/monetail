@@ -71,7 +71,7 @@
 | DEC-022 | **利用者承認・集計詳細の範囲超過対応** | 詳細の計算失敗を表内で知らせ、切替後に復帰させる | 前回／途中行を消し、明細・グループ表示を再計算。自動調整設定はFinallyで復元し、金額以外の例外は伝播する。計算式・DBは維持。[31 仕様](31-detail-view-amount-overflow.md) |
 | DEC-023 | **利用者承認・一覧の範囲超過対応** | 範囲外セルを表示し、絞り込みと編集を継続する | 一度保留を検討後、実施を承認。表示用行は元Receiptを参照し、計算・DB・既存編集の参照を変更しない。[32 仕様](32-receipt-list-amount-overflow.md) |
 | DEC-024 | **利用者決定・Windows版先行とWeb入力の優先順位** | まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力を優先 | Web入力の初期範囲・認証の詳細等は未決定。API技術の後続決定はDEC-025を参照。Windows版の計算・保存契約とテストを移行の基準にする。[33 方針](33-windows-first-web-input-priorities.md) |
-| DEC-025 | **利用者決定・API実装未着手** | APIはASP.NET Coreを採用し、XMLの利用者コード設定は採用しない | UserCode設定のPR #45は未マージで取り下げ。既存Windows版はmainの動作を維持し、将来はAPIのログイン結果から利用者を確定する。NASのDocker＋SQLiteを想定し、認証方式・詳細配置は別途設計する。[33 方針](33-windows-first-web-input-priorities.md) |
+| DEC-025 | **利用者決定・API実装未着手** | APIはASP.NET Coreを採用し、XMLの利用者コード設定は採用しない | UserCode設定のPR #45は未マージで取り下げ。既存Windows版はmainの動作を維持し、将来はAPIのログイン結果から利用者を確定する。サーバー上のDocker＋SQLiteを想定し、認証方式・詳細配置は別途設計する。[33 方針](33-windows-first-web-input-priorities.md) |
 
 税率の初期選択は利用箇所である`RegisterForm.SetGroupTaxRate`内で行い、従来の日付・軽減対象のルールを保って税率値でマスタを選ぶ。独立クラスへの切り出しは行わない。期間による税率マスタ選択は未実装。[38 仕様](38-tax-default-selection.md)。
 

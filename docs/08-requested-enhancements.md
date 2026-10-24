@@ -134,4 +134,4 @@
 
 ## 後続のWeb化に関する方針
 
-まずWindows版を進める。後続のWeb化は必須とし、Web版の入力機能はレシート、次に振替を優先する。APIはASP.NET Coreを採用し、NASのDocker＋SQLiteを想定する。XMLのUserCode指定は採用せず、利用者は将来のログイン結果から確定する。認証方式と各機能の詳細範囲は未決定で、現行の税・割引・保存契約を互換性の基準とする。[33 方針](33-windows-first-web-input-priorities.md)。
+まずWindows版を進める。後続のWeb化は必須とし、Web版の入力機能はレシート、次に振替を優先する。APIはASP.NET Coreを採用し、サーバー上のDocker＋SQLiteを想定する。XMLのUserCode指定は採用せず、利用者は将来のログイン結果から確定する。認証方式と各機能の詳細範囲は未決定で、現行の税・割引・保存契約を互換性の基準とする。[33 方針](33-windows-first-web-input-priorities.md)。
