@@ -9,9 +9,9 @@
 | 計算（JSONの11ケース＋VBの24チェック） | 35 |
 | SQLite移行（税端数5＋更新版5） | 10 |
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1＋Decimal率値引2） | 98 |
-| ASP.NET Core API（Productionでの起動・稼働確認） | 1 |
+| ASP.NET Core API（起動・稼働確認1＋認証DB追加移行・保存保持8） | 9 |
 | CIの実行対象選択（依存関係・Git差分） | 15 |
-| 合計 | 159 |
+| 合計 | 167 |
 
 APIの追加前のmain `86fdbd0`は、同一treeのPR #46最終コミットを対象とした[CI 40067815146](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40067815146)で既存143件・読込性能・Windowsビルドの全ジョブ成功を確認した。API追加ではWindows版の製品・テストコードを変更しない。
 
@@ -29,11 +29,11 @@ APIの追加前のmain `86fdbd0`は、同一treeのPR #46最終コミットを�
 | Dockerfile・.dockerignore / compose.yaml | それぞれDockerビルド・起動だけ / Compose設定確認だけ |
 | Windows製品ソース | 既存ソリューションのビルド。テストが参照する入力ならWindowsテストも実行 |
 | 計算テストとその参照先、docs/testsのJSON | 計算テスト。Windows側も参照していればWindowsテストも実行 |
-| スキーマ・移行SQL、移行テスト | 移行テスト。Windowsテスト・性能計測が参照する入力も判定 |
+| スキーマ・移行SQL、移行テスト | 移行テスト。APIテスト・Windowsテスト・性能計測が参照する入力も判定 |
 | レシート読込・モデル・計算と計測用の共通処理 | 読込性能計測も実行。画面だけの変更では計測しない |
 | Testsワークフロー・リポジトリ共通のSDK／ビルド設定 | 全ジョブ・ステップを確認 |
 
-選択処理は[select_tests.py](../.github/scripts/select_tests.py)に集約する。計算・Windowsテストの依存先はテストプロジェクトのCompile・None・ProjectReference等から読む。複数の変更では対象の和集合を実行し、未分類の変更は`changes`ジョブを失敗させて条件の見直しを求める。推測で全実行したり検証を省略したりしない。Actionsの実行概要で選択結果を確認できる。
+選択処理は[select_tests.py](../.github/scripts/select_tests.py)に集約する。計算・Windows・APIテストの依存先はテストプロジェクトのCompile・None・ProjectReference等から読む。複数の変更では対象の和集合を実行し、未分類の変更は`changes`ジョブを失敗させて条件の見直しを求める。推測で全実行したり検証を省略したりしない。Actionsの実行概要で選択結果を確認できる。
 
 選択処理自体の回帰はPython標準ライブラリだけで実行する。文書・API・画面・計算・SQL・JSON・複合変更の選択と省略、現存するプロジェクト入力の選択漏れ、未分類の拒否、新規ブランチ・初回push・PRの分岐点・改名・削除・日本語パスを検証する。
 
@@ -46,6 +46,10 @@ CI条件を変更した `1decca7`は[CI 40131923960](https://github.com/k-o-a-b-
 ## APIの検証
 
 .NET 10 SDKで、実際のAPIを`WebApplicationFactory`からProductionモードで起動する。DBやログイン設定なしで`GET /health`が200、`text/plain`、本文`Healthy`、キャッシュ禁止となることを1件の統合テストで確認する。
+
+認証DBの追加移行は実際のMicrosoft.Data.Sqliteと一時ファイルで8ケースを検証する。旧スキーマ・既存移行から全業務表へ合成データを作り、全保存値・typeof・定義／索引／トリガー・user_version／journal_mode／既存FK不整合が移行前後で変わらないことを比較する。NULLと不一致のtotal、REALの率、重複人物名、過去の更新者も補正しない。標準Identityのパスキーとロール・人物対応の再移行保持、NOT NULL／一意／FK／RESTRICT、未存在・空・別用途DBの拒否、途中衝突のRollbackと再試行、DB設定ありでの通常起動の無移行を確認する。合成パスキーの保存テストであり、WebAuthnの暗号検証・実機ログインの確認ではない。[44 実装範囲](../docs/44-auth-database-foundation.md)。
+
+ローカルのAPIテストは既存1件と認証DB8件が成功した（通常起動テストの設定注入を修正して対象1件を再確認）。選択処理15件・actionlint・明示CLIの適用／再実行／設定なし／未存在／空DBの終了も確認した。今回の差分の製品検証はAPIテストとDocker確認だけを選び、Windows・既存計算・Python移行・性能計測は実行しない。旧Windows製品・既存Windowsテスト・ワークフローのジョブ定義は変更せず、変更元の成功済み[CI 40132803491](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40132803491)を再利用する。
 
 ```sh
 dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release

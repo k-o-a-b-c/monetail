@@ -28,7 +28,8 @@ def project_inputs(project, visited=None):
         return set()
     visited.add(project)
     directory = posixpath.dirname(project)
-    inputs = {project, directory + "/**/*.vb"}
+    extension = ".cs" if project.endswith(".csproj") else ".vb"
+    inputs = {project, directory + "/**/*" + extension}
     for item in ET.parse(ROOT / project).iter():
         tag = item.tag.rsplit("}", 1)[-1]
         include = item.get("Include")
@@ -47,6 +48,7 @@ def select(paths):
     result = dict.fromkeys(FLAGS, False)
     calculation_inputs = project_inputs("tests/CalculationTests/CalculationTests.vbproj")
     windows_inputs = project_inputs("tests/PersistenceTests/PersistenceTests.vbproj")
+    api_inputs = project_inputs("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj")
     performance_helpers = {
         "Program.vb", "ReceiptReadMeasurements.vb", "DatabaseFixture.vb",
         "BalanceBoundaryTests.vb", "ConcurrencyTests.vb", "PaymentReceiptReadTests.vb",
@@ -77,6 +79,8 @@ def select(paths):
         if path == "tests/Monetail.Api.Tests/docker-smoke.sh":
             enable("docker")
         elif path.startswith("tests/Monetail.Api.Tests/"):
+            enable("api")
+        if any(matches(path, pattern) for pattern in api_inputs):
             enable("api")
         if path in {"Dockerfile", ".dockerignore"}:
             enable("docker")
