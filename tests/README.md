@@ -41,7 +41,7 @@ APIの追加前のmain `86fdbd0`は、同一treeのPR #46最終コミットを�
 python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 ```
 
-CI条件を変更した `1decca7`は[CI 40131923960](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40131923960)で、CI選択・計算／移行・API／Docker・読込性能・Windowsテストとビルドの全5ジョブに成功した。最終調整はブランチ削除時の対象なし判定と性能計測条件の絞り込み、およびその回帰確認だけで、ローカルのCI選択15件とactionlintに成功している。製品・既存テスト・ワークフローの定義はこの成功コミットから変えていない。変更前の同一製品実装は[CI 40099623761](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40099623761)でも全ジョブ成功している。
+CI条件を変更した `1decca7`は[CI 40131923960](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40131923960)で、CI選択・計算／移行・API／Docker・読込性能・Windowsテストとビルドの全5ジョブに成功した。最終調整はブランチ削除時の対象なし判定と性能計測条件の絞り込み、およびその回帰確認だけで、ローカルのCI選択15件とactionlintに成功している。製品・既存テスト・ワークフローの定義はこの成功コミットから変えていない。最終選択処理 `cef7ed1`の[push CI 40132703544](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40132703544)でも選択処理が成功し、製品検証の4ジョブは省略された。変更前の同一製品実装は[CI 40099623761](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40099623761)でも全ジョブ成功している。
 
 ## APIの検証
 
