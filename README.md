@@ -1,6 +1,6 @@
 # monetail-legacy
 
-Monetailの**レガシー版**。購入した品物を明細単位で記録し、金額・分類・対象者（複数人）などを管理できるWindows向け家計簿アプリです。
+Monetailの**レガシー版**。購入した品物を明細単位で記録し、金額・分類・対象者（複数人）などを管理できるWindows向け家計簿アプリです。同じリポジトリに、後続のWeb化に向けたAPIの土台も置いています。
 
 ## 現行技術構成
 
@@ -9,6 +9,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 - ソリューション: [HouseholdAccountsBeta/HouseholdAccountsBeta.sln](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)
 - 業務操作: レシート・振替・残高の入力、分類別／収支／残高の集計など
 - **保留・未完成**: マスタ編集画面は作成を見送り。ポイント機能は一部実装のまま、採用範囲は未決定
+- **APIの土台**: C# / ASP.NET Core / .NET 10 LTS。`src/Monetail.Api/`は稼働確認用の`/health`だけを提供し、ログイン・DB接続・業務APIは未実装
 
 ## ドキュメント
 
@@ -55,6 +56,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [35 レシート階層の一括読込](docs/35-batch-receipt-reads.md) | GetReceiptsを1 SELECTへ変更し、階層・順序・絞り込みを維持 |
 | [36 支払方法別レシートの一括読込](docs/36-batch-payment-receipt-reads.md) | 残高推算向け読込も1 SELECTへ変更し、期間条件と推算順序を維持 |
 | [37 レシートの子再読込とモデル保持](docs/37-receipt-child-reload-state.md) | 途中失敗では元の子・参照を保持し、成功時だけ反映 |
+| [42 APIの土台](docs/42-api-foundation.md) | 独立したASP.NET Coreプロジェクト、ローカル起動・Docker・CIと実装範囲 |
 
 ### 読む順番
 
@@ -65,9 +67,9 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 
 ### ドキュメントの位置付け
 
-**2026-10-19更新。** ソース、ユーザー提供の元DDL、移行SQL、自動テストを照合しています。元DDLは16テーブル・90カラム・17FKで、税端数・更新版の両移行後は95カラムです。検証範囲・CI・実行方法は[自動テスト](tests/README.md)を参照してください。利用者のWindows環境での手動操作・実レシート照合・実DBの適用状況／整合性は未確認です。
+**2026-10-24更新。** ソース、ユーザー提供の元DDL、移行SQL、自動テストを照合しています。元DDLは16テーブル・90カラム・17FKで、税端数・更新版の両移行後は95カラムです。検証範囲・CI・実行方法は[自動テスト](tests/README.md)を参照してください。利用者のWindows環境での手動操作・実レシート照合・実DBの適用状況／整合性は未確認です。
 
-このリポジトリでは**まずWindows版を進め、現行仕様と計算・保存の互換性を整えます。後続のWeb化は必須**とし、Web版はレシート入力、次に振替入力を優先します。技術スタック・認証・DB製品等は未決定です。[33 進め方](docs/33-windows-first-web-input-priorities.md)を参照してください。
+このリポジトリでは**まずWindows版を進め、現行仕様と計算・保存の互換性を整えます。後続のWeb化は必須**とし、Web版はレシート入力、次に振替入力を優先します。APIはASP.NET Coreを採用し、独立したプロジェクトで土台を実装しました。認証・DB接続・入力機能と実環境への配置はこれからです。[33 進め方](docs/33-windows-first-web-input-priorities.md)を参照してください。
 
 ## 開発を始める場合
 
@@ -77,6 +79,12 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 4. SQLite実データファイルはこのリポジトリに含まれていません。テーブル定義SQLは [docs/schema/monetail_schema.sql](docs/schema/monetail_schema.sql) を参照してください。新規セットアップはマスタ初期データ等の別途準備が必要です。
 
 NuGet復元・ビルドと一時DBでの画面自動テストはWindows CIで確認済みです。利用者の端末・実DBでのセットアップは未確認です。個人データを含むSQLiteファイルはコミットしないでください。
+
+### APIを起動する場合
+
+.NET 10 SDKを用意し、リポジトリ直下で`dotnet run --project src/Monetail.Api --urls http://127.0.0.1:5080`を実行します。別のターミナルで`curl http://127.0.0.1:5080/health`が`Healthy`を返すことを確認します。Windows版のソリューションやDBは不要です。
+
+Dockerの場合は`docker compose up --build -d`で起動し、`http://127.0.0.1:8080/health`を確認します。終了は`docker compose down`です。既定の公開先は同じ端末からの確認用です。[42 APIの土台](docs/42-api-foundation.md)に検証方法と後続の範囲を記載しています。
 
 ## レシートごとの税端数処理
 

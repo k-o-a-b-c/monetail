@@ -1,6 +1,6 @@
-# 04 レガシー版 アーキテクチャ・開発環境
+# 04 アーキテクチャ・開発環境
 
-更新日: 2026-10-19 / 現在のソース・DDL・自動テストに照合。Windows CIで既存ソリューションのビルドと対象画面・永続化テストを確認済み。実運用DBでの起動・手動確認は未実施。
+更新日: 2026-10-24 / Windows版の構成に、独立したASP.NET Core APIの土台を追加。Windows CIで既存ソリューションのビルドと対象画面・永続化テストを確認済み。実運用DBでの起動・手動確認は未実施。
 
 ## 構成
 
@@ -19,7 +19,9 @@ Windows デスクトップアプリ
 - DBライブラリ: `System.Data.SQLite.Core 1.0.113.1`（`packages.config`）、参照は `System.Data.SQLite 1.0.113.0` として記載。
 - チャート: `System.Windows.Forms.DataVisualization.Charting`
 - 起動フォーム: `ViewForm`（`My Project/Application.Designer.vb`）
-- 現行データ操作: クライアントからSQLiteへ直接SQL発行。Web APIやクラウド同期はない。
+- 現行データ操作: WindowsクライアントからSQLiteへ直接SQL発行。APIへの接続切替やクラウド同期は行っていない。
+
+同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。現段階の提供機能は`/health`だけで、Windows版のプロジェクト・モデル・DBを参照しない。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。[42 APIの土台](42-api-foundation.md)参照。
 
 ## ディレクトリ
 
@@ -35,6 +37,9 @@ Windows デスクトップアプリ
 | `.../Logic/ReceiptAmountValidation.vb` | 既存計算を使う金額範囲の確認。反映候補と選択税設定で確認し、元モデルを変更しない |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
+| `src/Monetail.Api/` | 稼働確認用のASP.NET Core API。認証・DB接続・業務機能は未実装 |
+| `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
+| `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
 | `.github/workflows/tests.yml` | Linux／Windowsのテストと既存ソリューションのWindowsビルド |
 
@@ -82,7 +87,7 @@ Windows デスクトップアプリ
 
 ## 自動検証
 
-[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxの計算・移行テストとWindowsの実SQLite／画面テスト・既存ビルドを実行する。別のWindowsジョブでレシート読込のSQL数・時間を計測する。自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
+[Testsワークフロー](../.github/workflows/tests.yml)は、Linuxの計算・移行テストとWindowsの実SQLite／画面テスト・既存ビルドを実行する。別のWindowsジョブでレシート読込のSQL数・時間を計測する。独立したLinuxジョブでAPIの統合テスト・Compose設定・Dockerビルドと起動を確認する。自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
 
 Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFのレシート更新／削除と失敗時DB復元、残高削除の成功・巻き戻しと再削除、レシートのNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。残高・振替のNULLタグ読込と両AutoBalanceの3チェックも成功した。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
 
@@ -90,14 +95,14 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 
 ## オンライン化に向けた境界
 
-まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。以下は後続の構成案で、**現行実装ではない**。言語・認証・DB製品等は未決定。
+まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。APIの土台はC#／ASP.NET Core／.NET 10で実装した。以下の認証・業務API・DB接続は後続の構成案で、まだ実装していない。
 
 ```text
 Web / スマートフォン / デスクトップ
              ↓ 認証付き HTTPS
              API・認可・業務ロジック
              ↓
-       DB（製品は未決定）
+       SQLite（既存DBを使う方向で設計）
 ```
 
 レガシー版のUIから計算ルール・永続化条件を切り離し、[03-calculations.md](03-calculations.md) と [06-test-cases.md](06-test-cases.md) を移植時の契約として使う。
@@ -107,6 +112,7 @@ Web / スマートフォン / デスクトップ
 - [09 操作ガイド](09-user-guide.md) — 画面の入出力・利用者の操作
 - [10 DBリレーション・データフロー](10-data-flow.md) — ER図、SQL読込・保存・更新・削除
 - [11 DB検査・バックアップ](11-db-audit.md) — 調査用SQLと安全な確認手順
+- [42 APIの土台](42-api-foundation.md) — API単独の起動・Docker・CIと未実装の境界
 
 ## 根拠
 

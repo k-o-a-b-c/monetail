@@ -1,0 +1,9 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: monetail-api:local
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped

@@ -5,6 +5,18 @@ on:
   pull_request:
 
 jobs:
+  api-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+      - run: docker compose config --quiet
+      - run: docker build --tag monetail-api:ci .
+      - run: bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
+
   receipt-read-performance:
     runs-on: windows-latest
     steps:

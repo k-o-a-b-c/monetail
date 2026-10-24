@@ -1,4 +1,4 @@
-# 計算・保存・外部キーの自動テスト
+# 計算・保存・外部キー・APIの自動テスト
 
 リポジトリのルートで実行します。
 
@@ -9,7 +9,31 @@
 | 計算（JSONの11ケース＋VBの24チェック） | 35 |
 | SQLite移行（税端数5＋更新版5） | 10 |
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1＋Decimal率値引2） | 98 |
-| 合計 | 143 |
+| ASP.NET Core API（Productionでの起動・稼働確認） | 1 |
+| 合計 | 144 |
+
+APIの追加前のmain `86fdbd0`は、同一treeのPR #46最終コミットを対象とした[CI 40067815146](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40067815146)で既存143件・読込性能・Windowsビルドの全ジョブ成功を確認した。API追加ではWindows版の製品・テストコードを変更しない。
+
+## APIの検証
+
+.NET 10 SDKで、実際のAPIを`WebApplicationFactory`からProductionモードで起動する。DBやログイン設定なしで`GET /health`が200、`text/plain`、本文`Healthy`、キャッシュ禁止となることを1件の統合テストで確認する。
+
+```sh
+dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+```
+
+CIの`api-foundation`ジョブは上記に加え、Compose設定、Dockerビルド、実コンテナの`/health`応答と非root実行を検証する。コンテナ確認は上表のテスト件数とは別に扱い、確認後はコンテナを削除する。
+
+```sh
+docker build --tag monetail-api:local .
+bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:local
+```
+
+ローカルではAPI統合テスト1件、Dockerビルド、Compose設定検証、実コンテナのHTTP応答・非root実行（UID 1654）に成功した。CIでの全体結果は上記ブランチのTestsで確認する。
+
+APIの起動方法と今回の実装範囲は[42 APIの土台](../docs/42-api-foundation.md)を参照。APIは.NET 10 SDK、既存の計算・Windowsテストは従来の.NET 8 SDKをそれぞれのCIジョブで用い、既存ソリューションへAPIを追加しない。
+
+## Windows版の検証履歴
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
 
@@ -17,7 +41,7 @@
 
 対象者比較修正の変更元main `a96847f`は検証済み `1946513`と同一のGit treeで、[CI 40039934955](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40039934955)の全143件・Windowsビルド成功を再利用する。既存の計算テストを拡張し、件数は143件を維持する。 製品・テストコード `cb1432b`は[CI 40052947102](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40052947102)で全143件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fperson-statistics-user-codes)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fapi-foundation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
