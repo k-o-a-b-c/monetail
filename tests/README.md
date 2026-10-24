@@ -10,11 +10,38 @@
 | SQLite移行（税端数5＋更新版5） | 10 |
 | Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1＋Decimal率値引2） | 98 |
 | ASP.NET Core API（Productionでの起動・稼働確認） | 1 |
-| 合計 | 144 |
+| CIの実行対象選択（依存関係・Git差分） | 15 |
+| 合計 | 159 |
 
 APIの追加前のmain `86fdbd0`は、同一treeのPR #46最終コミットを対象とした[CI 40067815146](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40067815146)で既存143件・読込性能・Windowsビルドの全ジョブ成功を確認した。API追加ではWindows版の製品・テストコードを変更しない。
 
 製品・API・テストコード `8645f9b`は[CI 40069719482](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40069719482)で全144件、読込性能、Dockerビルド・起動確認、Windowsソリューションの復元・ビルドの全4ジョブに成功した。最終更新は検証結果の文書追記のみ。
+
+## 変更内容によるCIの選択
+
+`changes`ジョブがPRの分岐点以降、またはpushの更新前後を比較し、必要なジョブ・ステップだけを実行する。改名は移動元と移動先の両方、削除も対象に含める。push・pull_requestの起動条件は従来どおりとする。
+
+| 変更対象 | 実行する検証 |
+| --- | --- |
+| Markdown・AGENTS.mdのみ | 軽量なCI選択処理の検証のみ。製品テスト・Docker・Windowsは省略 |
+| APIソース | APIテストとDockerビルド・起動 |
+| APIテストだけ / Docker起動確認スクリプトだけ | それぞれAPIテストだけ / Dockerビルド・起動だけ |
+| Dockerfile・.dockerignore / compose.yaml | それぞれDockerビルド・起動だけ / Compose設定確認だけ |
+| Windows製品ソース | 既存ソリューションのビルド。テストが参照する入力ならWindowsテストも実行 |
+| 計算テストとその参照先、docs/testsのJSON | 計算テスト。Windows側も参照していればWindowsテストも実行 |
+| スキーマ・移行SQL、移行テスト | 移行テスト。Windowsテスト・性能計測が参照する入力も判定 |
+| レシート読込・モデル・計算と計測用の共通処理 | 読込性能計測も実行。画面だけの変更では計測しない |
+| Testsワークフロー・リポジトリ共通のSDK／ビルド設定 | 全ジョブ・ステップを確認 |
+
+選択処理は[select_tests.py](../.github/scripts/select_tests.py)に集約する。計算・Windowsテストの依存先はテストプロジェクトのCompile・None・ProjectReference等から読む。複数の変更では対象の和集合を実行し、未分類の変更は`changes`ジョブを失敗させて条件の見直しを求める。推測で全実行したり検証を省略したりしない。Actionsの実行概要で選択結果を確認できる。
+
+選択処理自体の回帰はPython標準ライブラリだけで実行する。文書・API・画面・計算・SQL・JSON・複合変更の選択と省略、現存するプロジェクト入力の選択漏れ、未分類の拒否、新規ブランチ・初回push・PRの分岐点・改名・削除・日本語パスを検証する。
+
+```sh
+python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+```
+
+今回のローカル検証でCI選択の15件に成功した。製品と既存テストのソースは変更せず、変更前の同一実装は[CI 40099623761](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40099623761)で全ジョブ成功している。CI条件の変更後の結果は確認後に追記する。
 
 ## APIの検証
 
@@ -24,7 +51,7 @@ APIの追加前のmain `86fdbd0`は、同一treeのPR #46最終コミットを�
 dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
 ```
 
-CIの`api-foundation`ジョブは上記に加え、Compose設定、Dockerビルド、実コンテナの`/health`応答と非root実行を検証する。コンテナ確認は上表のテスト件数とは別に扱い、確認後はコンテナを削除する。
+CIの`api-foundation`ジョブは変更対象に応じて上記、Compose設定、Dockerビルド、実コンテナの`/health`応答と非root実行を選んで検証する。コンテナ確認は上表のテスト件数とは別に扱い、確認後はコンテナを削除する。
 
 ```sh
 docker build --tag monetail-api:local .
@@ -43,7 +70,7 @@ APIの起動方法と今回の実装範囲は[42 APIの土台](../docs/42-api-fo
 
 対象者比較修正の変更元main `a96847f`は検証済み `1946513`と同一のGit treeで、[CI 40039934955](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40039934955)の全143件・Windowsビルド成功を再利用する。既存の計算テストを拡張し、件数は143件を維持する。 製品・テストコード `cb1432b`は[CI 40052947102](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40052947102)で全143件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fapi-foundation)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+最新結果は[Tests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml)で確認します。各実行のコミットと選択された対象を確認し、対象ジョブ完了後の結果を採用します。省略を成功済みの検証として数えません。Windows製品の変更では既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
