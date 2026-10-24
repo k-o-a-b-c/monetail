@@ -2,8 +2,8 @@
 本アプリは家計簿を細かくつけられるアプリである
 
 ## 開発環境
-- .net Framework 4.8 + winforms + sqlite
-- 言語はvb
+- Windows版: .NET Framework 4.8 + WinForms + SQLite、言語はVB.NET
+- API: ASP.NET Core / .NET 10、言語はC#。Windows版とは独立してビルドする
 - 高解像度表示に対応
 
 ## コーディング規約
