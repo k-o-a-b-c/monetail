@@ -14,6 +14,8 @@
 
 APIの追加前のmain `86fdbd0`は、同一treeのPR #46最終コミットを対象とした[CI 40067815146](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40067815146)で既存143件・読込性能・Windowsビルドの全ジョブ成功を確認した。API追加ではWindows版の製品・テストコードを変更しない。
 
+製品・API・テストコード `8645f9b`は[CI 40069719482](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40069719482)で全144件、読込性能、Dockerビルド・起動確認、Windowsソリューションの復元・ビルドの全4ジョブに成功した。最終更新は検証結果の文書追記のみ。
+
 ## APIの検証
 
 .NET 10 SDKで、実際のAPIを`WebApplicationFactory`からProductionモードで起動する。DBやログイン設定なしで`GET /health`が200、`text/plain`、本文`Healthy`、キャッシュ禁止となることを1件の統合テストで確認する。
@@ -29,7 +31,7 @@ docker build --tag monetail-api:local .
 bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:local
 ```
 
-ローカルではAPI統合テスト1件、Dockerビルド、Compose設定検証、実コンテナのHTTP応答・非root実行（UID 1654）に成功した。CIでの全体結果は上記ブランチのTestsで確認する。
+ローカルではAPI統合テスト1件、Dockerビルド、Composeの設定・実起動、実コンテナのHTTP応答・非root実行（UID 1654）に成功した。
 
 APIの起動方法と今回の実装範囲は[42 APIの土台](../docs/42-api-foundation.md)を参照。APIは.NET 10 SDK、既存の計算・Windowsテストは従来の.NET 8 SDKをそれぞれのCIジョブで用い、既存ソリューションへAPIを追加しない。
 
