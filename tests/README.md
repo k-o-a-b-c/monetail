@@ -49,7 +49,7 @@ CI条件を変更した `1decca7`は[CI 40131923960](https://github.com/k-o-a-b-
 
 認証DBの追加移行は実際のMicrosoft.Data.Sqliteと一時ファイルで8ケースを検証する。旧スキーマ・既存移行から全業務表へ合成データを作り、全保存値・typeof・定義／索引／トリガー・user_version／journal_mode／既存FK不整合が移行前後で変わらないことを比較する。NULLと不一致のtotal、REALの率、重複人物名、過去の更新者も補正しない。標準Identityのパスキーとロール・人物対応の再移行保持、NOT NULL／一意／FK／RESTRICT、未存在・空・別用途DBの拒否、途中衝突のRollbackと再試行、DB設定ありでの通常起動の無移行を確認する。合成パスキーの保存テストであり、WebAuthnの暗号検証・実機ログインの確認ではない。[44 実装範囲](../docs/44-auth-database-foundation.md)。
 
-ローカルのAPIテストは既存1件と認証DB8件が成功した（通常起動テストの設定注入を修正して対象1件を再確認）。選択処理15件・actionlint・明示CLIの適用／再実行／設定なし／未存在／空DBの終了も確認した。今回の差分の製品検証はAPIテストとDocker確認だけを選び、Windows・既存計算・Python移行・性能計測は実行しない。旧Windows製品・既存Windowsテスト・ワークフローのジョブ定義は変更せず、変更元の成功済み[CI 40132803491](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40132803491)を再利用する。
+ローカルのAPIテストは既存1件と認証DB8件が成功した（通常起動テストの設定注入を修正して対象1件を再確認）。選択処理15件・actionlint・明示CLIの適用／再実行／設定なし／未存在／空DBの終了も確認した。今回の差分の製品検証はAPIテストとDocker確認だけを選び、Windows・既存計算・Python移行・性能計測は実行しない。製品・テスト・選択処理 `1a3f7d3`は[CI 40135329862](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40135329862)で、API9件とDocker確認・CI選択15件が成功し、Windows・既存計算／Python移行・性能の3ジョブは省略された。最終更新はこの検証結果の文書追記のみ。旧Windows製品・既存Windowsテスト・ワークフローのジョブ定義は変更せず、変更元の成功済み[CI 40132803491](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40132803491)を再利用する。
 
 ```sh
 dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
