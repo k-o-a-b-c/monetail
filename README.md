@@ -57,6 +57,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [36 支払方法別レシートの一括読込](docs/36-batch-payment-receipt-reads.md) | 残高推算向け読込も1 SELECTへ変更し、期間条件と推算順序を維持 |
 | [37 レシートの子再読込とモデル保持](docs/37-receipt-child-reload-state.md) | 途中失敗では元の子・参照を保持し、成功時だけ反映 |
 | [42 APIの土台](docs/42-api-foundation.md) | 独立したASP.NET Coreプロジェクト、ローカル起動・Docker・CIと実装範囲 |
+| [43 パスキー認証の設計](docs/43-passkey-authentication-design.md) | 初回登録・ログイン・紛失復旧と人物対応の設計。認証は未実装 |
 
 ### 読む順番
 
