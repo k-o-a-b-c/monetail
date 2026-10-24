@@ -71,6 +71,7 @@
 - [x] Web版はレシート入力→振替入力の順に優先する方針を確定
 - [ ] PC／スマートフォンのブラウザー入力の利用要件を決める
 - [ ] 認証、家計のメンバー権限、共有範囲を決める
+- [x] パスキー中心・管理コマンドからの初回登録／紛失復旧を方針として決定。[43 認証設計](43-passkey-authentication-design.md)に人物対応・セッション等の案を整理（認証は未実装、共有範囲は確認中）
 - [x] APIにASP.NET Coreを採用。XMLの利用者コード指定は採用せず、ログイン結果から利用者を確定する方針（[33](33-windows-first-web-input-priorities.md)）
 - [x] 同じリポジトリにC#／.NET 10のAPIプロジェクト、`/health`、Docker起動と独立CIを追加（[42 APIの土台](42-api-foundation.md)）。既存Windows版の接続・SDKは維持
 - [ ] サーバー上のDockerで動かすAPIとSQLiteの詳細配置、認証・既存利用者の対応を設計

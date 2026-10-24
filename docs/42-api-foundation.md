@@ -61,6 +61,6 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 
 ## 次に設計するもの
 
-ログインと既存`m_user`の紐付け、HTTPS、SQLiteの接続・永続フォルダ・移行とバックアップを設計する。XMLの利用者コード設定は採用しない。業務APIはレシート入力、次に振替入力を優先し、保存済み`total`等の既存契約を保つ。ログイン・DB接続・業務API・実環境への配置は今回の実装に含まない。
+パスキー中心のログイン、管理コマンドによる初回登録・紛失復旧、既存`m_user`との対応は[43 認証設計](43-passkey-authentication-design.md)にまとめる。認証は未実装で、HTTPSの具体的な配置、SQLiteの接続・追加移行とバックアップも後続で実装・検証する。XMLの利用者コード設定は採用しない。業務APIはレシート入力、次に振替入力を優先し、保存済み`total`等の既存契約を保つ。ログイン・DB接続・業務API・実環境への配置は今回の土台の実装に含まない。
 
 検証の実行結果・件数・CIは[tests/README.md](../tests/README.md)を参照する。APIの起動確認だけでWindows版全体や実データ・実運用環境を検証済みとは扱わない。

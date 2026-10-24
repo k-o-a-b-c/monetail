@@ -134,4 +134,4 @@
 
 ## 後続のWeb化に関する方針
 
-まずWindows版を進める。後続のWeb化は必須とし、Web版の入力機能はレシート、次に振替を優先する。APIはASP.NET Coreを採用し、同じリポジトリにC#／.NET 10のAPI、`/health`、Docker・CIの土台を実装した（[42](42-api-foundation.md)）。サーバー上のDocker＋SQLiteを想定するが、認証・DB接続・業務機能・実配置は未実施。XMLのUserCode指定は採用せず、利用者は将来のログイン結果から確定する。認証方式と各機能の詳細範囲は未決定で、現行の税・割引・保存契約を互換性の基準とする。[33 方針](33-windows-first-web-input-priorities.md)。
+まずWindows版を進める。後続のWeb化は必須とし、Web版の入力機能はレシート、次に振替を優先する。APIはASP.NET Coreを採用し、同じリポジトリにC#／.NET 10のAPI、`/health`、Docker・CIの土台を実装した（[42](42-api-foundation.md)）。サーバー上のDocker＋SQLiteを想定するが、認証・DB接続・業務機能・実配置は未実施。XMLのUserCode指定は採用せず、利用者は将来のログイン結果から確定する。認証はパスキー中心とし、初回登録・紛失復旧は管理コマンドからコードを発行する方針（[43 設計](43-passkey-authentication-design.md)）。各機能の詳細範囲は未決定で、現行の税・割引・保存契約を互換性の基準とする。[33 方針](33-windows-first-web-input-priorities.md)。
