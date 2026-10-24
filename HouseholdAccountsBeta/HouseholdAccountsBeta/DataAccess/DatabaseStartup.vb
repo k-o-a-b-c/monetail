@@ -143,14 +143,25 @@ Friend NotInheritable Class DatabaseStartup
         End If
     End Sub
 
-    Friend Shared Function TryOpenConfiguredDatabase(readSetting As Func(Of String), reportError As Action(Of String)) As DataAccess
+    ' UserCodeを読み取り、接続と利用者の設定エラーを起動時に案内する。
+    Friend Shared Function TryOpenConfiguredDatabase(readSetting As Func(Of String), reportError As Action(Of String),
+                                                    Optional readUserCode As Func(Of String) = Nothing) As DataAccess
         Try
-            Return New DataAccess(readSetting())
+            Dim userCode As Integer? = Nothing
+            Dim setting = If(readUserCode Is Nothing, Nothing, readUserCode())
+            If Not String.IsNullOrWhiteSpace(setting) Then
+                Dim parsed As Integer
+                If Not Integer.TryParse(setting, parsed) Then
+                    Throw SetupError("UserCodeには整数の利用者コードを指定してください。空欄ならWindowsログイン名を使います。")
+                End If
+                userCode = parsed
+            End If
+            Return New DataAccess(readSetting(), userCode)
         Catch ex As DatabaseSetupException
             reportError(ex.Message)
         Catch ex As Exception When IsConfigurationError(ex)
             ' 内部例外には接続文字列が含まれ得るため、画面には表示しない。
-            reportError("XML設定を読み込めません。設定ファイルの構文とConnectionStringを確認してください。" &
+            reportError("XML設定を読み込めません。設定ファイルの構文とConnectionString・UserCodeを確認してください。" &
                 Environment.NewLine & "設定ファイル: " & ConfigurationFilePath)
         End Try
         Return Nothing

@@ -16,6 +16,12 @@ Friend Module StartupTests
         Equal(deployed, defaults)
         Dim designer = File.ReadAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup-settings-source.txt"))
         Equal(True, designer.Contains("DefaultSettingValueAttribute(""" & deployed & """)"))
+        Dim userSetting = section.Settings.Cast(Of SettingElement)().Single(Function(s) s.Name = "UserCode").Value.ValueXml.InnerText
+        Dim userDefault = settingsXml.Descendants().Single(Function(e) e.Name.LocalName = "Setting" AndAlso CStr(e.Attribute("Name")) = "UserCode").Elements().Single().Value
+        Equal(String.Empty, userSetting)
+        Equal(userSetting, userDefault)
+        Equal(True, designer.Contains("Public ReadOnly Property UserCode() As String"))
+        Equal(True, designer.Contains("DefaultSettingValueAttribute("""")"))
         Dim parsed As New SQLiteConnectionStringBuilder(deployed)
         Equal("E:\家計簿フォルダ\家計簿.sqlite", parsed.DataSource)
         Equal(True, parsed.FailIfMissing)

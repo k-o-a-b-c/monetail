@@ -16,6 +16,9 @@ Module Program
             Console.Error.WriteLine("Usage: PersistenceTests [--measure-receipt-reads output.csv]")
             Return 2
         End If
+        Check("configured user settings reject invalid codes and recover without writes", AddressOf ConfiguredUserTests.ConfigurationAndRecovery)
+        Check("configured user codes isolate histories masters and payment ordering across instances", AddressOf ConfiguredUserTests.ScopeAndHistory)
+        Check("configured users record account names on receipt transfer and balance insert and update", AddressOf ConfiguredUserTests.AuditWrites)
         Check("decimal discount fields preserve culture-specific input and pending model boundaries", AddressOf DetailInputTests.DecimalRateInput)
         Check("decimal discount corrections retain historic totals and highlight one yen differences", AddressOf ReceiptSavedTotalTests.DiscountCorrectionKeepsSavedTotal)
         Check("decimal tax corrections highlight historic totals without rewriting saved values", AddressOf ReceiptSavedTotalTests.TaxCorrectionKeepsSavedTotal)

@@ -142,7 +142,7 @@ RegisterPaymentMemoForm → DataAccess.RegisterPaymentMemo
 以下のDB拡張・アプリ処理は実装済みで、移行SQLを含め自動テスト済み。利用者の実DBへの適用状況と、実レシートとの照合結果は未確認。
 
 - **`t_receipts.tax_rounding_mode`は各レシートで選択・保存する正本**。税率ごとに合算した後に切捨／四捨五入。
-- 新規入力の初期方式は、店名と支払方法の所有者の `account_name = Environment.UserName` で履歴を絞り、`date DESC, seq DESC LIMIT 1` で取得する。候補選択・自由入力確定の両方に適用し、履歴なしは `floor`。手動選択後と既存レシートの編集では上書きしない。
+- 新規入力の初期方式は、店名と支払方法の所有者のUserCodeで履歴を絞り、未指定時は従来のaccount_nameとEnvironment.UserNameの照合を使う。`date DESC, seq DESC LIMIT 1` で取得する。候補選択・自由入力確定の両方に適用し、履歴なしは `floor`。手動選択後と既存レシートの編集では上書きしない。
 - `m_shop.tax_rounding_mode` は移行互換性のため列・読込モデルを残すが、**現在の初期選択では使用せず、編集画面も追加しない**。店舗マスタ未登録でもレシートで方式を選べる。
 - **店舗マスタとのFK・`shop_code`は追加しない**。履歴だけの店・自由入力の店でも使用可能。
 - [移行SQL](migrations/20261017_01_shop_tax_rounding.sql)は2列を追加し、旧レシートの方式を既定値 `floor` として旧計算を維持する。既存の `total` や対象者割当は更新せず、接続の外部キー設定も変更しない。バックアップしたDBのコピーに一度だけ適用する。[15 詳細設計](15-shop-tax-rounding-design.md)参照。

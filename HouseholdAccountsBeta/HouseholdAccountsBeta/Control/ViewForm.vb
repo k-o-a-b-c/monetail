@@ -44,7 +44,8 @@ Public Class ViewForm
 
         DataAccess = DatabaseStartup.TryOpenConfiguredDatabase(
             Function() My.Settings.ConnectionString,
-            Sub(message) MessageBox.Show(message, "DB設定エラー", MessageBoxButtons.OK, MessageBoxIcon.Error))
+            Sub(message) MessageBox.Show(message, "DB設定エラー", MessageBoxButtons.OK, MessageBoxIcon.Error),
+            Function() My.Settings.UserCode)
         If DataAccess Is Nothing Then
             Close()
             Return

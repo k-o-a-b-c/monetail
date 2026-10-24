@@ -62,6 +62,15 @@ Namespace My
                 Return CType(Me("ConnectionString"),String)
             End Get
         End Property
+
+        <Global.System.Configuration.ApplicationScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("")>  _
+        Public ReadOnly Property UserCode() As String
+            Get
+                Return CType(Me("UserCode"),String)
+            End Get
+        End Property
     End Class
 End Namespace
 

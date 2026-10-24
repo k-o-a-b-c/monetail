@@ -5,9 +5,50 @@ Public Class DataAccess
 
     Private ReadOnly Connection As SQLiteConnection
 
-    Public Sub New(ConnectionString As String)
+    Private ReadOnly ConfiguredUserCode As Integer?
+    ' 更新者に保存する、利用者マスタのアカウント名を保持する。
+    Public ReadOnly Property CurrentAccountName As String
+
+    ' 利用者コードの指定時はマスタを確認し、未指定時は従来のWindows利用者を使う。
+    Public Sub New(ConnectionString As String, Optional userCode As Integer? = Nothing)
+        ConfiguredUserCode = userCode
+        CurrentAccountName = Environment.UserName
         Connection = DatabaseStartup.OpenConnection(ConnectionString)
+        If userCode.HasValue Then
+            Try
+                Dim selectedUser = UserList.SingleOrDefault(Function(user) user.Code = userCode.Value)
+                If selectedUser Is Nothing Then
+                    Throw New DatabaseSetupException("UserCodeにはm_userに登録済みの利用者コードを指定してください。" &
+                        Environment.NewLine & "設定ファイル: " & DatabaseStartup.ConfigurationFilePath)
+                End If
+                CurrentAccountName = selectedUser.AccountName
+            Catch
+                Connection.Dispose()
+                Throw
+            End Try
+        End If
     End Sub
+
+    ' 利用者指定の有無に合わせ、SQLの比較列を選ぶ。
+    Private ReadOnly Property CurrentUserKeyColumn As String
+        Get
+            Return If(ConfiguredUserCode.HasValue, "code", "account_name")
+        End Get
+    End Property
+
+    ' SQLの利用者条件へ渡すコードまたはアカウント名を取得する。
+    Private ReadOnly Property CurrentUserKey As Object
+        Get
+            If ConfiguredUserCode.HasValue Then Return ConfiguredUserCode.Value
+            Return CurrentAccountName
+        End Get
+    End Property
+
+    ' マスタの利用者が現在の設定に一致するか判定する。
+    Private Function IsCurrentUser(user As User) As Boolean
+        If ConfiguredUserCode.HasValue Then Return user.Code = ConfiguredUserCode.Value
+        Return user.AccountName = CurrentAccountName
+    End Function
 
 #Region "Master"
 
@@ -37,7 +78,7 @@ Public Class DataAccess
                         .AccountName = reader.GetString(2)
                     }
                     _UserList.Add(user)
-                    If user.AccountName = Environment.UserName Then
+                    If IsCurrentUser(user) Then
                         myUser = user
                     End If
                 End While
@@ -118,10 +159,10 @@ Public Class DataAccess
             End Using
         End Using
         Dim myPayments As List(Of PaymentClassification)
-        myPayments = _PaymentClassificationList.Where(Function(p) p.User.AccountName = Environment.UserName).ToList()
-        _PaymentClassificationList.RemoveAll(Function(p) p.User.AccountName = Environment.UserName)
+        myPayments = _PaymentClassificationList.Where(Function(p) IsCurrentUser(p.User)).ToList()
+        _PaymentClassificationList.RemoveAll(Function(p) IsCurrentUser(p.User))
         _PaymentClassificationList.InsertRange(0, myPayments)
-        _PaymentClassificationList.ForEach(Sub(p) If p.User.AccountName <> Environment.UserName Then p.Name = "（" & p.User.Name & "）" & p.Name)
+        _PaymentClassificationList.ForEach(Sub(p) If Not IsCurrentUser(p.User) Then p.Name = "（" & p.User.Name & "）" & p.Name)
 
     End Sub
     Public ReadOnly Property PaymentClassification(ByVal code As Integer) As PaymentClassification
@@ -182,8 +223,8 @@ Public Class DataAccess
         End If
         _ShopList = New List(Of Shop)()
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select s.code, s.name, s.default_point_code, s.default_group_classification_code, s.tax_rounding_mode from m_shop s left join m_user u on u.code = s.user_code where u.account_name = :account_name or s.user_code is null order by s.seq, s.code"
-            command.Parameters.AddWithValue("account_name", Environment.UserName)
+            command.CommandText = $"select s.code, s.name, s.default_point_code, s.default_group_classification_code, s.tax_rounding_mode from m_shop s left join m_user u on u.code = s.user_code where u.{CurrentUserKeyColumn} = :current_user or s.user_code is null order by s.seq, s.code"
+            command.Parameters.AddWithValue("current_user", CurrentUserKey)
             Using reader As SQLiteDataReader = command.ExecuteReader()
                 While reader.Read()
                     Dim shop As New Shop() With {
@@ -199,8 +240,8 @@ Public Class DataAccess
         End Using
 
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select 0, r.shop_name, null, g.group_classification_code, s.user_code, u1.account_name, u2.account_name, s.user_code is not null and u1.account_name <> :account_name, s.code is null and u2.account_name = :account_name from t_receipts r left join t_receipt_groups g on r.seq = g.receipt_seq and g.seq = 1 left join m_shop s on r.shop_name = s.name left join m_user u1 on u1.code = s.user_code left join m_payment_classification p on r.payment_classification_code = p.code left join m_user u2 on u2.code = p.user_code where ((s.user_code is not null and u1.account_name <> :account_name) or s.code is null) and u2.account_name = :account_name group by r.shop_name order by max(r.date) desc limit 200"
-            command.Parameters.AddWithValue("account_name", Environment.UserName)
+            command.CommandText = $"select 0, r.shop_name, null, g.group_classification_code, s.user_code, u1.account_name, u2.account_name, s.user_code is not null and u1.{CurrentUserKeyColumn} <> :current_user, s.code is null and u2.{CurrentUserKeyColumn} = :current_user from t_receipts r left join t_receipt_groups g on r.seq = g.receipt_seq and g.seq = 1 left join m_shop s on r.shop_name = s.name left join m_user u1 on u1.code = s.user_code left join m_payment_classification p on r.payment_classification_code = p.code left join m_user u2 on u2.code = p.user_code where ((s.user_code is not null and u1.{CurrentUserKeyColumn} <> :current_user) or s.code is null) and u2.{CurrentUserKeyColumn} = :current_user group by r.shop_name order by max(r.date) desc limit 200"
+            command.Parameters.AddWithValue("current_user", CurrentUserKey)
             Using reader As SQLiteDataReader = command.ExecuteReader()
                 While reader.Read()
                     Dim shop As New Shop() With {
@@ -314,9 +355,9 @@ Public Class DataAccess
     Public Function GetPaymentClassification(ByVal shopName As String) As Integer
 
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select r.payment_classification_code from t_receipts r left join m_payment_classification p on p.code = r.payment_classification_code left join m_user u on u.code = p.user_code where shop_name = :shop_name and u.account_name = :account_name order by date desc limit 1"
+            command.CommandText = $"select r.payment_classification_code from t_receipts r left join m_payment_classification p on p.code = r.payment_classification_code left join m_user u on u.code = p.user_code where shop_name = :shop_name and u.{CurrentUserKeyColumn} = :current_user order by date desc limit 1"
             command.Parameters.AddWithValue("shop_name", shopName)
-            command.Parameters.AddWithValue("account_name", Environment.UserName)
+            command.Parameters.AddWithValue("current_user", CurrentUserKey)
             Return Convert.ToInt32(command.ExecuteScalar())
         End Using
 
@@ -325,9 +366,9 @@ Public Class DataAccess
     Public Function GetTaxRoundingMode(ByVal shopName As String) As String
 
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select r.tax_rounding_mode from t_receipts r left join m_payment_classification p on p.code = r.payment_classification_code left join m_user u on u.code = p.user_code where r.shop_name = :shop_name and u.account_name = :account_name order by r.date desc, r.seq desc limit 1"
+            command.CommandText = $"select r.tax_rounding_mode from t_receipts r left join m_payment_classification p on p.code = r.payment_classification_code left join m_user u on u.code = p.user_code where r.shop_name = :shop_name and u.{CurrentUserKeyColumn} = :current_user order by r.date desc, r.seq desc limit 1"
             command.Parameters.AddWithValue("shop_name", shopName)
-            command.Parameters.AddWithValue("account_name", Environment.UserName)
+            command.Parameters.AddWithValue("current_user", CurrentUserKey)
 
             Dim result As Object = command.ExecuteScalar()
             Return If(result Is Nothing, "floor", Convert.ToString(result))
@@ -338,9 +379,9 @@ Public Class DataAccess
     Public Function GetDefaultGroupClassification(ByVal shopName As String) As Integer
 
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select g.group_classification_code from t_receipts r left join t_receipt_groups g on r.seq = g.receipt_seq left join m_payment_classification p on r.payment_classification_code = p.code left join m_user u on u.code = p.user_code where shop_name = :shop_name and u.account_name = :account_name order by r.date desc, g.seq limit 1"
+            command.CommandText = $"select g.group_classification_code from t_receipts r left join t_receipt_groups g on r.seq = g.receipt_seq left join m_payment_classification p on r.payment_classification_code = p.code left join m_user u on u.code = p.user_code where shop_name = :shop_name and u.{CurrentUserKeyColumn} = :current_user order by r.date desc, g.seq limit 1"
             command.Parameters.AddWithValue("shop_name", shopName)
-            command.Parameters.AddWithValue("account_name", Environment.UserName)
+            command.Parameters.AddWithValue("current_user", CurrentUserKey)
             Return Convert.ToInt32(command.ExecuteScalar())
         End Using
 
@@ -389,9 +430,9 @@ Public Class DataAccess
         Dim transferNameList As New List(Of PaymentClassification)()
 
         Using command As SQLiteCommand = Connection.CreateCommand()
-            command.CommandText = "select from_payment_classification_code from t_transfers t left join m_payment_classification p1 on p1.code = t.from_payment_classification_code left join m_user u1 on u1.code = p1.user_code left join m_payment_classification p2 on p2.code = t.to_payment_classification_code left join m_user u2 on u2.code = p2.user_code where t.name = :name and (u1.account_name = :account_name or u2.account_name = :account_name) order by update_datetime desc limit 1"
+            command.CommandText = $"select from_payment_classification_code from t_transfers t left join m_payment_classification p1 on p1.code = t.from_payment_classification_code left join m_user u1 on u1.code = p1.user_code left join m_payment_classification p2 on p2.code = t.to_payment_classification_code left join m_user u2 on u2.code = p2.user_code where t.name = :name and (u1.{CurrentUserKeyColumn} = :current_user or u2.{CurrentUserKeyColumn} = :current_user) order by update_datetime desc limit 1"
             command.Parameters.AddWithValue("name", name)
-            command.Parameters.AddWithValue("account_name", Environment.UserName)
+            command.Parameters.AddWithValue("current_user", CurrentUserKey)
             Return Convert.ToInt32(command.ExecuteScalar())
         End Using
 
@@ -793,8 +834,8 @@ Public Class DataAccess
         Dim PaymentMemoList As New List(Of PaymentMemo)()
 
         Using command As SQLiteCommand = Connection.CreateCommand
-            command.CommandText = "select p.code, m.check_date, m.tag from m_payment_classification p left join t_payment_memo m on m.payment_classification_code = p.code left join m_user u on p.user_code = u.code order by case when u.name = :name then 0 else 1 end, u.seq, u.code, p.seq, p.code"
-            command.Parameters.AddWithValue("name", Environment.UserName)
+            command.CommandText = $"select p.code, m.check_date, m.tag from m_payment_classification p left join t_payment_memo m on m.payment_classification_code = p.code left join m_user u on p.user_code = u.code order by case when u.{CurrentUserKeyColumn} = :current_user then 0 else 1 end, u.seq, u.code, p.seq, p.code"
+            command.Parameters.AddWithValue("current_user", CurrentUserKey)
 
             Using reader As SQLiteDataReader = command.ExecuteReader
                 While reader.Read()
@@ -867,7 +908,7 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("tax_rounding_mode", receipt.TaxRoundingMode)
                 command.Parameters.AddWithValue("payment_classification_code", receipt.PaymentClassification.Code)
                 command.Parameters.AddWithValue("tag", receipt.Tag)
-                command.Parameters.AddWithValue("update_user", Environment.UserName)
+                command.Parameters.AddWithValue("update_user", CurrentAccountName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
                 command.Parameters.AddWithValue("revision_token", newRevision)
                 command.Parameters.AddWithValue("total", receipt.Total)
@@ -976,7 +1017,7 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("tax_rounding_mode", receipt.TaxRoundingMode)
                 command.Parameters.AddWithValue("payment_classification_code", receipt.PaymentClassification.Code)
                 command.Parameters.AddWithValue("tag", receipt.Tag)
-                command.Parameters.AddWithValue("update_user", Environment.UserName)
+                command.Parameters.AddWithValue("update_user", CurrentAccountName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
                 command.Parameters.AddWithValue("total", receipt.Total)
                 EnsureSingleRow(command.ExecuteNonQuery())
@@ -1077,7 +1118,7 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("from_payment_classification_code", transfer.FromPaymentClassification.Code)
                 command.Parameters.AddWithValue("to_payment_classification_code", transfer.ToPaymentClassification.Code)
                 command.Parameters.AddWithValue("tag", transfer.Tag)
-                command.Parameters.AddWithValue("update_user", Environment.UserName)
+                command.Parameters.AddWithValue("update_user", CurrentAccountName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
                 command.Parameters.AddWithValue("revision_token", newRevision)
                 command.ExecuteNonQuery()
@@ -1120,7 +1161,7 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("from_payment_classification_code", transfer.FromPaymentClassification.Code)
                 command.Parameters.AddWithValue("to_payment_classification_code", transfer.ToPaymentClassification.Code)
                 command.Parameters.AddWithValue("tag", transfer.Tag)
-                command.Parameters.AddWithValue("update_user", Environment.UserName)
+                command.Parameters.AddWithValue("update_user", CurrentAccountName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
                 EnsureSingleRow(command.ExecuteNonQuery())
             End Using
@@ -1196,7 +1237,7 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("seq", balance.Seq)
                 command.Parameters.AddWithValue("date", balance.Date)
                 command.Parameters.AddWithValue("tag", balance.Tag)
-                command.Parameters.AddWithValue("update_user", Environment.UserName)
+                command.Parameters.AddWithValue("update_user", CurrentAccountName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
                 command.Parameters.AddWithValue("revision_token", newRevision)
                 command.ExecuteNonQuery()
@@ -1259,7 +1300,7 @@ Public Class DataAccess
                 command.Parameters.AddWithValue("new_revision_token", newRevision)
                 command.Parameters.AddWithValue("date", balance.Date)
                 command.Parameters.AddWithValue("tag", balance.Tag)
-                command.Parameters.AddWithValue("update_user", Environment.UserName)
+                command.Parameters.AddWithValue("update_user", CurrentAccountName)
                 command.Parameters.AddWithValue("update_datetime", DateTime.Now)
                 EnsureSingleRow(command.ExecuteNonQuery())
             End Using

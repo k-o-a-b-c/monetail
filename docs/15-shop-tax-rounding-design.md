@@ -54,7 +54,7 @@
 
 ### 3.2 履歴検索
 
-`DataAccess.GetTaxRoundingMode(shopName)` は `t_receipts` を `m_payment_classification`、`m_user` と結合し、店名と `Environment.UserName` に一致する支払い履歴から取得する。支払い方法の履歴と同じ利用者の範囲で検索し、別の利用者の方式を混ぜない。
+`DataAccess.GetTaxRoundingMode(shopName)` は `t_receipts` を `m_payment_classification`、`m_user` と結合し、店名と設定したUserCodeに一致する支払い履歴から取得する。UserCode未指定時は従来どおりEnvironment.UserNameとaccount_nameを照合する。支払い方法の履歴と同じ利用者の範囲で検索し、別の利用者の方式を混ぜない。
 
 - 店名はパラメーターとして渡す。
 - `ORDER BY r.date DESC, r.seq DESC LIMIT 1`。同日時はレシート番号の大きい行を最新とする。

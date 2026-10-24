@@ -8,8 +8,8 @@
 | --- | ---: |
 | 計算（JSONの11ケース＋VBの24チェック） | 35 |
 | SQLite移行（税端数5＋更新版5） | 10 |
-| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1＋Decimal率値引2） | 98 |
-| 合計 | 143 |
+| Windowsの実SQLite・画面・起動設定（既存42＋残高推算8＋入力検証6＋月年集計3＋残高範囲4＋振替入力3＋残高入力3＋レシート必須入力3＋集計詳細4＋レシート一覧4＋一括読込3＋支払方法別3＋子再読込3＋税率初期選択3＋保存時合計比較3＋Decimal税計算1＋Decimal率値引2＋利用者設定3） | 101 |
+| 合計 | 146 |
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
 
@@ -17,7 +17,9 @@
 
 対象者比較修正の変更元main `a96847f`は検証済み `1946513`と同一のGit treeで、[CI 40039934955](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40039934955)の全143件・Windowsビルド成功を再利用する。既存の計算テストを拡張し、件数は143件を維持する。 製品・テストコード `cb1432b`は[CI 40052947102](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40052947102)で全143件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
-最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fperson-statistics-user-codes)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
+利用者設定の変更元main `a9b1863`は検証済み `cf991db`と同一のGit tree。[CI 40053539112](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40053539112)の全143件・Windowsビルド成功を再利用し、Windowsの3チェックを追加する。
+
+最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fconfigured-user)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
 レシート読込の性能計測は上表の回帰チェックとは別に実行します。Windows CIの`receipt-read-performance`ジョブで、一覧・支払方法別・改修前の支払方法別参照の3経路×合成データの月次／年次4ケースについてマスタキャッシュが空／保持済みのSELECT数と、保持済みで5回の読込時間をCSV・ログに保存します。取得内容とDB非変更は検証しますが、速度やSQL数の固定しきい値は設けません。[データ・測り方・結果](../docs/34-receipt-read-performance.md)。Windowsでの手動実行例（PowerShell）:
 
@@ -116,3 +118,5 @@ Decimal税計算は、正負の整数境界・税率別合算・両端数方式�
 率値引Decimal化は、3,000円・1.1%の境界、負額と切り捨て方向、手入力値引・数量の順序、0／100%・既存の100%超・小数率、明細ごとの整数化と税率別合算を検証する。Windowsではen-US／de-DEの率入力、INTEGER／REALの新規・更新・3読込経路（追加率1.1／2.2／2.51%）、旧保存値2,966円を保った再計算2,967円と差額+1円を確認する。閲覧の書込0回・保存済みtotal／率・全行／型／版／スキーマの保持も比較する。[41 仕様](../docs/41-decimal-discount-calculation.md)。
 
 明細計算共通化では、既存の整数境界テストでReceiptDetail.CalculateDiscountedFeeの戻り値も固定期待値と比較する。Int32を超える税処理前金額をDecimalで返せること、数量変更後に最新値で再計算することを確認し、合計・分類／明細／人別参考額、保存・表示の既存回帰を継続する。
+
+利用者設定は、既定値3定義の一致、空欄／正常／不正／未登録コードと修正後の再接続、同一account_nameの別コードによる店舗・支払方法・分類／税端数・振替履歴の分離とキャッシュ独立、支払メモの本人優先、3種類の伝票の登録／更新者、FK ON/OFFと閲覧時の保存値・型・版・スキーマ／PRAGMA保持を検証する。DB移行や既存totalの一括更新は行わない。[19 設定仕様](../docs/19-database-startup-settings.md)。

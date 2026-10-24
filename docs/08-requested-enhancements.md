@@ -36,7 +36,7 @@
 - `m_shop`: `tax_rounding_mode`（`floor`／`half_up`）は以前の移行設計との互換性のため残す。**現実装の初期選択・店舗編集には使用しない**。
 - `t_receipts`: `tax_rounding_mode`を**レシートごとに確定・保存する正本**として持つ。**店コード列を追加しない**。
 - 両列は`TEXT NOT NULL DEFAULT 'floor'`、値を`floor`／`half_up`に制限する。元DDLは移行前の構造を記録しており、[移行SQL](migrations/20261017_01_shop_tax_rounding.sql)で2列だけを追加する。適用はバックアップしたテスト用DBに一度だけ行い、既存金額・対象者割当を更新しない。
-- 登録済みマスタ候補・履歴候補（`Code=0`）・自由入力は同じ履歴検索を使う。`m_payment_classification`と`m_user`を介して`Environment.UserName`に一致する利用者に絞り、`date DESC, seq DESC`の先頭を採用する。手動選択後は店名を変えても選択を保持する。
+- 登録済みマスタ候補・履歴候補（`Code=0`）・自由入力は同じ履歴検索を使う。`m_payment_classification`と`m_user`を介して設定したUserCode（未指定はEnvironment.UserName照合）の利用者に絞り、`date DESC, seq DESC`の先頭を採用する。手動選択後は店名を変えても選択を保持する。
 - 内税／外税と端数方式は独立したラジオボタンで選択する。編集中は画面に値を持ち、`Receipt.GetTotal(taxType, taxRoundingMode)`で合計を表示する。**両設定はすべての登録確認を通過してからReceiptへ反映**し、キャンセル時の復元処理は不要。レシート全体のディープコピーは採用していない。
 - 流用は従来どおり確認後に画面の内容を即時保存して閉じる。表示中の税設定を使用し、追加の登録操作や保存直前の履歴再取得は行わない。
 - `floor`も合算・税計算をDecimalとし、負の方向への切り捨てを維持してDouble境界の1円誤差を修正する。保存済みtotalは変更しない（[40 Decimal税計算](40-decimal-tax-calculation.md)）。`half_up`の税額は`Decimal`と`MidpointRounding.AwayFromZero`で計算する（税額−0.5円→−1円）。負額・正負混在の自動回帰テストは実装済み。実運用の返品との照合は導入前の確認として残る。
