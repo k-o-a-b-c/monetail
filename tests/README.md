@@ -15,7 +15,7 @@
 
 明細計算共通化の変更元main `695a77e`は検証済み最終 `e672a79`と同一のGit treeで、[CI 40037645532](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40037645532)で全143件・Windowsビルド成功。共通化では既存の計算チェックを拡張し、総件数は143件を維持する。 製品・テストコード `a2fa7c7`は[CI 40038869857](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40038869857)で全143件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
-対象者比較修正の変更元main `a96847f`は検証済み `1946513`と同一のGit treeで、[CI 40039934955](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40039934955)の全143件・Windowsビルド成功を再利用する。既存の計算テストを拡張し、件数は143件を維持する。
+対象者比較修正の変更元main `a96847f`は検証済み `1946513`と同一のGit treeで、[CI 40039934955](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40039934955)の全143件・Windowsビルド成功を再利用する。既存の計算テストを拡張し、件数は143件を維持する。 製品・テストコード `cb1432b`は[CI 40052947102](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40052947102)で全143件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
 最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afix%2Fperson-statistics-user-codes)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
