@@ -141,20 +141,23 @@
         Return Convert.ToInt32(subTotals)
     End Function
 
-    ' 対象者の条件と人数割りを適用し、共通のDecimal税計算で参考額を求める。
+    ' 対象者コードによる一致条件と人数割りを適用し、共通のDecimal税計算で参考額を求める。
     Public Function GetGroupStatisticsList(ByVal users As List(Of User), ByVal IsAnd As Boolean, ByVal IsOnlyPerson As Boolean) As List(Of GroupStatistics)
 
         Dim GroupStatisticsList As New List(Of GroupStatistics)
         Dim GroupStatistics As GroupStatistics
+        Dim selectedUserCodes = users.Select(Function(user) user.Code).ToArray()
 
         For Each group As ReceiptGroup In Groups
             Dim taxFee As Double = 0
             Dim nonTaxFee As Double = 0
             For Each detail As ReceiptDetail In group.Details
-                If users.Count > 0 AndAlso
-                   ((IsAnd AndAlso (detail.Users.Intersect(users).ToArray().Count <> users.Count OrElse detail.Users.Count <> users.Count)) _
-                    OrElse (Not IsAnd AndAlso detail.Users.Intersect(users).ToArray().Count = 0)) Then
-                    Continue For
+                If users.Count > 0 Then
+                    Dim matchingUserCount = detail.Users.Select(Function(user) user.Code).Intersect(selectedUserCodes).Count()
+                    If (IsAnd AndAlso (matchingUserCount <> users.Count OrElse detail.Users.Count <> users.Count)) OrElse
+                       (Not IsAnd AndAlso matchingUserCount = 0) Then
+                        Continue For
+                    End If
                 End If
                 If IsAnd AndAlso users.Count = 0 AndAlso detail.Users.Count > 0 Then
                     Continue For

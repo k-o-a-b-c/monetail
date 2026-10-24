@@ -25,10 +25,14 @@ Friend Module PersonStatisticsTests
                     For index As Integer = 0 To people.Length - 1
                         If (mask And (1 << index)) <> 0 Then selected.Add(people(index))
                     Next
-                    AssertFees(receipt, selected, False, False, partialTotals(mask))
-                    AssertFees(receipt, selected, False, True, partialShare(mask))
-                    AssertFees(receipt, selected, True, False, exactTotals(mask))
-                    AssertFees(receipt, selected, True, True, exactShare(mask))
+                    ' 同じ参照と、別読込を想定した同コードの別オブジェクトを比較する。
+                    Dim copies = selected.Select(Function(u) New User With {.Code = u.Code, .Name = "別読込"}).ToList()
+                    For Each selection In {selected, copies}
+                        AssertFees(receipt, selection, False, False, partialTotals(mask))
+                        AssertFees(receipt, selection, False, True, partialShare(mask))
+                        AssertFees(receipt, selection, True, False, exactTotals(mask))
+                        AssertFees(receipt, selection, True, True, exactShare(mask))
+                    Next
                 Next
             Next
         Next
@@ -38,7 +42,7 @@ Friend Module PersonStatisticsTests
         Dim a As New User With {.Code = 1}
         Dim b As New User With {.Code = 2}
         Dim c As New User With {.Code = 3}
-        Dim selected As New List(Of User) From {a}
+        Dim selected As New List(Of User) From {New User With {.Code = a.Code}}
         For Each rate In New Integer() {8, 10}
             For Each mode In New String() {"floor", "half_up"}
                 For Each taxType In New Integer() {0, 1}
@@ -87,19 +91,29 @@ Friend Module PersonStatisticsTests
         Next
     End Sub
 
-    Public Sub UserReferenceMatching()
-        Dim a As New User With {.Code = 1}
-        Dim b As New User With {.Code = 2}
-        Dim copyA As New User With {.Code = 1}
-        Dim copyB As New User With {.Code = 2}
-        Dim receipt = MakeReceipt("floor", Group(10, Line(100, False, a, b), Line(7, False, a)))
-        ' 現行のIntersectはUserの参照を比較する。コードが同じ別インスタンスは一致しない。
-        AssertFees(receipt, New List(Of User) From {b, a}, True, False, 100)
-        AssertFees(receipt, New List(Of User) From {b, a}, False, False, 107)
-        AssertFees(receipt, New List(Of User) From {copyA, copyB}, True, False, 0)
-        AssertFees(receipt, New List(Of User) From {copyA, copyB}, False, False, 0)
-        AssertFees(receipt, New List(Of User) From {a, copyB}, True, False, 0)
-        AssertFees(receipt, New List(Of User) From {a, copyB}, False, False, 107)
+    Public Sub UserCodeMatching()
+        Dim a As New User With {.Code = 1, .Name = "A"}
+        Dim b As New User With {.Code = 2, .Name = "B"}
+        Dim copyA As New User With {.Code = 1, .Name = "改名したA"}
+        Dim copyB As New User With {.Code = 2, .Name = "改名したB"}
+        Dim sameNameOtherCode As New User With {.Code = 3, .Name = "A"}
+        For Each mode In {"floor", "half_up"}
+            For Each taxType In {0, 1}
+                Dim receipt = MakeReceipt(mode, Group(10, Line(100, False, a, b), Line(7, False, a)))
+                receipt.TaxType = taxType
+                ' 参照・表示名・順序にかかわらずコードで判定し、同名の別コードは除外する。
+                For Each selection In {New List(Of User) From {b, a}, New List(Of User) From {copyB, copyA}, New List(Of User) From {a, copyB}}
+                    AssertFees(receipt, selection, True, False, 100)
+                    AssertFees(receipt, selection, False, False, 107)
+                    AssertFees(receipt, selection, True, True, 50)
+                    AssertFees(receipt, selection, False, True, 57)
+                Next
+                AssertFees(receipt, New List(Of User) From {copyA}, True, False, 7)
+                AssertFees(receipt, New List(Of User) From {sameNameOtherCode}, False, False, 0)
+                AssertFees(receipt, New List(Of User) From {copyA, sameNameOtherCode}, True, False, 0)
+                AssertFees(receipt, New List(Of User) From {copyA, sameNameOtherCode}, False, False, 107)
+            Next
+        Next
     End Sub
 
     Private Function Line(amount As Integer, taxable As Boolean, ParamArray users As User()) As ReceiptDetail
