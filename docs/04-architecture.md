@@ -30,7 +30,7 @@ Windows デスクトップアプリ
 | `.../Data/Master/` | 人・分類・支払方法・店舗・税率・ポイントマスタ |
 | `.../Data/Statistics/` | 集計用DTO |
 | `.../DataAccess/` | SQLite接続、SELECT/INSERT/UPDATE/DELETE、履歴取得 |
-| `.../Logic/Calculation.vb` | 税・割引・残高の計算 |
+| `.../Logic/Calculation.vb` | 税・分類／明細参考額・残高の計算 |
 | `.../Logic/IntegerExpression.vb` | 単価・値引額の整数式評価。乗算優先・入力不正や桁あふれは0 |
 | `.../Logic/ReceiptAmountValidation.vb` | 既存計算を使う金額範囲の確認。反映候補と選択税設定で確認し、元モデルを変更しない |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
@@ -117,3 +117,5 @@ Web / スマートフォン / デスクトップ
 `DetailViewForm.ShowGroupStatistics`はOverflowExceptionだけを表内表示へ変換し、前回／途中の行を消す。読込・計算をTryで囲み、Finallyで行高・列幅・見出しの自動調整と品名の幅上限を復元する。金額以外の例外は伝播する。[31 仕様](31-detail-view-amount-overflow.md)。
 
 `ViewForm_List.vb`の非公開ReceiptListRowは元Receiptを参照し、TotalのOverflowExceptionだけを表示文字列へ変換する。その他の列と編集先は同じReceiptを参照し、金額を固定コピーしない。Designerのバインド名と正常なN0書式を維持する。[32 仕様](32-receipt-list-amount-overflow.md)。
+
+明細の値引後金額はReceiptDetail.CalculateDiscountedFeeで計算する。Receiptの合計・人別参考額とCalculationの分類／明細参考額は、このDecimalの共通処理を呼び出してから従来の税処理・集計・人数按分を行う。計算結果を明細へ保存・キャッシュしない。

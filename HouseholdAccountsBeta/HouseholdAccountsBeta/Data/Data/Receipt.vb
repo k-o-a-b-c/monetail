@@ -114,10 +114,7 @@
             Dim taxFee As Decimal = 0D
             Dim nonTaxFee As Decimal = 0D
             For Each detail As ReceiptDetail In group.Details
-                Dim fee As Decimal = detail.Fee
-                fee -= detail.DiscountFee
-                fee *= detail.Quantity
-                fee -= Math.Ceiling(fee * detail.DiscountRate / 100D)
+                Dim fee As Decimal = detail.CalculateDiscountedFee()
                 If (signFilter < 0 AndAlso fee >= 0) OrElse
                    (signFilter > 0 AndAlso fee <= 0) Then
                     Continue For
@@ -162,10 +159,7 @@
                 If IsAnd AndAlso users.Count = 0 AndAlso detail.Users.Count > 0 Then
                     Continue For
                 End If
-                Dim fee As Decimal = detail.Fee
-                fee -= detail.DiscountFee
-                fee *= detail.Quantity
-                fee -= Math.Ceiling(fee * detail.DiscountRate / 100D)
+                Dim fee As Decimal = detail.CalculateDiscountedFee()
                 Dim personNumber As Double
                 If IsOnlyPerson Then
                     personNumber = detail.Users.Count
