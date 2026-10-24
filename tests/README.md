@@ -17,7 +17,7 @@
 
 対象者比較修正の変更元main `a96847f`は検証済み `1946513`と同一のGit treeで、[CI 40039934955](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40039934955)の全143件・Windowsビルド成功を再利用する。既存の計算テストを拡張し、件数は143件を維持する。 製品・テストコード `cb1432b`は[CI 40052947102](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40052947102)で全143件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
-利用者設定の変更元main `a9b1863`は検証済み `cf991db`と同一のGit tree。[CI 40053539112](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40053539112)の全143件・Windowsビルド成功を再利用し、Windowsの3チェックを追加する。
+利用者設定の変更元main `a9b1863`は検証済み `cf991db`と同一のGit tree。[CI 40053539112](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40053539112)の全143件・Windowsビルド成功を再利用し、Windowsの3チェックを追加する。 製品・テストコード `10b5c9b`は[CI 40057089408](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40057089408)で全146件・読込性能・Windowsソリューション復元／ビルドの全ジョブ成功。最終更新は検証結果の文書追記のみ。
 
 最新結果は[この改修ブランチのTests](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml?query=branch%3Afeature%2Fconfigured-user)で確認します。各実行のコミットを確認し、全ジョブ完了後の結果を採用します。Windowsでは既存ソリューションのNuGet復元・ビルドも行います。実データや利用者環境での手動操作は検証対象に含めません。
 
