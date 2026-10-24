@@ -96,10 +96,10 @@ def select(paths):
         if (path.startswith(("docs/schema/", "docs/migrations/")) and path.endswith(".sql") or
                 fnmatch.fnmatchcase(path, "tests/test_*migration.py")):
             enable("migrations")
-        if (path.startswith((PRODUCT + "Data/", PRODUCT + "DataAccess/", "tests/Shared/")) and path.endswith(".vb") or
-                path == PRODUCT + "Logic/Calculation.vb" or
+        if (path.startswith((PRODUCT + "Data/", PRODUCT + "DataAccess/")) and path.endswith(".vb") or
+                path in {PRODUCT + "Logic/Calculation.vb", "tests/Shared/Assertions.vb"} or
                 path.startswith("tests/PersistenceTests/") and path.rsplit("/", 1)[-1] in performance_helpers or
-                path.startswith(("docs/schema/", "docs/migrations/")) and path.endswith(".sql")):
+                path.endswith(".sql") and any(matches(path, pattern) for pattern in windows_inputs)):
             enable("performance")
         if not known:
             unknown.append(path)
@@ -120,6 +120,8 @@ def changed_files(event, event_name):
         head = event["pull_request"]["head"]["sha"]
         base = git("merge-base", base, head).decode().strip()
     elif event_name == "push":
+        if event.get("deleted"):
+            return []  # ブランチ削除には検証するコード変更がない。
         base, head = event["before"], event["after"]
         if set(base) == {"0"}:
             default = event["repository"]["default_branch"]

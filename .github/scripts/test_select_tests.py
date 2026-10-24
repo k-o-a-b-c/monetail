@@ -50,10 +50,13 @@ class SelectionTests(unittest.TestCase):
                 self.assert_flags([path], "migrations", "windows_tests", "performance")
         self.assert_flags(["docs/tests/tax-rounding-cases.json"], "calculations")
         self.assert_flags(["tests/test_revision_migration.py"], "migrations")
+        self.assert_flags(["docs/migrations/future.sql"], "migrations")
 
     def test_ui_test_change_does_not_rebuild_product_or_measure_reads(self):
         self.assert_flags(["tests/PersistenceTests/ReceiptInputTests.vb"], "windows_tests")
         self.assert_flags(["tests/PersistenceTests/ReceiptReadMeasurements.vb"], "windows_tests", "performance")
+        self.assert_flags(["tests/Shared/ReceiptFixtures.vb"], "calculations", "windows_tests")
+        self.assert_flags(["tests/Shared/Assertions.vb"], "calculations", "windows_tests", "performance")
 
     def test_workflow_and_shared_build_settings_validate_all_jobs(self):
         for path in [".github/workflows/tests.yml", "Directory.Build.props", "global.json"]:
@@ -140,6 +143,7 @@ class GitDiffTests(unittest.TestCase):
         self.git("rm", "src/Monetail.Api/Program.cs")
         head = self.commit("README.md", "docs")
         self.assertIn("src/Monetail.Api/Program.cs", changed_files({"before": self.base, "after": head}, "push"))
+        self.assertEqual([], changed_files({"deleted": True, "before": head, "after": "0" * 40}, "push"))
 
 
 if __name__ == "__main__":
