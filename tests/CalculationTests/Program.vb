@@ -28,7 +28,7 @@ Module Program
         Check("person filters preserve empty exact and partial selections with and without allocation", AddressOf PersonStatisticsTests.FilterMatrix)
         Check("person allocation preserves signed rounding for two and three people across tax modes and rates", AddressOf PersonStatisticsTests.AllocationRounding)
         Check("person statistics round within each group and retain empty groups and metadata", AddressOf PersonStatisticsTests.GroupBoundaries)
-        Check("person matching ignores order and currently compares User references", AddressOf PersonStatisticsTests.UserReferenceMatching)
+        Check("person matching uses user codes across separate instances names and selection order", AddressOf PersonStatisticsTests.UserCodeMatching)
         Check("balance estimation uses receipt mode", AddressOf BalanceEstimation)
         Return Finish()
     End Function
