@@ -47,7 +47,7 @@ class SelectionTests(unittest.TestCase):
     def test_schema_and_json_in_docs_are_test_inputs(self):
         for path in ["docs/schema/monetail_schema.sql", "docs/migrations/20261019_01_revision_tokens.sql"]:
             with self.subTest(path=path):
-                self.assert_flags([path], "migrations", "windows_tests", "performance")
+                self.assert_flags([path], "api", "migrations", "windows_tests", "performance")
         self.assert_flags(["docs/tests/tax-rounding-cases.json"], "calculations")
         self.assert_flags(["tests/test_revision_migration.py"], "migrations")
         self.assert_flags(["docs/migrations/future.sql"], "migrations")
@@ -72,7 +72,8 @@ class SelectionTests(unittest.TestCase):
 
     def test_every_existing_project_input_selects_its_suite(self):
         for project, flag in [("tests/CalculationTests/CalculationTests.vbproj", "calculations"),
-                              ("tests/PersistenceTests/PersistenceTests.vbproj", "windows_tests")]:
+                              ("tests/PersistenceTests/PersistenceTests.vbproj", "windows_tests"),
+                              ("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj", "api")]:
             for pattern in project_inputs(project):
                 for source in ROOT.glob(pattern):
                     if source.is_file() and not source.name.endswith(".md"):

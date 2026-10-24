@@ -21,7 +21,7 @@ Windows デスクトップアプリ
 - 起動フォーム: `ViewForm`（`My Project/Application.Designer.vb`）
 - 現行データ操作: WindowsクライアントからSQLiteへ直接SQL発行。APIへの接続切替やクラウド同期は行っていない。
 
-同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。現段階の提供機能は`/health`だけで、Windows版のプロジェクト・モデル・DBを参照しない。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。[42 APIの土台](42-api-foundation.md)参照。
+同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。HTTPの提供機能は`/health`だけで、Windows版のプロジェクト・モデルは参照しない。既存SQLiteへの認証テーブル追加移行を専用コマンドとして実装し、通常起動はDBなしで行える。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。[42 APIの土台](42-api-foundation.md)、[44 認証DB](44-auth-database-foundation.md)参照。
 
 ## ディレクトリ
 
@@ -37,7 +37,7 @@ Windows デスクトップアプリ
 | `.../Logic/ReceiptAmountValidation.vb` | 既存計算を使う金額範囲の確認。反映候補と選択税設定で確認し、元モデルを変更しない |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
-| `src/Monetail.Api/` | 稼働確認用のASP.NET Core API。認証・DB接続・業務機能は未実装 |
+| `src/Monetail.Api/` | 稼働確認用のASP.NET Core APIと認証DBの追加移行。ログイン・業務機能は未実装 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
 | `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
@@ -96,7 +96,7 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 
 ## オンライン化に向けた境界
 
-まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。APIの土台はC#／ASP.NET Core／.NET 10で実装した。以下の認証・業務API・DB接続は後続の構成案で、まだ実装していない。
+まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。APIの土台と認証DBの接続・追加移行はC#／ASP.NET Core／.NET 10で実装した。以下の認証・業務API・本番配置は後続の構成案で、まだ実装していない。
 
 ```text
 Web / スマートフォン / デスクトップ
@@ -114,6 +114,7 @@ Web / スマートフォン / デスクトップ
 - [10 DBリレーション・データフロー](10-data-flow.md) — ER図、SQL読込・保存・更新・削除
 - [11 DB検査・バックアップ](11-db-audit.md) — 調査用SQLと安全な確認手順
 - [42 APIの土台](42-api-foundation.md) — API単独の起動・Docker・CIと未実装の境界
+- [44 認証DBの土台](44-auth-database-foundation.md) — 認証用追加移行と既存業務データの保持
 
 ## 根拠
 

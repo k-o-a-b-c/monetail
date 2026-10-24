@@ -1,6 +1,6 @@
 # Windows版の継続開発とWeb版の入力優先順位
 
-更新: 2026-10-24。APIはASP.NET Coreを採用し、同じリポジトリにC#／.NET 10の土台・`/health`・DockerとCIを追加した。認証・DB接続・Web入力と実環境への配置は未実施。[42 実装範囲と起動方法](42-api-foundation.md)参照。
+更新: 2026-10-24。APIはASP.NET Coreを採用し、同じリポジトリにC#／.NET 10の土台・`/health`・DockerとCI、認証DBの接続・追加移行を実装した。ログイン・Web入力と実環境への配置は未実施。[42 起動方法](42-api-foundation.md)、[44 認証DB](44-auth-database-foundation.md)参照。
 
 ## 確定した進め方
 
