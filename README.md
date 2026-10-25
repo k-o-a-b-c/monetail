@@ -9,7 +9,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 - ソリューション: [HouseholdAccountsBeta/HouseholdAccountsBeta.sln](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)
 - 業務操作: レシート・振替・残高の入力、分類別／収支／残高の集計など
 - **保留・未完成**: マスタ編集画面は作成を見送り。ポイント機能は一部実装のまま、採用範囲は未決定
-- **APIの土台**: C# / ASP.NET Core / .NET 10 LTS。HTTPでは`/health`だけを提供。Identity・SQLiteの認証DB接続と明示的な追加移行を実装し、ログイン・業務APIは未実装
+- **APIの土台**: C# / ASP.NET Core / .NET 10 LTS。HTTPでは`/health`だけを提供。Identity・SQLiteの認証DB接続、追加移行、初期管理者・コード発行コマンドを実装し、ログイン・業務APIは未実装
 
 ## ドキュメント
 
@@ -59,6 +59,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [42 APIの土台](docs/42-api-foundation.md) | 独立したASP.NET Coreプロジェクト、ローカル起動・Docker・CIと実装範囲 |
 | [43 パスキー認証の設計](docs/43-passkey-authentication-design.md) | 初回登録・ログイン・紛失復旧と人物対応の設計。認証は未実装 |
 | [44 認証DBの土台](docs/44-auth-database-foundation.md) | Identityと人物対応の追加移行、既存値保持と隔離したコピーでの確認 |
+| [45 初期管理者と登録コード](docs/45-initial-admin-enrollment.md) | 既存人物への初期管理者作成と、コードの明示的な再発行 |
 
 ### 読む順番
 

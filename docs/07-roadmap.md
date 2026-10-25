@@ -76,6 +76,7 @@
 - [x] APIにASP.NET Coreを採用。XMLの利用者コード指定は採用せず、ログイン結果から利用者を確定する方針（[33](33-windows-first-web-input-priorities.md)）
 - [x] 同じリポジトリにC#／.NET 10のAPIプロジェクト、`/health`、Docker起動と独立CIを追加（[42 APIの土台](42-api-foundation.md)）。既存Windows版の接続・SDKは維持
 - [x] Identity・SQLiteの認証DB基盤と人物対応の追加移行を実装。隔離したコピーで既存値保持を検証し、通常起動では移行しない（[44 認証DB](44-auth-database-foundation.md)）
+- [x] 初期管理者作成・既存アカウントへの登録コード再発行・ハッシュ保存を実装（[45](45-initial-admin-enrollment.md)、登録画面とログインは後続）
 - [ ] サーバー上のDockerで動かすAPIとSQLiteの詳細配置、認証・既存利用者の対応を設計
 - [ ] レシート入力の初期範囲と画面・API・保存契約を設計して実装
 - [ ] 次に振替入力の初期範囲と画面・API・保存契約を設計して実装

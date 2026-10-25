@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Monetail.Api.Authentication;
 
@@ -23,6 +24,8 @@ public static class AuthDatabaseServices
         }).AddRoles<IdentityRole>().AddEntityFrameworkStores<AuthDbContext>();
         services.AddDbContext<AuthDbContext>(options => options.UseSqlite(connection.ToString()));
         services.AddScoped<AuthDatabaseMigrator>();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddScoped<AdminProvisioningService>();
         return services;
     }
 }
