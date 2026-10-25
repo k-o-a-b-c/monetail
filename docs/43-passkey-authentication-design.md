@@ -1,6 +1,6 @@
 # 43 パスキー認証の設計
 
-更新: 2026-10-25。**パスキー登録・ログイン・セッションまで実装。Web管理画面は未実装で、本番設定やDBは変更していない。** [44 認証DBの土台](44-auth-database-foundation.md)と[45 初期管理者・コード発行](45-initial-admin-enrollment.md)に加え、[46 コードによるパスキー登録](46-passkey-enrollment.md)と[47 ログイン・セッション](47-passkey-login-sessions.md)まで実装した。既定は`/health`だけとし、固定HTTPS設定を指定した場合に認証画面と認証APIを公開する。
+更新: 2026-10-25。**パスキー登録・ログイン・セッション・本人再確認まで実装。Web管理画面は未実装で、本番設定やDBは変更していない。** [44 認証DBの土台](44-auth-database-foundation.md)と[45 初期管理者・コード発行](45-initial-admin-enrollment.md)に加え、[46 コードによるパスキー登録](46-passkey-enrollment.md)、[47 ログイン・セッション](47-passkey-login-sessions.md)と[48 本人再確認](48-passkey-reauthentication.md)まで実装した。既定は`/health`だけとし、固定HTTPS設定を指定した場合に認証画面と認証APIを公開する。
 
 ## 決定事項と設計案
 
@@ -135,8 +135,9 @@ SQLiteの親フォルダとData Protectionキーを永続化し、認証テー�
 | `GET /auth/csrf` | 同じオリジンの画面へCSRFトークンを渡す。家計情報は返さない |
 | `POST /auth/login/options` | 名前入力なしのパスキー認証オプションを発行。端末のタイムゾーンIDを受け取り、検証・補完後にチャレンジへ結び付ける |
 | `POST /auth/login/verify` | Identityで検証し、紐付け確認後にセッションとCookieを発行 |
+| `POST /auth/reauthentication/options` / `verify` | 有効なセッションの本人へ固定したパスキー再確認。確認日時だけを更新し、ログイン期限は延長しない。[48](48-passkey-reauthentication.md) |
 | `POST /auth/enrollment/options` / `verify` | 登録コードによるパスキー登録。コードが示す認証IDに固定し、家計利用セッションは発行しない |
-| `GET /auth/me` | 現在の認証IDと対応人物コード・表示名を返す。未認証は401 |
+| `GET /auth/me` | 現在の認証IDと対応人物コード・表示名・固定期限・直近本人確認日時を返す。未認証は401 |
 | `POST /auth/logout` | 現在のセッションを失効 |
 | `GET /auth/passkeys` | 本人の登録パスキー一覧。秘密鍵等は返さない |
 | `POST /auth/passkeys/options` / `verify` | 直近の本人確認を条件に、本人へパスキーを追加 |
@@ -156,7 +157,7 @@ SQLiteの親フォルダとData Protectionキーを永続化し、認証テー�
 
 アカウント発行や復旧によって、管理者本人が対象者としてログインするセッションは作らない。管理APIの対象ID・入力値から管理者ロールを付与する入口も設けない。
 
-同じログインフローによる本人再確認では対象認証IDを固定し、別人を認証したら本人確認済みにしない。ログインページ・必要な静的資産・上表の認証開始／登録・CSRF・稼働確認だけを未認証で公開し、今後の家計APIは認証必須を既定にする。登録APIのJSONとIdentityの状態管理への接続は[46](46-passkey-enrollment.md)で実装した。ログイン・本人情報・ログアウトのJSONは[47](47-passkey-login-sessions.md)で実装した。本人再確認・パスキー管理等は後続とする。
+同じログインフローによる本人再確認では対象認証IDを固定し、別人を認証したら本人確認済みにしない。ログインページ・必要な静的資産・通常ログイン／登録・CSRF・稼働確認だけを未認証で公開し、本人再確認には有効なセッションを要求する。今後の家計APIは認証必須を既定にする。登録APIのJSONとIdentityの状態管理への接続は[46](46-passkey-enrollment.md)で実装した。ログイン・本人情報・ログアウトのJSONは[47](47-passkey-login-sessions.md)で実装した。本人再確認は[48](48-passkey-reauthentication.md)まで実装し、パスキー管理等は後続とする。
 
 `MapIdentityApi`をそのまま公開してもパスキー用APIは揃わず、不要なメール・パスワード登録経路を開くため採用しない。Identityのパスキー機能へ薄いエンドポイントと画面を接続する。
 

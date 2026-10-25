@@ -1,6 +1,7 @@
 "use strict";
 
 const loginButton = document.getElementById("login");
+const reauthenticationButton = document.getElementById("reauthenticate");
 const logoutButton = document.getElementById("logout");
 const person = document.getElementById("person");
 const message = document.getElementById("message");
@@ -28,7 +29,7 @@ async function post(path, body) {
     });
     if (!response.ok) {
         if (response.status === 429) throw new Error("操作が続いています。1分ほど待ってからやり直してください。");
-        throw new Error("操作を完了できませんでした。パスキーでのログインをやり直してください。");
+        throw new Error("操作を完了できませんでした。もう一度お試しください。");
     }
     return response.status === 204 ? null : response.json();
 }
@@ -38,50 +39,64 @@ async function refresh() {
     const response = await fetch("/auth/me", { credentials: "same-origin", cache: "no-store" });
     const loggedIn = response.ok;
     loginButton.hidden = loggedIn;
+    reauthenticationButton.hidden = !loggedIn;
     logoutButton.hidden = !loggedIn;
     person.textContent = "";
     if (loggedIn) {
         const current = await response.json();
         person.textContent = `${current.displayName} としてログインしています。`;
-        message.textContent = `ログイン期限: ${new Date(current.expiresAtUtc).toLocaleString()}`;
+        message.textContent = `ログイン期限: ${new Date(current.expiresAtUtc).toLocaleString()}\n本人確認日時: ${new Date(current.verifiedAtUtc).toLocaleString()}`;
     } else if (response.status !== 401) {
         throw new Error("ログイン状態を確認できません。時間をおいてやり直してください。");
     }
 }
 
-// 端末でパスキーを選び、Identity検証に必要な署名応答を送る。
-loginButton.addEventListener("click", async () => {
-    loginButton.disabled = true;
+// ログインと本人再確認の共通操作として、端末の署名応答を対応する受付へ送る。
+async function authenticate(path, body) {
+    if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials)
+        throw new Error("対応するブラウザーでHTTPSのログイン画面を開いてください。");
+    const options = await post(`${path}/options`, body);
+    options.challenge = decode(options.challenge);
+    for (const credential of options.allowCredentials || []) credential.id = decode(credential.id);
+    const credential = await navigator.credentials.get({ publicKey: options });
+    if (!credential) throw new Error("本人確認を中止しました。やり直してください。");
+    const response = credential.response;
+    await post(`${path}/verify`, { credential: {
+        id: credential.id, rawId: encode(credential.rawId), type: credential.type,
+        response: {
+            clientDataJSON: encode(response.clientDataJSON), authenticatorData: encode(response.authenticatorData),
+            signature: encode(response.signature), userHandle: response.userHandle ? encode(response.userHandle) : null
+        },
+        clientExtensionResults: credential.getClientExtensionResults()
+    } });
+}
+
+// ログインまたは本人再確認の間は、重複操作を止めて終了後に現在の状態を表示する。
+async function verifyIdentity(reauthentication) {
+    loginButton.disabled = reauthenticationButton.disabled = logoutButton.disabled = true;
     message.textContent = "端末でパスキーを選んで本人確認を行ってください。";
     try {
-        if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials)
-            throw new Error("対応するブラウザーでHTTPSのログイン画面を開いてください。");
-        let timeZone = null;
-        try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { /* サーバーの地域へ補完する。 */ }
-        const options = await post("/auth/login/options", { timeZone });
-        options.challenge = decode(options.challenge);
-        for (const credential of options.allowCredentials || []) credential.id = decode(credential.id);
-        const credential = await navigator.credentials.get({ publicKey: options });
-        if (!credential) throw new Error("ログインを中止しました。やり直してください。");
-        const response = credential.response;
-        await post("/auth/login/verify", { credential: {
-            id: credential.id, rawId: encode(credential.rawId), type: credential.type,
-            response: {
-                clientDataJSON: encode(response.clientDataJSON), authenticatorData: encode(response.authenticatorData),
-                signature: encode(response.signature), userHandle: response.userHandle ? encode(response.userHandle) : null
-            },
-            clientExtensionResults: credential.getClientExtensionResults()
-        } });
+        if (reauthentication) {
+            await authenticate("/auth/reauthentication", {});
+        } else {
+            let timeZone = null;
+            try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { /* サーバーの地域へ補完する。 */ }
+            await authenticate("/auth/login", { timeZone });
+        }
         await refresh();
     } catch (error) {
+        await refresh().catch(() => {});
         message.textContent = error.name === "NotAllowedError" || error.name === "AbortError"
-            ? "ログインが中止されたか、時間切れになりました。やり直してください。" : error.message;
-    } finally { loginButton.disabled = false; }
-});
+            ? "本人確認が中止されたか、時間切れになりました。やり直してください。" : error.message;
+    } finally { loginButton.disabled = reauthenticationButton.disabled = logoutButton.disabled = false; }
+}
+
+loginButton.addEventListener("click", () => verifyIdentity(false));
+reauthenticationButton.addEventListener("click", () => verifyIdentity(true));
 
 // 現在のブラウザーのセッションだけを失効させ、ログイン前の表示に戻す。
 logoutButton.addEventListener("click", async () => {
-    logoutButton.disabled = true;
+    reauthenticationButton.disabled = logoutButton.disabled = true;
     try {
         await post("/auth/logout", {});
         await refresh();
@@ -90,7 +105,7 @@ logoutButton.addEventListener("click", async () => {
         await refresh().catch(() => {});
         message.textContent = error.message;
     }
-    finally { logoutButton.disabled = false; }
+    finally { reauthenticationButton.disabled = logoutButton.disabled = false; }
 });
 
 refresh().catch(error => { message.textContent = error.message; });

@@ -28,7 +28,8 @@ public static class PasskeyLoginEndpoints
             return Results.Ok(new
             {
                 authUserId = current.Session.AuthUserId, userCode = current.UserCode, displayName = current.DisplayName,
-                expiresAtUtc = DateTime.SpecifyKind(current.Session.ExpiresAtUtc, DateTimeKind.Utc)
+                expiresAtUtc = DateTime.SpecifyKind(current.Session.ExpiresAtUtc, DateTimeKind.Utc),
+                verifiedAtUtc = DateTime.SpecifyKind(current.Session.VerifiedAtUtc, DateTimeKind.Utc)
             });
         }).RequireAuthorization();
         group.MapPost("/logout", async (HttpContext http, PasskeyLoginService service) =>

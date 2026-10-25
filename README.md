@@ -9,7 +9,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 - ソリューション: [HouseholdAccountsBeta/HouseholdAccountsBeta.sln](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)
 - 業務操作: レシート・振替・残高の入力、分類別／収支／残高の集計など
 - **保留・未完成**: マスタ編集画面は作成を見送り。ポイント機能は一部実装のまま、採用範囲は未決定
-- **APIの土台**: C# / ASP.NET Core / .NET 10 LTS。既定は`/health`だけを提供。Identity・SQLiteの認証DB、初期管理者・コード発行、HTTPSパスキー登録・ログイン・固定期限セッションを実装。管理画面・業務APIは未実装
+- **APIの土台**: C# / ASP.NET Core / .NET 10 LTS。既定は`/health`だけを提供。Identity・SQLiteの認証DB、初期管理者・コード発行、HTTPSパスキー登録・ログイン・固定期限セッション・本人再確認を実装。管理画面・業務APIは未実装
 
 ## ドキュメント
 
@@ -62,6 +62,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [45 初期管理者と登録コード](docs/45-initial-admin-enrollment.md) | 既存人物への初期管理者作成と、コードの明示的な再発行 |
 | [46 パスキー登録](docs/46-passkey-enrollment.md) | HTTPS設定・登録画面・コード検証と原子的な有効化 |
 | [47 ログイン・セッション](docs/47-passkey-login-sessions.md) | パスキー認証、13日経過後の午前2時までの固定期限、本人情報とログアウト |
+| [48 パスキー本人再確認](docs/48-passkey-reauthentication.md) | 同じ本人・セッションの再確認、直近5分の判定、固定期限の維持 |
 
 ### 読む順番
 

@@ -93,6 +93,10 @@ internal sealed class LoginTestApp : IAsyncDisposable
 
     /// <summary>実際のEC秘密鍵でWebAuthn認証応答に署名し、必要時に検証項目を壊す。</summary>
     public object Assertion(JsonElement options, string? corruption = null, uint count = 0)
+        => AssertionFor(options, UserId, CredentialId, corruption, count);
+
+    /// <summary>指定アカウントの資格情報で署名し、別人の再確認拒否も検証する。</summary>
+    public object AssertionFor(JsonElement options, string userId, byte[] credentialId, string? corruption = null, uint count = 0)
     {
         var clientData = JsonSerializer.SerializeToUtf8Bytes(new
         {
@@ -105,14 +109,14 @@ internal sealed class LoginTestApp : IAsyncDisposable
         var signature = key.SignData([.. authData, .. SHA256.HashData(clientData)], HashAlgorithmName.SHA256,
             DSASignatureFormat.Rfc3279DerSequence);
         if (corruption == "signature") signature[^1] ^= 1;
-        var id = corruption == "credential" ? RandomNumberGenerator.GetBytes(32) : CredentialId;
+        var id = corruption == "credential" ? RandomNumberGenerator.GetBytes(32) : credentialId;
         return new
         {
             id = WebEncoders.Base64UrlEncode(id), rawId = WebEncoders.Base64UrlEncode(id), type = "public-key",
             response = new
             {
                 clientDataJSON = WebEncoders.Base64UrlEncode(clientData), authenticatorData = WebEncoders.Base64UrlEncode(authData),
-                signature = WebEncoders.Base64UrlEncode(signature), userHandle = corruption == "user" ? "b3RoZXI" : WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(UserId))
+                signature = WebEncoders.Base64UrlEncode(signature), userHandle = corruption == "user" ? "b3RoZXI" : WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(userId))
             },
             clientExtensionResults = new { }
         };
@@ -120,6 +124,25 @@ internal sealed class LoginTestApp : IAsyncDisposable
 
     public Task<HttpResponseMessage> VerifyAsync(HttpClient client, object credential) =>
         client.PostAsJsonAsync("/auth/login/verify", new { credential });
+
+    /// <summary>同じ表示名の別人物へ有効アカウントと別の資格情報を作成する。</summary>
+    public async Task<(string UserId, byte[] CredentialId)> AddAccountAsync(int personCode)
+    {
+        await using var scope = Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
+        var user = new AuthUser { UserName = Guid.NewGuid().ToString("N"), IsEnabled = true };
+        Assert.True((await users.CreateAsync(user)).Succeeded);
+        var point = key.ExportParameters(false).Q;
+        byte[] publicKey = [0xA5, 0x01, 0x02, 0x03, 0x26, 0x20, 0x01, 0x21, 0x58, 0x20,
+            .. point.X!, 0x22, 0x58, 0x20, .. point.Y!];
+        var id = RandomNumberGenerator.GetBytes(32);
+        Assert.True((await users.AddOrUpdatePasskeyAsync(user, new UserPasskeyInfo(id, publicKey,
+            Time.GetUtcNow(), 0, ["internal"], true, false, false, [], []))).Succeeded);
+        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        context.UserLinks.Add(new AuthUserLink { AuthUserId = user.Id, UserCode = personCode });
+        await context.SaveChangesAsync();
+        return (user.Id, id);
+    }
 
     /// <summary>ログインに成功し、再起動や再送検証用に保護Cookieを記録する。</summary>
     public async Task LoginAsync(HttpClient client, string? zone = "Asia/Tokyo", uint count = 0)
@@ -156,6 +179,9 @@ internal sealed class LoginTestApp : IAsyncDisposable
             {
                 endpoints.MapGet("/auth/test-default", () => "protected");
                 endpoints.MapGet("/auth/test-admin", () => "admin").RequireAuthorization(policy => policy.RequireRole("Admin"));
+                endpoints.MapGet("/auth/test-recent", () => "recent").RequireAuthorization(RecentPasskeyRequirement.PolicyName);
+                endpoints.MapGet("/auth/test-recent-admin", () => "recent-admin")
+                    .RequireAuthorization(RecentPasskeyRequirement.PolicyName).RequireAuthorization(policy => policy.RequireRole("Admin"));
             });
         };
     }

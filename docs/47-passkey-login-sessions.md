@@ -1,6 +1,6 @@
 # 47 パスキーログインと固定期限セッション
 
-**通常ログイン・本人情報取得・ログアウト・要求ごとの失効確認まで実装。管理画面・本人再確認・パスキー管理・全失効／復旧は後続。** [43 認証設計](43-passkey-authentication-design.md)と[46 登録](46-passkey-enrollment.md)に従う。期限は利用者の変更により、**13日（312時間）経過後の次の午前2時**とする（DEC-034）。本番設定・実データ・Windows版は変更していない。
+**通常ログイン・本人情報取得・ログアウト・要求ごとの失効確認まで実装。本人再確認は[48](48-passkey-reauthentication.md)で実装し、管理画面・パスキー管理・全失効／復旧は後続。** [43 認証設計](43-passkey-authentication-design.md)と[46 登録](46-passkey-enrollment.md)に従う。期限は利用者の変更により、**13日（312時間）経過後の次の午前2時**とする（DEC-034）。本番設定・実データ・Windows版は変更していない。
 
 ## 設定と追加移行
 
@@ -17,7 +17,7 @@ dotnet run --project src/Monetail.Api -- migrate-auth-db
 | `IdHash` | 暗号学的乱数32バイトから作るセッション識別子のSHA-256ハッシュ。BLOB、NOT NULL、主キー |
 | `AuthUserId` | NOT NULL、Identityアカウントへの外部キー。削除時はRESTRICT、検索用索引あり |
 | `CreatedAtUtc`、`ExpiresAtUtc` | 発行日時と固定失効日時。NOT NULLのUTC時刻 |
-| `VerifiedAtUtc` | 直近本人確認日時。ログイン時のUTC時刻を保存。本人再確認による更新は後続 |
+| `VerifiedAtUtc` | 直近本人確認日時。ログイン時のUTC時刻を保存。本人再確認による更新は[48](48-passkey-reauthentication.md)で実装 |
 | `RevokedAtUtc` | 取消時刻。NULLなら未取消 |
 
 タイムゾーン・人物名・権限はセッション表へ保存しない。識別子の生値は標準Cookie認証がData Protectionで保護するCookie内に置く。Cookieには認証ID・識別子・標準の発行／失効情報を保持し、人物コード・権限・タイムゾーンを固定情報として持たせない。
@@ -33,7 +33,7 @@ Dockerのサーバー既定地域は`Etc/UTC`。Composeは配備時の`TZ`を取
 | `GET /auth/login`、`GET /auth/login.js` | 未認証で最小画面・スクリプトを配信 |
 | `POST /auth/login/options` | 本文`{"timeZone":"Asia/Tokyo"}`。未取得時はnullも可。名前入力なしのIdentity標準認証オプションと、一時Cookieを返す |
 | `POST /auth/login/verify` | 本文`{"credential":{…}}`。署名・Origin・RP ID・チャレンジ・本人確認・鍵の所有者等をIdentityで検証し、成功時200とセッションCookieを返す |
-| `GET /auth/me` | 有効なセッションが必要。`authUserId`、`userCode`、`displayName`、固定期限の`expiresAtUtc`を返す。クエリ等の人物コードでは本人を切り替えない |
+| `GET /auth/me` | 有効なセッションが必要。`authUserId`、`userCode`、`displayName`、固定期限の`expiresAtUtc`と直近本人確認日時の`verifiedAtUtc`を返す。クエリ等の人物コードでは本人を切り替えない |
 | `POST /auth/logout` | 有効なセッションとCSRFが必要。現在のセッションをDBで失効させてCookieを削除し、204を返す。他ブラウザーの別セッションは継続 |
 
 `/health`・CSRF取得・登録／ログイン画面と開始／検証だけを未認証で公開し、それ以外は既定で認証必須とする。ログイン失敗・未認証・期限切れ・取消済み・無効アカウントは401、認証後の人物対応不備は403、認証DB障害は503として拒否する。画面への302転送は行わない。CSRF不正は400、回数超過は429。ログイン失敗から人物や鍵の有無を判断できる応答は返さない。
@@ -56,4 +56,4 @@ Dockerのサーバー既定地域は`Etc/UTC`。Composeは配備時の`TZ`を取
 
 Chromiumの仮想認証器でも登録→ログイン→再起動→継続→ログアウトと失効Cookieの再送拒否を確認する。端末とサーバーの地域差・サーバーへの補完・生コード非保存と通常ログ非出力、表示中の失効後にログイン操作へ戻れることも確認する。DockerではUTCとニューヨークの.NET地域解決・非root稼働・DBファイル非作成の稼働確認を検証する。件数・実行結果は[tests/README.md](../tests/README.md)に集約する。Windows Hello／スマートフォンの物理端末と本番配備は未確認。
 
-管理者画面、人物・一般アカウント作成、追加管理者の管理、全失効／復旧コマンド、直近5分の本人再確認、パスキー追加／削除、家計の業務APIは後続とする。管理操作の本人再確認で既存セッションの固定期限を延長しない設計も維持する。
+直近5分の本人再確認は[48](48-passkey-reauthentication.md)で実装した。管理者画面、人物・一般アカウント作成、追加管理者の管理、全失効／復旧コマンド、パスキー追加／削除、家計の業務APIは後続とする。管理操作の本人再確認で既存セッションの固定期限を延長しない設計も維持する。
