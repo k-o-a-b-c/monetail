@@ -86,6 +86,8 @@ APIの起動方法と今回の実装範囲は[42 APIの土台](../docs/42-api-fo
 
 ローカル初回はAPI94件が成功し、標準Cookieの発行時刻が秒単位になる期待値1件を修正した。その後、影響するログイン／移行35件と期限計算13件が成功した。Chromiumの仮想認証器とlocalhost専用HTTPSでも、登録→ログイン→再起動→継続→ログアウト、失効Cookie拒否、端末とサーバーの地域差・サーバーへの補完、登録完了リンク、表示中の期限切れ後のログイン操作への復帰を確認した。Cookie応答ヘッダーのUTC期限もAPIと一致した。独立したPython計算でも13日後の東京とニューヨークの期限が一致し、既存totalと生コード非保存を確認した。Windows Hello／スマートフォンの物理端末・本番配備は未確認。[47 実装](../docs/47-passkey-login-sessions.md)。未変更のWindows・既存計算／SQL移行・性能は、変更前の[CI 40160350968](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40160350968)の結果を再利用する。
 
+実装コミット`8964f03`の[CI 40177351999](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40177351999)でAPI103件・CI選択15件・Compose設定・Dockerビルドが成功した。Dockerでは`Etc/UTC`と`America/New_York`の両方で.NETの地域解決・非root起動・稼働確認・DB非作成を確認し、Windows・既存計算／Python移行・性能の3ジョブは省略された。最終更新はこの結果の文書追記だけで、検証済みの製品・テスト・CIソースは変更していない。
+
 ## Windows版の検証履歴
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
