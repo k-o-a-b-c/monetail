@@ -106,6 +106,8 @@ APIの起動方法と今回の実装範囲は[42 APIの土台](../docs/42-api-fo
 
 CLIは実際のProgramを別プロセスで起動し、人物指定・復元後の明示指定・操作オプションの混在／重複／不正位置の拒否、非待受、Web設定不要、終了コード、コードを自動発行しないこと、別操作の再発行と停止状態維持、未存在DBを作成しないことを確認する。変更前は[CI 40194307294](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40194307294)の成功を再利用した。ローカルで既存APIと全失効を含む161件、追加CLI11件、管理者同時停止1件が成功し、CI選択15件も成功した。画面・既存ブラウザー認証処理・Windows・既存計算／SQL移行・性能は未変更で、無関係な手動操作は繰り返さない。実環境のバックアップ復元と本番配備は未確認。[49 実装・復旧手順](../docs/49-authentication-revocation-recovery.md)。
 
+実装コミット`4c3ae1b`の[CI 40233744539](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40233744539)でAPI全173件・CI選択15件・DockerビルドとUTC／ニューヨークの稼働確認が成功した。未変更のCompose設定ステップとWindows・既存計算／Python移行・性能の3ジョブは省略された。最後の更新はこの結果記録だけで、製品・テスト・CIソースは検証済みのままとする。
+
 ## Windows版の検証履歴
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
