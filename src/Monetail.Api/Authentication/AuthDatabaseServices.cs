@@ -26,6 +26,7 @@ public static class AuthDatabaseServices
         services.AddScoped<AuthDatabaseMigrator>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<AdminProvisioningService>();
+        services.AddScoped<AuthenticationRevocationService>();
         return services;
     }
 }

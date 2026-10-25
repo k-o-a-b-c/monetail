@@ -40,4 +40,4 @@
 
 今回の認証実装にDBファイル自体の暗号化を含めず、通常のSQLiteを継続する（DEC-030）。失効と認証完了の競合、人物・アカウント作成の応答喪失後の再送も検証し、無効な鍵による新規セッション発行と重複人物の作成を防止する。
 
-初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。Web管理画面・パスキー追加／削除・全失効／緊急復旧は後続とする。
+初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。Web管理画面・追加管理者の管理・パスキー追加／削除は後続とする。
