@@ -58,7 +58,8 @@ form.addEventListener("submit", async event => {
         } }, token);
         code.value = "";
         form.hidden = true;
-        message.textContent = "パスキーを登録しました。\nこの画面を閉じてください。";
+        message.textContent = "パスキーを登録しました。ログイン画面へ進んでください。";
+        document.getElementById("login-link").hidden = false;
     } catch (error) {
         message.textContent = error.name === "NotAllowedError" || error.name === "AbortError"
             ? "登録が中止されたか、時間切れになりました。登録操作をやり直してください。"

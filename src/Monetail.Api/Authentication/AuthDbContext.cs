@@ -9,6 +9,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 {
     public DbSet<AuthUserLink> UserLinks => Set<AuthUserLink>();
     public DbSet<EnrollmentCode> EnrollmentCodes => Set<EnrollmentCode>();
+    public DbSet<AuthSession> Sessions => Set<AuthSession>();
 
     /// <summary>既存人物を移行対象から除外し、認証用の制約を設定する。</summary>
     protected override void OnModelCreating(ModelBuilder builder)
@@ -44,6 +45,15 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
                 .OnDelete(DeleteBehavior.Restrict);
             code.HasIndex(row => row.AuthUserId).IsUnique()
                 .HasFilter("\"ConsumedAtUtc\" IS NULL AND \"RevokedAtUtc\" IS NULL");
+        });
+        builder.Entity<AuthSession>(session =>
+        {
+            session.ToTable("auth_sessions");
+            session.HasKey(row => row.IdHash);
+            session.Property(row => row.IdHash).IsRequired().ValueGeneratedNever();
+            session.Property(row => row.AuthUserId).IsRequired();
+            session.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

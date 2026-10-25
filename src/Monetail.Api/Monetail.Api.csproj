@@ -15,5 +15,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Pages/Enrollment.html" />
     <EmbeddedResource Include="Pages/Enrollment.js" />
+    <EmbeddedResource Include="Pages/Login.html" />
+    <EmbeddedResource Include="Pages/Login.js" />
   </ItemGroup>
 </Project>

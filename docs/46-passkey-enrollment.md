@@ -1,6 +1,6 @@
 # 46 登録コードによるパスキー登録
 
-**登録画面・コード検証・Identityによる登録検証・アカウント有効化まで実装。ログイン・セッション・管理画面は後続。** [43 認証設計](43-passkey-authentication-design.md)と[45 コード発行](45-initial-admin-enrollment.md)に従う。本番設定・実データ・Windows版は変更していない。
+**登録画面・コード検証・Identityによる登録検証・アカウント有効化まで実装。ログイン・セッションは[47](47-passkey-login-sessions.md)まで実装。管理画面は後続。** [43 認証設計](43-passkey-authentication-design.md)と[45 コード発行](45-initial-admin-enrollment.md)に従う。本番設定・実データ・Windows版は変更していない。
 
 ## 有効化と配備設定
 
@@ -24,7 +24,7 @@ API自身のHTTPS待受け、または明示した既知プロキシでのHTTPS�
 
 ## 画面とHTTP契約
 
-固定Originの`/auth/enroll`を開き、登録コードを貼り付けて「パスキーを登録する」を押す。名前や人物コード・認証IDの入力は受け付けない。端末の本人確認を終えると、画面のコードを消して登録完了を表示する。ログインは自動実行せず、今回まだログイン画面を提供しない。
+固定Originの`/auth/enroll`を開き、登録コードを貼り付けて「パスキーを登録する」を押す。名前や人物コード・認証IDの入力は受け付けない。端末の本人確認を終えると、画面のコードを消して登録完了を表示する。ログインは自動実行せず、完了後のリンクから[47 ログイン画面](47-passkey-login-sessions.md)へ進む。
 
 | 経路 | 入出力・処理 |
 | --- | --- |
@@ -35,7 +35,7 @@ API自身のHTTPS待受け、または明示した既知プロキシでのHTTPS�
 
 両POSTは`Content-Type: application/json`、同一Originの`Origin`ヘッダー、`GET /auth/csrf`で得た`X-CSRF-TOKEN`が必要。CSRF不正・無効コード・登録検証失敗は人物情報を含めない400、別Originは403、回数超過は429、DB障害等は503とする。本文は64 KiBまでで、それを超える要求は413。コード受付・検証を合わせて送信元IPあたり1分20回に制限し、待ち行列は作らない。
 
-登録コードはPOST本文だけで送り、URLやブラウザーストレージへ保存しない。登録画面・スクリプト・CSRF・登録APIは`no-store`とし、外部スクリプト・フレーム埋込みをCSPで拒否する。Cookieは`__Host-`、Secure・HttpOnly・SameSite=Lax・Path=/、Domainなし。資格情報付きCORSやメール・パスワード登録経路は公開しない。
+登録コードはPOST本文だけで送り、URLやブラウザーストレージへ保存しない。認証画面・スクリプト・CSRF・認証APIは`no-store`とし、外部スクリプト・フレーム埋込みをCSPで拒否する。Cookieは`__Host-`、Secure・HttpOnly・SameSite=Lax・Path=/、Domainなし。資格情報付きCORSやメール・パスワード登録経路は公開しない。
 
 ## 検証と確定の境界
 
@@ -53,4 +53,4 @@ API自身のHTTPS待受け、または明示した既知プロキシでのHTTPS�
 
 実SQLiteとIdentityの自動検証に加え、localhost専用HTTPS・Chromiumの仮想認証器で、画面からdiscoverable credentialを登録し、コード消去・アカウント有効化・コード消費・既存total保持まで確認した。物理端末のWindows Helloやスマートフォン、本番HTTPS配備は未確認。件数・実行結果は[tests/README.md](../tests/README.md)へ集約する。
 
-通常ログインと固定期限のセッション、本人再確認、パスキー追加／削除、管理画面、追加管理者や全失効・復旧コマンド、業務APIは後続とする。登録済みでもこの段階だけでは家計APIを利用できない。
+通常ログインと固定期限セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)まで実装した。本人再確認、パスキー追加／削除、管理画面、追加管理者や全失効・復旧コマンド、業務APIは後続とする。ログインできても家計の業務APIはまだ提供しない。
