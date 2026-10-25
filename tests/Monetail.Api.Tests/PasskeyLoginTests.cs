@@ -230,6 +230,28 @@ public class PasskeyLoginTests
         Assert.Equal(before, app.Database.Snapshot(["auth_sessions"]));
     }
 
+    [Fact]
+    public async Task LoginAtSixOnTheFirstWorksOnTheSeventhButExpiresBeforeSixOnTheFifteenth()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        var login = new DateTimeOffset(DateTime.UtcNow.Year + 1, 1, 1, 6, 0, 0, TimeSpan.FromHours(9));
+        app.Time.Set(login.ToUniversalTime());
+        using var client = app.Client();
+        await app.LoginAsync(client, "Asia/Tokyo");
+        var me = await client.GetFromJsonAsync<JsonElement>("/auth/me");
+        var expectedExpiry = new DateTimeOffset(login.Year, 1, 15, 2, 0, 0, TimeSpan.FromHours(9));
+        Assert.Equal(expectedExpiry.ToUniversalTime(), me.GetProperty("expiresAtUtc").GetDateTimeOffset());
+        var before = app.Database.Snapshot(["auth_sessions"]);
+        app.Time.Set(login.AddDays(6).ToUniversalTime());
+        using var seventh = await client.GetAsync("/auth/me");
+        Assert.Equal(HttpStatusCode.OK, seventh.StatusCode);
+        Assert.False(seventh.Headers.Contains("Set-Cookie"));
+        app.Time.Set(login.AddDays(14).ToUniversalTime());
+        using var fifteenth = await client.GetAsync("/auth/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, fifteenth.StatusCode);
+        Assert.Equal(before, app.Database.Snapshot(["auth_sessions"]));
+    }
+
     [Theory]
     [InlineData("auth_sessions", "INSERT")]
     [InlineData("AspNetUserPasskeys", "UPDATE")]

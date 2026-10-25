@@ -10,6 +10,7 @@ public class SessionLifetimeTests
     [Theory]
     [InlineData("2026-10-01T11:00:00Z", "Asia/Tokyo", "2026-10-14T17:00:00Z")]
     [InlineData("2026-09-30T16:00:00Z", "Asia/Tokyo", "2026-10-13T17:00:00Z")]
+    [InlineData("2026-09-30T21:00:00Z", "Asia/Tokyo", "2026-10-14T17:00:00Z")]
     [InlineData("2026-10-01T01:59:59Z", "Etc/UTC", "2026-10-14T02:00:00Z")]
     [InlineData("2026-10-01T02:00:00Z", "Etc/UTC", "2026-10-15T02:00:00Z")]
     [InlineData("2026-10-01T02:00:01Z", "Etc/UTC", "2026-10-15T02:00:00Z")]
