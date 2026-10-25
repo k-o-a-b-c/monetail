@@ -12,4 +12,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Pages/Enrollment.html" />
+    <EmbeddedResource Include="Pages/Enrollment.js" />
+  </ItemGroup>
 </Project>

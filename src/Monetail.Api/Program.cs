@@ -22,6 +22,13 @@ builder.Services.AddHealthChecks();
 var connectionString = builder.Configuration.GetConnectionString("Monetail");
 if (!string.IsNullOrWhiteSpace(connectionString))
     builder.Services.AddAuthDatabase(connectionString);
+var passkeySettings = isAuthCommand ? null : PasskeySettings.Read(builder.Configuration);
+if (passkeySettings is not null)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
+    builder.Services.AddPasskeyEnrollment(passkeySettings);
+}
 
 var app = builder.Build();
 if (isAuthCommand)
@@ -69,6 +76,7 @@ if (isAuthCommand)
     await app.DisposeAsync();
     return;
 }
+if (passkeySettings is not null) app.MapPasskeyEnrollment(passkeySettings);
 app.MapHealthChecks("/health");
 app.Run();
 

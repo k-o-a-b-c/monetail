@@ -50,7 +50,7 @@ curl http://127.0.0.1:8080/health
 docker compose down
 ```
 
-既定の公開先は同じ端末からの確認または将来のリバースプロキシ向けであり、この設定では他端末からLAN経由で接続できない。LAN公開・HTTPS終端・ログインは後続で設計する。
+既定の公開先は同じ端末からの確認または将来のリバースプロキシ向けであり、この設定では他端末からLAN経由で接続できない。登録時の固定HTTPS・既知プロキシ設定は[46](46-passkey-enrollment.md)を参照する。実環境のLAN公開・HTTPS終端・ログインは未実施。
 
 CIでは変更対象に応じてAPIテスト・Compose設定・Dockerビルドと起動を選択する。APIテストだけの変更ではDockerをビルドせず、Markdownだけの変更ではこれらを省略する。選択規則は[自動テスト](../tests/README.md)を参照する。
 
@@ -67,4 +67,4 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 
 検証の実行結果・件数・CIは[tests/README.md](../tests/README.md)を参照する。APIの起動確認だけでWindows版全体や実データ・実運用環境を検証済みとは扱わない。
 
-初期管理者の作成と、既存アカウントへの登録コード再発行は[45](45-initial-admin-enrollment.md)まで実装した。Web管理画面・パスキー登録とログイン・全失効／緊急復旧は後続とする。
+初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、コードによるパスキー登録と有効化は[46](46-passkey-enrollment.md)まで実装した。ログイン・セッション・Web管理画面・全失効／緊急復旧は後続とする。

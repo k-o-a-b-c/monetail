@@ -21,7 +21,7 @@ Windows デスクトップアプリ
 - 起動フォーム: `ViewForm`（`My Project/Application.Designer.vb`）
 - 現行データ操作: WindowsクライアントからSQLiteへ直接SQL発行。APIへの接続切替やクラウド同期は行っていない。
 
-同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。HTTPの提供機能は`/health`だけで、Windows版のプロジェクト・モデルは参照しない。既存SQLiteへの認証テーブル追加移行と初期管理者・登録コード発行を専用コマンドとして実装し、通常起動はDBなしで行える。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。[42 APIの土台](42-api-foundation.md)、[44 認証DB](44-auth-database-foundation.md)参照。
+同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。既定のHTTP機能は`/health`で、設定時は[46 パスキー登録](46-passkey-enrollment.md)の画面とAPIも提供する。Windows版のプロジェクト・モデルは参照しない。既存SQLiteへの認証テーブル追加移行と初期管理者・登録コード発行を専用コマンドとして実装し、通常起動はDBなしで行える。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。[42 APIの土台](42-api-foundation.md)、[44 認証DB](44-auth-database-foundation.md)参照。
 
 ## ディレクトリ
 
@@ -128,4 +128,4 @@ Web / スマートフォン / デスクトップ
 
 明細の値引後金額はReceiptDetail.CalculateDiscountedFeeで計算する。Receiptの合計・人別参考額とCalculationの分類／明細参考額は、このDecimalの共通処理を呼び出してから従来の税処理・集計・人数按分を行う。計算結果を明細へ保存・キャッシュしない。
 
-初期管理者の作成と登録コードの保存・再発行は[45](45-initial-admin-enrollment.md)を参照。パスキー登録・ログインのHTTP経路は後続とする。
+初期管理者の作成と登録コードの保存・再発行は[45](45-initial-admin-enrollment.md)を参照。パスキー登録のHTTP経路と固定HTTPS設定は[46](46-passkey-enrollment.md)まで実装した。ログイン・セッションは後続とする。
