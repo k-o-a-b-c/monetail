@@ -24,6 +24,8 @@ public static class PasskeyWeb
         services.AddScoped<PasskeyLoginService>();
         services.AddSingleton<ReauthenticationChallenges>();
         services.AddScoped<PasskeyReauthenticationService>();
+        services.AddSingleton<PasskeyAdditionChallenges>();
+        services.AddScoped<PasskeyManagementService>();
         services.AddScoped<IAuthorizationHandler, RecentPasskeyHandler>();
         services.AddScoped<SessionCookieEvents>();
         services.AddAuthentication(SessionCookieEvents.Scheme).AddCookie(SessionCookieEvents.Scheme, options =>
@@ -103,7 +105,7 @@ public static class PasskeyWeb
                     http.Response.StatusCode = StatusCodes.Status400BadRequest;
                     return;
                 }
-                if (HttpMethods.IsPost(http.Request.Method))
+                if (HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method))
                 {
                     if (http.Request.Headers.Origin != settings.Origin.GetLeftPart(UriPartial.Authority))
                     {
@@ -140,6 +142,7 @@ public static class PasskeyWeb
         app.MapPasskeyEnrollment();
         app.MapPasskeyLogin();
         app.MapPasskeyReauthentication();
+        app.MapPasskeyManagement();
     }
 
     /// <summary>埋込済みの認証画面・スクリプトだけを読み込む。</summary>
