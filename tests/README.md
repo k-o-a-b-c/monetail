@@ -114,6 +114,8 @@ CLIは実際のProgramを別プロセスで起動し、人物指定・復元後�
 
 変更前の[CI 40233984596](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40233984596)の成功を再利用し、変更後はローカルAPI全206件・JavaScript構文が成功した。Chromiumの別端末相当の仮想パスキーと隔離HTTPSでも、初回登録→ログイン→本人の鍵一覧→古い確認での追加拒否→本人再確認→取消後の再操作→別端末の鍵追加→Cookieと固定期限の維持→削除確認→全端末ログアウトと古いCookie拒否→残る鍵でログイン→最後の鍵の画面無効化とAPIの409を確認した。合成DBのtotal777と生コード非出力も維持した。物理端末のWindows Hello／スマートフォンと本番配備は未確認。[50 実装](../docs/50-self-service-passkeys.md)。未変更のWindows・既存計算／SQL移行・性能は再実行しない。
 
+実装コミット`58c3e46`の[CI 40243218730](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40243218730)でAPI全206件・CI選択15件・DockerビルドとUTC／ニューヨークの稼働確認が成功した。未変更のCompose設定ステップとWindows・既存計算／Python移行・性能の3ジョブは省略された。最後の更新はこの結果記録だけで、製品・テスト・CIソースは検証済みのままとする。
+
 ## Windows版の検証履歴
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
