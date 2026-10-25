@@ -166,6 +166,34 @@ namespace Monetail.Api.Authentication.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Monetail.Api.Authentication.AuthSession", b =>
+                {
+                    b.Property<byte[]>("IdHash")
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("AuthUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("VerifiedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("IdHash");
+
+                    b.HasIndex("AuthUserId");
+
+                    b.ToTable("auth_sessions", (string)null);
+                });
+
             modelBuilder.Entity("Monetail.Api.Authentication.AuthUser", b =>
                 {
                     b.Property<string>("Id")
@@ -401,6 +429,15 @@ namespace Monetail.Api.Authentication.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Authentication.AuthSession", b =>
+                {
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

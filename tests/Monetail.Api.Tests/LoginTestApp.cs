@@ -1,0 +1,162 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
+using Monetail.Api.Authentication;
+using Xunit;
+
+namespace Monetail.Api.Tests;
+
+/// <summary>実Identityが検証するEC署名と、隔離DBのログインHTTP経路を用意する。</summary>
+internal sealed class LoginTestApp : IAsyncDisposable
+{
+    public const string Origin = "https://monetail.example.test";
+    public AuthDatabaseFixture Database { get; } = new();
+    public LoginTime Time { get; } = new();
+    public WebApplicationFactory<Program> Factory { get; private set; } = null!;
+    public string UserId { get; private set; } = "";
+    public string ChallengeCookie { get; private set; } = "";
+    public string SessionCookie { get; private set; } = "";
+    public byte[] CredentialId { get; } = RandomNumberGenerator.GetBytes(32);
+    private readonly ECDsa key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+
+    /// <summary>合成した人物へ有効アカウントとテスト公開鍵を登録する。</summary>
+    public static async Task<LoginTestApp> CreateAsync()
+    {
+        var app = new LoginTestApp();
+        await app.Database.MigrateAsync();
+        app.Factory = app.NewFactory();
+        await using var scope = app.Factory.Services.CreateAsyncScope();
+        var issued = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync(1))!;
+        app.UserId = issued.AuthUserId;
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
+        var user = (await users.FindByIdAsync(app.UserId))!;
+        var point = app.key.ExportParameters(false).Q;
+        byte[] publicKey = [0xA5, 0x01, 0x02, 0x03, 0x26, 0x20, 0x01, 0x21, 0x58, 0x20,
+            .. point.X!, 0x22, 0x58, 0x20, .. point.Y!];
+        var passkey = new UserPasskeyInfo(app.CredentialId, publicKey, app.Time.GetUtcNow(), 0,
+            ["internal"], true, false, false, [], []) { Name = "synthetic-login-key" };
+        Assert.True((await users.AddOrUpdatePasskeyAsync(user, passkey)).Succeeded);
+        user.IsEnabled = true;
+        Assert.True((await users.UpdateAsync(user)).Succeeded);
+        return app;
+    }
+
+    /// <summary>同じ永続キーとDBを使い、プロセス再起動相当のホストを構築する。</summary>
+    public WebApplicationFactory<Program> NewFactory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    {
+        builder.UseEnvironment("Production").UseSetting("ConnectionStrings:Monetail", Database.ConnectionString)
+            .UseSetting("Passkeys:Origin", Origin).UseSetting("Passkeys:RpId", "monetail.example.test")
+            .UseSetting("Passkeys:DataProtectionKeysPath", Path.Combine(Path.GetDirectoryName(Database.DatabasePath)!, "keys"));
+        builder.ConfigureServices(services =>
+        {
+            services.AddSingleton<TimeProvider>(Time);
+            services.AddSingleton<IStartupFilter, ProtectedProbe>();
+        });
+    });
+
+    /// <summary>Cookieを他ブラウザーと共有しないHTTPSクライアントを作る。</summary>
+    public HttpClient Client(WebApplicationFactory<Program>? factory = null)
+    {
+        var client = (factory ?? Factory).CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri(Origin), AllowAutoRedirect = false
+        });
+        client.DefaultRequestHeaders.Add("Origin", Origin);
+        return client;
+    }
+
+    /// <summary>現在の匿名・認証状態に対応するCSRFトークンを取り直す。</summary>
+    public static async Task CsrfAsync(HttpClient client)
+    {
+        var response = await client.GetFromJsonAsync<JsonElement>("/auth/csrf");
+        client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
+        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", response.GetProperty("token").GetString());
+    }
+
+    /// <summary>ログイン専用のチャレンジと、名前入力なしの作成条件を取得する。</summary>
+    public async Task<JsonElement> BeginAsync(HttpClient client, string? timeZone = "Asia/Tokyo")
+    {
+        await CsrfAsync(client);
+        using var response = await client.PostAsJsonAsync("/auth/login/options", new { timeZone });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        ChallengeCookie = response.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
+        return await response.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    /// <summary>実際のEC秘密鍵でWebAuthn認証応答に署名し、必要時に検証項目を壊す。</summary>
+    public object Assertion(JsonElement options, string? corruption = null, uint count = 0)
+    {
+        var clientData = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            type = "webauthn.get", challenge = corruption == "challenge" ? "wrong" : options.GetProperty("challenge").GetString(),
+            origin = corruption == "origin" ? "https://other.example.test" : Origin,
+            crossOrigin = corruption == "cross-origin"
+        });
+        byte[] authData = [.. SHA256.HashData(Encoding.UTF8.GetBytes(corruption == "rp" ? "other.example.test" : "monetail.example.test")),
+            corruption == "uv" ? (byte)0x01 : (byte)0x05, (byte)(count >> 24), (byte)(count >> 16), (byte)(count >> 8), (byte)count];
+        var signature = key.SignData([.. authData, .. SHA256.HashData(clientData)], HashAlgorithmName.SHA256,
+            DSASignatureFormat.Rfc3279DerSequence);
+        if (corruption == "signature") signature[^1] ^= 1;
+        var id = corruption == "credential" ? RandomNumberGenerator.GetBytes(32) : CredentialId;
+        return new
+        {
+            id = WebEncoders.Base64UrlEncode(id), rawId = WebEncoders.Base64UrlEncode(id), type = "public-key",
+            response = new
+            {
+                clientDataJSON = WebEncoders.Base64UrlEncode(clientData), authenticatorData = WebEncoders.Base64UrlEncode(authData),
+                signature = WebEncoders.Base64UrlEncode(signature), userHandle = corruption == "user" ? "b3RoZXI" : WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(UserId))
+            },
+            clientExtensionResults = new { }
+        };
+    }
+
+    public Task<HttpResponseMessage> VerifyAsync(HttpClient client, object credential) =>
+        client.PostAsJsonAsync("/auth/login/verify", new { credential });
+
+    /// <summary>ログインに成功し、再起動や再送検証用に保護Cookieを記録する。</summary>
+    public async Task LoginAsync(HttpClient client, string? zone = "Asia/Tokyo", uint count = 0)
+    {
+        var options = await BeginAsync(client, zone);
+        using var response = await VerifyAsync(client, Assertion(options, count: count));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        SessionCookie = response.Headers.GetValues("Set-Cookie").Single(value => value.StartsWith(SessionCookieEvents.CookieName + "=", StringComparison.Ordinal));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Factory.DisposeAsync();
+        key.Dispose();
+        Database.Dispose();
+    }
+
+    /// <summary>実際の未来から開始し、ブラウザーCookieを消さずに期限境界を進める。</summary>
+    internal sealed class LoginTime : TimeProvider
+    {
+        private DateTimeOffset now = DateTimeOffset.UtcNow.AddMinutes(1);
+        public override DateTimeOffset GetUtcNow() => now;
+        public void Advance(TimeSpan duration) => now += duration;
+        public void Set(DateTimeOffset value) => now = value;
+    }
+
+    /// <summary>テスト専用経路で、既定の認証必須と最新Adminロールの判定を確認する。</summary>
+    private sealed class ProtectedProbe : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            next(app);
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapGet("/auth/test-default", () => "protected");
+                endpoints.MapGet("/auth/test-admin", () => "admin").RequireAuthorization(policy => policy.RequireRole("Admin"));
+            });
+        };
+    }
+}

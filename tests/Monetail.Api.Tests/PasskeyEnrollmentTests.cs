@@ -289,7 +289,7 @@ public class PasskeyEnrollmentTests
         foreach (var path in new[] { "/register", "/login", "/auth/login/options", "/auth/me", "/Authentication/EnrollmentCode.cs" })
         {
             using var response = await client.GetAsync(path);
-            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
     }
 

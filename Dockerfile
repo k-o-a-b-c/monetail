@@ -10,6 +10,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build --chown=app:app /app/publish .
 ENV ASPNETCORE_HTTP_PORTS=8080
+ENV TZ=Etc/UTC
 EXPOSE 8080
 USER $APP_UID
 ENTRYPOINT ["dotnet", "Monetail.Api.dll"]

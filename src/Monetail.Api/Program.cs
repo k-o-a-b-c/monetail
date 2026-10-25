@@ -27,7 +27,7 @@ if (passkeySettings is not null)
 {
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
-    builder.Services.AddPasskeyEnrollment(passkeySettings);
+    builder.Services.AddPasskeyWeb(passkeySettings);
 }
 
 var app = builder.Build();
@@ -76,8 +76,12 @@ if (isAuthCommand)
     await app.DisposeAsync();
     return;
 }
-if (passkeySettings is not null) app.MapPasskeyEnrollment(passkeySettings);
-app.MapHealthChecks("/health");
+if (passkeySettings is not null)
+{
+    app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
+    app.MapPasskeyWeb(passkeySettings);
+}
+app.MapHealthChecks("/health").AllowAnonymous();
 app.Run();
 
 /// <summary>統合テストからAPIの起動処理を参照する。</summary>
