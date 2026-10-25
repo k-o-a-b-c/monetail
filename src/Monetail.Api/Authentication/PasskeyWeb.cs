@@ -22,6 +22,9 @@ public static class PasskeyWeb
         services.AddScoped<PasskeyEnrollmentService>();
         services.AddSingleton<LoginChallenges>();
         services.AddScoped<PasskeyLoginService>();
+        services.AddSingleton<ReauthenticationChallenges>();
+        services.AddScoped<PasskeyReauthenticationService>();
+        services.AddScoped<IAuthorizationHandler, RecentPasskeyHandler>();
         services.AddScoped<SessionCookieEvents>();
         services.AddAuthentication(SessionCookieEvents.Scheme).AddCookie(SessionCookieEvents.Scheme, options =>
         {
@@ -36,7 +39,9 @@ public static class PasskeyWeb
         services.AddOptions<CookieAuthenticationOptions>(SessionCookieEvents.Scheme)
             .Configure<TimeProvider>((options, time) => options.TimeProvider = time);
         services.AddAuthorizationBuilder().SetFallbackPolicy(new AuthorizationPolicyBuilder(SessionCookieEvents.Scheme)
-            .RequireAuthenticatedUser().Build());
+            .RequireAuthenticatedUser().Build())
+            .AddPolicy(RecentPasskeyRequirement.PolicyName, policy => policy.AddAuthenticationSchemes(SessionCookieEvents.Scheme)
+                .RequireAuthenticatedUser().AddRequirements(new RecentPasskeyRequirement()));
         services.AddScoped<IPasskeyHandler<AuthUser>, PasskeyHandler<AuthUser>>();
         services.AddDataProtection().SetApplicationName("Monetail.Api")
             .PersistKeysToFileSystem(new DirectoryInfo(settings.DataProtectionKeysPath));
@@ -134,6 +139,7 @@ public static class PasskeyWeb
             Results.Ok(new { token = csrf.GetAndStoreTokens(http).RequestToken })).AllowAnonymous();
         app.MapPasskeyEnrollment();
         app.MapPasskeyLogin();
+        app.MapPasskeyReauthentication();
     }
 
     /// <summary>埋込済みの認証画面・スクリプトだけを読み込む。</summary>

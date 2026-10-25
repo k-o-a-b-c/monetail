@@ -53,4 +53,4 @@ API自身のHTTPS待受け、または明示した既知プロキシでのHTTPS�
 
 実SQLiteとIdentityの自動検証に加え、localhost専用HTTPS・Chromiumの仮想認証器で、画面からdiscoverable credentialを登録し、コード消去・アカウント有効化・コード消費・既存total保持まで確認した。物理端末のWindows Helloやスマートフォン、本番HTTPS配備は未確認。件数・実行結果は[tests/README.md](../tests/README.md)へ集約する。
 
-通常ログインと固定期限セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)まで実装した。本人再確認、パスキー追加／削除、管理画面、追加管理者や全失効・復旧コマンド、業務APIは後続とする。ログインできても家計の業務APIはまだ提供しない。
+通常ログインと固定期限セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)まで実装した。本人再確認は[48](48-passkey-reauthentication.md)まで実装した。パスキー追加／削除、管理画面、追加管理者や全失効・復旧コマンド、業務APIは後続とする。ログインできても家計の業務APIはまだ提供しない。

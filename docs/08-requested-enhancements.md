@@ -134,7 +134,7 @@
 
 ## 後続のWeb化に関する方針
 
-まずWindows版を進める。後続のWeb化は必須とし、Web版の入力機能はレシート、次に振替を優先する。APIはASP.NET Coreを採用し、同じリポジトリにC#／.NET 10のAPI、`/health`、Docker・CIの土台を実装した（[42](42-api-foundation.md)）。認証DBの接続・追加移行まで実装した（[44](44-auth-database-foundation.md)）。サーバー上のDocker＋SQLiteを想定するが、ログイン・業務機能・実配置は未実施。XMLのUserCode指定は採用せず、利用者は将来のログイン結果から確定する。認証はパスキー中心とし、初回登録・一般利用者の利用再開は管理者画面の登録コード発行で行い、利用停止・紛失時の全失効とは別操作とする。初期管理者と緊急復旧は管理コマンドを使う方針（[43 設計](43-passkey-authentication-design.md)）。各機能の詳細範囲は未決定で、現行の税・割引・保存契約を互換性の基準とする。[33 方針](33-windows-first-web-input-priorities.md)。
+まずWindows版を進める。後続のWeb化は必須とし、Web版の入力機能はレシート、次に振替を優先する。APIはASP.NET Coreを採用し、同じリポジトリにC#／.NET 10のAPI、`/health`、Docker・CIの土台を実装した（[42](42-api-foundation.md)）。認証DBの接続・追加移行まで実装した（[44](44-auth-database-foundation.md)）。サーバー上のDocker＋SQLiteを想定するが、ログインと本人再確認は実装済みで、業務機能・実配置は未実施。XMLのUserCode指定は採用せず、APIの利用者はログイン結果から確定する。認証はパスキー中心とし、初回登録・一般利用者の利用再開は管理者画面の登録コード発行で行い、利用停止・紛失時の全失効とは別操作とする。初期管理者と緊急復旧は管理コマンドを使う方針（[43 設計](43-passkey-authentication-design.md)）。各機能の詳細範囲は未決定で、現行の税・割引・保存契約を互換性の基準とする。[33 方針](33-windows-first-web-input-priorities.md)。
 
 ## 後続の家計簿分割・アクセス権限（未実装）
 
@@ -146,4 +146,4 @@
 
 人物との関連の判断基準、複数対象者の明細・集計、家計簿への所属の移行と権限モデルは後続で設計する。今回の認証実装に先行して列・テーブルや人物別の制限を追加するものではない。
 
-初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)まで実装した。Web管理画面・本人再確認・パスキー追加／削除・全失効／緊急復旧は後続とする。
+初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。Web管理画面・パスキー追加／削除・全失効／緊急復旧は後続とする。
