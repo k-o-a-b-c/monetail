@@ -1,6 +1,6 @@
 # 48 パスキーによる本人再確認
 
-**同じアカウント・既存セッションの本人再確認と、重要操作に使う直近5分の認可ポリシーを実装。** [43 認証設計](43-passkey-authentication-design.md)と[47 ログイン・セッション](47-passkey-login-sessions.md)を引き継ぐ。Web管理画面・パスキー追加／削除・全失効／復旧は後続。
+**同じアカウント・既存セッションの本人再確認と、重要操作に使う直近5分の認可ポリシーを実装。** [43 認証設計](43-passkey-authentication-design.md)と[47 ログイン・セッション](47-passkey-login-sessions.md)を引き継ぐ。全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装し、Web管理画面・パスキー追加／削除は後続。
 
 ## 操作とHTTP契約
 
@@ -37,4 +37,4 @@
 
 実IdentityのEC署名と隔離SQLiteで、本人・ブラウザー・セッション・用途の固定、署名の不正、確認から5分の境界、認証途中の失効・人物変更・鍵削除、同時消費・署名カウンター競合、DB障害時の取消と再試行、Cookieと期限の維持、再起動と既存業務値・保存済みtotalの保持を検証する。件数と実行結果は[tests/README.md](../tests/README.md)へ集約する。
 
-Web管理画面、人物・一般アカウント発行、パスキー追加／削除、全失効／復旧コマンド、業務APIは後続。Windows版・旧SQL・本番設定・実データは変更していない。
+全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。Web管理画面、人物・一般アカウント発行、パスキー追加／削除、業務APIは後続。Windows版・旧SQL・本番設定・実データは変更していない。

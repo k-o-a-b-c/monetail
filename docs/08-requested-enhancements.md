@@ -146,4 +146,4 @@
 
 人物との関連の判断基準、複数対象者の明細・集計、家計簿への所属の移行と権限モデルは後続で設計する。今回の認証実装に先行して列・テーブルや人物別の制限を追加するものではない。
 
-初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。Web管理画面・パスキー追加／削除・全失効／緊急復旧は後続とする。
+初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。Web管理画面・追加管理者の管理・パスキー追加／削除は後続とする。

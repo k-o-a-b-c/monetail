@@ -2,20 +2,46 @@ using Monetail.Api.Authentication;
 using System.Globalization;
 
 var command = args.FirstOrDefault();
-var isAuthCommand = command is "migrate-auth-db" or "initialize-admin" or "issue-enrollment-code";
+var isAuthCommand = command is "migrate-auth-db" or "initialize-admin" or "issue-enrollment-code" or
+    "revoke-account" or "reset-authentication";
 var configurationArgs = isAuthCommand ? args[1..] : args;
 int? personCode = null;
-if (command is "initialize-admin" or "issue-enrollment-code")
+// 緊急復旧を明示したときだけ、最後の管理者の通常停止保護を解除する。
+var emergencyRecovery = false;
+if (command is "initialize-admin" or "issue-enrollment-code" or "revoke-account")
 {
     if (args.Length < 3 || args[1] != "--person-code" ||
         !int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedCode))
     {
-        Console.Error.WriteLine("人物コードを明示してください: initialize-admin または issue-enrollment-code --person-code 整数");
+        Console.Error.WriteLine("人物コードを明示してください: initialize-admin / issue-enrollment-code / revoke-account --person-code 整数");
         Environment.ExitCode = 1;
         return;
     }
     personCode = parsedCode;
     configurationArgs = args[3..];
+    if (command == "revoke-account" && configurationArgs.FirstOrDefault() == "--emergency-recovery")
+    {
+        emergencyRecovery = true;
+        configurationArgs = configurationArgs[1..];
+    }
+}
+if (command == "reset-authentication")
+{
+    if (args.Length < 2 || args[1] != "--after-restore")
+    {
+        Console.Error.WriteLine("復元後の全失効は、サービス停止後にreset-authentication --after-restoreを明示してください。");
+        Environment.ExitCode = 1;
+        return;
+    }
+    configurationArgs = args[2..];
+}
+if (isAuthCommand && configurationArgs.Any(argument =>
+    new[] { "--person-code", "--emergency-recovery", "--after-restore" }.Any(option =>
+        argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal))))
+{
+    Console.Error.WriteLine("管理コマンドの操作オプションが重複しているか、指定位置が不正です。");
+    Environment.ExitCode = 1;
+    return;
 }
 var builder = WebApplication.CreateBuilder(configurationArgs);
 builder.Services.AddHealthChecks();
@@ -48,6 +74,15 @@ if (isAuthCommand)
         {
             await scope.ServiceProvider.GetRequiredService<AuthDatabaseMigrator>().MigrateAsync(timeout.Token);
             Console.WriteLine("認証DBの追加移行が完了しました。");
+        }
+        else if (command is "revoke-account" or "reset-authentication")
+        {
+            var revocation = scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>();
+            if (command == "revoke-account")
+                await revocation.RevokeAccountAsync(personCode!.Value, emergencyRecovery, timeout.Token);
+            else
+                await revocation.ResetAfterRestoreAsync(timeout.Token);
+            Console.WriteLine("認証情報を全失効しました。登録コードは発行していません。");
         }
         else
         {
