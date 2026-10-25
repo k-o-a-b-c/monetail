@@ -90,6 +90,8 @@ APIの起動方法と今回の実装範囲は[42 APIの土台](../docs/42-api-fo
 
 13日＋次の午前2時の仕様を再確認し、1日6時のログインが15日2時に失効する固定値と、1日・7日6時の許可／15日6時の拒否・7日の利用による期限延長なしをHTTP経路で追加検証した。変更前の製品ソースは維持し、期限計算・Cookie／DB期限一致・期限境界・地域補完を合わせた20件を再実行して成功した。現在仕様・コード・PRは13日で揃えている。
 
+追加検証コミット`4d932ec`の[CI 40178817456](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40178817456)でAPI105件・CI選択15件・Compose設定・Docker確認が成功した。Windows・既存計算／Python移行・性能の3ジョブは省略された。最後の追記はこの結果記録だけで、製品・テスト・CIソースは検証済みのままとする。
+
 ## Windows版の検証履歴
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
