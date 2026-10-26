@@ -2,6 +2,8 @@
 
 **管理者が、アカウント未作成の既存人物へ一般アカウントと初回登録コードを発行するAPIを実装。** [43 認証設計](43-passkey-authentication-design.md)と[51 人物・アカウント一覧](51-admin-account-list.md)を引き継ぐ。Web管理画面、新規人物追加、停止のHTTP操作は後続とし、コード再発行は[55](55-admin-enrollment-code-reissue.md)で実装した。
 
+新規導入はアカウントと人物を直接紐付けず、表示名も別に管理する（DEC-042、[57](57-ledger-data-ownership.md)）。本書は人物対応を必須とする現在の実装を記録したもの。新しい招待登録でのDB行作成時点、人物に依存しない認証・再発行等の詳細は後続設計で、現行コードは今回変更しない。
+
 ## API契約
 
 `POST /admin/accounts`へ、クライアントが発行操作ごとに作る空でないUUIDの`requestId`と、選んだ既存人物の`userCode`を送る。同じ操作の再送には同じ要求IDを使う。
