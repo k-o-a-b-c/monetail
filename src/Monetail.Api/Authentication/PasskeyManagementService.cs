@@ -14,7 +14,7 @@ public enum PasskeyRemovalResult { Removed, NotFound, LastPasskey, Authenticatio
 
 /// <summary>現在の本人のパスキーを一覧・追加・削除し、削除時は全セッションを失効させる。</summary>
 public sealed class PasskeyManagementService(AuthDbContext context, UserManager<AuthUser> users,
-    IPasskeyHandler<AuthUser> passkeys, PasskeyAdditionChallenges challenges, TimeProvider time,
+    IPasskeyHandler<AuthUser> passkeys, IAccountPersonLookup people, PasskeyAdditionChallenges challenges, TimeProvider time,
     ILogger<PasskeyManagementService> logger)
 {
     /// <summary>現在の本人のパスキーだけを、公開鍵や検証用データを含めず返す。</summary>
@@ -31,12 +31,12 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
     public async Task<string?> BeginAsync(HttpContext http, CancellationToken token)
     {
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
-        var user = await FindCurrentUserAsync(current, token);
-        if (user is null) return null;
-        var name = await context.Database.SqlQuery<string>($"SELECT name AS Value FROM m_user WHERE code = {current.UserCode}").SingleAsync(token);
+        var target = await FindCurrentUserAsync(current, token);
+        if (target is null) return null;
+        var user = target.Value.User;
         var options = await passkeys.MakeCreationOptionsAsync(new PasskeyUserEntity
         {
-            Id = user.Id, Name = name, DisplayName = name
+            Id = user.Id, Name = target.Value.Person.DisplayName, DisplayName = target.Value.Person.DisplayName
         }, http);
         if (options.AttestationState is null) return null;
         var expires = time.GetUtcNow().AddMinutes(5);
@@ -56,8 +56,9 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
         if (challenge is null || challenge.AuthUserId != current.Session.AuthUserId || challenge.UserCode != current.UserCode ||
             !CryptographicOperations.FixedTimeEquals(challenge.SessionHash, current.Session.IdHash)) return false;
         await using var transaction = await context.Database.BeginTransactionAsync(token);
-        var user = await FindCurrentUserAsync(current, token);
-        if (user is null) return false;
+        var target = await FindCurrentUserAsync(current, token);
+        if (target is null) return false;
+        var user = target.Value.User;
         var result = await passkeys.PerformAttestationAsync(new PasskeyAttestationContext
         {
             HttpContext = http, CredentialJson = credentialJson, AttestationState = challenge.AttestationState
@@ -79,8 +80,9 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
         if (credentialId is null) return PasskeyRemovalResult.NotFound;
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
         await using var transaction = await context.Database.BeginTransactionAsync(token);
-        var user = await FindCurrentUserAsync(current, token);
-        if (user is null) return PasskeyRemovalResult.AuthenticationChanged;
+        var target = await FindCurrentUserAsync(current, token);
+        if (target is null) return PasskeyRemovalResult.AuthenticationChanged;
+        var user = target.Value.User;
         var keys = await users.GetPasskeysAsync(user);
         if (!keys.Any(key => key.CredentialId.AsSpan().SequenceEqual(credentialId))) return PasskeyRemovalResult.NotFound;
         if (keys.Count <= 1) return PasskeyRemovalResult.LastPasskey;
@@ -97,17 +99,18 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
     }
 
     /// <summary>DBで本人・セッション・直近5分を再照合し、Identityの保存と同じアカウントを追跡する。</summary>
-    private async Task<AuthUser?> FindCurrentUserAsync(CurrentSession current, CancellationToken token)
+    private async Task<(AuthUser User, AccountPerson Person)?> FindCurrentUserAsync(CurrentSession current, CancellationToken token)
     {
         var now = time.GetUtcNow().UtcDateTime;
-        return await (from session in context.Sessions
-                      join user in context.Users on session.AuthUserId equals user.Id
-                      join link in context.UserLinks on user.Id equals link.AuthUserId
-                      join person in context.Set<LegacyPerson>() on link.UserCode equals person.Code
-                      where session.IdHash == current.Session.IdHash && user.Id == current.Session.AuthUserId &&
-                          link.UserCode == current.UserCode && user.IsEnabled && session.RevokedAtUtc == null &&
+        var user = await (from session in context.Sessions
+                      join account in context.Users on session.AuthUserId equals account.Id
+                      where session.IdHash == current.Session.IdHash && account.Id == current.Session.AuthUserId &&
+                          account.IsEnabled && session.RevokedAtUtc == null &&
                           session.ExpiresAtUtc > now && session.VerifiedAtUtc <= now && session.VerifiedAtUtc > now.AddMinutes(-5)
-                      select user).SingleOrDefaultAsync(token);
+                      select account).SingleOrDefaultAsync(token);
+        if (user is null) return null;
+        var person = await people.FindAsync(user.Id, token);
+        return person is null || person.UserCode != current.UserCode ? null : (user, person);
     }
 
     /// <summary>パスキー識別子を長さ制限付きで検証し、標準のbase64urlから復元する。</summary>

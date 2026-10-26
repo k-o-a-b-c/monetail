@@ -7,7 +7,7 @@ namespace Monetail.Api.Authentication;
 
 /// <summary>登録コードの対象へパスキーを登録し、成功時だけ利用可能にする。</summary>
 public sealed class PasskeyEnrollmentService(AuthDbContext context, UserManager<AuthUser> users,
-    IPasskeyHandler<AuthUser> passkeys, EnrollmentChallenges challenges, TimeProvider time,
+    IPasskeyHandler<AuthUser> passkeys, IAccountPersonLookup people, EnrollmentChallenges challenges, TimeProvider time,
     ILogger<PasskeyEnrollmentService> logger)
 {
     /// <summary>有効な登録コードの対象に固定した、端末向けの作成オプションを発行する。</summary>
@@ -20,15 +20,13 @@ public sealed class PasskeyEnrollmentService(AuthDbContext context, UserManager<
         if (!IsUsable(stored)) return null;
         var target = await FindTargetAsync(stored!.AuthUserId, token);
         if (target is null) return null;
-        var name = await context.Database.SqlQuery<string>($"SELECT name AS Value FROM m_user WHERE code = {target.Value.UserCode}")
-            .SingleAsync(token);
         var options = await passkeys.MakeCreationOptionsAsync(new PasskeyUserEntity
         {
-            Id = target.Value.User.Id, Name = name, DisplayName = name
+            Id = target.Value.User.Id, Name = target.Value.Person.DisplayName, DisplayName = target.Value.Person.DisplayName
         }, http);
         if (options.AttestationState is null) return null;
         var expires = time.GetUtcNow().AddMinutes(5);
-        var id = challenges.Add(new EnrollmentChallenge(target.Value.User.Id, target.Value.UserCode,
+        var id = challenges.Add(new EnrollmentChallenge(target.Value.User.Id, target.Value.Person.UserCode,
             hash, options.AttestationState, expires), http.Request.Cookies[EnrollmentChallenges.CookieName]);
         if (id is null) return null;
         http.Response.Cookies.Append(EnrollmentChallenges.CookieName, id, Cookie(expires));
@@ -45,7 +43,7 @@ public sealed class PasskeyEnrollmentService(AuthDbContext context, UserManager<
         var code = await context.EnrollmentCodes.SingleOrDefaultAsync(row => row.CodeHash == challenge.CodeHash, token);
         if (!IsUsable(code) || code!.AuthUserId != challenge.AuthUserId) return false;
         var target = await FindTargetAsync(challenge.AuthUserId, token);
-        if (target is null || target.Value.UserCode != challenge.UserCode) return false;
+        if (target is null || target.Value.Person.UserCode != challenge.UserCode) return false;
         var result = await passkeys.PerformAttestationAsync(new PasskeyAttestationContext
         {
             HttpContext = http, CredentialJson = credentialJson, AttestationState = challenge.AttestationState
@@ -63,20 +61,17 @@ public sealed class PasskeyEnrollmentService(AuthDbContext context, UserManager<
         await context.SaveChangesAsync(token);
         await transaction.CommitAsync(token);
         logger.LogInformation("パスキーを登録しました。認証ID={AuthUserId} 対象人物={PersonCode} 日時={OccurredAtUtc} 結果=成功",
-            user.Id, target.Value.UserCode, time.GetUtcNow());
+            user.Id, target.Value.Person.UserCode, time.GetUtcNow());
         return true;
     }
 
     /// <summary>登録待ちのアカウントと、現在存在する人物への対応だけを取得する。</summary>
-    private async Task<(AuthUser User, int UserCode)?> FindTargetAsync(string id, CancellationToken token)
+    private async Task<(AuthUser User, AccountPerson Person)?> FindTargetAsync(string id, CancellationToken token)
     {
         var user = await users.FindByIdAsync(id);
         if (user is null || user.IsEnabled || (await users.GetPasskeysAsync(user)).Count > 0) return null;
-        var person = await (from link in context.UserLinks
-                            join row in context.Set<LegacyPerson>() on link.UserCode equals row.Code
-                            where link.AuthUserId == id
-                            select (int?)link.UserCode).SingleOrDefaultAsync(token);
-        return person is null ? null : (user, person.Value);
+        var person = await people.FindAsync(id, token);
+        return person is null ? null : (user, person);
     }
 
     /// <summary>登録用途・未使用・未失効・期限内のコードだけを受け付ける。</summary>

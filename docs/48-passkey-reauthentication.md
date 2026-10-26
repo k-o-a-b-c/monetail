@@ -38,3 +38,5 @@
 実IdentityのEC署名と隔離SQLiteで、本人・ブラウザー・セッション・用途の固定、署名の不正、確認から5分の境界、認証途中の失効・人物変更・鍵削除、同時消費・署名カウンター競合、DB障害時の取消と再試行、Cookieと期限の維持、再起動と既存業務値・保存済みtotalの保持を検証する。件数と実行結果は[tests/README.md](../tests/README.md)へ集約する。
 
 全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。Web管理画面、人物・一般アカウント発行、業務APIは後続。Windows版・旧SQL・本番設定・実データは変更していない。
+
+人物照合・表示名取得は[53](53-account-person-lookup.md)の窓口とMonetail側の実装へ分離した。人物対応必須・確認するタイミング・同じDBトランザクション・本書の認証条件を維持する。

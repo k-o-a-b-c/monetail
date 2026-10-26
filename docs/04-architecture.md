@@ -38,8 +38,8 @@ Windows デスクトップアプリ
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API、認証DB、パスキー登録・ログインとセッション管理、管理者向け人物・アカウント一覧。業務機能は未実装 |
-| `src/Monetail.Api/Authentication/` | 別アプリへコードを流用しやすくする認証処理と既存認証DB構成。現在はMonetailの人物照合も残る |
-| `src/Monetail.Api/Features/Monetail/Accounts/` | 人物と認証アカウントを組み合わせる管理者一覧API。登録・起動はProgram.csで構成 |
+| `src/Monetail.Api/Authentication/` | 別アプリへコードを流用しやすくする認証処理と既存認証DB構成。人物照合は窓口へ委譲し、人物コードやDBモデルへの依存は残る |
+| `src/Monetail.Api/Features/Monetail/Accounts/` | 人物と認証アカウントを組み合わせる管理者一覧APIと、認証へ人物情報を渡す照合実装。登録・起動はProgram.csで構成 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
 | `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
