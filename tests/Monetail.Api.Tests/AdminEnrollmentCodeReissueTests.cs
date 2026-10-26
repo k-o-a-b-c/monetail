@@ -14,7 +14,7 @@ using Xunit;
 
 namespace Monetail.Api.Tests;
 
-/// <summary>一般アカウントのコード再発行と、管理者・対象条件・原子的な失効を検証する。</summary>
+/// <summary>一般・管理者アカウントのコード再発行と、実行者・対象条件・原子的な失効を検証する。</summary>
 public class AdminEnrollmentCodeReissueTests
 {
     [Fact]
@@ -55,12 +55,20 @@ public class AdminEnrollmentCodeReissueTests
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
 
-    [Fact]
-    public async Task FullyRevokedAccountCanReceiveANewCodeWithoutRevivingItsOldSessions()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FullyRevokedAccountCanReceiveANewCodeWithoutRevivingItsOldSessions(bool targetIsAdmin)
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
         var target = await PrepareAsync(app, admin);
+        if (targetIsAdmin)
+        {
+            await using var scope = app.Factory.Services.CreateAsyncScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
+            Assert.True((await users.AddToRoleAsync((await users.FindByIdAsync(target.Id))!, "Admin")).Succeeded);
+        }
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
         using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code });
@@ -82,6 +90,24 @@ public class AdminEnrollmentCodeReissueTests
         Assert.Equal(HttpStatusCode.Unauthorized, stillRejected.StatusCode);
         Assert.Equal(0L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{target.Id}'"));
         Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM AspNetUserPasskeys WHERE UserId='{target.Id}'"));
+        var code = (await issued.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString()!;
+        using var recovered = app.Client();
+        await LoginTestApp.CsrfAsync(recovered);
+        using var recoveryBegin = await recovered.PostAsJsonAsync("/auth/enrollment/options", new { code });
+        Assert.Equal(HttpStatusCode.OK, recoveryBegin.StatusCode);
+        options = await recoveryBegin.Content.ReadFromJsonAsync<JsonElement>();
+        var newKey = RandomNumberGenerator.GetBytes(32);
+        using var recoveryComplete = await recovered.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, newKey) });
+        Assert.Equal(HttpStatusCode.OK, recoveryComplete.StatusCode);
+        using var notLoggedIn = await recovered.GetAsync("/auth/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, notLoggedIn.StatusCode);
+        options = await app.BeginAsync(recovered);
+        using var newLogin = await app.VerifyAsync(recovered, app.AssertionFor(options, target.Id, newKey));
+        Assert.Equal(HttpStatusCode.OK, newLogin.StatusCode);
+        using var accounts = await recovered.GetAsync("/admin/accounts");
+        Assert.Equal(targetIsAdmin ? HttpStatusCode.OK : HttpStatusCode.Forbidden, accounts.StatusCode);
+        using var oldSession = await enrollee.GetAsync("/auth/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, oldSession.StatusCode);
     }
 
     [Fact]
@@ -171,28 +197,31 @@ public class AdminEnrollmentCodeReissueTests
     [InlineData("link", HttpStatusCode.NotFound)]
     [InlineData("enabled", HttpStatusCode.Conflict)]
     [InlineData("key", HttpStatusCode.Conflict)]
-    [InlineData("admin", HttpStatusCode.Forbidden)]
+    [InlineData("admin-enabled", HttpStatusCode.Conflict)]
+    [InlineData("admin-key", HttpStatusCode.Conflict)]
+    [InlineData("self", HttpStatusCode.Conflict)]
     public async Task InvalidTargetsDoNotChangeAnything(string change, HttpStatusCode expected)
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
         var target = await PrepareAsync(app, admin);
-        if (change == "admin" || change == "key")
+        if (change.StartsWith("admin-", StringComparison.Ordinal) || change == "key")
         {
             await using var scope = app.Factory.Services.CreateAsyncScope();
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
             var user = (await users.FindByIdAsync(target.Id))!;
-            if (change == "admin") Assert.True((await users.AddToRoleAsync(user, "Admin")).Succeeded);
-            else Assert.True((await users.AddOrUpdatePasskeyAsync(user, new UserPasskeyInfo([77], [1], app.Time.GetUtcNow(), 0, [], true, false, false, [], []))).Succeeded);
+            if (change.StartsWith("admin-", StringComparison.Ordinal)) Assert.True((await users.AddToRoleAsync(user, "Admin")).Succeeded);
+            if (change is "key" or "admin-key") Assert.True((await users.AddOrUpdatePasskeyAsync(user, new UserPasskeyInfo([77], [1], app.Time.GetUtcNow(), 0, [], true, false, false, [], []))).Succeeded);
         }
         switch (change)
         {
             case "person": app.Database.Execute("DELETE FROM m_user WHERE code=3"); break;
             case "link": app.Database.Execute("DELETE FROM auth_user_links WHERE user_code=3"); break;
-            case "enabled": app.Database.Execute($"UPDATE AspNetUsers SET IsEnabled=1 WHERE Id='{target.Id}'"); break;
+            case "enabled":
+            case "admin-enabled": app.Database.Execute($"UPDATE AspNetUsers SET IsEnabled=1 WHERE Id='{target.Id}'"); break;
         }
         var before = app.Database.Snapshot(app.Database.Tables());
-        using var response = await ReissueAsync(admin, change == "missing" ? "unknown-account" : target.Id);
+        using var response = await ReissueAsync(admin, change switch { "missing" => "unknown-account", "self" => app.UserId, _ => target.Id });
         Assert.Equal(expected, response.StatusCode);
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
@@ -253,7 +282,6 @@ public class AdminEnrollmentCodeReissueTests
     [InlineData("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc WHERE AuthUserId='{actor}'", HttpStatusCode.Forbidden)]
     [InlineData("DELETE FROM auth_user_links WHERE auth_user_id='{actor}'", HttpStatusCode.Forbidden)]
     [InlineData("UPDATE AspNetUsers SET IsEnabled=1 WHERE Id=NEW.AuthUserId", HttpStatusCode.Conflict)]
-    [InlineData("INSERT INTO AspNetUserRoles SELECT NEW.AuthUserId,Id FROM AspNetRoles WHERE Name='Admin'", HttpStatusCode.Forbidden)]
     [InlineData("DELETE FROM auth_user_links WHERE auth_user_id=NEW.AuthUserId", HttpStatusCode.NotFound)]
     [InlineData("UPDATE auth_user_links SET user_code=4 WHERE auth_user_id=NEW.AuthUserId", HttpStatusCode.Conflict)]
     public async Task ActorOrTargetChangesDuringSavingRollBackTheWholeReissue(string mutation, HttpStatusCode expected)

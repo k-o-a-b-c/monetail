@@ -18,12 +18,12 @@ public enum AccountCreationStatus { Created, Replayed, PersonNotFound, AlreadyEx
 public sealed record AccountCreationResult(AccountCreationStatus Status, AccountCreationResponse? Response = null);
 
 /// <summary>再発行・対象不備・管理者の認証変更をHTTP受付へ伝える。</summary>
-public enum EnrollmentCodeReissueStatus { Issued, NotFound, TargetIsAdmin, NotEligible, AuthenticationChanged }
+public enum EnrollmentCodeReissueStatus { Issued, NotFound, NotEligible, AuthenticationChanged }
 
 /// <summary>再発行の結果と、成功した場合だけ新しいコードを保持する。</summary>
 public sealed record EnrollmentCodeReissueResult(EnrollmentCodeReissueStatus Status, IssuedEnrollmentCode? IssuedCode = null);
 
-/// <summary>一般アカウントの初回発行と登録コードの再発行を、現在の管理者確認付きで行う。</summary>
+/// <summary>一般アカウントの初回発行と既存アカウントのコード再発行を、現在の管理者確認付きで行う。</summary>
 public sealed class AdminAccountProvisioningService(AuthDbContext context, UserManager<AuthUser> users,
     AdminProvisioningService codes, IAccountPersonLookup people, TimeProvider time,
     ILogger<AdminAccountProvisioningService> logger)
@@ -64,7 +64,7 @@ public sealed class AdminAccountProvisioningService(AuthDbContext context, UserM
         return new(AccountCreationStatus.Created, new(user.Id, userCode, issued.Code, issued.ExpiresAtUtc));
     }
 
-    /// <summary>停止中・鍵なしの一般アカウントへ、古い未使用コードの失効と新コード保存を同時に行う。</summary>
+    /// <summary>停止中・鍵なしのアカウントへ、古い未使用コードの失効と新コード保存を同時に行う。</summary>
     public async Task<EnrollmentCodeReissueResult> ReissueCodeAsync(string authUserId, HttpContext http, CancellationToken token)
     {
         await EnsureMigratedAsync(token);
@@ -80,17 +80,16 @@ public sealed class AdminAccountProvisioningService(AuthDbContext context, UserM
         if (latest.Status != EnrollmentCodeReissueStatus.Issued) return new(latest.Status);
         if (latest.Person!.UserCode != target.Person!.UserCode) return new(EnrollmentCodeReissueStatus.NotEligible);
         await transaction.CommitAsync(token);
-        logger.LogInformation("一般アカウントの登録コードを再発行しました。実行者={ActorId} 認証ID={AuthUserId} 対象人物={PersonCode} 日時={OccurredAtUtc} 結果=成功",
+        logger.LogInformation("登録コードを再発行しました。実行者={ActorId} 認証ID={AuthUserId} 対象人物={PersonCode} 日時={OccurredAtUtc} 結果=成功",
             current.Session.AuthUserId, authUserId, target.Person.UserCode, time.GetUtcNow());
         return new(EnrollmentCodeReissueStatus.Issued, issued);
     }
 
-    /// <summary>現在の一般アカウント・人物対応・停止状態・パスキーなしを確認する。</summary>
+    /// <summary>現在のアカウント・人物対応・停止状態・パスキーなしを確認する。</summary>
     private async Task<(EnrollmentCodeReissueStatus Status, AccountPerson? Person)> FindReissueTargetAsync(string id, CancellationToken token)
     {
         var user = await context.Users.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, token);
         if (user is null) return (EnrollmentCodeReissueStatus.NotFound, null);
-        if (await users.IsInRoleAsync(user, "Admin")) return (EnrollmentCodeReissueStatus.TargetIsAdmin, null);
         var person = await people.FindAsync(id, token);
         if (person is null) return (EnrollmentCodeReissueStatus.NotFound, null);
         if (user.IsEnabled || (await users.GetPasskeysAsync(user)).Count > 0) return (EnrollmentCodeReissueStatus.NotEligible, null);

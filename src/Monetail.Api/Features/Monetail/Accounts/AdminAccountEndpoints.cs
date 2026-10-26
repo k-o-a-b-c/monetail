@@ -35,7 +35,6 @@ public static class AdminAccountEndpoints
             {
                 EnrollmentCodeReissueStatus.Issued => Results.Ok(result.IssuedCode),
                 EnrollmentCodeReissueStatus.NotFound => Results.NotFound(new { message = "対象アカウントと人物対応を確認できません。" }),
-                EnrollmentCodeReissueStatus.TargetIsAdmin => Results.Json(new { message = "管理者アカウントの再発行には管理コマンドを使用してください。" }, statusCode: 403),
                 EnrollmentCodeReissueStatus.NotEligible => Results.Conflict(new { message = "利用中または状態が変わったアカウントです。停止中・パスキーなしの場合だけ再発行できます。" }),
                 _ => Results.Json(new { message = "操作を完了できませんでした。本人確認をやり直してください。" }, statusCode: 403)
             };

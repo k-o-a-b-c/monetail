@@ -34,4 +34,4 @@ SQLiteの書込トランザクションで同時実行を直列化する。初�
 
 合成データと実SQLiteで、既存業務値の保持、初期作成の再実行、再発行、ハッシュのみ保存とログ非出力、途中失敗、利用中・鍵が残るアカウントの拒否、同時実行を検証する。構成・件数・結果は[tests/README.md](../tests/README.md)へ集約する。
 
-全失効・緊急復旧・復元後の全体リセットは[49](49-authentication-revocation-recovery.md)まで実装した。既存人物への一般アカウント初回発行APIは[54](54-admin-account-creation.md)まで実装した。一般アカウントへの再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。新規人物追加、停止のHTTP経路、追加管理者の権限変更は後続とする。ログイン画面は[47](47-passkey-login-sessions.md)まで実装した。登録画面は[46](46-passkey-enrollment.md)を参照する。今回の再発行は停止処理そのものではなく、コードを発行しても利用可否はtrueにしない。
+全失効・緊急復旧・復元後の全体リセットは[49](49-authentication-revocation-recovery.md)まで実装した。既存人物への一般アカウント初回発行APIは[54](54-admin-account-creation.md)まで実装した。一般・管理者アカウントへの再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。新規人物追加、停止のHTTP経路、追加管理者の権限変更は後続とする。ログイン画面は[47](47-passkey-login-sessions.md)まで実装した。登録画面は[46](46-passkey-enrollment.md)を参照する。今回の再発行は停止処理そのものではなく、コードを発行しても利用可否はtrueにしない。
