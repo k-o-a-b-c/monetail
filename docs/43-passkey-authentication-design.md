@@ -1,6 +1,6 @@
 # 43 パスキー認証の設計
 
-更新: 2026-10-26。**パスキー登録・ログイン・セッション・本人再確認・本人のパスキー管理と、管理者向け人物・アカウント一覧APIまで実装。Web管理画面は未実装で、本番設定やDBは変更していない。** [44 認証DBの土台](44-auth-database-foundation.md)と[45 初期管理者・コード発行](45-initial-admin-enrollment.md)に加え、[46 コードによるパスキー登録](46-passkey-enrollment.md)、[47 ログイン・セッション](47-passkey-login-sessions.md)と[48 本人再確認](48-passkey-reauthentication.md)、[49 全失効・復旧コマンド](49-authentication-revocation-recovery.md)、[50 本人のパスキー管理](50-self-service-passkeys.md)、[51 管理者一覧API](51-admin-account-list.md)まで実装した。既定は`/health`だけとし、固定HTTPS設定を指定した場合に認証画面・認証API・管理者一覧APIを公開する。
+更新: 2026-10-26。**パスキー登録・ログイン・セッション・本人再確認・本人のパスキー管理と、管理者向け人物・アカウント一覧と既存人物への初回発行APIまで実装。Web管理画面は未実装で、本番設定やDBは変更していない。** [44 認証DBの土台](44-auth-database-foundation.md)と[45 初期管理者・コード発行](45-initial-admin-enrollment.md)に加え、[46 コードによるパスキー登録](46-passkey-enrollment.md)、[47 ログイン・セッション](47-passkey-login-sessions.md)と[48 本人再確認](48-passkey-reauthentication.md)、[49 全失効・復旧コマンド](49-authentication-revocation-recovery.md)、[50 本人のパスキー管理](50-self-service-passkeys.md)、[51 管理者一覧API](51-admin-account-list.md)、[54 初回発行API](54-admin-account-creation.md)まで実装した。既定は`/health`だけとし、固定HTTPS設定を指定した場合に認証画面・認証API・管理者一覧APIを公開する。
 
 ## 決定事項と設計案
 
@@ -149,7 +149,7 @@ SQLiteの親フォルダとData Protectionキーを永続化し、認証テー�
 
 ### 管理者画面とAPI
 
-人物と対応アカウントの状態を返す参照APIだけを[51](51-admin-account-list.md)で実装した。一覧取得は有効なログインと現在のAdminロールを要求し、直近5分の本人確認は更新操作に適用する。以下の更新API・Web管理画面は後続とする。
+人物と対応アカウントの一覧を[51](51-admin-account-list.md)、既存人物への一般アカウント・初回登録コード発行を[54](54-admin-account-creation.md)で実装した。一覧取得は有効なログインと現在のAdminロールを要求し、初回発行は直近5分の本人確認・CSRFと永続的な要求IDによる再送識別も要求する。新規人物・再発行・停止のHTTP経路とWeb管理画面は後続とする。
 
 `/admin/accounts`で、既存人物・アカウント状態を確認し、新しい人物の追加、一般アカウントの登録コード発行・再発行と、利用停止・紛失時の全失効を行う。管理者ロールの有無はサーバーで要求ごとに確認し、管理権限を取り消した古いCookieでは操作できない。変更操作は直近5分以内のパスキー本人確認とCSRF検証を必須にする。
 
@@ -157,19 +157,19 @@ SQLiteの親フォルダとData Protectionキーを永続化し、認証テー�
 | --- | --- |
 | `GET /admin/accounts` | 人物一覧と対応アカウントのID・利用可否を取得。アカウント未作成ならnull。実装済み（[51](51-admin-account-list.md)）。コードや鍵は返さない |
 | `POST /admin/people` | 表示名から人物だけを登録。認証アカウントや登録コードは作らない |
-| `POST /admin/accounts` | アカウント未登録の既存人物を選ぶか、新規人物と同時に一般アカウント・初回登録コードを発行。人物選択と新規追加は同時に指定できず、ロールの指定も受け付けない |
+| `POST /admin/accounts` | 既存人物への一般アカウント・初回登録コード発行を実装（[54](54-admin-account-creation.md)）。要求IDを必須とし、ロール等の追加項目を拒否。新規人物と同時の発行は後続 |
 | `POST /admin/accounts/{id}/enrollment-code` | 登録待ち・停止中の一般アカウントへ登録コードを発行。停止中は同じ認証ID・人物対応を使って登録待ちにする |
 | `POST /admin/accounts/{id}/disable` | 利用停止・紛失に共通する全失効。アカウントを停止し、全パスキー・全セッション・未使用コードを失効。登録コードは発行しない |
 
 アカウント発行や復旧によって、管理者本人が対象者としてログインするセッションは作らない。管理APIの対象ID・入力値から管理者ロールを付与する入口も設けない。
 
-同じログインフローによる本人再確認では対象認証IDを固定し、別人を認証したら本人確認済みにしない。ログインページ・必要な静的資産・通常ログイン／登録・CSRF・稼働確認だけを未認証で公開し、本人再確認には有効なセッションを要求する。今後の家計APIは認証必須を既定にする。登録APIのJSONとIdentityの状態管理への接続は[46](46-passkey-enrollment.md)で実装した。ログイン・本人情報・ログアウトのJSONは[47](47-passkey-login-sessions.md)で実装した。本人再確認は[48](48-passkey-reauthentication.md)、本人のパスキー管理は[50](50-self-service-passkeys.md)、管理者一覧APIは[51](51-admin-account-list.md)まで実装した。Web管理画面等は後続とする。
+同じログインフローによる本人再確認では対象認証IDを固定し、別人を認証したら本人確認済みにしない。ログインページ・必要な静的資産・通常ログイン／登録・CSRF・稼働確認だけを未認証で公開し、本人再確認には有効なセッションを要求する。今後の家計APIは認証必須を既定にする。登録APIのJSONとIdentityの状態管理への接続は[46](46-passkey-enrollment.md)で実装した。ログイン・本人情報・ログアウトのJSONは[47](47-passkey-login-sessions.md)で実装した。本人再確認は[48](48-passkey-reauthentication.md)、本人のパスキー管理は[50](50-self-service-passkeys.md)、管理者一覧APIは[51](51-admin-account-list.md)、既存人物への初回発行APIは[54](54-admin-account-creation.md)まで実装した。Web管理画面等は後続とする。
 
 `MapIdentityApi`をそのまま公開してもパスキー用APIは揃わず、不要なメール・パスワード登録経路を開くため採用しない。Identityのパスキー機能へ薄いエンドポイントと画面を接続する。
 
 ## 実装順と確認条件
 
-1. 一時DB向けの認証用追加移行まで[44](44-auth-database-foundation.md)で実装した。初期管理者の作成・既存アカウントへのコード再発行は[45](45-initial-admin-enrollment.md)で実装した。新規人物追加・一般アカウント発行は後続とする。`EnsureCreated`や既存テーブルの再作成を使わず、既存の全業務行・既存人物の`m_user.account_name`・過去の`update_user`・保存済み`receipt.total`を変更しない。
+1. 一時DB向けの認証用追加移行まで[44](44-auth-database-foundation.md)で実装した。初期管理者の作成・既存アカウントへのコード再発行は[45](45-initial-admin-enrollment.md)で実装した。既存人物への一般アカウント発行は[54](54-admin-account-creation.md)まで実装し、新規人物追加は後続とする。`EnsureCreated`や既存テーブルの再作成を使わず、既存の全業務行・既存人物の`m_user.account_name`・過去の`update_user`・保存済み`receipt.total`を変更しない。
 2. 固定HTTPSで最小のログイン／登録画面とWebAuthnの登録・認証を通す。登録画面・コードの検証と原子的消費・アカウント有効化は[46](46-passkey-enrollment.md)まで実装した。ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)まで実装した。管理者のアカウント発行画面・APIと、初期管理者／緊急復旧の管理コマンド、コードの失効・原子的消費、全端末紛失からの復旧を同じ段階で実装する。
 3. Cookie・セッション・`me`・ログアウト・本人再確認・パスキー追加／削除、CSRF・期限・失効・コンテナ再作成を検証する。ここまでが最初の認証機能で、Windowsの接続切替や業務保存は含めない。
 4. 認証が安定してからレシート、次に振替のAPIへ進む。将来APIから保存する更新者はサーバーが認証ID等の安定した識別子から決め、既存の更新者を一括変換しない。

@@ -9,7 +9,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 - ソリューション: [HouseholdAccountsBeta/HouseholdAccountsBeta.sln](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)
 - 業務操作: レシート・振替・残高の入力、分類別／収支／残高の集計など
 - **保留・未完成**: マスタ編集画面は作成を見送り。ポイント機能は一部実装のまま、採用範囲は未決定
-- **APIの土台**: C# / ASP.NET Core / .NET 10 LTS。既定は`/health`だけを提供。Identity・SQLiteの認証DB、初期管理者・コード発行、HTTPSパスキー登録・ログイン・固定期限セッション・本人再確認・全失効／復旧コマンド・本人のパスキー管理と、管理者向け人物・アカウント一覧APIを実装。管理画面・業務APIは未実装
+- **APIの土台**: C# / ASP.NET Core / .NET 10 LTS。既定は`/health`だけを提供。Identity・SQLiteの認証DB、初期管理者・コード発行、HTTPSパスキー登録・ログイン・固定期限セッション・本人再確認・全失効／復旧コマンド・本人のパスキー管理と、管理者向け人物・アカウント一覧と既存人物への初回発行APIを実装。管理画面・業務APIは未実装
 
 ## ドキュメント
 
@@ -68,6 +68,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [51 管理者向けの人物・アカウント一覧](docs/51-admin-account-list.md) | 名前だけの人物を含む一覧・対応アカウントの利用可否・管理者認可 |
 | [52 認証処理の再利用と機能別の境界](docs/52-reusable-authentication-boundaries.md) | アプリごとの独立アカウントと認証コードの再利用、現在の人物依存と配置整理 |
 | [53 認証からの人物照合・表示名取得の分離](docs/53-account-person-lookup.md) | 認証5経路の照合窓口・Monetail側の実装・同一トランザクションと現行条件の維持 |
+| [54 既存人物への一般アカウント発行](docs/54-admin-account-creation.md) | 初回登録コードの発行・永続的な再送識別・管理者条件・追加移行 |
 
 ### 読む順番
 

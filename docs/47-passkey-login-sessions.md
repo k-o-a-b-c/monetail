@@ -56,6 +56,6 @@ Dockerのサーバー既定地域は`Etc/UTC`。Composeは配備時の`TZ`を取
 
 Chromiumの仮想認証器でも登録→ログイン→再起動→継続→ログアウトと失効Cookieの再送拒否を確認する。端末とサーバーの地域差・サーバーへの補完・生コード非保存と通常ログ非出力、表示中の失効後にログイン操作へ戻れることも確認する。DockerではUTCとニューヨークの.NET地域解決・非root稼働・DBファイル非作成の稼働確認を検証する。件数・実行結果は[tests/README.md](../tests/README.md)に集約する。Windows Hello／スマートフォンの物理端末と本番配備は未確認。
 
-直近5分の本人再確認は[48](48-passkey-reauthentication.md)で実装した。全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。管理者画面、人物・一般アカウント作成、追加管理者の管理、家計の業務APIは後続とする。管理操作の本人再確認で既存セッションの固定期限を延長しない設計も維持する。
+直近5分の本人再確認は[48](48-passkey-reauthentication.md)で実装した。全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。既存人物への一般アカウント初回発行APIは[54](54-admin-account-creation.md)で実装した。管理者画面、新規人物作成、追加管理者の管理、家計の業務APIは後続とする。管理操作の本人再確認で既存セッションの固定期限を延長しない設計も維持する。
 
 人物照合・表示名取得は[53](53-account-person-lookup.md)の窓口とMonetail側の実装へ分離した。人物対応必須・確認するタイミング・同じDBトランザクション・本書の認証条件を維持する。
