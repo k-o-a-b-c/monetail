@@ -63,7 +63,7 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 
 ## 次に設計するもの
 
-導入設計は[56 新規利用を基本とする方針](56-new-user-onboarding-policy.md)に従う。既定のComposeは稼働確認用のままで、新規DBの初期化や利用開始画面は未実装。既存DB移行は一度きりの運用手順・専用スクリプトに限定し、通常のDBスキーマ更新は維持する。
+導入設計は[56 新規利用を基本とする方針](56-new-user-onboarding-policy.md)に従う。新規アカウント登録はシステム全体のアカウント管理者の招待を必須とする。既定のComposeは稼働確認用のままで、新規DBの初期化や招待からの利用開始画面は未実装。既存DB移行は一度きりの運用手順・専用スクリプトに限定し、通常のDBスキーマ更新は維持する。
 
 パスキー中心のログイン、管理者画面でのアカウント発行と、管理コマンドによる初期管理者の作成・緊急復旧、既存`m_user`との対応は[43 認証設計](43-passkey-authentication-design.md)にまとめる。SQLiteの認証DB接続・追加移行は[44](44-auth-database-foundation.md)に実装した。ログインは[47](47-passkey-login-sessions.md)まで実装し、既存人物への初回発行APIは[54](54-admin-account-creation.md)まで実装し、Web管理画面は未実装で、HTTPS・永続フォルダの具体的な配置とバックアップ運用も後続で整える。XMLの利用者コード設定は採用しない。業務APIはレシート入力、次に振替入力を優先し、保存済み`total`等の既存契約を保つ。最初のAPI土台ではDB接続を含めず、認証DBの実装を後続の44へ分けた。業務API・実環境への配置は引き続き未実施。
 
