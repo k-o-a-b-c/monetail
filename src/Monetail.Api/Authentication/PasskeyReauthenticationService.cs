@@ -6,7 +6,7 @@ namespace Monetail.Api.Authentication;
 
 /// <summary>現在の本人をパスキーで再確認し、既存セッションの確認日時だけを更新する。</summary>
 public sealed class PasskeyReauthenticationService(AuthDbContext context, UserManager<AuthUser> users,
-    IPasskeyHandler<AuthUser> passkeys, ReauthenticationChallenges challenges, TimeProvider time,
+    IPasskeyHandler<AuthUser> passkeys, IAccountPersonLookup people, ReauthenticationChallenges challenges, TimeProvider time,
     ILogger<PasskeyReauthenticationService> logger)
 {
     /// <summary>現在の本人のパスキーだけを使う再確認を、既存セッションに結び付けて開始する。</summary>
@@ -41,11 +41,8 @@ public sealed class PasskeyReauthenticationService(AuthDbContext context, UserMa
         var now = time.GetUtcNow();
         if (!result.Succeeded || result.User.Id != challenge.AuthUserId || !result.User.IsEnabled ||
             challenge.ExpiresAtUtc <= now) return false;
-        var personExists = await (from link in context.UserLinks
-                                  join person in context.Set<LegacyPerson>() on link.UserCode equals person.Code
-                                  where link.AuthUserId == challenge.AuthUserId && link.UserCode == challenge.UserCode
-                                  select link).AnyAsync(token);
-        if (!personExists) return false;
+        var person = await people.FindAsync(challenge.AuthUserId, token);
+        if (person is null || person.UserCode != challenge.UserCode) return false;
         if (!(await users.AddOrUpdatePasskeyAsync(result.User, result.Passkey)).Succeeded)
             throw new InvalidOperationException("パスキーの認証状態を保存できません。");
         now = time.GetUtcNow();

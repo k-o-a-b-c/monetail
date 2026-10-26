@@ -42,4 +42,4 @@
 
 初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。本人のパスキー一覧・追加／削除は[50](50-self-service-passkeys.md)、管理者向けの人物・アカウント一覧APIは[51](51-admin-account-list.md)まで実装した。Web管理画面・追加管理者の管理は後続とする。
 
-別アプリのアカウントは独立させ、認証部分のコードを流用しやすい構成を目指す（DEC-036、[52](52-reusable-authentication-boundaries.md)）。共通アカウント・共通ログインは現時点では採用しない。人物必須の現行認証を維持した配置整理を先に行い、残る人物依存の分離は後続とする。Web版の業務入力は引き続きレシート→振替を優先する。
+別アプリのアカウントは独立させ、認証部分のコードを流用しやすい構成を目指す（DEC-036、[52](52-reusable-authentication-boundaries.md)）。共通アカウント・共通ログインは現時点では採用しない。人物必須の現行認証を維持した配置整理を先に行い、人物照合の窓口は[53](53-account-person-lookup.md)で分離した。人物コード・DBモデル・管理コマンドの依存は後続で整理する。Web版の業務入力は引き続きレシート→振替を優先する。
