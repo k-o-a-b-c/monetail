@@ -2,6 +2,8 @@
 
 更新: 2026-10-24。**認証テーブルの追加移行まで実装。Web管理画面・業務APIは未実装で、本番DBへの適用は行っていない。** [43 認証設計](43-passkey-authentication-design.md)の保存基盤に当たる。
 
+導入設計は[56](56-new-user-onboarding-policy.md)の新規利用を基本とする方針へ進める。本書は現在の既存DBへの認証テーブル追加を記録したもので、空DBを作成する新規導入機能ではない。新規利用では明示的な初期設定コマンドでDB準備と最初の管理者用コード発行をまとめる方針が確定した（DEC-039）。一度きりのデータ移行と、今後も必要なDBスキーマ更新は区別する。新規初期化は未実装で、現時点の空DB拒否・明示的移行の動作は変更していない。
+
 ## 保存構成
 
 `src/Monetail.Api/Authentication/`で、ASP.NET Core IdentityとEF Core SQLiteを共通のDI登録にまとめる。実行時・移行生成時・テストで`IdentitySchemaVersions.Version3`を使い、標準のパスキーストアも含める。接続は既存ファイル限定の`ReadWrite`とし、認証用接続で外部キーを有効にする。
