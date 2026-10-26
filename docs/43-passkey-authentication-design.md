@@ -1,6 +1,6 @@
 # 43 パスキー認証の設計
 
-更新: 2026-10-26。**パスキー登録・ログイン・セッション・本人再確認・本人のパスキー管理と、管理者向け人物・アカウント一覧と既存人物への初回発行APIまで実装。Web管理画面は未実装で、本番設定やDBは変更していない。** [44 認証DBの土台](44-auth-database-foundation.md)と[45 初期管理者・コード発行](45-initial-admin-enrollment.md)に加え、[46 コードによるパスキー登録](46-passkey-enrollment.md)、[47 ログイン・セッション](47-passkey-login-sessions.md)と[48 本人再確認](48-passkey-reauthentication.md)、[49 全失効・復旧コマンド](49-authentication-revocation-recovery.md)、[50 本人のパスキー管理](50-self-service-passkeys.md)、[51 管理者一覧API](51-admin-account-list.md)、[54 初回発行API](54-admin-account-creation.md)まで実装した。既定は`/health`だけとし、固定HTTPS設定を指定した場合に認証画面・認証API・管理者一覧APIを公開する。
+更新: 2026-10-26。**パスキー登録・ログイン・セッション・本人再確認・本人のパスキー管理と、管理者向け人物・アカウント一覧と一般アカウントの初回発行・再発行APIまで実装。Web管理画面は未実装で、本番設定やDBは変更していない。** [44 認証DBの土台](44-auth-database-foundation.md)と[45 初期管理者・コード発行](45-initial-admin-enrollment.md)に加え、[46 コードによるパスキー登録](46-passkey-enrollment.md)、[47 ログイン・セッション](47-passkey-login-sessions.md)と[48 本人再確認](48-passkey-reauthentication.md)、[49 全失効・復旧コマンド](49-authentication-revocation-recovery.md)、[50 本人のパスキー管理](50-self-service-passkeys.md)、[51 管理者一覧API](51-admin-account-list.md)、[54 初回発行API](54-admin-account-creation.md)、[55 再発行API](55-admin-enrollment-code-reissue.md)まで実装した。既定は`/health`だけとし、固定HTTPS設定を指定した場合に認証画面・認証API・管理者一覧APIを公開する。
 
 ## 決定事項と設計案
 
@@ -149,7 +149,7 @@ SQLiteの親フォルダとData Protectionキーを永続化し、認証テー�
 
 ### 管理者画面とAPI
 
-人物と対応アカウントの一覧を[51](51-admin-account-list.md)、既存人物への一般アカウント・初回登録コード発行を[54](54-admin-account-creation.md)で実装した。一覧取得は有効なログインと現在のAdminロールを要求し、初回発行は直近5分の本人確認・CSRFと永続的な要求IDによる再送識別も要求する。新規人物・再発行・停止のHTTP経路とWeb管理画面は後続とする。
+人物と対応アカウントの一覧を[51](51-admin-account-list.md)、既存人物への一般アカウント・初回登録コード発行を[54](54-admin-account-creation.md)で実装した。一覧取得は有効なログインと現在のAdminロールを要求し、初回発行は直近5分の本人確認・CSRFと永続的な要求IDによる再送識別も要求する。一般アカウントへのコード再発行は[55](55-admin-enrollment-code-reissue.md)で実装し、管理者・対象の現在状態を保存前後に確認する。新規人物・停止のHTTP経路とWeb管理画面は後続とする。
 
 `/admin/accounts`で、既存人物・アカウント状態を確認し、新しい人物の追加、一般アカウントの登録コード発行・再発行と、利用停止・紛失時の全失効を行う。管理者ロールの有無はサーバーで要求ごとに確認し、管理権限を取り消した古いCookieでは操作できない。変更操作は直近5分以内のパスキー本人確認とCSRF検証を必須にする。
 
@@ -158,7 +158,7 @@ SQLiteの親フォルダとData Protectionキーを永続化し、認証テー�
 | `GET /admin/accounts` | 人物一覧と対応アカウントのID・利用可否を取得。アカウント未作成ならnull。実装済み（[51](51-admin-account-list.md)）。コードや鍵は返さない |
 | `POST /admin/people` | 表示名から人物だけを登録。認証アカウントや登録コードは作らない |
 | `POST /admin/accounts` | 既存人物への一般アカウント・初回登録コード発行を実装（[54](54-admin-account-creation.md)）。要求IDを必須とし、ロール等の追加項目を拒否。新規人物と同時の発行は後続 |
-| `POST /admin/accounts/{id}/enrollment-code` | 登録待ち・停止中の一般アカウントへ登録コードを発行。停止中は同じ認証ID・人物対応を使って登録待ちにする |
+| `POST /admin/accounts/{id}/enrollment-code` | 登録待ち・停止中でパスキーのない一般アカウントへの再発行を実装（[55](55-admin-enrollment-code-reissue.md)）。同じ認証ID・人物対応を維持し、旧未使用コードを失効。Admin対象は拒否 |
 | `POST /admin/accounts/{id}/disable` | 利用停止・紛失に共通する全失効。アカウントを停止し、全パスキー・全セッション・未使用コードを失効。登録コードは発行しない |
 
 アカウント発行や復旧によって、管理者本人が対象者としてログインするセッションは作らない。管理APIの対象ID・入力値から管理者ロールを付与する入口も設けない。
