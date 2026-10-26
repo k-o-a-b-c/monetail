@@ -330,6 +330,37 @@ namespace Monetail.Api.Authentication.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Accounts.AccountCreationRequest", b =>
+                {
+                    b.Property<string>("RequestId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByAuthUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserCode")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("AuthUserId")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedByAuthUserId");
+
+                    b.HasIndex("UserCode");
+
+                    b.ToTable("auth_account_creation_requests", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -461,6 +492,27 @@ namespace Monetail.Api.Authentication.Migrations
                     b.HasOne("Monetail.Api.Authentication.AuthUser", null)
                         .WithMany()
                         .HasForeignKey("AuthUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Accounts.AccountCreationRequest", b =>
+                {
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByAuthUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Monetail.Api.Authentication.LegacyPerson", null)
+                        .WithMany()
+                        .HasForeignKey("UserCode")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

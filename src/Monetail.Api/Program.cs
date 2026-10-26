@@ -56,6 +56,7 @@ if (passkeySettings is not null)
         throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
     builder.Services.AddPasskeyWeb(passkeySettings);
     builder.Services.AddScoped<AdminAccountService>();
+    builder.Services.AddScoped<AdminAccountProvisioningService>();
     builder.Services.AddScoped<IAccountPersonLookup, MonetailAccountPersonLookup>();
 }
 

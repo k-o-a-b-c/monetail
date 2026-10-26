@@ -70,8 +70,8 @@ public sealed class AdminProvisioningService(AuthDbContext context, UserManager<
         return issued;
     }
 
-    /// <summary>古い未使用コードを失効させ、新コードのハッシュだけを保存対象へ追加する。</summary>
-    private async Task<IssuedEnrollmentCode> AddCodeAsync(string authUserId, CancellationToken token)
+    /// <summary>呼出元のトランザクション内で古い未使用コードを失効させ、新コードのハッシュだけを保存対象へ追加する。</summary>
+    internal async Task<IssuedEnrollmentCode> AddCodeAsync(string authUserId, CancellationToken token)
     {
         var now = time.GetUtcNow().UtcDateTime;
         await context.EnrollmentCodes.Where(code => code.AuthUserId == authUserId &&

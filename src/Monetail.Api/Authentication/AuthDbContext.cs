@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Features.Monetail.Accounts;
 
 namespace Monetail.Api.Authentication;
 
@@ -54,6 +55,16 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             session.Property(row => row.AuthUserId).IsRequired();
             session.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        builder.Entity<AccountCreationRequest>(request =>
+        {
+            request.ToTable("auth_account_creation_requests");
+            request.HasKey(row => row.RequestId);
+            request.Property(row => row.RequestId).ValueGeneratedNever();
+            request.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.CreatedByAuthUserId).OnDelete(DeleteBehavior.Restrict);
+            request.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId).OnDelete(DeleteBehavior.Restrict);
+            request.HasIndex(row => row.AuthUserId).IsUnique();
+            request.HasOne<LegacyPerson>().WithMany().HasForeignKey(row => row.UserCode).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -63,10 +63,10 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 
 ## 次に設計するもの
 
-パスキー中心のログイン、管理者画面でのアカウント発行と、管理コマンドによる初期管理者の作成・緊急復旧、既存`m_user`との対応は[43 認証設計](43-passkey-authentication-design.md)にまとめる。SQLiteの認証DB接続・追加移行は[44](44-auth-database-foundation.md)に実装した。ログインは[47](47-passkey-login-sessions.md)まで実装し、一般アカウントのWeb発行は未実装で、HTTPS・永続フォルダの具体的な配置とバックアップ運用も後続で整える。XMLの利用者コード設定は採用しない。業務APIはレシート入力、次に振替入力を優先し、保存済み`total`等の既存契約を保つ。最初のAPI土台ではDB接続を含めず、認証DBの実装を後続の44へ分けた。業務API・実環境への配置は引き続き未実施。
+パスキー中心のログイン、管理者画面でのアカウント発行と、管理コマンドによる初期管理者の作成・緊急復旧、既存`m_user`との対応は[43 認証設計](43-passkey-authentication-design.md)にまとめる。SQLiteの認証DB接続・追加移行は[44](44-auth-database-foundation.md)に実装した。ログインは[47](47-passkey-login-sessions.md)まで実装し、既存人物への初回発行APIは[54](54-admin-account-creation.md)まで実装し、Web管理画面は未実装で、HTTPS・永続フォルダの具体的な配置とバックアップ運用も後続で整える。XMLの利用者コード設定は採用しない。業務APIはレシート入力、次に振替入力を優先し、保存済み`total`等の既存契約を保つ。最初のAPI土台ではDB接続を含めず、認証DBの実装を後続の44へ分けた。業務API・実環境への配置は引き続き未実施。
 
 検証の実行結果・件数・CIは[tests/README.md](../tests/README.md)を参照する。APIの起動確認だけでWindows版全体や実データ・実運用環境を検証済みとは扱わない。
 
-初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。本人のパスキー一覧・追加／削除は[50](50-self-service-passkeys.md)、管理者向けの人物・アカウント一覧APIは[51](51-admin-account-list.md)まで実装した。Web管理画面・追加管理者の管理は後続とする。
+初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。本人のパスキー一覧・追加／削除は[50](50-self-service-passkeys.md)、管理者向けの人物・アカウント一覧APIは[51](51-admin-account-list.md)、既存人物への一般アカウント初回発行APIは[54](54-admin-account-creation.md)まで実装した。Web管理画面・追加管理者の管理は後続とする。
 
 認証コードの再利用と機能別の配置は[52](52-reusable-authentication-boundaries.md)を参照。人物・アカウント一覧をFeatures/Monetail/Accountsへ置き、Program.csで認証と機能を登録する。アカウントはアプリごとに独立させ、既存プロジェクト・DB・認証設定は維持する。人物照合・表示名取得は[53](53-account-person-lookup.md)で窓口とMonetail側の実装へ分離した。人物コード・DBモデル・管理コマンドの依存と別アプリへの流用は後続とする。

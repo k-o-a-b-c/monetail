@@ -11,6 +11,7 @@
 | Identity標準テーブル | `AspNetUsers`、`AspNetRoles`、各Claim・Login・Role・Tokenと`AspNetUserPasskeys`を追加する |
 | アカウントの利用可否 | `AspNetUsers.IsEnabled`の初期値はfalse。移行だけではログイン可能なアカウントを作らない |
 | `auth_user_links` | 認証IDをNOT NULLの主キー、人物コードをNOT NULLかつUNIQUEにする。Identityアカウントと`m_user(code)`へのFKは双方RESTRICT |
+| `auth_account_creation_requests` | [54](54-admin-account-creation.md)の追加移行で発行要求ID・実行者・作成アカウント・人物コード・日時を保存。再送でコードを再表示せず、既存の認証・業務行を保持する |
 | 既存`m_user` | Codeだけを参照先としてモデルに置き、`ExcludeFromMigrations()`で移行対象から除外する。表示名等による自動紐付けは行わない |
 | EFの移行管理 | `__EFMigrationsHistory`と`__EFMigrationsLock`が追加される。既存の`PRAGMA user_version`とは分ける |
 
