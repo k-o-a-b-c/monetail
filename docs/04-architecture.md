@@ -37,7 +37,7 @@ Windows デスクトップアプリ
 | `.../Logic/ReceiptAmountValidation.vb` | 既存計算を使う金額範囲の確認。反映候補と選択税設定で確認し、元モデルを変更しない |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
-| `src/Monetail.Api/` | ASP.NET Core API、認証DB、パスキー登録・ログインとセッション管理。業務機能は未実装 |
+| `src/Monetail.Api/` | ASP.NET Core API、認証DB、パスキー登録・ログインとセッション管理、管理者向け人物・アカウント一覧。業務機能は未実装 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
 | `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
@@ -128,4 +128,4 @@ Web / スマートフォン / デスクトップ
 
 明細の値引後金額はReceiptDetail.CalculateDiscountedFeeで計算する。Receiptの合計・人別参考額とCalculationの分類／明細参考額は、このDecimalの共通処理を呼び出してから従来の税処理・集計・人数按分を行う。計算結果を明細へ保存・キャッシュしない。
 
-初期管理者の作成と登録コードの保存・再発行は[45](45-initial-admin-enrollment.md)を参照。パスキー登録のHTTP経路と固定HTTPS設定は[46](46-passkey-enrollment.md)まで実装した。ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、本人再確認は[48](48-passkey-reauthentication.md)、全失効・復旧の管理コマンドは[49](49-authentication-revocation-recovery.md)、本人のパスキー管理は[50](50-self-service-passkeys.md)まで実装した。
+初期管理者の作成と登録コードの保存・再発行は[45](45-initial-admin-enrollment.md)を参照。パスキー登録のHTTP経路と固定HTTPS設定は[46](46-passkey-enrollment.md)まで実装した。ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、本人再確認は[48](48-passkey-reauthentication.md)、全失効・復旧の管理コマンドは[49](49-authentication-revocation-recovery.md)、本人のパスキー管理は[50](50-self-service-passkeys.md)、管理者向けの人物・アカウント一覧APIは[51](51-admin-account-list.md)まで実装した。
