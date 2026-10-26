@@ -1,4 +1,6 @@
-namespace Monetail.Api.Authentication;
+using Monetail.Api.Authentication;
+
+namespace Monetail.Api.Features.Monetail.Accounts;
 
 /// <summary>管理者による人物・アカウント状態の一覧取得を受け付ける。</summary>
 public static class AdminAccountEndpoints

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Authentication;
 
-namespace Monetail.Api.Authentication;
+namespace Monetail.Api.Features.Monetail.Accounts;
 
 /// <summary>人物一覧へ添える認証アカウントの識別子と利用可否を保持する。</summary>
 public sealed record AdminAccountSummary(string AuthUserId, bool IsEnabled);

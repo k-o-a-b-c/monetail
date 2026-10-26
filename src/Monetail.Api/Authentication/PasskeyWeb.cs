@@ -26,7 +26,6 @@ public static class PasskeyWeb
         services.AddScoped<PasskeyReauthenticationService>();
         services.AddSingleton<PasskeyAdditionChallenges>();
         services.AddScoped<PasskeyManagementService>();
-        services.AddScoped<AdminAccountService>();
         services.AddScoped<IAuthorizationHandler, RecentPasskeyHandler>();
         services.AddScoped<SessionCookieEvents>();
         services.AddAuthentication(SessionCookieEvents.Scheme).AddCookie(SessionCookieEvents.Scheme, options =>
@@ -144,7 +143,6 @@ public static class PasskeyWeb
         app.MapPasskeyLogin();
         app.MapPasskeyReauthentication();
         app.MapPasskeyManagement();
-        app.MapAdminAccounts();
     }
 
     /// <summary>埋込済みの認証画面・スクリプトだけを読み込む。</summary>

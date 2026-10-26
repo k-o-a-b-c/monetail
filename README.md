@@ -66,6 +66,7 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [49 全失効・管理コマンドによる復旧](docs/49-authentication-revocation-recovery.md) | 個別全失効、最後の管理者保護、緊急復旧、復元後の全体リセット |
 | [50 本人のパスキー管理](docs/50-self-service-passkeys.md) | 本人の鍵一覧・追加・最後の鍵保護・削除後の全端末ログアウト |
 | [51 管理者向けの人物・アカウント一覧](docs/51-admin-account-list.md) | 名前だけの人物を含む一覧・対応アカウントの利用可否・管理者認可 |
+| [52 共通アカウントと機能別の境界](docs/52-shared-accounts-feature-boundaries.md) | 共通認証とMonetail・将来の別機能の責務、現在の依存と段階的な整理 |
 
 ### 読む順番
 
