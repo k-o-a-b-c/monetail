@@ -125,6 +125,10 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public Task<HttpResponseMessage> VerifyAsync(HttpClient client, object credential) =>
         client.PostAsJsonAsync("/auth/login/verify", new { credential });
 
+    /// <summary>ログイン署名と同じテスト鍵で、標準のパスキー追加応答を作る。</summary>
+    public object Attestation(JsonElement options, byte[] id, string? corruption = null) =>
+        PasskeyEnrollmentTests.Credential(options, corruption, id, key.ExportParameters(false));
+
     /// <summary>同じ表示名の別人物へ有効アカウントと別の資格情報を作成する。</summary>
     public async Task<(string UserId, byte[] CredentialId)> AddAccountAsync(int personCode)
     {

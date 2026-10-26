@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>認証系のPOSTにCSRF検証と、秘密情報を含めない障害応答を適用する。</summary>
+/// <summary>認証APIの更新要求にCSRF検証を行い、秘密情報を含めない障害応答を返す。</summary>
 public sealed class AuthRequestFilter(IAntiforgery csrf, ILogger<AuthRequestFilter> logger) : IEndpointFilter
 {
     /// <summary>CSRFを確認して処理を呼び出し、認証ストア障害時は拒否する。</summary>
@@ -12,7 +12,9 @@ public sealed class AuthRequestFilter(IAntiforgery csrf, ILogger<AuthRequestFilt
     {
         try
         {
-            await csrf.ValidateRequestAsync(context.HttpContext);
+            var method = context.HttpContext.Request.Method;
+            if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method) && !HttpMethods.IsOptions(method) && !HttpMethods.IsTrace(method))
+                await csrf.ValidateRequestAsync(context.HttpContext);
             return await next(context);
         }
         catch (AntiforgeryValidationException)

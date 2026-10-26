@@ -302,10 +302,10 @@ public class PasskeyEnrollmentTests
     }
 
     /// <summary>合成EC公開鍵のWebAuthn応答を作り、本番と同じIdentity検証へ渡す。</summary>
-    private static object Credential(JsonElement options, string? corruption = null, byte[]? id = null)
+    internal static object Credential(JsonElement options, string? corruption = null, byte[]? id = null, ECParameters? publicParameters = null)
     {
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        var point = key.ExportParameters(false).Q;
+        var point = publicParameters?.Q ?? key.ExportParameters(false).Q;
         id ??= RandomNumberGenerator.GetBytes(32);
         var challenge = options.GetProperty("challenge").GetString();
         var clientData = JsonSerializer.SerializeToUtf8Bytes(new

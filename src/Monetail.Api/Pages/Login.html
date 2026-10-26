@@ -17,6 +17,12 @@
     <p id="person"></p>
     <button id="login" type="button">パスキーでログイン</button>
     <button id="reauthenticate" type="button" hidden>本人確認をやり直す</button>
+    <section id="passkeys" hidden>
+      <h2>登録済みパスキー</h2>
+      <ul id="passkey-list"></ul>
+      <p>追加・削除には直近5分以内の本人確認が必要です。最後のパスキーは削除できません。</p>
+      <button id="add-passkey" type="button">パスキーを追加する</button>
+    </section>
     <button id="logout" type="button" hidden>ログアウト</button>
     <p id="message" role="status" aria-live="polite"></p>
     <noscript>ログインにはJavaScriptが必要です。</noscript>

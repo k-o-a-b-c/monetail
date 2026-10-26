@@ -1,6 +1,6 @@
 # 47 パスキーログインと固定期限セッション
 
-**通常ログイン・本人情報取得・ログアウト・要求ごとの失効確認まで実装。本人再確認は[48](48-passkey-reauthentication.md)、全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。管理画面・パスキー管理は後続。** [43 認証設計](43-passkey-authentication-design.md)と[46 登録](46-passkey-enrollment.md)に従う。期限は利用者の変更により、**13日（312時間）経過後の次の午前2時**とする（DEC-034）。本番設定・実データ・Windows版は変更していない。
+**通常ログイン・本人情報取得・ログアウト・要求ごとの失効確認まで実装。本人再確認は[48](48-passkey-reauthentication.md)、全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。本人のパスキー管理は[50](50-self-service-passkeys.md)で実装し、管理画面は後続。** [43 認証設計](43-passkey-authentication-design.md)と[46 登録](46-passkey-enrollment.md)に従う。期限は利用者の変更により、**13日（312時間）経過後の次の午前2時**とする（DEC-034）。本番設定・実データ・Windows版は変更していない。
 
 ## 設定と追加移行
 
@@ -38,7 +38,7 @@ Dockerのサーバー既定地域は`Etc/UTC`。Composeは配備時の`TZ`を取
 
 `/health`・CSRF取得・登録／ログイン画面と開始／検証だけを未認証で公開し、それ以外は既定で認証必須とする。ログイン失敗・未認証・期限切れ・取消済み・無効アカウントは401、認証後の人物対応不備は403、認証DB障害は503として拒否する。画面への302転送は行わない。CSRF不正は400、回数超過は429。ログイン失敗から人物や鍵の有無を判断できる応答は返さない。
 
-登録と共通のHTTPS・Origin・既知プロキシ・CSP・no-store・本文64 KiB制限を適用する。コード受付とログインの開始／検証は合わせてIPごと1分20回。POSTは同一Originと`X-CSRF-TOKEN`を要求し、ブラウザーは操作直前に`GET /auth/csrf`で現在の認証状態に対応するトークンを取り直す。メール・パスワード登録や任意Originへの資格情報付きCORSは公開しない。
+登録と共通のHTTPS・Origin・既知プロキシ・CSP・no-store・本文64 KiB制限を適用する。コード受付・ログイン・本人再確認・[50 パスキー追加／削除](50-self-service-passkeys.md)の更新要求は合わせてIPごと1分20回。POSTは同一Originと`X-CSRF-TOKEN`を要求し、ブラウザーは操作直前に`GET /auth/csrf`で現在の認証状態に対応するトークンを取り直す。メール・パスワード登録や任意Originへの資格情報付きCORSは公開しない。
 
 ## 固定期限と検証の境界
 
@@ -56,4 +56,4 @@ Dockerのサーバー既定地域は`Etc/UTC`。Composeは配備時の`TZ`を取
 
 Chromiumの仮想認証器でも登録→ログイン→再起動→継続→ログアウトと失効Cookieの再送拒否を確認する。端末とサーバーの地域差・サーバーへの補完・生コード非保存と通常ログ非出力、表示中の失効後にログイン操作へ戻れることも確認する。DockerではUTCとニューヨークの.NET地域解決・非root稼働・DBファイル非作成の稼働確認を検証する。件数・実行結果は[tests/README.md](../tests/README.md)に集約する。Windows Hello／スマートフォンの物理端末と本番配備は未確認。
 
-直近5分の本人再確認は[48](48-passkey-reauthentication.md)で実装した。全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。管理者画面、人物・一般アカウント作成、追加管理者の管理、パスキー追加／削除、家計の業務APIは後続とする。管理操作の本人再確認で既存セッションの固定期限を延長しない設計も維持する。
+直近5分の本人再確認は[48](48-passkey-reauthentication.md)で実装した。全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。管理者画面、人物・一般アカウント作成、追加管理者の管理、家計の業務APIは後続とする。管理操作の本人再確認で既存セッションの固定期限を延長しない設計も維持する。
