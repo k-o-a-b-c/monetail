@@ -124,13 +124,13 @@ CLIは実際のProgramを別プロセスで起動し、人物指定・復元後�
 
 実装コミット`6563dbb`の[CI 40260570473](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40260570473)でAPI全221件・CI選択15件・DockerビルドとUTC／ニューヨークの稼働確認が成功した。未変更のCompose設定ステップとWindows・既存計算／Python移行・性能の3ジョブは省略された。最後の更新はこの結果記録だけで、製品・テスト・CIソースは検証済みのままとする。
 
-## 共通アカウント方針と機能別配置の検証
+## 認証処理の再利用方針と機能別配置の検証
 
-管理者一覧のサービス・受付をFeatures/Monetail/Accountsへ移し、Program.csから登録・起動する構成へ整理した。URL・JSON・認証条件・DBモデルや移行履歴は変更しないため、新しいテストケースは追加しない。現在の人物必須の認証動作を維持し、共通認証化や在庫管理は後続とする（[52](../docs/52-shared-accounts-feature-boundaries.md)）。
+管理者一覧のサービス・受付をFeatures/Monetail/Accountsへ移し、Program.csから登録・起動する構成へ整理した。URL・JSON・認証条件・DBモデルや移行履歴は変更しないため、新しいテストケースは追加しない。現在の人物必須の認証動作を維持し、別アプリへ認証コードを流用するための人物依存の分離は後続とする（[52](../docs/52-reusable-authentication-boundaries.md)）。
 
 変更前はレビューHEADと同一treeのmain `3fe8183`について[CI 40260875523](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40260875523)の成功を再利用した。変更後はAPI全221件がローカルで成功し、管理者一覧・一般利用者の拒否・最新権限判定・固定HTTPS・既定構成での非公開・保存値保持を含む既存回帰を確認した。画面・ブラウザー操作・Windows・既存計算／SQL移行・性能は未変更のため再実行しない。
 
-実装コミット`bd51cad`の[CI 40269565284](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40269565284)でAPI全221件・CI選択15件・DockerビルドとUTC／ニューヨークの稼働確認が成功した。未変更のCompose設定ステップとWindows・既存計算／Python移行・性能の3ジョブは省略された。最後の更新はこの結果記録だけで、製品・テスト・CIソースは検証済みのままとする。
+実装コミット`bd51cad`の[CI 40269565284](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40269565284)でAPI全221件・CI選択15件・DockerビルドとUTC／ニューヨークの稼働確認が成功した。未変更のCompose設定ステップとWindows・既存計算／Python移行・性能の3ジョブは省略された。以後の結果記録と、共通アカウント案をアプリごとの独立アカウント・認証コードの再利用へ改めた修正は文書だけで、製品・テスト・CIソースは同一のためこの成功結果を再利用する。
 
 ## Windows版の検証履歴
 

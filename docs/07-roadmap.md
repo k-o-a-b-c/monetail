@@ -118,4 +118,4 @@ D1への変更、未決定の認証・権限の先行実装、実DBへの未検�
 
 - [x] 管理者向けの人物・アカウント一覧APIを実装。名前だけの人物も含め、現在のAdminロールを要求し、認証IDと保存済み利用可否だけを添える。Web管理画面・発行等の更新APIは後続（[51](51-admin-account-list.md)）。
 
-- [x] 共通アカウントと機能ごとのデータ・権限分離を方針として決定。人物・アカウント一覧をFeatures/Monetail/Accountsへ移し、認証基盤と機能の登録を分離（[52](52-shared-accounts-feature-boundaries.md)、DEC-036）。人物照合のMonetailアクセス時への移動・在庫管理は後続。
+- [x] 別アプリのアカウントは独立させ、認証コードを再利用しやすくする方針を決定。人物・アカウント一覧をFeatures/Monetail/Accountsへ移し、認証基盤と機能の登録を分離（[52](52-reusable-authentication-boundaries.md)、DEC-036）。残る人物依存の分離・認証コードの流用は後続。

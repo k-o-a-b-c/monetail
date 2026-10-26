@@ -149,4 +149,4 @@
 
 初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。本人のパスキー一覧・追加／削除は[50](50-self-service-passkeys.md)、管理者向けの人物・アカウント一覧APIは[51](51-admin-account-list.md)まで実装した。Web管理画面・追加管理者の管理は後続とする。
 
-家計簿以外の日用品在庫管理なども、共通アカウントで利用する方針を採用した。まず同じAPI内で機能を分け、データと利用権限は各機能で扱う。Monetailの人物とアカウントを組み合わせる処理はMonetail側へ配置し、現在の人物必須の認証動作は段階的に整理する（DEC-036、[52](52-shared-accounts-feature-boundaries.md)）。在庫管理そのものや共通認証化は未実装。
+日用品在庫管理などを別アプリとして作る場合はアカウントを独立させ、パスキー・セッション等の認証コードを流用しやすくする方針へ修正した（DEC-036、[52](52-reusable-authentication-boundaries.md)）。Monetailの人物とアカウントを組み合わせる処理はMonetail側へ配置し、現在の認証動作は維持する。共通アカウント・共通ログインは現時点では採用せず、人物依存の分離や別アプリへの流用は後続。

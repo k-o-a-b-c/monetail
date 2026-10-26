@@ -2,7 +2,7 @@
 
 **人物一覧へ対応アカウントの状態を添える参照APIを実装。** [43 認証設計](43-passkey-authentication-design.md)を引き継ぐ。人物と認証アカウントは別のまま、既存の人物対応からまとめて返す。
 
-[52 共通アカウントと機能別の境界](52-shared-accounts-feature-boundaries.md)に従い、この一覧は`Features/Monetail/Accounts`へ配置する。認証アカウントだけを扱う共通機能ではなく、Monetailの人物との対応を扱う機能とする。URLと認証条件は維持する。
+[52 認証処理の再利用と機能別の境界](52-reusable-authentication-boundaries.md)に従い、この一覧は`Features/Monetail/Accounts`へ配置する。認証アカウントだけを扱う共通機能ではなく、Monetailの人物との対応を扱う機能とする。URLと認証条件は維持する。
 
 ## API契約
 
