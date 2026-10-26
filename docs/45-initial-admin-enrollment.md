@@ -2,6 +2,8 @@
 
 **初期管理者の作成と、既存アカウントへのコード再発行まで実装。パスキー登録は[46](46-passkey-enrollment.md)まで実装。ログインは[47](47-passkey-login-sessions.md)まで実装。管理画面は後続。** [43 設計](43-passkey-authentication-design.md)に従い、[44 認証DB](44-auth-database-foundation.md)の共通DIを使う。本番DBへの適用は行っていない。
 
+新規利用を基本とする導入設計は[56](56-new-user-onboarding-policy.md)を参照する。本書のコマンドは既存人物を必要とする現在の実装であり、人物のいない状態から最初の管理者を作る手順は未確定・未実装。既存DBの移行は一度きりの運用作業として扱う。
+
 ## 隔離したコピーでの操作
 
 既存DBのコピーを`ConnectionStrings__Monetail`で指定し、最初に追加移行を適用する。実際の接続文字列・生コードはリポジトリへ記録しない。
