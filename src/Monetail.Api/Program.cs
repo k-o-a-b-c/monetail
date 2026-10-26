@@ -1,4 +1,5 @@
 using Monetail.Api.Authentication;
+using Monetail.Api.Features.Monetail.Accounts;
 using System.Globalization;
 
 var command = args.FirstOrDefault();
@@ -54,6 +55,7 @@ if (passkeySettings is not null)
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
     builder.Services.AddPasskeyWeb(passkeySettings);
+    builder.Services.AddScoped<AdminAccountService>();
 }
 
 var app = builder.Build();
@@ -115,6 +117,7 @@ if (passkeySettings is not null)
 {
     app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
     app.MapPasskeyWeb(passkeySettings);
+    app.MapAdminAccounts();
 }
 app.MapHealthChecks("/health").AllowAnonymous();
 app.Run();
