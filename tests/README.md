@@ -140,6 +140,8 @@ CLIは実際のProgramを別プロセスで起動し、人物指定・復元後�
 
 変更前はレビューHEADと同一treeのmain `4e76b37`について[CI 40273845598](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40273845598)の成功を再利用した。変更後のAPI全225件がローカルで成功し、参照で保存値が変わらない比較を強化した後に対象1件だけ再実行して成功した（全225ケースを維持）。既存の人物不在・対応変更・本人固定・期限・失効・ロール・保存失敗・競合・全業務値・保存済みtotal保持も同じ回帰で確認した。Web画面・Windows・既存計算／SQL移行・性能は未変更のため再実行しない。
 
+実装コミット`7b1c756`の[CI 40277066706](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40277066706)でAPI全225件・CI選択15件・DockerビルドとUTC／ニューヨークの稼働確認が成功した。未変更のCompose設定ステップとWindows・既存計算／Python移行・性能の3ジョブは省略された。最後の更新はこの結果記録だけで、製品・テスト・CIソースは検証済みのままとする。
+
 ## Windows版の検証履歴
 
 変更前のmain `3a3b789`は[CI 40021517975](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40021517975)で全139件・Windowsビルド成功。今回の率値引Decimal化で計算2チェック・Windows2チェックを追加する。消費税Decimal化時の全139件成功は[CI 39937989775](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/39937989775)に記録済み。製品・テストコード `7c17cd5` は[CI 40036805558](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40036805558)で全143件・読込性能・Windowsソリューションの復元／ビルドに成功した。最終の文書更新では製品・テストコードを変更していない。
