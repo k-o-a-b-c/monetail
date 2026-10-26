@@ -57,4 +57,4 @@ dotnet run --project src/Monetail.Api -- issue-enrollment-code --person-code 1
 
 隔離SQLite・実Identity・HTTP認証と実プロセスのCLIで、対象範囲・既存値保持・最後の管理者保護・緊急復旧・各保存段階のRollback・再実行・認証との競合・管理者同時停止・不正引数・非待受・別操作のコード発行を検証する。件数とCI結果は[tests/README.md](../tests/README.md)へ集約する。
 
-本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。既存人物への一般アカウント初回発行APIは[54](54-admin-account-creation.md)で実装した。Web管理画面、新規人物追加、再発行・停止のHTTP経路、追加管理者の管理、家計の業務APIは後続。実環境のバックアップ復元・本番配備は未確認。
+本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。既存人物への一般アカウント初回発行APIは[54](54-admin-account-creation.md)で実装した。一般・管理者アカウントへの再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。Web管理画面、新規人物追加、停止のHTTP経路、追加管理者の管理、家計の業務APIは後続。実環境のバックアップ復元・本番配備は未確認。
