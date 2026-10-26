@@ -26,6 +26,7 @@ public static class PasskeyWeb
         services.AddScoped<PasskeyReauthenticationService>();
         services.AddSingleton<PasskeyAdditionChallenges>();
         services.AddScoped<PasskeyManagementService>();
+        services.AddScoped<AdminAccountService>();
         services.AddScoped<IAuthorizationHandler, RecentPasskeyHandler>();
         services.AddScoped<SessionCookieEvents>();
         services.AddAuthentication(SessionCookieEvents.Scheme).AddCookie(SessionCookieEvents.Scheme, options =>
@@ -87,13 +88,13 @@ public static class PasskeyWeb
         });
     }
 
-    /// <summary>認証経路のHTTPS境界と、保護APIの既定認証を構成する。</summary>
+    /// <summary>認証・管理経路のHTTPS境界と、保護APIの既定認証を構成する。</summary>
     public static void MapPasskeyWeb(this WebApplication app, PasskeySettings settings)
     {
         app.UseForwardedHeaders();
         app.Use(async (http, next) =>
         {
-            if (http.Request.Path.StartsWithSegments("/auth"))
+            if (http.Request.Path.StartsWithSegments("/auth") || http.Request.Path.StartsWithSegments("/admin"))
             {
                 http.Response.Headers.CacheControl = "no-store";
                 http.Response.Headers["Referrer-Policy"] = "no-referrer";
@@ -143,6 +144,7 @@ public static class PasskeyWeb
         app.MapPasskeyLogin();
         app.MapPasskeyReauthentication();
         app.MapPasskeyManagement();
+        app.MapAdminAccounts();
     }
 
     /// <summary>埋込済みの認証画面・スクリプトだけを読み込む。</summary>
