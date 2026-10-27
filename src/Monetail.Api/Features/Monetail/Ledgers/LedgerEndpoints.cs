@@ -25,14 +25,14 @@ public static class LedgerEndpoints
                 LedgerCreationStatus.NotFound => Results.NotFound(),
                 _ => Results.Unauthorized()
             };
-        });
+        }).RequireRateLimiting(LedgerRateLimits.CreationPolicy);
         routes.MapGet("", async Task<IResult> (HttpContext http, LedgerService service) =>
         {
             var current = Current(http);
             if (!await service.IsCurrentAsync(current, http.RequestAborted)) return Results.Unauthorized();
             var rows = await service.VisibleLedgers(current).ToArrayAsync(http.RequestAborted);
             return await service.IsCurrentAsync(current, http.RequestAborted) ? Results.Ok(rows) : Results.Unauthorized();
-        });
+        }).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         routes.MapGet("/{id:guid}", async Task<IResult> (Guid id, HttpContext http, LedgerService service) =>
         {
             var current = Current(http);
@@ -41,7 +41,7 @@ public static class LedgerEndpoints
             var row = await service.VisibleLedgers(current, key).SingleOrDefaultAsync(http.RequestAborted);
             if (!await service.IsCurrentAsync(current, http.RequestAborted)) return Results.Unauthorized();
             return row is null ? Results.NotFound() : Results.Ok(row);
-        });
+        }).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
     }
 
     /// <summary>Cookieの検証で確定した現在のログインを取得する。</summary>

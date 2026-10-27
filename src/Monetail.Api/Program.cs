@@ -67,6 +67,7 @@ if (passkeySettings is not null)
     builder.Services.AddScoped<AdminAccountService>();
     builder.Services.AddScoped<AdminAccountProvisioningService>();
     builder.Services.AddScoped<LedgerService>();
+    builder.Services.AddLedgerRateLimits();
 }
 
 var app = builder.Build();

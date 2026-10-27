@@ -125,8 +125,9 @@ public static class PasskeyWeb
             await next(http);
         });
         app.UseRouting();
-        app.UseRateLimiter();
         app.UseAuthentication();
+        // Cookieを検証してから、確定したアカウント単位の回数制限を判定する。
+        app.UseRateLimiter();
         app.Use(async (http, next) =>
         {
             if (http.GetEndpoint()?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() is null &&

@@ -7,11 +7,11 @@
 | 計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 315 |
+| ASP.NET Core API | 318 |
 | CIの実行対象選択 | 15 |
-| 合計 | 473 |
+| 合計 | 476 |
 
-変更前のAPI・Dockerは[PR74の成功CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40574106664)を再利用する。家計簿の作成・参照・再送・認可・保存失敗・制約とHTTP境界を36件追加し、ローカルでAPI全315件が成功した。最終結果には今回のPRの最新成功CIを採用する。追加の回数制限は未確定・未実装で、回数制限の検証成功には数えない。
+変更前のAPI全315件・Dockerは[PR75の成功CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40596869498)を再利用する。アカウント別の回数制限を実HTTPで3件追加し、ローカルで成功した。作成20回、一覧・個別参照合計60回、端末／セッション／IPをまたぐ合算、別アカウント・用途・認証IP枠の独立、失効時401を確認する。最終API全件とDockerには今回のPRの最新成功CIを採用する。
 
 CI選択の既存成功結果は再利用し、差分からAPI／Dockerのみが対象となることを確認する。Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
 
