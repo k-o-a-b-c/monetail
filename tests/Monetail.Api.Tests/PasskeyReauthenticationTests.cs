@@ -1,13 +1,14 @@
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -114,7 +115,7 @@ public class PasskeyReauthenticationTests
     public async Task AnotherAccountsValidPasskeyCannotConfirmCurrentPersonOrChangeIdentity()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         using var client = app.Client();
         await app.LoginAsync(client);
         app.Time.Advance(TimeSpan.FromMinutes(6));
@@ -387,7 +388,7 @@ public class PasskeyReauthenticationTests
     private static async Task<string> AccountSnapshotAsync(LoginTestApp app)
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        var users = await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Users.AsNoTracking().OrderBy(user => user.Id).ToListAsync();
+        var users = await scope.ServiceProvider.GetRequiredService<ApiDbContext>().Users.AsNoTracking().OrderBy(user => user.Id).ToListAsync();
         foreach (var user in users) user.ConcurrencyStamp = null;
         return JsonSerializer.Serialize(users);
     }

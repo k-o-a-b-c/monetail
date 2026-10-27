@@ -1,14 +1,15 @@
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -20,7 +21,7 @@ public class PasskeyManagementTests
     public async Task ListContainsOnlyOwnPublicMetadataAndDoesNotRequireRecentVerificationOrCsrf()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         using var anonymous = app.Client();
         using var denied = await anonymous.GetAsync("/auth/passkeys");
         Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
@@ -172,7 +173,7 @@ public class PasskeyManagementTests
     public async Task DuplicateCredentialCannotBeAddedOrTransferredFromAnotherAccount(bool anotherAccount)
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var id = anotherAccount ? (await app.AddAccountAsync(2)).CredentialId : app.CredentialId;
+        var id = anotherAccount ? (await app.AddAccountAsync()).CredentialId : app.CredentialId;
         using var client = app.Client();
         await app.LoginAsync(client);
         var options = await BeginAsync(client);
@@ -214,7 +215,7 @@ public class PasskeyManagementTests
     public async Task SuccessfulDeletionRevokesEveryOwnSessionAndRemainingKeyCanLogIn()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         using var first = app.Client();
         using var second = app.Client();
         using var unrelated = app.Client();
@@ -255,7 +256,7 @@ public class PasskeyManagementTests
     public async Task LastOtherAndMissingKeysCannotBeDeletedOrExposeOtherOwners()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         using var client = app.Client();
         await app.LoginAsync(client);
         await LoginTestApp.CsrfAsync(client);
@@ -472,7 +473,7 @@ public class PasskeyManagementTests
     private static async Task<string> AccountSnapshotAsync(LoginTestApp app)
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        var accounts = await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Users.AsNoTracking().OrderBy(user => user.Id).ToListAsync();
+        var accounts = await scope.ServiceProvider.GetRequiredService<ApiDbContext>().Users.AsNoTracking().OrderBy(user => user.Id).ToListAsync();
         foreach (var account in accounts) account.ConcurrencyStamp = null;
         return JsonSerializer.Serialize(accounts);
     }

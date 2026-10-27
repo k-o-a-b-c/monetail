@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Features.Accounts;
 
@@ -24,14 +25,14 @@ public enum EnrollmentCodeReissueStatus { Issued, NotFound, NotEligible, Authent
 public sealed record EnrollmentCodeReissueResult(EnrollmentCodeReissueStatus Status, IssuedEnrollmentCode? IssuedCode = null);
 
 /// <summary>現在の全体管理者を確認し、一般アカウントの初回発行と既存アカウントのコード再発行を行う。</summary>
-public sealed class AdminAccountProvisioningService(AuthDbContext context, UserManager<AuthUser> users,
+public sealed class AdminAccountProvisioningService(ApiDbContext context, UserManager<AuthUser> users,
     AdminProvisioningService codes, TimeProvider time,
     ILogger<AdminAccountProvisioningService> logger)
 {
     /// <summary>現在の全体管理者を再確認し、新規アカウント・初回コード・要求記録を同時に保存する。</summary>
     public async Task<AccountCreationResult> CreateAsync(Guid requestId, HttpContext http, CancellationToken token)
     {
-        await EnsureMigratedAsync(token);
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         if (!await IsCurrentAdminAsync(current, token)) return new(AccountCreationStatus.AuthenticationChanged);
@@ -62,7 +63,7 @@ public sealed class AdminAccountProvisioningService(AuthDbContext context, UserM
     /// <summary>停止中・鍵なしのアカウントへ、古い未使用コードの失効と新コード保存を同時に行う。</summary>
     public async Task<EnrollmentCodeReissueResult> ReissueCodeAsync(string authUserId, HttpContext http, CancellationToken token)
     {
-        await EnsureMigratedAsync(token);
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         if (!await IsCurrentAdminAsync(current, token)) return new(EnrollmentCodeReissueStatus.AuthenticationChanged);
@@ -86,13 +87,6 @@ public sealed class AdminAccountProvisioningService(AuthDbContext context, UserM
         if (user is null) return EnrollmentCodeReissueStatus.NotFound;
         if (user.IsEnabled || (await users.GetPasskeysAsync(user)).Count > 0) return EnrollmentCodeReissueStatus.NotEligible;
         return EnrollmentCodeReissueStatus.Issued;
-    }
-
-    /// <summary>HTTP操作ではDB移行を適用せず、未適用なら発行を拒否する。</summary>
-    private async Task EnsureMigratedAsync(CancellationToken token)
-    {
-        if ((await context.Database.GetPendingMigrationsAsync(token)).Any())
-            throw new InvalidOperationException("先にmigrate-auth-dbを実行してください。");
     }
 
     /// <summary>DBの現在のセッション・アカウント利用可否・Adminロール・直近5分を再確認する。</summary>

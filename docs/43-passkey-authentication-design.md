@@ -54,16 +54,13 @@ discoverable credential（ResidentKey=Required）とUserVerification=Requiredを
 | 保存対象 | 契約 |
 | --- | --- |
 | Identity標準テーブル群 | 安定した認証ID、利用可否、パスキー、ロール等。パスワード・メールアドレスは必須にしない |
-| `AspNetUsers.DisplayName` | アカウント自身の表示名。未登録・旧行はNULL、初回検証成功時に保存し、復旧時は維持 |
-| `auth_user_links` | 旧版の1対1対応をそのまま保持する。NOT NULL・UNIQUE・FK・RESTRICTも維持するが、新規発行や認証では読み書きしない |
-| `auth_account_creation_requests` | 要求ID・発行者ID・新規アカウントID・発行日時。旧`UserCode`はNULL許容へ移行し、新規発行はNULL、過去の値は保持する |
+| `AspNetUsers.DisplayName` | アカウント自身の表示名。未登録はNULL、初回検証成功時に保存し、復旧時は維持 |
+| `auth_account_creation_requests` | 要求ID・発行者ID・新規アカウントID・発行日時。人物コードを含めない |
 | `auth_sessions` | セッションIDのハッシュ、認証ID、発行・固定期限・取消・直近確認日時。タイムゾーンは保存しない |
 | `auth_enrollment_codes` | ハッシュと登録用途・認証ID・UTC期限・消費／取消状態。生コードなし |
 | Data Protectionキー | コンテナ外の永続フォルダへ保存し、アプリ識別子を固定する。非rootアプリのアクセス権を整える |
 
-`20261026235549_AddIndependentAccounts`は表示名列の追加と発行履歴の人物コードのNULL許容化を行う。人物名のコピー、業務表の再作成、過去の更新者や`receipt.total`の再計算・補完はしない。明示的な`migrate-auth-db`で適用し、通常起動・HTTP要求で自動移行しない。人物未指定の発行履歴は旧版で表現できないため、旧版へ戻す必要がある場合は、書込停止と移行前バックアップからの復元を運用で判断する。
-
-既存Windows版DBの移行は一度きりの運用手順・必要最小限のスクリプトで扱い、常設画面・APIは作らない。認証アカウントは新規作成し、本人が表示名とパスキーを登録する。既存人物・所有者・明細対象者の関係は保持し、後続の家計簿機能で必要な人物へ任意に紐付ける。名前一致によるコピー・自動統合は行わない。
+認証ストアは人物テーブル・旧人物リンク・人物コードへのFKを持たない。新規DBの準備・再実行・旧コマンドの扱いは[42](42-api-foundation.md#db移行登録復旧コマンド)、既存DBの一度きりのSQL移行と保存値保持は[58](58-ledger-foundation-design.md#新規利用と既存dbの境界)を参照する。
 
 ## セッションとHTTPの境界
 

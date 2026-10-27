@@ -1,18 +1,19 @@
 using System.Data.Common;
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Accounts;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -62,7 +63,6 @@ public class AdminAccountCreationTests
         var me = await enrollee.GetFromJsonAsync<JsonElement>("/auth/me");
         Assert.False(me.TryGetProperty("userCode", out _));
         Assert.Equal("新しいアカウント名", me.GetProperty("displayName").GetString());
-        Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_user_links WHERE auth_user_id='{id}'"));
         await LoginTestApp.CsrfAsync(enrollee);
         using var denied = await CreateAsync(enrollee, Guid.NewGuid());
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
@@ -109,7 +109,6 @@ public class AdminAccountCreationTests
             if (sameRequest) Assert.Single(responses, response => response.StatusCode == HttpStatusCode.OK);
             var bodies = await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync()));
             Assert.Equal(sameRequest ? 1 : 2, bodies.Count(body => JsonDocument.Parse(body).RootElement.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String));
-            Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_user_links WHERE user_code=3"));
             Assert.Equal(sameRequest ? 1L : 2L, app.Database.Scalar("SELECT COUNT(*) FROM auth_account_creation_requests"));
         }
         finally { foreach (var response in responses) response.Dispose(); }
@@ -119,7 +118,7 @@ public class AdminAccountCreationTests
     public async Task RequestIsBoundToItsOriginalAdministratorAndDoesNotRevealTheCodeToAnother()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         await using (var scope = app.Factory.Services.CreateAsyncScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
@@ -215,7 +214,7 @@ public class AdminAccountCreationTests
         using var owner = app.Client();
         await LoginAsync(app, owner);
         await using var delayed = app.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
-            services.ConfigureDbContext<AuthDbContext>(options => options.AddInterceptors(new DelayCreation(app.Time)))));
+            services.ConfigureDbContext<ApiDbContext>(options => options.AddInterceptors(new DelayCreation(app.Time)))));
         using var admin = app.Client(delayed);
         admin.DefaultRequestHeaders.Add("Cookie", app.SessionCookie.Split(';')[0]);
         await LoginTestApp.CsrfAsync(admin);
@@ -283,7 +282,7 @@ public class AdminAccountCreationTests
         using var admin = app.Client();
         await LoginAsync(app, admin);
         await using (var scope = app.Factory.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<AuthDbContext>().GetService<IMigrator>().MigrateAsync("20261025080829_AddSessions");
+            await scope.ServiceProvider.GetRequiredService<ApiDbContext>().Database.ExecuteSqlRawAsync("DROP TABLE auth_account_creation_requests");
         var before = app.Database.Snapshot(app.Database.Tables());
         using var result = await CreateAsync(admin, Guid.NewGuid());
         Assert.Equal(HttpStatusCode.ServiceUnavailable, result.StatusCode);

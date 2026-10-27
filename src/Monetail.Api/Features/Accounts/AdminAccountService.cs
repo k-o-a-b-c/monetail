@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Features.Accounts;
 
@@ -7,7 +8,7 @@ namespace Monetail.Api.Features.Accounts;
 public sealed record AdminAccountSummary(string AuthUserId, string? DisplayName, bool IsEnabled);
 
 /// <summary>登録済みアカウントの一覧を読み込む。</summary>
-public sealed class AdminAccountService(AuthDbContext context)
+public sealed class AdminAccountService(ApiDbContext context)
 {
     /// <summary>登録待ち・停止中を含む全アカウントを、安定した認証ID順で取得する。</summary>
     public Task<AdminAccountSummary[]> ListAsync(CancellationToken token) => context.Users.AsNoTracking()

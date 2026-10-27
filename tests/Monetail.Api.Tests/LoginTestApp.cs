@@ -1,8 +1,8 @@
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -27,7 +28,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public byte[] CredentialId { get; } = RandomNumberGenerator.GetBytes(32);
     private readonly ECDsa key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
 
-    /// <summary>有効アカウント・テスト公開鍵と、互換性検証用の旧人物対応を用意する。</summary>
+    /// <summary>有効アカウントとテスト公開鍵を用意する。</summary>
     public static async Task<LoginTestApp> CreateAsync()
     {
         var app = new LoginTestApp();
@@ -47,9 +48,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
         user.IsEnabled = true;
         user.DisplayName = "同じ名前";
         Assert.True((await users.UpdateAsync(user)).Succeeded);
-        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-        // 旧版の対応が残るDBでも、認証がその対応を参照しないことを検証する。
-        context.UserLinks.Add(new AuthUserLink { AuthUserId = user.Id, UserCode = 1 });
+        var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
         await context.SaveChangesAsync();
         return app;
     }
@@ -134,8 +133,8 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public object Attestation(JsonElement options, byte[] id, string? corruption = null) =>
         PasskeyEnrollmentTests.Credential(options, corruption, id, key.ExportParameters(false));
 
-    /// <summary>同じ表示名の別アカウント・資格情報と、比較用の旧人物対応を作成する。</summary>
-    public async Task<(string UserId, byte[] CredentialId)> AddAccountAsync(int personCode)
+    /// <summary>同じ表示名の別アカウントと資格情報を作成する。</summary>
+    public async Task<(string UserId, byte[] CredentialId)> AddAccountAsync()
     {
         await using var scope = Factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
@@ -147,8 +146,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
         var id = RandomNumberGenerator.GetBytes(32);
         Assert.True((await users.AddOrUpdatePasskeyAsync(user, new UserPasskeyInfo(id, publicKey,
             Time.GetUtcNow(), 0, ["internal"], true, false, false, [], []))).Succeeded);
-        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-        context.UserLinks.Add(new AuthUserLink { AuthUserId = user.Id, UserCode = personCode });
+        var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
         await context.SaveChangesAsync();
         return (user.Id, id);
     }

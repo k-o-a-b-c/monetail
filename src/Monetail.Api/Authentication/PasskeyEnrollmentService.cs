@@ -2,11 +2,12 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
 /// <summary>登録コードの対象へパスキーを登録し、成功時だけ利用可能にする。</summary>
-public sealed class PasskeyEnrollmentService(AuthDbContext context, UserManager<AuthUser> users,
+public sealed class PasskeyEnrollmentService(ApiDbContext context, UserManager<AuthUser> users,
     IPasskeyHandler<AuthUser> passkeys, EnrollmentChallenges challenges, TimeProvider time,
     ILogger<PasskeyEnrollmentService> logger)
 {

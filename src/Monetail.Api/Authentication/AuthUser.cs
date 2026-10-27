@@ -14,16 +14,3 @@ public sealed class AuthUser : IdentityUser
     /// <summary>パスキー登録を完了したアカウントの利用可否を保持する。</summary>
     public bool IsEnabled { get; set; }
 }
-
-/// <summary>旧版の人物対応を履歴として保持する。新規発行・認証には使用しない。</summary>
-public sealed class AuthUserLink
-{
-    public string AuthUserId { get; set; } = null!;
-    public int UserCode { get; set; }
-}
-
-/// <summary>旧業務DBの人物主キーを外部キーの参照先として扱う。</summary>
-public sealed class LegacyPerson
-{
-    public int Code { get; set; }
-}

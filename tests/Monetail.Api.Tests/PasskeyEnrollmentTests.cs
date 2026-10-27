@@ -1,14 +1,15 @@
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using System.Text;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -17,7 +18,7 @@ namespace Monetail.Api.Tests;
 public class PasskeyEnrollmentTests
 {
     [Fact]
-    public async Task RegistrationUsesIdentityAndPreservesAllLegacyDataWithoutSigningIn()
+    public async Task RegistrationUsesIdentityAndPreservesMigrationHistoryWithoutSigningIn()
     {
         await using var app = await EnrollmentApp.CreateAsync();
         var tables = app.Database.Tables().Where(table => !table.StartsWith("AspNet") &&
@@ -36,7 +37,6 @@ public class PasskeyEnrollmentTests
         Assert.Equal(1L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE ConsumedAtUtc IS NOT NULL"));
-        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_user_links"));
         Assert.Equal("同じ名前", app.Database.Scalar("SELECT DisplayName FROM AspNetUsers"));
         Assert.Equal(before, app.Database.Snapshot(tables));
         using var replay = await app.VerifyAsync(client, Credential(options));
@@ -213,8 +213,7 @@ public class PasskeyEnrollmentTests
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
             var user = new AuthUser { Id = "second-account", UserName = "second-account" };
             Assert.True((await users.CreateAsync(user)).Succeeded);
-            var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-            context.UserLinks.Add(new AuthUserLink { AuthUserId = user.Id, UserCode = 2 });
+            var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
             await context.SaveChangesAsync();
             secondCode = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(user.Id);
         }

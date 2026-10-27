@@ -1,15 +1,16 @@
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
 /// <summary>アカウントを停止し、パスキー・セッション・未使用コードをまとめて失効させる。</summary>
-public sealed class AuthenticationRevocationService(AuthDbContext context, TimeProvider time,
+public sealed class AuthenticationRevocationService(ApiDbContext context, TimeProvider time,
     ILogger<AuthenticationRevocationService> logger)
 {
     /// <summary>対象アカウントの認証情報を全失効し、通常操作では最後の有効な管理者を保護する。</summary>
     public async Task RevokeAccountAsync(string authUserId, bool emergencyRecovery = false, CancellationToken token = default)
     {
-        await EnsureMigratedAsync(token);
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         var target = await context.Users.AsNoTracking().SingleOrDefaultAsync(user => user.Id == authUserId, token)
             ?? throw new InvalidOperationException("指定したアカウントを確認できません。");
@@ -29,7 +30,7 @@ public sealed class AuthenticationRevocationService(AuthDbContext context, TimeP
     /// <summary>バックアップ復元後に、全アカウントの認証情報を同じトランザクションで失効させる。</summary>
     public async Task ResetAfterRestoreAsync(CancellationToken token = default)
     {
-        await EnsureMigratedAsync(token);
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         var now = time.GetUtcNow().UtcDateTime;
         await RevokeAsync(null, now, token);
@@ -62,7 +63,6 @@ public sealed class AuthenticationRevocationService(AuthDbContext context, TimeP
     /// <summary>明示的なDB移行が済んでいない場合は認証情報の変更を拒否する。</summary>
     private async Task EnsureMigratedAsync(CancellationToken token)
     {
-        if ((await context.Database.GetPendingMigrationsAsync(token)).Any())
-            throw new InvalidOperationException("先にmigrate-auth-dbを実行してください。");
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
     }
 }

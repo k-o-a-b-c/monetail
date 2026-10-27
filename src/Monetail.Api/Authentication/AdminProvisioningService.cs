@@ -3,17 +3,18 @@ using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
 /// <summary>初期の全体管理者作成と、登録コードの明示的な再発行を行う。</summary>
-public sealed class AdminProvisioningService(AuthDbContext context, UserManager<AuthUser> users,
+public sealed class AdminProvisioningService(ApiDbContext context, UserManager<AuthUser> users,
     RoleManager<IdentityRole> roles, TimeProvider time, ILogger<AdminProvisioningService> logger)
 {
     /// <summary>最初の管理者とコードを同時に作成し、再実行では既存アカウントを変更しない。</summary>
     public async Task<IssuedEnrollmentCode?> InitializeAdminAsync(CancellationToken token = default)
     {
-        await EnsureMigratedAsync(token);
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
         // SQLiteの既定の書込トランザクションで、複数接続からの初期作成も直列化する。
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         var administrators = await users.GetUsersInRoleAsync("Admin");
@@ -40,7 +41,7 @@ public sealed class AdminProvisioningService(AuthDbContext context, UserManager<
     /// <summary>利用停止中・登録待ちの同じアカウントへコードを再発行する。</summary>
     public async Task<IssuedEnrollmentCode> IssueEnrollmentCodeAsync(string authUserId, CancellationToken token = default)
     {
-        await EnsureMigratedAsync(token);
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         var user = await users.FindByIdAsync(authUserId)
             ?? throw new InvalidOperationException("指定したアカウントを確認できません。");
@@ -69,13 +70,6 @@ public sealed class AdminProvisioningService(AuthDbContext context, UserManager<
             CreatedAtUtc = now, ExpiresAtUtc = expires
         });
         return new IssuedEnrollmentCode(authUserId, rawCode, expires);
-    }
-
-    /// <summary>明示的なDB移行が済んでいない場合は管理操作を拒否する。</summary>
-    private async Task EnsureMigratedAsync(CancellationToken token)
-    {
-        if ((await context.Database.GetPendingMigrationsAsync(token)).Any())
-            throw new InvalidOperationException("先にmigrate-auth-dbを実行してください。");
     }
 
     /// <summary>Identityの保存失敗をトランザクション全体の失敗にする。</summary>

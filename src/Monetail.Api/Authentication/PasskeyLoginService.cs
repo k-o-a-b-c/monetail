@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
 /// <summary>名前入力なしのパスキー認証から、固定期限のセッションを作成する。</summary>
-public sealed class PasskeyLoginService(AuthDbContext context, UserManager<AuthUser> users,
+public sealed class PasskeyLoginService(ApiDbContext context, UserManager<AuthUser> users,
     IPasskeyHandler<AuthUser> passkeys, LoginChallenges challenges, TimeProvider time,
     ILogger<PasskeyLoginService> logger)
 {

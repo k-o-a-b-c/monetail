@@ -1,24 +1,25 @@
-using System.Text;
 using System.Text.Json;
+using System.Text;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Tests;
 
-/// <summary>合成した旧業務DBを隔離ファイルで作成し、保存値と型を比較する。</summary>
+/// <summary>隔離したAPI用DBを準備し、拒否対象の旧業務DBと保存値を比較する。</summary>
 internal sealed class AuthDatabaseFixture : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(), "monetail-auth-tests-" + Guid.NewGuid().ToString("N"));
     private readonly SqliteConnection? connection;
-    public string DatabasePath => Path.Combine(directory, "legacy.db");
+    public string DatabasePath => Path.Combine(directory, "api.db");
     public string ConnectionString => new SqliteConnectionStringBuilder
     {
         DataSource = DatabasePath, Mode = SqliteOpenMode.ReadWriteCreate,
         ForeignKeys = false, Pooling = false
     }.ToString();
 
-    public AuthDatabaseFixture(bool initializeLegacy = true, bool createFile = true)
+    public AuthDatabaseFixture(bool initializeLegacy = false, bool createFile = true)
     {
         Directory.CreateDirectory(directory);
         if (!createFile) return;
@@ -45,12 +46,12 @@ internal sealed class AuthDatabaseFixture : IDisposable
         return services.BuildServiceProvider();
     }
 
-    /// <summary>明示した認証DB追加移行を新しいDIスコープで実行する。</summary>
+    /// <summary>明示したAPI用DB初期化を新しいDIスコープで実行する。</summary>
     public async Task MigrateAsync()
     {
         await using var services = CreateServices();
         await using var scope = services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<AuthDatabaseMigrator>().MigrateAsync(CancellationToken.None);
+        await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(CancellationToken.None);
     }
 
     /// <summary>認証接続とは独立した旧接続でSQLを実行する。</summary>

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
@@ -13,7 +14,7 @@ public sealed record PasskeySummary(string Id, string Name, DateTimeOffset Creat
 public enum PasskeyRemovalResult { Removed, NotFound, LastPasskey, AuthenticationChanged }
 
 /// <summary>現在の本人のパスキーを一覧・追加・削除し、削除時は全セッションを失効させる。</summary>
-public sealed class PasskeyManagementService(AuthDbContext context, UserManager<AuthUser> users,
+public sealed class PasskeyManagementService(ApiDbContext context, UserManager<AuthUser> users,
     IPasskeyHandler<AuthUser> passkeys, PasskeyAdditionChallenges challenges, TimeProvider time,
     ILogger<PasskeyManagementService> logger)
 {

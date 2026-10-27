@@ -1,5 +1,5 @@
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
@@ -12,24 +12,15 @@ namespace Monetail.Api.Tests;
 /// <summary>人物に依存しない認証・初回表示名・復旧時の名前保持を実HTTPと標準署名で検証する。</summary>
 public class AccountIdentityTests
 {
-    [Theory]
-    [InlineData("person-deleted")]
-    [InlineData("link-deleted")]
-    [InlineData("person-renamed")]
-    [InlineData("relinked")]
-    public async Task PersonChangesDoNotChangeLoginIdentityNameOrReauthentication(string change)
+    [Fact]
+    public async Task LoginIdentityAndReauthenticationNeedNoPeopleTables()
     {
         await using var app = await LoginTestApp.CreateAsync();
+        Assert.DoesNotContain("m_user", app.Database.Tables());
+        Assert.DoesNotContain("auth_user_links", app.Database.Tables());
         app.Database.Execute("UPDATE AspNetUsers SET DisplayName='アカウント自身の名前'");
         using var client = app.Client();
         var options = await app.BeginAsync(client);
-        switch (change)
-        {
-            case "person-deleted": app.Database.Execute("DELETE FROM m_user WHERE code=1"); break;
-            case "link-deleted": app.Database.Execute("DELETE FROM auth_user_links"); break;
-            case "person-renamed": app.Database.Execute("UPDATE m_user SET name='人物だけの変更'"); break;
-            case "relinked": app.Database.Execute("UPDATE auth_user_links SET user_code=2"); break;
-        }
         using var login = await app.VerifyAsync(client, app.Assertion(options));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         var me = await client.GetFromJsonAsync<JsonElement>("/auth/me?userCode=999");
@@ -53,7 +44,6 @@ public class AccountIdentityTests
     public async Task MissingPeopleTablesDoNotPreventPasskeyManagementAccountCreationOrRecovery()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        app.Database.Execute("ALTER TABLE m_user RENAME TO old_people; ALTER TABLE auth_user_links RENAME TO old_links");
         using var admin = app.Client();
         await app.LoginAsync(admin);
         await LoginTestApp.CsrfAsync(admin);
@@ -122,7 +112,6 @@ public class AccountIdentityTests
             using var completed = await client.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, RandomNumberGenerator.GetBytes(32)) });
             Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
             Assert.Equal(name, app.Database.Scalar($"SELECT DisplayName FROM AspNetUsers WHERE Id='{issued.AuthUserId}'"));
-            Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_user_links WHERE auth_user_id='{issued.AuthUserId}'"));
             using var anonymous = await client.GetAsync("/auth/me");
             Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
         }
