@@ -339,7 +339,7 @@ public class AdminEnrollmentCodeReissueTests
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 
-    /// <summary>管理者でログインし、既存人物の登録待ち一般アカウントを作成する。</summary>
+    /// <summary>全体管理者でログインし、登録待ちの一般アカウントを新規作成する。</summary>
     private static async Task<(string Id, string Code)> PrepareAsync(LoginTestApp app, HttpClient admin)
     {
         await app.LoginAsync(admin);

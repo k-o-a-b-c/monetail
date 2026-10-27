@@ -35,7 +35,7 @@ public sealed class PasskeyEnrollmentService(AuthDbContext context, UserManager<
         return options.CreationOptionsJson;
     }
 
-    /// <summary>標準検証後に、パスキー・利用可否・コード消費を一つのトランザクションで確定する。</summary>
+    /// <summary>標準検証後に、表示名・パスキー・利用可否・コード消費を一つのトランザクションで確定する。</summary>
     public async Task<bool> CompleteAsync(string credentialJson, HttpContext http, CancellationToken token)
     {
         var challenge = challenges.Take(http.Request.Cookies[EnrollmentChallenges.CookieName]);
@@ -68,7 +68,7 @@ public sealed class PasskeyEnrollmentService(AuthDbContext context, UserManager<
         return true;
     }
 
-    /// <summary>人物との対応を使わず、登録待ちでパスキーのないアカウントを取得する。</summary>
+    /// <summary>登録待ちでパスキーのないアカウントを取得する。</summary>
     private async Task<AuthUser?> FindTargetAsync(string id, CancellationToken token)
     {
         var user = await users.FindByIdAsync(id);

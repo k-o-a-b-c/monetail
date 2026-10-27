@@ -298,7 +298,7 @@ public class AdminAccountCreationTests
         await LoginTestApp.CsrfAsync(client);
     }
 
-    /// <summary>人物を指定せず再送識別子だけを一般アカウント発行APIへ送る。</summary>
+    /// <summary>再送識別子だけを一般アカウント発行APIへ送る。</summary>
     private static Task<HttpResponseMessage> CreateAsync(HttpClient client, Guid requestId) =>
         client.PostAsJsonAsync("/admin/accounts", new { requestId });
 

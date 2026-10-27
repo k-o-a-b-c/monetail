@@ -27,7 +27,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public byte[] CredentialId { get; } = RandomNumberGenerator.GetBytes(32);
     private readonly ECDsa key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
 
-    /// <summary>合成した人物へ有効アカウントとテスト公開鍵を登録する。</summary>
+    /// <summary>有効アカウント・テスト公開鍵と、互換性検証用の旧人物対応を用意する。</summary>
     public static async Task<LoginTestApp> CreateAsync()
     {
         var app = new LoginTestApp();
@@ -100,7 +100,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public object Assertion(JsonElement options, string? corruption = null, uint count = 0)
         => AssertionFor(options, UserId, CredentialId, corruption, count);
 
-    /// <summary>指定アカウントの資格情報で署名し、別人の再確認拒否も検証する。</summary>
+    /// <summary>指定アカウントの資格情報で署名し、別アカウントの再確認拒否も検証する。</summary>
     public object AssertionFor(JsonElement options, string userId, byte[] credentialId, string? corruption = null, uint count = 0)
     {
         var clientData = JsonSerializer.SerializeToUtf8Bytes(new
@@ -134,7 +134,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public object Attestation(JsonElement options, byte[] id, string? corruption = null) =>
         PasskeyEnrollmentTests.Credential(options, corruption, id, key.ExportParameters(false));
 
-    /// <summary>同じ表示名の別人物へ有効アカウントと別の資格情報を作成する。</summary>
+    /// <summary>同じ表示名の別アカウント・資格情報と、比較用の旧人物対応を作成する。</summary>
     public async Task<(string UserId, byte[] CredentialId)> AddAccountAsync(int personCode)
     {
         await using var scope = Factory.Services.CreateAsyncScope();

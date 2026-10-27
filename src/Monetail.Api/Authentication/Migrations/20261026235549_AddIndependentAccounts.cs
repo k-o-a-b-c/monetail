@@ -7,7 +7,7 @@ namespace Monetail.Api.Authentication.Migrations
     /// <summary>人物名をコピーせず独立表示名を追加し、新規発行の人物指定を不要にする。</summary>
     public partial class AddIndependentAccounts : Migration
     {
-        /// <summary>既存値を保持して表示名列と発行履歴の任意人物コードを追加する。</summary>
+        /// <summary>既存値を保持して表示名列を追加し、発行履歴の人物コードをNULL許容にする。</summary>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterColumn<int>(
