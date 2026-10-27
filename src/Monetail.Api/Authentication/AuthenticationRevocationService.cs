@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>人物と業務データを保持し、アカウントの認証情報をまとめて失効させる。</summary>
+/// <summary>アカウントを停止し、パスキー・セッション・未使用コードをまとめて失効させる。</summary>
 public sealed class AuthenticationRevocationService(AuthDbContext context, TimeProvider time,
     ILogger<AuthenticationRevocationService> logger)
 {

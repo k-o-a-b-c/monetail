@@ -153,7 +153,7 @@ public class AccountIdentityTests
         Assert.Equal("本人が決めた名前", app.Database.Scalar($"SELECT DisplayName FROM AspNetUsers WHERE Id='{issued.AuthUserId}'"));
     }
 
-    /// <summary>人物との対応を作らず、初回登録待ちのアカウントと有効な登録コードを用意する。</summary>
+    /// <summary>初回登録待ちのアカウントと有効な登録コードを用意する。</summary>
     private static async Task<IssuedEnrollmentCode> PendingAccountAsync(LoginTestApp app)
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();

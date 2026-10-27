@@ -39,7 +39,7 @@ public static class PasskeyLoginEndpoints
         }).RequireAuthorization().AddEndpointFilter<AuthRequestFilter>();
     }
 
-    /// <summary>人物やパスキーの有無を明かさず、ログイン失敗を同じ401にする。</summary>
+    /// <summary>アカウントやパスキーの有無を明かさず、ログイン失敗を同じ401にする。</summary>
     private static IResult Rejected() => Results.Json(new { message = "ログインできませんでした。パスキーでの操作をやり直してください。" }, statusCode: 401);
 
     public sealed record LoginRequest(string? TimeZone);

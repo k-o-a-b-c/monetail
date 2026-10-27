@@ -23,12 +23,12 @@ public enum EnrollmentCodeReissueStatus { Issued, NotFound, NotEligible, Authent
 /// <summary>再発行の結果と、成功した場合だけ新しいコードを保持する。</summary>
 public sealed record EnrollmentCodeReissueResult(EnrollmentCodeReissueStatus Status, IssuedEnrollmentCode? IssuedCode = null);
 
-/// <summary>一般アカウントの初回発行と既存アカウントのコード再発行を、現在の管理者確認付きで行う。</summary>
+/// <summary>現在の全体管理者を確認し、一般アカウントの初回発行と既存アカウントのコード再発行を行う。</summary>
 public sealed class AdminAccountProvisioningService(AuthDbContext context, UserManager<AuthUser> users,
     AdminProvisioningService codes, TimeProvider time,
     ILogger<AdminAccountProvisioningService> logger)
 {
-    /// <summary>現在の管理者を再確認し、新規アカウント・初回コード・要求記録を同時に保存する。</summary>
+    /// <summary>現在の全体管理者を再確認し、新規アカウント・初回コード・要求記録を同時に保存する。</summary>
     public async Task<AccountCreationResult> CreateAsync(Guid requestId, HttpContext http, CancellationToken token)
     {
         await EnsureMigratedAsync(token);

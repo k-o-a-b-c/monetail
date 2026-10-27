@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Monetail.Api.Features.Accounts;
 
-/// <summary>管理者によるアカウント一覧・新規発行・登録コード再発行を受け付ける。</summary>
+/// <summary>全体管理者によるアカウント一覧・新規発行・登録コード再発行を受け付ける。</summary>
 public static class AdminAccountEndpoints
 {
     /// <summary>現在のAdminロールを要求し、発行には直近の本人確認とCSRFも要求する。</summary>
@@ -41,7 +41,7 @@ public static class AdminAccountEndpoints
             .RequireRateLimiting("passkey-authentication");
     }
 
-    /// <summary>再送識別子だけを受け付け、人物・名前・ロールの追加指定を拒否する。</summary>
+    /// <summary>再送識別子だけを受け付け、未対応の項目の追加指定を拒否する。</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record CreateAccountRequest([property: JsonRequired] Guid RequestId);
 }

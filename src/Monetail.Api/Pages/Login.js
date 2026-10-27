@@ -41,7 +41,7 @@ async function send(path, body, method = "POST") {
     return response.status === 204 ? null : response.json();
 }
 
-// サーバーで確認した本人と固定期限を表示し、セッション識別子をJavaScriptで保持しない。
+// 認証済みアカウントの表示名と固定期限を表示し、セッション識別子をJavaScriptで保持しない。
 async function refresh() {
     const response = await fetch("/auth/me", { credentials: "same-origin", cache: "no-store" });
     const loggedIn = response.ok;
@@ -144,7 +144,7 @@ async function refreshPasskeys() {
     }
 }
 
-// 現在の本人へ新しいパスキーを作成し、署名検証後の一覧を取り直す。
+// ログイン中のアカウントへパスキーを追加し、登録検証後の一覧を取り直す。
 addPasskeyButton.addEventListener("click", async () => {
     setBusy(true);
     message.textContent = "端末で新しいパスキーを作成してください。";

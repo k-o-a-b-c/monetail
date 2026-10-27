@@ -24,7 +24,7 @@ public static class PasskeyEnrollmentEndpoints
         }).AddEndpointFilter<AuthRequestFilter>().RequireRateLimiting("passkey-authentication");
     }
 
-    /// <summary>対象人物を明かさず、登録失敗を同じ応答にする。</summary>
+    /// <summary>対象アカウントの情報を明かさず、登録失敗を同じ応答にする。</summary>
     private static IResult Rejected() => Results.BadRequest(new { message = "登録を完了できませんでした。コードと初回登録時の表示名（100文字以内）を確認し、登録操作をやり直してください。" });
 
     public sealed record EnrollmentRequest(string? Code, string? DisplayName);

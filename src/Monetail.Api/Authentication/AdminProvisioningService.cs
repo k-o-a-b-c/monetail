@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>人物から独立した初期管理者作成と、登録コードの明示的な再発行を行う。</summary>
+/// <summary>初期の全体管理者作成と、登録コードの明示的な再発行を行う。</summary>
 public sealed class AdminProvisioningService(AuthDbContext context, UserManager<AuthUser> users,
     RoleManager<IdentityRole> roles, TimeProvider time, ILogger<AdminProvisioningService> logger)
 {
