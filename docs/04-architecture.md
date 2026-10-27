@@ -38,7 +38,7 @@ Windows デスクトップアプリ
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
-| `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル。旧人物対応は互換性のため保持する |
+| `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル |
 | `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
 | `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
@@ -106,7 +106,7 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 | `Persistence` | API全体のDbContext・EF移行・明示初期化と構造検証。認証用モデルを保存し、後続の家計簿も同じ移行系列で管理 |
 | `Program.cs` | 認証と各機能の登録・起動・管理コマンドの受付 |
 
-別アプリは独立したアカウントを持ち、流用するのは認証コードとする。アカウント・鍵・セッション・権限の共有やSSOは採用しない。認証ライブラリの別プロジェクト化は必要時に検討する。旧`AuthUserLink`・`LegacyPerson`と発行履歴の`UserCode`は実行モデルから除外した。過去の移行ファイルは`Authentication/Migrations/Legacy`へ元の内容で保存し、コンパイルから除外する。既存DBの値はこのコード整理で変更しない。
+別アプリは独立したアカウントを持ち、流用するのは認証コードとする。アカウント・鍵・セッション・権限の共有やSSOは採用しない。認証ライブラリの別プロジェクト化は必要時に検討する。
 
 現行API契約は[43](43-passkey-authentication-design.md)、起動・運用は[42](42-api-foundation.md)、未実装の家計簿設計は[58](58-ledger-foundation-design.md)。優先順位は[07](07-roadmap.md)だけに記載する。
 
@@ -116,7 +116,6 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 - [10 DBリレーション・データフロー](10-data-flow.md) — ER図、SQL読込・保存・更新・削除
 - [11 DB検査・バックアップ](11-db-audit.md) — 調査用SQLと安全な確認手順
 - [42 APIの土台](42-api-foundation.md) — API単独の起動・Docker・CIと未実装の境界
-- [44 認証DBの土台](44-auth-database-foundation.md) — 認証用追加移行と既存業務データの保持
 
 ## 根拠
 
@@ -129,7 +128,3 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 `ViewForm_List.vb`の非公開ReceiptListRowは元Receiptを参照し、TotalのOverflowExceptionだけを表示文字列へ変換する。その他の列と編集先は同じReceiptを参照し、金額を固定コピーしない。Designerのバインド名と正常なN0書式を維持する。[32 仕様](32-receipt-list-amount-overflow.md)。
 
 明細の値引後金額はReceiptDetail.CalculateDiscountedFeeで計算する。Receiptの合計・人別参考額とCalculationの分類／明細参考額は、このDecimalの共通処理を呼び出してから従来の税処理・集計・人数按分を行う。計算結果を明細へ保存・キャッシュしない。
-
-初期管理者の作成と登録コードの保存・再発行は[45](45-initial-admin-enrollment.md)を参照。パスキー登録のHTTP経路と固定HTTPS設定は[46](46-passkey-enrollment.md)まで実装した。ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、本人再確認は[48](48-passkey-reauthentication.md)、全失効・復旧の管理コマンドは[49](49-authentication-revocation-recovery.md)、本人のパスキー管理は[50](50-self-service-passkeys.md)、管理者向けの人物・アカウント一覧APIは[51](51-admin-account-list.md)まで実装した。
-
-既存人物への一般アカウント初回発行APIと永続的な要求記録テーブルの追加移行は[54](54-admin-account-creation.md)を参照する。認証・業務の既存行を保持し、migrate-auth-dbで明示的に追加移行する。

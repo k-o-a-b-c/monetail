@@ -187,7 +187,7 @@ public class AuthenticationRevocationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task UnmigratedDatabaseIsRejectedWithoutChangingLegacyData(bool all)
+    public async Task UninitializedDatabaseIsRejectedWithoutChangingStoredData(bool all)
     {
         using var fixture = new AuthDatabaseFixture();
         var before = fixture.Snapshot(fixture.Tables());

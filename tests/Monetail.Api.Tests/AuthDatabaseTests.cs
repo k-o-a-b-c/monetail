@@ -38,12 +38,12 @@ public class AuthDatabaseTests
     }
 
     [Theory]
-    [InlineData("legacy")]
+    [InlineData("windows")]
     [InlineData("other")]
     [InlineData("conflict")]
-    public async Task UnrelatedAndLegacyDatabasesAreRejectedWithoutChanges(string state)
+    public async Task UnrelatedAndWindowsDatabasesAreRejectedWithoutChanges(string state)
     {
-        using var db = new AuthDatabaseFixture(initializeLegacy: state == "legacy");
+        using var db = new AuthDatabaseFixture(initializeWindowsDatabase: state == "windows");
         if (state == "other") db.Execute("CREATE TABLE other(value BLOB); INSERT INTO other VALUES(X'00FF')");
         if (state == "conflict") db.Execute("CREATE TABLE AspNetUsers(sentinel TEXT); INSERT INTO AspNetUsers VALUES('keep')");
         var tables = db.Tables();

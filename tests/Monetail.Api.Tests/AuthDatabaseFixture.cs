@@ -7,7 +7,7 @@ using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Tests;
 
-/// <summary>隔離したAPI用DBを準備し、拒否対象の旧業務DBと保存値を比較する。</summary>
+/// <summary>隔離したAPI用DBを準備し、拒否対象のWindows版DBと保存値を比較する。</summary>
 internal sealed class AuthDatabaseFixture : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(), "monetail-auth-tests-" + Guid.NewGuid().ToString("N"));
@@ -19,14 +19,14 @@ internal sealed class AuthDatabaseFixture : IDisposable
         ForeignKeys = false, Pooling = false
     }.ToString();
 
-    public AuthDatabaseFixture(bool initializeLegacy = false, bool createFile = true)
+    public AuthDatabaseFixture(bool initializeWindowsDatabase = false, bool createFile = true)
     {
         Directory.CreateDirectory(directory);
         if (!createFile) return;
         connection = new SqliteConnection(ConnectionString);
         connection.Open();
         Execute("PRAGMA user_version=47; PRAGMA journal_mode=DELETE");
-        if (!initializeLegacy) return;
+        if (!initializeWindowsDatabase) return;
         foreach (var file in new[] { "monetail_schema.sql", "tax_rounding.sql", "revision_tokens.sql" })
             Execute(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, file)));
         Execute(SeedSql);

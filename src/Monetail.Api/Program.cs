@@ -38,16 +38,17 @@ if (command == "reset-authentication")
     configurationArgs = args[2..];
 }
 if (isAuthCommand && configurationArgs.Any(argument =>
-    new[] { "--account-id", "--person-code", "--emergency-recovery", "--after-restore" }.Any(option =>
+    new[] { "--account-id", "--emergency-recovery", "--after-restore" }.Any(option =>
         argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal))))
 {
     Console.Error.WriteLine("管理コマンドの操作オプションが重複しているか、指定位置が不正です。");
     Environment.ExitCode = 1;
     return;
 }
-if (command == "migrate-auth-db")
+if (command is not null && !isAuthCommand &&
+    !command.StartsWith("--", StringComparison.Ordinal) && !command.Contains('='))
 {
-    Console.Error.WriteLine("旧DB用コマンドは廃止しました。新規DBはinitialize-db、既存DBの引継ぎは移行SQLを使用してください。");
+    Console.Error.WriteLine("不明な管理コマンドです。");
     Environment.ExitCode = 1;
     return;
 }
