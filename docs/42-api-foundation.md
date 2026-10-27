@@ -1,12 +1,12 @@
-# 42 ASP.NET Core APIの土台
+# 42 APIの起動・設定・運用
 
-更新: 2026-10-24。
+起動・配備設定・管理コマンドの正本。認証仕様は[43](43-passkey-authentication-design.md)、未実装の導入・家計簿設計は[58](58-ledger-foundation-design.md)、検証結果は[tests/README.md](../tests/README.md)を参照する。
 
 ## 実装した範囲
 
 同じリポジトリの`src/Monetail.Api/`に、C#／ASP.NET Core／.NET 10 LTSの独立したAPIを追加した。Minimal APIや今後の認証部品・資料を使いやすい構成とする。.NET 10は[公式サポート方針](https://dotnet.microsoft.com/en-us/platform/support/policy)のLTSを採用する。
 
-Windows版は従来のVB／WinForms／.NET Framework 4.8と直接SQLite接続を維持する。APIは既存Windowsプロジェクトを参照せず、起動やテストに実データを必要としない。後続の[44 認証DB](44-auth-database-foundation.md)で既存SQLiteへの接続・追加移行を実装したが、通常起動で接続や移行は行わない。リポジトリ直下に`global.json`を置かず、既存の.NET 8テスト用CIからAPI用の.NET 10 SDKを分けている。
+Windows版は従来のVB／WinForms／.NET Framework 4.8と直接SQLite接続を維持する。APIは既存Windowsプロジェクトを参照せず、起動やテストに実データを必要としない。後続ので既存SQLiteへの接続・追加移行を実装したが、通常起動で接続や移行は行わない。リポジトリ直下に`global.json`を置かず、既存の.NET 8テスト用CIからAPI用の.NET 10 SDKを分けている。
 
 | 対象 | 内容 |
 | --- | --- |
@@ -50,7 +50,7 @@ curl http://127.0.0.1:8080/health
 docker compose down
 ```
 
-既定の公開先は同じ端末からの確認または将来のリバースプロキシ向けであり、この設定では他端末からLAN経由で接続できない。登録時の固定HTTPS・既知プロキシ設定は[46](46-passkey-enrollment.md)を参照する。ログインは[47](47-passkey-login-sessions.md)まで実装し、実環境のLAN公開・HTTPS終端は未実施。
+既定の公開先は同じ端末からの確認または将来のリバースプロキシ向けであり、この設定では他端末からLAN経由で接続できない。登録時の固定HTTPS・既知プロキシ設定は[認証契約](43-passkey-authentication-design.md)を参照する。ログインは[認証契約](43-passkey-authentication-design.md)まで実装し、実環境のLAN公開・HTTPS終端は未実施。
 
 CIでは変更対象に応じてAPIテスト・Compose設定・Dockerビルドと起動を選択する。APIテストだけの変更ではDockerをビルドせず、Markdownだけの変更ではこれらを省略する。選択規則は[自動テスト](../tests/README.md)を参照する。
 
@@ -61,14 +61,39 @@ docker build --tag monetail-api:ci .
 bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 ```
 
-## 次に設計するもの
+## 認証を有効にする設定
 
-導入設計は[56 新規利用を基本とする方針](56-new-user-onboarding-policy.md)に従う。新規アカウント登録はシステム全体のアカウント管理者の招待を必須とする。初回は明示的な初期設定コマンドでDB準備と最初の管理者用コード発行をまとめる（DEC-039）。アカウント一覧は全体管理者専用、家計簿作成は全登録利用者に許可し、参加は家計簿管理者の招待から行う。アカウントはMonetail全体で管理し、参加・権限と人物・業務マスタは家計簿ごとに管理する（DEC-040、[57](57-ledger-data-ownership.md)）。保存はSQLite 1ファイルとし、家計簿IDで所属を区別し、家計簿データを扱うAPIで参加と操作権限を確認する（DEC-041）。アカウントと人物は家計簿ごとに任意で対応付け、人物の登録・選択を認証の前提にしない。表示名は別管理とし、入力・更新者はログインアカウントで記録する（DEC-044）。認証の人物非依存・独立表示名・発行APIは実装した（DEC-045）。家計簿側のスキーマと入力者／更新者の記録は後続設計。既定のComposeは稼働確認用のままで、新規DB初期化・家計簿画面・Web管理画面は未実装。招待コードと初回表示名の入力画面は実装済み。既存DB移行は一度きりの運用手順・専用スクリプトに限定し、通常のDBスキーマ更新は維持する。
+既定はDB不要の`/health`だけ。認証を公開する場合は`ConnectionStrings:Monetail`と次の`Passkeys`設定を外部設定で指定する。環境変数では区切りを`__`にする。実接続先・秘密・実データはコミットしない。
 
-パスキー中心のログイン、管理者画面でのアカウント発行と、管理コマンドによる人物不要の初期管理者作成・認証ID指定の緊急復旧は[43 認証設計](43-passkey-authentication-design.md)にまとめる。SQLiteの認証DB接続・追加移行は[44](44-auth-database-foundation.md)に実装した。ログインは[47](47-passkey-login-sessions.md)まで実装し、人物を選ばない初回発行APIは[54](54-admin-account-creation.md)まで実装し、Web管理画面は未実装で、HTTPS・永続フォルダの具体的な配置とバックアップ運用も後続で整える。XMLの利用者コード設定は採用しない。業務APIはレシート入力、次に振替入力を優先し、保存済み`total`等の既存契約を保つ。最初のAPI土台ではDB接続を含めず、認証DBの実装を後続の44へ分けた。業務API・実環境への配置は引き続き未実施。
+| 設定 | 条件 |
+| --- | --- |
+| `Passkeys:Origin` | 固定HTTPSオリジン。パス・クエリ・資格情報なし |
+| `Passkeys:RpId` | Originと同じDNSホスト名 |
+| `Passkeys:DataProtectionKeysPath` | 永続化するキー保存先の絶対パス |
+| `Passkeys:TrustedProxies` | 信頼するプロキシIPの配列。未指定なら転送ヘッダーを信用しない |
+| `ConnectionStrings:Monetail` | 現在は既存SQLiteファイル限定。認証接続はReadWrite・FK有効 |
+| `TZ` | Dockerの既定はEtc/UTC。Composeで変更し、.NETが解決した地域を起動ログで確認 |
 
-検証の実行結果・件数・CIは[tests/README.md](../tests/README.md)を参照する。APIの起動確認だけでWindows版全体や実データ・実運用環境を検証済みとは扱わない。
+固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開の稼働確認用で、DBマウントやHTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
 
-初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。本人のパスキー一覧・追加／削除は[50](50-self-service-passkeys.md)、管理者向けアカウント一覧APIは[51](51-admin-account-list.md)、人物を選ばない一般アカウント初回発行APIは[54](54-admin-account-creation.md)まで実装した。一般・管理者アカウントのコード再発行APIは[55](55-admin-enrollment-code-reissue.md)まで実装した。Web管理画面・追加管理者の管理は後続とする。
+## DB移行・登録・復旧コマンド
 
-認証コードの再利用と機能別の配置は[52](52-reusable-authentication-boundaries.md)を参照。全体アカウント管理をFeatures/Accountsへ置き、Program.csで認証と機能を登録する。アカウントはアプリごとに独立させ、既存プロジェクト・DB・認証設定は維持する。人物照合窓口は削除し、認証は人物非依存・アカウント自身の表示名を使う（DEC-045）。旧モデル・移行履歴を保持し、別アプリへの流用は必要時に検討する。
+現在のコマンドは既存業務DBの隔離コピー向け。空DBからの新規導入は未実装。通常起動・HTTP要求でDB作成や移行をしない。バックアップを確保し、`ConnectionStrings__Monetail`を指定して実行する。
+
+```sh
+dotnet run --project src/Monetail.Api -- migrate-auth-db
+dotnet run --project src/Monetail.Api -- initialize-admin
+dotnet run --project src/Monetail.Api -- issue-enrollment-code --account-id ACCOUNT_ID
+dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID
+# 最後の管理者も全失効させる必要がある紛失復旧時だけ明示する。
+dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID --emergency-recovery
+# バックアップ復元後、サービスを停止した状態で実行する。
+dotnet run --project src/Monetail.Api -- reset-authentication --after-restore
+```
+
+- `migrate-auth-db`は既存m_user・t_receiptsの列と主キーを確認し、認証移行を明示適用する。不在・空・別用途DBは拒否。業務値・保存済みtotal・過去の更新者を補完・再計算しない。
+- 初期管理者は人物指定なしで新規作成する。既に管理者がいれば変更せず、生コードも再表示しない。再発行は既存の無効・鍵なしアカウントへ行う。旧`--person-code`や操作オプションの混在・重複は拒否する。
+- 発行成功時だけ、アカウントID・生コード・UTC期限を標準出力へ出す。コードは10分・1回限りで、通常ログへ残さない。全失効ではコードを自動発行しない。本人が登録画面でパスキー登録後、明示ログインする。
+- 管理コマンドはWeb待受けを行わず、成功0・失敗1。30秒でキャンセルを要求する。移行ロックが異常終了後に残った場合は、サービス停止・バックアップ後に状態を調べ、推測でロックを削除しない。
+
+バックアップは停止・全接続終了後のコピー、またはSQLiteのBackup APIで取得する。稼働中のDB本体だけをコピーしない。復元後の全体リセットは手動で行い、まず管理者、次に他利用者へ再登録コードを発行する。バックアップ取得だけではリセットしない。同じRP ID・DB・Data Protectionキーを保つ通常移設は再登録不要。RP ID変更時は再登録を計画する。DB自体の暗号化は今回対象外。

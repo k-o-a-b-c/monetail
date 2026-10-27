@@ -37,7 +37,7 @@ Windows デスクトップアプリ
 | `.../Logic/ReceiptAmountValidation.vb` | 既存計算を使う金額範囲の確認。反映候補と選択税設定で確認し、元モデルを変更しない |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
-| `src/Monetail.Api/` | ASP.NET Core API、認証DB、パスキー登録・ログインとセッション管理、全体管理者向けアカウント一覧・初回発行・再発行。業務機能は未実装 |
+| `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
 | `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル。旧人物対応は互換性のため保持する |
 | `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
@@ -96,19 +96,18 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 
 競合の3チェックは、同じ一時ファイルへの2接続で採番の直列化・書込ロック失敗と再試行・古い編集内容の拒否を検証する。親3表の更新版を読込・保存し、競合時は警告と再読込フラグを返す。[保存契約](18-stale-edit-protection.md)参照。
 
-## オンライン化に向けた境界
+## APIの責務と依存
 
-まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。APIの土台と認証DBの接続・追加移行はC#／ASP.NET Core／.NET 10で実装した。パスキー認証とアカウント管理APIは実装済み（[43](43-passkey-authentication-design.md)）。業務APIと本番配置は後続の構成案で、未実装。
+| 配置 | 責務 |
+| --- | --- |
+| `Authentication` | パスキー・セッション・失効と認証用保存モデル。家計簿の機能フォルダを参照しない |
+| `Features/Accounts` | 全体のアカウント一覧・初回発行・再発行。認証基盤を使う |
+| `Features/Monetail`（後続） | 家計簿・参加権限・人物・業務入力。認証IDを使い、全体Adminを家計簿権限へ読み替えない |
+| `Program.cs` | 認証と各機能の登録・起動 |
 
-```text
-Web / スマートフォン / デスクトップ
-             ↓ 認証付き HTTPS
-             API・認可・業務ロジック
-             ↓
-       SQLite（既存DBを使う方向で設計）
-```
+別アプリは独立したアカウントを持ち、流用するのは認証コードとする。アカウント・鍵・セッション・権限の共有やSSOは採用しない。認証ライブラリの別プロジェクト化は必要時に検討する。旧`AuthUserLink`・`LegacyPerson`・移行履歴は既存値保持のため残り、認証経路の人物非依存とDBの互換性は区別する。
 
-レガシー版のUIから計算ルール・永続化条件を切り離し、[03-calculations.md](03-calculations.md) と [06-test-cases.md](06-test-cases.md) を移植時の契約として使う。
+現行API契約は[43](43-passkey-authentication-design.md)、起動・運用は[42](42-api-foundation.md)、未実装の家計簿設計は[58](58-ledger-foundation-design.md)。優先順位は[07](07-roadmap.md)だけに記載する。
 
 ## 関連する詳細資料
 
