@@ -13,9 +13,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="Authentication/Migrations/Legacy/**/*.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Pages/Enrollment.html" />
     <EmbeddedResource Include="Pages/Enrollment.js" />
     <EmbeddedResource Include="Pages/Login.html" />

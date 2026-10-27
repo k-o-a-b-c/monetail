@@ -77,7 +77,7 @@ public sealed class DatabaseInitializer(ApiDbContext context)
         // 移行開始前に停止したDBでは、EF管理表だけが一部残る場合も再開対象にする。
         if (actual.Any(row => !expected.TryGetValue(row.Key, out var sql) || sql != row.Value) ||
             (applied.Count > 0 && actual.Count != expected.Count))
-            throw new InvalidOperationException("新規API用DBの構造と履歴が一致しません。旧DBの引継ぎは移行SQLで行ってください。");
+            throw new InvalidOperationException("新規API用DBの構造と履歴が一致しません。Windows版DBの引継ぎは移行SQLで行ってください。");
     }
 
     /// <summary>対象の移行までをメモリーDBへ適用し、比較する正規の構造を生成する。</summary>

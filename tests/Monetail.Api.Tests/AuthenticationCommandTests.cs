@@ -28,19 +28,19 @@ public class AuthenticationCommandTests
     }
 
     [Fact]
-    public async Task RetiredMigrationCommandFailsWithoutStartingWebOrCreatingDatabase()
+    public async Task UnknownCommandFailsWithoutStartingWebOrCreatingDatabase()
     {
         using var fixture = new AuthDatabaseFixture(createFile: false);
-        var result = await RunAsync(fixture.ConnectionString, ["migrate-auth-db"]);
+        var result = await RunAsync(fixture.ConnectionString, ["unknown-command"]);
         Assert.Equal(1, result.ExitCode);
         Assert.False(File.Exists(fixture.DatabasePath));
         Assert.DoesNotContain("Now listening", result.Output);
     }
 
     [Fact]
-    public async Task InitializerRejectsLegacyDatabaseWithoutChangingSavedTotalsOrAnyOtherData()
+    public async Task InitializerRejectsWindowsDatabaseWithoutChangingSavedTotalsOrAnyOtherData()
     {
-        using var fixture = new AuthDatabaseFixture(initializeLegacy: true);
+        using var fixture = new AuthDatabaseFixture(initializeWindowsDatabase: true);
         var tables = fixture.Tables();
         var before = fixture.Snapshot(tables);
         var result = await RunAsync(fixture.ConnectionString, ["initialize-db"]);
@@ -58,7 +58,6 @@ public class AuthenticationCommandTests
     [InlineData("duplicate-target")]
     [InlineData("wrong-emergency-position")]
     [InlineData("unexpected-restore-flag")]
-    [InlineData("legacy-person-option")]
     public async Task InvalidOperationOptionsFailWithoutChangingDatabase(string usage)
     {
         using var fixture = new AuthDatabaseFixture();
@@ -71,7 +70,6 @@ public class AuthenticationCommandTests
             "mixed-scope" => ["reset-authentication", "--after-restore", "--account-id", "1"],
             "duplicate-target" => ["revoke-account", "--account-id", "1", "--account-id=other"],
             "wrong-emergency-position" => ["revoke-account", "--emergency-recovery", "--account-id", "1"],
-            "legacy-person-option" => ["initialize-admin", "--person-code", "1"],
             _ => ["revoke-account", "--account-id", "1", "--after-restore"]
         };
         var before = fixture.Snapshot(fixture.Tables());
