@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
 /// <summary>認証APIの更新要求にCSRF検証を行い、秘密情報を含めない障害応答を返す。</summary>
-public sealed class AuthRequestFilter(IAntiforgery csrf, ILogger<AuthRequestFilter> logger) : IEndpointFilter
+public sealed class AuthRequestFilter(IAntiforgery csrf, ApiDbContext database, ILogger<AuthRequestFilter> logger) : IEndpointFilter
 {
     /// <summary>CSRFを確認して処理を呼び出し、認証ストア障害時は拒否する。</summary>
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
@@ -15,6 +16,7 @@ public sealed class AuthRequestFilter(IAntiforgery csrf, ILogger<AuthRequestFilt
             var method = context.HttpContext.Request.Method;
             if (!HttpMethods.IsGet(method) && !HttpMethods.IsHead(method) && !HttpMethods.IsOptions(method) && !HttpMethods.IsTrace(method))
                 await csrf.ValidateRequestAsync(context.HttpContext);
+            await DatabaseInitializer.EnsureReadyAsync(database, context.HttpContext.RequestAborted);
             return await next(context);
         }
         catch (AntiforgeryValidationException)

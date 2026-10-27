@@ -6,7 +6,7 @@
 
 同じリポジトリの`src/Monetail.Api/`に、C#／ASP.NET Core／.NET 10 LTSの独立したAPIを追加した。Minimal APIや今後の認証部品・資料を使いやすい構成とする。.NET 10は[公式サポート方針](https://dotnet.microsoft.com/en-us/platform/support/policy)のLTSを採用する。
 
-Windows版は従来のVB／WinForms／.NET Framework 4.8と直接SQLite接続を維持する。APIは既存Windowsプロジェクトを参照せず、起動やテストに実データを必要としない。後続ので既存SQLiteへの接続・追加移行を実装したが、通常起動で接続や移行は行わない。リポジトリ直下に`global.json`を置かず、既存の.NET 8テスト用CIからAPI用の.NET 10 SDKを分けている。
+Windows版は従来のVB／WinForms／.NET Framework 4.8と直接SQLite接続を維持する。APIは既存Windowsプロジェクトを参照せず、起動やテストに実データを必要としない。新規API用SQLiteの初期設定を明示コマンドで行い、通常起動では接続や移行を行わない。リポジトリ直下に`global.json`を置かず、既存の.NET 8テスト用CIからAPI用の.NET 10 SDKを分けている。
 
 | 対象 | 内容 |
 | --- | --- |
@@ -71,17 +71,17 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 | `Passkeys:RpId` | Originと同じDNSホスト名 |
 | `Passkeys:DataProtectionKeysPath` | 永続化するキー保存先の絶対パス |
 | `Passkeys:TrustedProxies` | 信頼するプロキシIPの配列。未指定なら転送ヘッダーを信用しない |
-| `ConnectionStrings:Monetail` | 現在は既存SQLiteファイル限定。認証接続はReadWrite・FK有効 |
+| `ConnectionStrings:Monetail` | 永続SQLiteファイル。通常接続はReadWrite・FK有効、新規作成はinitialize-dbだけ |
 | `TZ` | Dockerの既定はEtc/UTC。Composeで変更し、.NETが解決した地域を起動ログで確認 |
 
 固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開の稼働確認用で、DBマウントやHTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
 
 ## DB移行・登録・復旧コマンド
 
-現在のコマンドは既存業務DBの隔離コピー向け。空DBからの新規導入は未実装。通常起動・HTTP要求でDB作成や移行をしない。バックアップを確保し、`ConnectionStrings__Monetail`を指定して実行する。
+新規導入は空または未存在のSQLiteファイルを指定する。親ディレクトリを事前に用意し、APIを停止して実行する。既存Windows版DBへの適用は拒否する。一度きりのSQL移行の方針は[58](58-ledger-foundation-design.md#新規利用と既存dbの境界)を参照し、作業コピーとバックアップを用意する。
 
 ```sh
-dotnet run --project src/Monetail.Api -- migrate-auth-db
+dotnet run --project src/Monetail.Api -- initialize-db
 dotnet run --project src/Monetail.Api -- initialize-admin
 dotnet run --project src/Monetail.Api -- issue-enrollment-code --account-id ACCOUNT_ID
 dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID
@@ -91,9 +91,12 @@ dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID 
 dotnet run --project src/Monetail.Api -- reset-authentication --after-restore
 ```
 
-- `migrate-auth-db`は既存m_user・t_receiptsの列と主キーを確認し、認証移行を明示適用する。不在・空・別用途DBは拒否。業務値・保存済みtotal・過去の更新者を補完・再計算しない。
-- 初期管理者は人物指定なしで新規作成する。既に管理者がいれば変更せず、生コードも再表示しない。再発行は既存の無効・鍵なしアカウントへ行う。旧`--person-code`や操作オプションの混在・重複は拒否する。
+- `initialize-db`はAPI専用の移行系列と`__MonetailMigrationsHistory`を使用する。空DBの初期作成または既知の未適用移行だけを行い、適用済みIDを表示する。管理者・コード・家計簿・人物は作らない。通常起動・HTTP要求では作成／移行しない。
+- 移行前はReadOnlyで履歴とその段階の表・索引・FK等のDDLを照合する。旧DB・別用途・未知／将来／不連続な履歴・構造不一致は書込み前に拒否する。新旧を切り替える設定や互換モードはない。旧`migrate-auth-db`はエラー終了し、待受けや移行を行わない。
+- 既知の完了済み移行は再適用しない。DDLと履歴はEFのトランザクションで保存し、通常の例外で戻した後は再実行できる。空ファイルや、最初の移行前にEF管理表だけが残った状態も検証して再開する。移行ロック残留は自動削除しない。停止・バックアップ後に状態を調べる。
+- 初期化はDB横の空の`.initialize.lock`ファイルを排他オープンして直列化し、取得後にDBを検査する。ファイルは残るがプロセス終了でOSが排他を解放する。実行中に削除・置換しない。DBと親ディレクトリへの書込権限が必要で、親ディレクトリや既存ファイルを自動削除・置換しない。
+- 初期管理者は人物指定なしで新規作成する。既に管理者がいれば変更せず、そのアカウントIDを表示する。生コードは再表示しない。期限切れ・出力紛失時は同じ無効・鍵なしアカウントへ明示的に再発行する。旧`--person-code`や操作オプションの混在・重複は拒否する。
 - 発行成功時だけ、アカウントID・生コード・UTC期限を標準出力へ出す。コードは10分・1回限りで、通常ログへ残さない。全失効ではコードを自動発行しない。本人が登録画面でパスキー登録後、明示ログインする。
-- 管理コマンドはWeb待受けを行わず、成功0・失敗1。30秒でキャンセルを要求する。移行ロックが異常終了後に残った場合は、サービス停止・バックアップ後に状態を調べ、推測でロックを削除しない。
+- 管理コマンドはWeb待受けを行わず、成功0・失敗1。30秒でキャンセルを要求する。認証APIと管理操作は新系列の移行完了・未知履歴・移行ロックを確認して未準備のDBを拒否し、自動修復しない。
 
 バックアップは停止・全接続終了後のコピー、またはSQLiteのBackup APIで取得する。稼働中のDB本体だけをコピーしない。復元後の全体リセットは手動で行い、まず管理者、次に他利用者へ再登録コードを発行する。バックアップ取得だけではリセットしない。同じRP ID・DB・Data Protectionキーを保つ通常移設は再登録不要。RP ID変更時は再登録を計画する。DB自体の暗号化は今回対象外。

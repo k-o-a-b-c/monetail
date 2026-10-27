@@ -1,9 +1,9 @@
 using System.Globalization;
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -16,7 +16,7 @@ namespace Monetail.Api.Tests;
 public class PasskeyLoginTests
 {
     [Fact]
-    public async Task LoginPersistsOnlyFixedUtcStateAndDoesNotModifyBusinessDataOrRenewCookie()
+    public async Task LoginPersistsOnlyFixedUtcStateAndDoesNotModifyMigrationHistoryOrRenewCookie()
     {
         await using var app = await LoginTestApp.CreateAsync();
         var tables = app.Database.Tables().Where(name => !name.StartsWith("AspNet") &&

@@ -1,15 +1,16 @@
 using System.Data.Common;
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -50,7 +51,6 @@ public class AdminEnrollmentCodeReissueTests
         using var complete = await enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, RandomNumberGenerator.GetBytes(32)) });
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
         Assert.Equal(1L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{target.Id}'"));
-        Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_user_links WHERE auth_user_id='{target.Id}'"));
         using var anonymous = await enrollee.GetAsync("/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
@@ -295,7 +295,7 @@ public class AdminEnrollmentCodeReissueTests
         using var owner = app.Client();
         var target = await PrepareAsync(app, owner);
         await using var factory = app.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
-            services.ConfigureDbContext<AuthDbContext>(options => options.AddInterceptors(new DelayReissue(app.Time)))));
+            services.ConfigureDbContext<ApiDbContext>(options => options.AddInterceptors(new DelayReissue(app.Time)))));
         using var admin = app.Client(factory);
         admin.DefaultRequestHeaders.Add("Cookie", app.SessionCookie.Split(';')[0]);
         await LoginTestApp.CsrfAsync(admin);

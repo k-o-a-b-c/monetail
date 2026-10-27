@@ -1,11 +1,12 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
 /// <summary>現在の本人をパスキーで再確認し、既存セッションの確認日時だけを更新する。</summary>
-public sealed class PasskeyReauthenticationService(AuthDbContext context, UserManager<AuthUser> users,
+public sealed class PasskeyReauthenticationService(ApiDbContext context, UserManager<AuthUser> users,
     IPasskeyHandler<AuthUser> passkeys, ReauthenticationChallenges challenges, TimeProvider time,
     ILogger<PasskeyReauthenticationService> logger)
 {

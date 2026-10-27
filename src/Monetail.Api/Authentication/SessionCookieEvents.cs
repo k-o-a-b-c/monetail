@@ -1,11 +1,12 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
@@ -13,7 +14,7 @@ namespace Monetail.Api.Authentication;
 public sealed record CurrentSession(AuthSession Session, string? DisplayName);
 
 /// <summary>Cookieの要求ごとに、セッション・アカウントの利用可否・現在の権限を確認する。</summary>
-public sealed class SessionCookieEvents(AuthDbContext context, UserManager<AuthUser> users, TimeProvider time,
+public sealed class SessionCookieEvents(ApiDbContext context, UserManager<AuthUser> users, TimeProvider time,
     ILogger<SessionCookieEvents> logger) : CookieAuthenticationEvents
 {
     public const string Scheme = "Monetail.Session";

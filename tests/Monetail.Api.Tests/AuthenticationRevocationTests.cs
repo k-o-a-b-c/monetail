@@ -1,11 +1,12 @@
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -17,7 +18,7 @@ public class AuthenticationRevocationTests
     public async Task IndividualRevocationPreservesOtherAccountsAndBusinessDataWithoutIssuingCode()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         using var admin = app.Client();
         using var target = app.Client();
         await app.LoginAsync(admin);
@@ -85,13 +86,11 @@ public class AuthenticationRevocationTests
     [InlineData("valid", true)]
     [InlineData("disabled", false)]
     [InlineData("no-key", false)]
-    [InlineData("no-person", true)]
-    [InlineData("no-link", true)]
     [InlineData("not-admin", false)]
     public async Task NormalRevocationRequiresAnotherUsableAdministrator(string state, bool allowed)
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         await using (var scope = app.Factory.Services.CreateAsyncScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
@@ -102,8 +101,6 @@ public class AuthenticationRevocationTests
         {
             case "disabled": app.Database.Execute($"UPDATE AspNetUsers SET IsEnabled=0 WHERE Id='{other.UserId}'"); break;
             case "no-key": app.Database.Execute($"DELETE FROM AspNetUserPasskeys WHERE UserId='{other.UserId}'"); break;
-            case "no-person": app.Database.Execute("DELETE FROM m_user WHERE code=2"); break;
-            case "no-link": app.Database.Execute($"DELETE FROM auth_user_links WHERE auth_user_id='{other.UserId}'"); break;
         }
         var before = app.Database.Snapshot(app.Database.Tables());
         if (allowed)
@@ -123,12 +120,11 @@ public class AuthenticationRevocationTests
     public async Task RestoreResetIncludesUnlinkedAndDisabledAccountsAndPreservesAllOtherData()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         using var admin = app.Client();
         await app.LoginAsync(admin);
         await SeedHistoryAsync(app, app.UserId);
         await SeedHistoryAsync(app, other.UserId);
-        app.Database.Execute($"DELETE FROM auth_user_links WHERE auth_user_id='{other.UserId}'");
         app.Database.Execute($"UPDATE AspNetUsers SET IsEnabled=0 WHERE Id='{other.UserId}'");
         var tables = ProtectedTables(app);
         var before = app.Database.Snapshot(tables);
@@ -236,7 +232,7 @@ public class AuthenticationRevocationTests
     public async Task ConcurrentNormalRevocationsCannotDisableBothAdministrators()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         await using (var scope = app.Factory.Services.CreateAsyncScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
@@ -257,7 +253,7 @@ public class AuthenticationRevocationTests
     private static async Task SeedHistoryAsync(LoginTestApp app, string userId)
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
         var old = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         foreach (var revoked in new[] { false, true })
             context.Sessions.Add(new AuthSession
@@ -281,7 +277,7 @@ public class AuthenticationRevocationTests
         await context.SaveChangesAsync();
     }
 
-    /// <summary>全失効の対象以外の表を、既存業務値・人物対応・ロールを含めて選ぶ。</summary>
+    /// <summary>全失効の対象以外の表を、ロール・発行要求履歴を含めて選ぶ。</summary>
     private static string[] ProtectedTables(LoginTestApp app) => app.Database.Tables().Where(table => table is not
         ("AspNetUsers" or "AspNetUserPasskeys" or "auth_sessions" or "auth_enrollment_codes")).ToArray();
 
@@ -297,7 +293,7 @@ public class AuthenticationRevocationTests
     private static async Task<string> AccountSnapshotAsync(LoginTestApp app, string? disabledId = null, bool resetAll = false)
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        var users = await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Users.AsNoTracking().OrderBy(user => user.Id).ToListAsync();
+        var users = await scope.ServiceProvider.GetRequiredService<ApiDbContext>().Users.AsNoTracking().OrderBy(user => user.Id).ToListAsync();
         foreach (var user in users) if (resetAll || user.Id == disabledId) user.IsEnabled = false;
         return JsonSerializer.Serialize(users);
     }

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -16,18 +17,18 @@ public class AdminProvisioningTests
     private static readonly DateTimeOffset Now = new(2026, 10, 24, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task BootstrapPreservesBusinessRowsAndStoresOnlyHashWithTenMinuteExpiry()
+    public async Task BootstrapStoresOnlyHashWithTenMinuteExpiry()
     {
         using var fixture = new AuthDatabaseFixture();
-        var tables = fixture.Tables();
-        var before = fixture.Snapshot(tables);
         await fixture.MigrateAsync();
+        var tables = fixture.Tables().Where(table => table.StartsWith("__")).ToArray();
+        var before = fixture.Snapshot(tables);
         var logs = new CapturedLogs();
         await using var services = Services(fixture, logs);
         await using var scope = services.CreateAsyncScope();
         var issued = Assert.IsType<IssuedEnrollmentCode>(await scope.ServiceProvider
             .GetRequiredService<AdminProvisioningService>().InitializeAdminAsync());
-        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
         var stored = await context.EnrollmentCodes.AsNoTracking().SingleAsync();
         Assert.Equal(32, Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(issued.Code).Length);
         Assert.Equal(SHA256.HashData(Encoding.UTF8.GetBytes(issued.Code)), stored.CodeHash);
@@ -42,7 +43,6 @@ public class AdminProvisioningTests
         Assert.Null(user.PasswordHash);
         Assert.Null(user.Email);
         Assert.True(await scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>().IsInRoleAsync(user, "Admin"));
-        Assert.Empty(await context.UserLinks.ToArrayAsync());
         Assert.Null(user.DisplayName);
         Assert.Equal(before, fixture.Snapshot(tables));
         Assert.DoesNotContain(issued.Code, fixture.Snapshot(fixture.Tables()));
@@ -63,7 +63,7 @@ public class AdminProvisioningTests
     }
 
     [Fact]
-    public async Task ExplicitReissueRevokesOldCodeAndPreservesAccountRolesAndBusinessRows()
+    public async Task ExplicitReissueRevokesOldCodeAndPreservesAccountRoles()
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
@@ -75,7 +75,7 @@ public class AdminProvisioningTests
         var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!);
         Assert.Equal(old.AuthUserId, issued.AuthUserId);
         Assert.NotEqual(old.Code, issued.Code);
-        var codes = await scope.ServiceProvider.GetRequiredService<AuthDbContext>().EnrollmentCodes.AsNoTracking().ToListAsync();
+        var codes = await scope.ServiceProvider.GetRequiredService<ApiDbContext>().EnrollmentCodes.AsNoTracking().ToListAsync();
         Assert.Equal(2, codes.Count);
         Assert.Single(codes, code => code.RevokedAtUtc == null && code.ConsumedAtUtc == null);
         Assert.Equal(Now.UtcDateTime, codes.Single(code => code.CodeHash.SequenceEqual(
@@ -156,7 +156,6 @@ public class AdminProvisioningTests
         var service = scope.ServiceProvider.GetRequiredService<AdminProvisioningService>();
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.IssueEnrollmentCodeAsync("missing"));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
-        fixture.Execute("DELETE FROM m_user");
         var issued = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture));
         Assert.Equal(issued.AuthUserId, (await service.IssueEnrollmentCodeAsync(issued.AuthUserId)).AuthUserId);
     }
@@ -175,7 +174,6 @@ public class AdminProvisioningTests
         Assert.NotEqual(general.Id, issued.AuthUserId);
         Assert.Empty(await users.GetRolesAsync(general));
         Assert.False((await users.FindByIdAsync(general.Id))!.IsEnabled);
-        Assert.Equal(0L, fixture.Scalar("SELECT COUNT(*) FROM auth_user_links"));
     }
 
     [Fact]
@@ -186,7 +184,6 @@ public class AdminProvisioningTests
         var results = await Task.WhenAll(Task.Run(() => Bootstrap(fixture)), Task.Run(() => Bootstrap(fixture)));
         Assert.Single(results, result => result != null);
         Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM AspNetUsers"));
-        Assert.Equal(0L, fixture.Scalar("SELECT COUNT(*) FROM auth_user_links"));
         Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes"));
     }
 

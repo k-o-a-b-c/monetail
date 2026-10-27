@@ -1,8 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Accounts;
+using Monetail.Api.Persistence;
 
 var command = args.FirstOrDefault();
-var isAuthCommand = command is "migrate-auth-db" or "initialize-admin" or "issue-enrollment-code" or
+var isAuthCommand = command is "initialize-db" or "initialize-admin" or "issue-enrollment-code" or
     "revoke-account" or "reset-authentication";
 var configurationArgs = isAuthCommand ? args[1..] : args;
 string? authUserId = null;
@@ -43,6 +45,12 @@ if (isAuthCommand && configurationArgs.Any(argument =>
     Environment.ExitCode = 1;
     return;
 }
+if (command == "migrate-auth-db")
+{
+    Console.Error.WriteLine("旧DB用コマンドは廃止しました。新規DBはinitialize-db、既存DBの引継ぎは移行SQLを使用してください。");
+    Environment.ExitCode = 1;
+    return;
+}
 var builder = WebApplication.CreateBuilder(configurationArgs);
 builder.Services.AddHealthChecks();
 var connectionString = builder.Configuration.GetConnectionString("Monetail");
@@ -63,7 +71,7 @@ if (isAuthCommand)
 {
     if (string.IsNullOrWhiteSpace(connectionString))
     {
-        Console.Error.WriteLine("ConnectionStrings:Monetailに既存DBを指定してください。");
+        Console.Error.WriteLine("ConnectionStrings:MonetailにSQLiteファイルを指定してください。");
         Environment.ExitCode = 1;
         await app.DisposeAsync();
         return;
@@ -72,10 +80,13 @@ if (isAuthCommand)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await using var scope = app.Services.CreateAsyncScope();
-        if (command == "migrate-auth-db")
+        if (command == "initialize-db")
         {
-            await scope.ServiceProvider.GetRequiredService<AuthDatabaseMigrator>().MigrateAsync(timeout.Token);
-            Console.WriteLine("認証DBの追加移行が完了しました。");
+            await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(timeout.Token);
+            var database = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
+            foreach (var id in await database.Database.GetAppliedMigrationsAsync(timeout.Token))
+                Console.WriteLine($"適用済み移行ID: {id}");
+            Console.WriteLine("API用DBの初期設定・移行が完了しました。");
         }
         else if (command is "revoke-account" or "reset-authentication")
         {
@@ -93,7 +104,12 @@ if (isAuthCommand)
                 ? await provisioning.InitializeAdminAsync(timeout.Token)
                 : await provisioning.IssueEnrollmentCodeAsync(authUserId!, timeout.Token);
             if (issued is null)
+            {
+                var manager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AuthUser>>();
+                foreach (var admin in await manager.GetUsersInRoleAsync("Admin"))
+                    Console.WriteLine($"管理者アカウントID: {admin.Id}");
                 Console.WriteLine("初期管理者は作成済みです。コードが必要ならissue-enrollment-codeを実行してください。");
+            }
             else
             {
                 Console.WriteLine($"アカウントID: {issued.AuthUserId}");
@@ -102,7 +118,7 @@ if (isAuthCommand)
             }
         }
     }
-    catch (Exception exception) when (exception is InvalidOperationException or
+    catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or
         Microsoft.Data.Sqlite.SqliteException or Microsoft.EntityFrameworkCore.DbUpdateException or OperationCanceledException)
     {
         app.Logger.LogWarning("管理コマンド失敗。操作={Command} 認証ID={AuthUserId} 日時={OccurredAtUtc} エラー種類={ErrorType}",

@@ -1,40 +1,29 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Monetail.Api.Authentication;
 
-namespace Monetail.Api.Authentication;
+namespace Monetail.Api.Persistence;
 
-/// <summary>Identityと認証履歴を既存SQLiteに保存し、旧人物対応を保持する。</summary>
-public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
+/// <summary>API全体の保存モデルと移行を管理する。</summary>
+public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
     : IdentityDbContext<AuthUser>(options)
 {
-    public DbSet<AuthUserLink> UserLinks => Set<AuthUserLink>();
+    /// <summary>API専用の移行履歴を使うSQLite接続を構成する。</summary>
+    public static void Configure(DbContextOptionsBuilder options, string connectionString) =>
+        options.UseSqlite(connectionString, sqlite => sqlite.MigrationsHistoryTable(HistoryTable));
+
+    /// <summary>API全体の適用済み移行を記録する表名を定める。</summary>
+    public const string HistoryTable = "__MonetailMigrationsHistory";
+
     public DbSet<EnrollmentCode> EnrollmentCodes => Set<EnrollmentCode>();
     public DbSet<AuthSession> Sessions => Set<AuthSession>();
 
-    /// <summary>既存人物を移行対象から除外し、認証用の制約を設定する。</summary>
+    /// <summary>認証の保存先と制約を設定する。</summary>
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
         builder.Entity<AuthUser>().Property(user => user.IsEnabled).HasDefaultValue(false);
         builder.Entity<AuthUser>().Property(user => user.DisplayName).HasMaxLength(AuthUser.DisplayNameMaxLength);
-        builder.Entity<LegacyPerson>(person =>
-        {
-            person.ToTable("m_user", table => table.ExcludeFromMigrations());
-            person.HasKey(row => row.Code);
-            person.Property(row => row.Code).HasColumnName("code").ValueGeneratedNever();
-        });
-        builder.Entity<AuthUserLink>(link =>
-        {
-            link.ToTable("auth_user_links");
-            link.HasKey(row => row.AuthUserId);
-            link.Property(row => row.AuthUserId).HasColumnName("auth_user_id").IsRequired();
-            link.Property(row => row.UserCode).HasColumnName("user_code").IsRequired();
-            link.HasIndex(row => row.UserCode).IsUnique();
-            link.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-            link.HasOne<LegacyPerson>().WithMany().HasForeignKey(row => row.UserCode)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
         builder.Entity<EnrollmentCode>(code =>
         {
             code.ToTable("auth_enrollment_codes");
@@ -64,7 +53,6 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
             request.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.CreatedByAuthUserId).OnDelete(DeleteBehavior.Restrict);
             request.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId).OnDelete(DeleteBehavior.Restrict);
             request.HasIndex(row => row.AuthUserId).IsUnique();
-            request.HasOne<LegacyPerson>().WithMany().HasForeignKey(row => row.UserCode).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

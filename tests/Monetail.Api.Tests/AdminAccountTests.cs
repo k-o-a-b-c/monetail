@@ -1,15 +1,16 @@
 using System.Data.Common;
-using System.Net;
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -28,11 +29,10 @@ public class AdminAccountTests
             var pending = new AuthUser { UserName = Guid.NewGuid().ToString("N"), IsEnabled = false };
             Assert.True((await users.CreateAsync(pending)).Succeeded);
             pendingId = pending.Id;
-            var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-            context.UserLinks.Add(new AuthUserLink { AuthUserId = pending.Id, UserCode = 2 });
+            var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
             await context.SaveChangesAsync();
         }
-        var stopped = await app.AddAccountAsync(4);
+        var stopped = await app.AddAccountAsync();
         app.Database.Execute($"UPDATE AspNetUsers SET IsEnabled=0 WHERE Id='{stopped.UserId}'");
         using var client = app.Client();
         await app.LoginAsync(client);
@@ -60,7 +60,7 @@ public class AdminAccountTests
     public async Task AnonymousAndOrdinaryAccountsCannotReadAccountList()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync();
         using var anonymous = app.Client();
         using var denied = await anonymous.GetAsync("/admin/accounts");
         Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
@@ -159,7 +159,7 @@ public class AdminAccountTests
         using var owner = app.Client();
         await app.LoginAsync(owner);
         await using var failed = app.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
-            services.ConfigureDbContext<AuthDbContext>(options => options.AddInterceptors(new FailedListQuery()))));
+            services.ConfigureDbContext<ApiDbContext>(options => options.AddInterceptors(new FailedListQuery()))));
         using var client = app.Client(failed);
         client.DefaultRequestHeaders.Add("Cookie", app.SessionCookie.Split(';')[0]);
         var before = app.Database.Snapshot(app.Database.Tables());
@@ -175,8 +175,7 @@ public class AdminAccountTests
     public async Task UnlinkedAccountsAreListedWithoutMatchingPeopleByName()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var other = await app.AddAccountAsync(2);
-        app.Database.Execute("DELETE FROM auth_user_links WHERE user_code=2");
+        var other = await app.AddAccountAsync();
         using var client = app.Client();
         await app.LoginAsync(client);
         var before = app.Database.Snapshot(app.Database.Tables());
