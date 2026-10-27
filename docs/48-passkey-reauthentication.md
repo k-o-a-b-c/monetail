@@ -12,14 +12,14 @@
 | `POST /auth/reauthentication/verify` | 本文は`{"credential":{…}}`。同じ本人・セッションの署名検証に成功した場合だけ200。再確認失敗は共通メッセージの403 |
 | `GET /auth/me` | 従来の本人情報・`expiresAtUtc`に、サーバーUTCの`verifiedAtUtc`を追加 |
 
-未認証・セッション期限切れ・取消・利用停止は401、人物対応の不備は403、認証ストア障害は503。302転送はしない。既存のHTTPS・Origin・CSRF・本文上限・キャッシュ禁止を共用し、登録・ログイン・本人再確認の開始／検証と[50 パスキー追加／削除](50-self-service-passkeys.md)を合わせてIPごと1分20回に制限する。
+未認証・セッション期限切れ・取消・利用停止は401、認証ストア障害は503。302転送はしない。既存のHTTPS・Origin・CSRF・本文上限・キャッシュ禁止を共用し、登録・ログイン・本人再確認の開始／検証と[50 パスキー追加／削除](50-self-service-passkeys.md)を合わせてIPごと1分20回に制限する。
 
 ## 同じ本人・セッションへの固定
 
-- `ReauthenticationChallenges`は、標準Identityの検証状態・認証ID・開始時のセッション識別子ハッシュ・人物コード・有効期限をメモリへ保持する。登録・通常ログインとは別の領域とCookieを使い、5分・1回限り、最大1024件。同じブラウザーの再開始で古い状態を置換し、再起動では未完了分を破棄する。
-- 一時Cookieは`__Host-Monetail.Reauthentication`。Secure・HttpOnly・SameSite=Lax・Path=/・Domainなし。アカウント・セッションはクライアント入力から選ばず、検証済みのログイン状態を使う。同じ人物の別セッションへチャレンジを持ち込んでも拒否する。
+- `ReauthenticationChallenges`は、標準Identityの検証状態・認証ID・開始時のセッション識別子ハッシュ・有効期限をメモリへ保持する。登録・通常ログインとは別の領域とCookieを使い、5分・1回限り、最大1024件。同じブラウザーの再開始で古い状態を置換し、再起動では未完了分を破棄する。
+- 一時Cookieは`__Host-Monetail.Reauthentication`。Secure・HttpOnly・SameSite=Lax・Path=/・Domainなし。アカウント・セッションはクライアント入力から選ばず、検証済みのログイン状態を使う。同じアカウントの別セッションへチャレンジを持ち込んでも拒否する。
 - `MakeRequestOptionsAsync`へ現在の本人を渡し、その本人の鍵に限定する。検証も標準`PerformAssertionAsync`で行い、Origin・RP ID・チャレンジ・署名・UV・所有者・署名カウンターを確認する。別人の有効なパスキーを使っても本人を切り替えない。
-- 署名検証前にSQLiteの書込トランザクションを取り、本人の利用可否・人物対応・鍵状態を確認する。同じトランザクションで標準の鍵状態を更新し、元のセッションが未取消かつ期限内である場合だけ`VerifiedAtUtc`を更新する。検証中に期限へ達した場合、保存失敗や競合では全体を戻す。
+- 署名検証前にSQLiteの書込トランザクションを取り、本人の利用可否・鍵状態を確認する。同じトランザクションで標準の鍵状態を更新し、元のセッションが未取消かつ期限内である場合だけ`VerifiedAtUtc`を更新する。検証中に期限へ達した場合、保存失敗や競合では全体を戻す。
 
 ## 直近5分の判定と固定期限
 
@@ -35,8 +35,8 @@
 
 ## 検証と後続
 
-実IdentityのEC署名と隔離SQLiteで、本人・ブラウザー・セッション・用途の固定、署名の不正、確認から5分の境界、認証途中の失効・人物変更・鍵削除、同時消費・署名カウンター競合、DB障害時の取消と再試行、Cookieと期限の維持、再起動と既存業務値・保存済みtotalの保持を検証する。件数と実行結果は[tests/README.md](../tests/README.md)へ集約する。
+実IdentityのEC署名と隔離SQLiteで、本人・ブラウザー・セッション・用途の固定、署名の不正、確認から5分の境界、認証途中の失効・鍵削除、同時消費・署名カウンター競合、DB障害時の取消と再試行、Cookieと期限の維持、再起動と既存業務値・保存済みtotalの保持を検証する。件数と実行結果は[tests/README.md](../tests/README.md)へ集約する。
 
-全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。既存人物への一般アカウント初回発行は[54](54-admin-account-creation.md)で実装した。一般・管理者アカウントへの再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。Web管理画面、新規人物追加、停止のHTTP経路、業務APIは後続。Windows版・旧SQL・本番設定・実データは変更していない。
+全失効／復旧コマンドは[49](49-authentication-revocation-recovery.md)で実装した。本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。人物を選ばない一般アカウント初回発行は[54](54-admin-account-creation.md)で実装した。一般・管理者アカウントへの再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。Web管理画面、新規人物追加、停止のHTTP経路、業務APIは後続。Windows版・旧SQL・本番設定・実データは変更していない。
 
-人物照合・表示名取得は[53](53-account-person-lookup.md)の窓口とMonetail側の実装へ分離した。人物対応必須・確認するタイミング・同じDBトランザクション・本書の認証条件を維持する。
+人物照合窓口は削除した。人物の存在や対応を認証条件にせず、表示名はアカウント自身の保存値を使う。認証ID・同一セッション・鍵・期限・失効・保存時の原子性は引き続き検証する（[43 現行契約](43-passkey-authentication-design.md)）。

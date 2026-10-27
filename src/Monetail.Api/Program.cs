@@ -1,24 +1,23 @@
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Monetail.Accounts;
-using System.Globalization;
 
 var command = args.FirstOrDefault();
 var isAuthCommand = command is "migrate-auth-db" or "initialize-admin" or "issue-enrollment-code" or
     "revoke-account" or "reset-authentication";
 var configurationArgs = isAuthCommand ? args[1..] : args;
-int? personCode = null;
+string? authUserId = null;
 // 緊急復旧を明示したときだけ、最後の管理者の通常停止保護を解除する。
 var emergencyRecovery = false;
-if (command is "initialize-admin" or "issue-enrollment-code" or "revoke-account")
+if (command is "issue-enrollment-code" or "revoke-account")
 {
-    if (args.Length < 3 || args[1] != "--person-code" ||
-        !int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedCode))
+    if (args.Length < 3 || args[1] != "--account-id" || string.IsNullOrWhiteSpace(args[2]) ||
+        args[2].StartsWith("--", StringComparison.Ordinal))
     {
-        Console.Error.WriteLine("人物コードを明示してください: initialize-admin / issue-enrollment-code / revoke-account --person-code 整数");
+        Console.Error.WriteLine("アカウントIDを明示してください: issue-enrollment-code / revoke-account --account-id ID");
         Environment.ExitCode = 1;
         return;
     }
-    personCode = parsedCode;
+    authUserId = args[2];
     configurationArgs = args[3..];
     if (command == "revoke-account" && configurationArgs.FirstOrDefault() == "--emergency-recovery")
     {
@@ -37,7 +36,7 @@ if (command == "reset-authentication")
     configurationArgs = args[2..];
 }
 if (isAuthCommand && configurationArgs.Any(argument =>
-    new[] { "--person-code", "--emergency-recovery", "--after-restore" }.Any(option =>
+    new[] { "--account-id", "--person-code", "--emergency-recovery", "--after-restore" }.Any(option =>
         argument == option || argument.StartsWith(option + "=", StringComparison.Ordinal))))
 {
     Console.Error.WriteLine("管理コマンドの操作オプションが重複しているか、指定位置が不正です。");
@@ -57,7 +56,6 @@ if (passkeySettings is not null)
     builder.Services.AddPasskeyWeb(passkeySettings);
     builder.Services.AddScoped<AdminAccountService>();
     builder.Services.AddScoped<AdminAccountProvisioningService>();
-    builder.Services.AddScoped<IAccountPersonLookup, MonetailAccountPersonLookup>();
 }
 
 var app = builder.Build();
@@ -83,7 +81,7 @@ if (isAuthCommand)
         {
             var revocation = scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>();
             if (command == "revoke-account")
-                await revocation.RevokeAccountAsync(personCode!.Value, emergencyRecovery, timeout.Token);
+                await revocation.RevokeAccountAsync(authUserId!, emergencyRecovery, timeout.Token);
             else
                 await revocation.ResetAfterRestoreAsync(timeout.Token);
             Console.WriteLine("認証情報を全失効しました。登録コードは発行していません。");
@@ -92,12 +90,13 @@ if (isAuthCommand)
         {
             var provisioning = scope.ServiceProvider.GetRequiredService<AdminProvisioningService>();
             var issued = command == "initialize-admin"
-                ? await provisioning.InitializeAdminAsync(personCode!.Value, timeout.Token)
-                : await provisioning.IssueEnrollmentCodeAsync(personCode!.Value, timeout.Token);
+                ? await provisioning.InitializeAdminAsync(timeout.Token)
+                : await provisioning.IssueEnrollmentCodeAsync(authUserId!, timeout.Token);
             if (issued is null)
                 Console.WriteLine("初期管理者は作成済みです。コードが必要ならissue-enrollment-codeを実行してください。");
             else
             {
+                Console.WriteLine($"アカウントID: {issued.AuthUserId}");
                 Console.WriteLine($"登録コード: {issued.Code}");
                 Console.WriteLine($"有効期限（UTC）: {issued.ExpiresAtUtc:O}");
             }
@@ -106,8 +105,8 @@ if (isAuthCommand)
     catch (Exception exception) when (exception is InvalidOperationException or
         Microsoft.Data.Sqlite.SqliteException or Microsoft.EntityFrameworkCore.DbUpdateException or OperationCanceledException)
     {
-        app.Logger.LogWarning("管理コマンド失敗。操作={Command} 対象人物={PersonCode} 日時={OccurredAtUtc} エラー種類={ErrorType}",
-            command, personCode, DateTimeOffset.UtcNow, exception.GetType().Name);
+        app.Logger.LogWarning("管理コマンド失敗。操作={Command} 認証ID={AuthUserId} 日時={OccurredAtUtc} エラー種類={ErrorType}",
+            command, authUserId, DateTimeOffset.UtcNow, exception.GetType().Name);
         Console.Error.WriteLine(exception is InvalidOperationException
             ? exception.Message : "認証DBの管理処理に失敗しました。接続設定・DBの状態を確認してください。");
         Environment.ExitCode = 1;

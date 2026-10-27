@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>検証済みセッションの人物と固定期限を、その要求だけに渡す。</summary>
-public sealed record CurrentSession(AuthSession Session, int UserCode, string DisplayName);
+/// <summary>検証済みセッションとアカウント自身の表示名を、その要求だけに渡す。</summary>
+public sealed record CurrentSession(AuthSession Session, string? DisplayName);
 
-/// <summary>Cookieの要求ごとに、セッション・利用可否・人物対応・現在の権限を確認する。</summary>
-public sealed class SessionCookieEvents(AuthDbContext context, UserManager<AuthUser> users, IAccountPersonLookup people, TimeProvider time,
+/// <summary>Cookieの要求ごとに、セッション・アカウントの利用可否・現在の権限を確認する。</summary>
+public sealed class SessionCookieEvents(AuthDbContext context, UserManager<AuthUser> users, TimeProvider time,
     ILogger<SessionCookieEvents> logger) : CookieAuthenticationEvents
 {
     public const string Scheme = "Monetail.Session";
@@ -36,15 +36,13 @@ public sealed class SessionCookieEvents(AuthDbContext context, UserManager<AuthU
             { Reject(cookie, 401); return; }
             var user = await context.Users.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, token);
             if (user is null || !user.IsEnabled) { Reject(cookie, 401); return; }
-            var person = await people.FindAsync(id, token);
-            if (person is null) { Reject(cookie, 403); return; }
             var principal = Principal(id, cookie.Principal!.FindFirstValue(IdClaim)!);
             var identity = (ClaimsIdentity)principal.Identity!;
-            identity.AddClaim(new Claim(ClaimTypes.Name, person.DisplayName));
+            if (user.DisplayName is not null) identity.AddClaim(new Claim(ClaimTypes.Name, user.DisplayName));
             foreach (var role in await users.GetRolesAsync(user)) identity.AddClaim(new Claim(ClaimTypes.Role, role));
             cookie.ReplacePrincipal(principal);
             cookie.ShouldRenew = false;
-            cookie.HttpContext.Items[typeof(CurrentSession)] = new CurrentSession(session, person.UserCode, person.DisplayName);
+            cookie.HttpContext.Items[typeof(CurrentSession)] = new CurrentSession(session, user.DisplayName);
         }
         catch (Exception exception) when (exception is SqliteException or DbUpdateException or InvalidOperationException)
         {

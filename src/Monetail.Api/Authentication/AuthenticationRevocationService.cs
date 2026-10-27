@@ -6,17 +6,13 @@ namespace Monetail.Api.Authentication;
 public sealed class AuthenticationRevocationService(AuthDbContext context, TimeProvider time,
     ILogger<AuthenticationRevocationService> logger)
 {
-    /// <summary>対象人物の認証情報を全失効し、通常操作では最後の有効な管理者を保護する。</summary>
-    public async Task RevokeAccountAsync(int personCode, bool emergencyRecovery = false, CancellationToken token = default)
+    /// <summary>対象アカウントの認証情報を全失効し、通常操作では最後の有効な管理者を保護する。</summary>
+    public async Task RevokeAccountAsync(string authUserId, bool emergencyRecovery = false, CancellationToken token = default)
     {
         await EnsureMigratedAsync(token);
         await using var transaction = await context.Database.BeginTransactionAsync(token);
-        var target = await (from link in context.UserLinks
-                            join person in context.Set<LegacyPerson>() on link.UserCode equals person.Code
-                            join user in context.Users on link.AuthUserId equals user.Id
-                            where link.UserCode == personCode
-                            select user).AsNoTracking().SingleOrDefaultAsync(token)
-            ?? throw new InvalidOperationException("指定した人物に対応するアカウントを確認できません。");
+        var target = await context.Users.AsNoTracking().SingleOrDefaultAsync(user => user.Id == authUserId, token)
+            ?? throw new InvalidOperationException("指定したアカウントを確認できません。");
         var administrator = await (from assignment in context.UserRoles
                                    join role in context.Roles on assignment.RoleId equals role.Id
                                    where assignment.UserId == target.Id && role.Name == "Admin"
@@ -26,8 +22,8 @@ public sealed class AuthenticationRevocationService(AuthDbContext context, TimeP
         var now = time.GetUtcNow().UtcDateTime;
         await RevokeAsync(target.Id, now, token);
         await transaction.CommitAsync(token);
-        logger.LogInformation("認証情報を全失効しました。認証ID={AuthUserId} 対象人物={PersonCode} 緊急復旧={EmergencyRecovery} 日時={OccurredAtUtc} 結果=成功",
-            target.Id, personCode, emergencyRecovery, now);
+        logger.LogInformation("認証情報を全失効しました。認証ID={AuthUserId} 緊急復旧={EmergencyRecovery} 日時={OccurredAtUtc} 結果=成功",
+            target.Id, emergencyRecovery, now);
     }
 
     /// <summary>バックアップ復元後に、全アカウントの認証情報を同じトランザクションで失効させる。</summary>
@@ -41,13 +37,11 @@ public sealed class AuthenticationRevocationService(AuthDbContext context, TimeP
         logger.LogInformation("復元後の認証情報を全失効しました。対象=全アカウント 日時={OccurredAtUtc} 結果=成功", now);
     }
 
-    /// <summary>本人・パスキーが存在する別の有効な管理者を確認する。</summary>
+    /// <summary>パスキーを持つ別の有効な管理者アカウントを確認する。</summary>
     private Task<bool> HasOtherAdministratorAsync(string excludedUserId, CancellationToken token) =>
         (from user in context.Users
          join assignment in context.UserRoles on user.Id equals assignment.UserId
          join role in context.Roles on assignment.RoleId equals role.Id
-         join link in context.UserLinks on user.Id equals link.AuthUserId
-         join person in context.Set<LegacyPerson>() on link.UserCode equals person.Code
          where user.Id != excludedUserId && user.IsEnabled && role.Name == "Admin" &&
              context.UserPasskeys.Any(key => key.UserId == user.Id)
          select user).AnyAsync(token);

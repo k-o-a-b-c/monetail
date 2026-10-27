@@ -206,6 +206,10 @@ namespace Monetail.Api.Authentication.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -346,7 +350,7 @@ namespace Monetail.Api.Authentication.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("UserCode")
+                    b.Property<int?>("UserCode")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("RequestId");
@@ -513,8 +517,7 @@ namespace Monetail.Api.Authentication.Migrations
                     b.HasOne("Monetail.Api.Authentication.LegacyPerson", null)
                         .WithMany()
                         .HasForeignKey("UserCode")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }

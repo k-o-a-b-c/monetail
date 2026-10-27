@@ -34,7 +34,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
         await app.Database.MigrateAsync();
         app.Factory = app.NewFactory();
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        var issued = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync(1))!;
+        var issued = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync())!;
         app.UserId = issued.AuthUserId;
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
         var user = (await users.FindByIdAsync(app.UserId))!;
@@ -45,7 +45,12 @@ internal sealed class LoginTestApp : IAsyncDisposable
             ["internal"], true, false, false, [], []) { Name = "synthetic-login-key" };
         Assert.True((await users.AddOrUpdatePasskeyAsync(user, passkey)).Succeeded);
         user.IsEnabled = true;
+        user.DisplayName = "同じ名前";
         Assert.True((await users.UpdateAsync(user)).Succeeded);
+        var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+        // 旧版の対応が残るDBでも、認証がその対応を参照しないことを検証する。
+        context.UserLinks.Add(new AuthUserLink { AuthUserId = user.Id, UserCode = 1 });
+        await context.SaveChangesAsync();
         return app;
     }
 
@@ -134,7 +139,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
     {
         await using var scope = Factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
-        var user = new AuthUser { UserName = Guid.NewGuid().ToString("N"), IsEnabled = true };
+        var user = new AuthUser { UserName = Guid.NewGuid().ToString("N"), IsEnabled = true, DisplayName = "同じ名前" };
         Assert.True((await users.CreateAsync(user)).Succeeded);
         var point = key.ExportParameters(false).Q;
         byte[] publicKey = [0xA5, 0x01, 0x02, 0x03, 0x26, 0x20, 0x01, 0x21, 0x58, 0x20,

@@ -26,17 +26,17 @@ public class AdminAccountCreationTests
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
         await LoginAsync(app, admin);
-        var tables = app.Database.Tables().Except(new[] { "AspNetUsers", "auth_user_links", "auth_enrollment_codes", "auth_account_creation_requests" }).ToArray();
+        var tables = app.Database.Tables().Except(new[] { "AspNetUsers", "auth_enrollment_codes", "auth_account_creation_requests" }).ToArray();
         var before = app.Database.Snapshot(tables);
         using var created = await CreateAsync(admin, Guid.NewGuid());
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.False(created.Headers.Contains("Set-Cookie"));
         Assert.Equal("no-store", created.Headers.CacheControl!.ToString());
         var body = await created.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(new[] { "authUserId", "code", "expiresAtUtc", "userCode" }, body.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        Assert.Equal(new[] { "authUserId", "code", "expiresAtUtc" }, body.EnumerateObject().Select(property => property.Name).Order().ToArray());
         var id = body.GetProperty("authUserId").GetString()!;
         var code = body.GetProperty("code").GetString()!;
-        Assert.Equal(3, body.GetProperty("userCode").GetInt32());
+        Assert.False(body.TryGetProperty("userCode", out _));
         Assert.Equal(43, code.Length);
         Assert.Equal(app.Time.GetUtcNow().AddMinutes(10), body.GetProperty("expiresAtUtc").GetDateTimeOffset());
         Assert.Equal(0L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{id}'"));
@@ -45,11 +45,11 @@ public class AdminAccountCreationTests
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
         Assert.Equal(1L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'{hash}' AND AuthUserId='{id}'"));
         Assert.DoesNotContain(code, app.Database.Snapshot(app.Database.Tables()));
-        Assert.DoesNotContain(code, new AccountCreationResponse(id, 3, code, null).ToString());
+        Assert.DoesNotContain(code, new AccountCreationResponse(id, code, null).ToString());
         Assert.Equal(before, app.Database.Snapshot(tables));
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var key = RandomNumberGenerator.GetBytes(32);
         using var enrolled = await enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, key) });
@@ -60,9 +60,11 @@ public class AdminAccountCreationTests
         using var loggedIn = await app.VerifyAsync(enrollee, app.AssertionFor(options, id, key));
         Assert.Equal(HttpStatusCode.OK, loggedIn.StatusCode);
         var me = await enrollee.GetFromJsonAsync<JsonElement>("/auth/me");
-        Assert.Equal(3, me.GetProperty("userCode").GetInt32());
+        Assert.False(me.TryGetProperty("userCode", out _));
+        Assert.Equal("新しいアカウント名", me.GetProperty("displayName").GetString());
+        Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_user_links WHERE auth_user_id='{id}'"));
         await LoginTestApp.CsrfAsync(enrollee);
-        using var denied = await CreateAsync(enrollee, Guid.NewGuid(), 4);
+        using var denied = await CreateAsync(enrollee, Guid.NewGuid());
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
     }
 
@@ -94,7 +96,7 @@ public class AdminAccountCreationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ConcurrentRequestsCreateOnlyOneAccountAndOnlyOneResponseContainsACode(bool sameRequest)
+    public async Task ConcurrentRequestsAreDeduplicatedOnlyForTheSameRequestId(bool sameRequest)
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
@@ -103,18 +105,18 @@ public class AdminAccountCreationTests
         var responses = await Task.WhenAll(CreateAsync(admin, request), CreateAsync(admin, sameRequest ? request : Guid.NewGuid()));
         try
         {
-            Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Created);
-            Assert.Single(responses, response => response.StatusCode == (sameRequest ? HttpStatusCode.OK : HttpStatusCode.Conflict));
+            Assert.Equal(sameRequest ? 1 : 2, responses.Count(response => response.StatusCode == HttpStatusCode.Created));
+            if (sameRequest) Assert.Single(responses, response => response.StatusCode == HttpStatusCode.OK);
             var bodies = await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync()));
-            Assert.Single(bodies, body => JsonDocument.Parse(body).RootElement.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String);
-            Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM auth_user_links WHERE user_code=3"));
-            Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM auth_account_creation_requests"));
+            Assert.Equal(sameRequest ? 1 : 2, bodies.Count(body => JsonDocument.Parse(body).RootElement.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String));
+            Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_user_links WHERE user_code=3"));
+            Assert.Equal(sameRequest ? 1L : 2L, app.Database.Scalar("SELECT COUNT(*) FROM auth_account_creation_requests"));
         }
         finally { foreach (var response in responses) response.Dispose(); }
     }
 
     [Fact]
-    public async Task RequestIsBoundToItsOriginalPersonAndAdministratorAndExistingAccountsAreNotChanged()
+    public async Task RequestIsBoundToItsOriginalAdministratorAndDoesNotRevealTheCodeToAnother()
     {
         await using var app = await LoginTestApp.CreateAsync();
         var other = await app.AddAccountAsync(2);
@@ -134,13 +136,9 @@ public class AdminAccountCreationTests
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         await LoginTestApp.CsrfAsync(another);
         var before = app.Database.Snapshot(app.Database.Tables());
-        using var wrongPerson = await CreateAsync(admin, request, 4);
         using var wrongAdmin = await CreateAsync(another, request);
-        using var alreadyCreated = await CreateAsync(admin, Guid.NewGuid());
-        using var existingAdmin = await CreateAsync(admin, Guid.NewGuid(), 1);
-        Assert.All(new[] { wrongPerson, wrongAdmin, alreadyCreated, existingAdmin }, response => Assert.Equal(HttpStatusCode.Conflict, response.StatusCode));
-        using var missing = await CreateAsync(admin, Guid.NewGuid(), 999);
-        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, wrongAdmin.StatusCode);
+        Assert.False((await wrongAdmin.Content.ReadFromJsonAsync<JsonElement>()).TryGetProperty("code", out _));
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 
@@ -152,7 +150,6 @@ public class AdminAccountCreationTests
     [InlineData("disabled", HttpStatusCode.Unauthorized)]
     [InlineData("revoked", HttpStatusCode.Unauthorized)]
     [InlineData("expired", HttpStatusCode.Unauthorized)]
-    [InlineData("link", HttpStatusCode.Forbidden)]
     public async Task InvalidAdministratorStateCannotCreateAnything(string change, HttpStatusCode expected)
     {
         await using var app = await LoginTestApp.CreateAsync();
@@ -167,7 +164,6 @@ public class AdminAccountCreationTests
             case "disabled": app.Database.Execute("UPDATE AspNetUsers SET IsEnabled=0"); break;
             case "revoked": app.Database.Execute("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc"); break;
             case "expired": app.Database.Execute("UPDATE auth_sessions SET ExpiresAtUtc=CreatedAtUtc"); break;
-            case "link": app.Database.Execute("DELETE FROM auth_user_links"); break;
         }
         var before = app.Database.Snapshot(app.Database.Tables());
         using var result = await CreateAsync(admin, Guid.NewGuid());
@@ -177,7 +173,6 @@ public class AdminAccountCreationTests
 
     [Theory]
     [InlineData("AspNetUsers")]
-    [InlineData("auth_user_links")]
     [InlineData("auth_enrollment_codes")]
     [InlineData("auth_account_creation_requests")]
     public async Task EveryWriteFailureRollsBackTheWholeCreationAndAllowsTheSameRequestToRetry(string table)
@@ -201,7 +196,6 @@ public class AdminAccountCreationTests
     [InlineData("DELETE FROM AspNetUserRoles WHERE UserId=NEW.CreatedByAuthUserId")]
     [InlineData("UPDATE AspNetUsers SET IsEnabled=0 WHERE Id=NEW.CreatedByAuthUserId")]
     [InlineData("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc WHERE AuthUserId=NEW.CreatedByAuthUserId")]
-    [InlineData("DELETE FROM auth_user_links WHERE auth_user_id=NEW.CreatedByAuthUserId")]
     public async Task AdministratorChangesDuringSavingRollBackAllWrites(string mutation)
     {
         await using var app = await LoginTestApp.CreateAsync();
@@ -274,8 +268,8 @@ public class AdminAccountCreationTests
         await LoginTestApp.CsrfAsync(limited);
         for (var index = 0; index < 20; index++)
         {
-            using var response = await CreateAsync(limited, Guid.NewGuid(), 1);
-            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            using var response = await CreateAsync(limited, Guid.Empty);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
         using var throttled = await limited.PostAsJsonAsync("/auth/login/options", new { });
         Assert.Equal(HttpStatusCode.TooManyRequests, throttled.StatusCode);
@@ -304,9 +298,9 @@ public class AdminAccountCreationTests
         await LoginTestApp.CsrfAsync(client);
     }
 
-    /// <summary>既存人物と再送識別子を一般アカウント発行APIへ送る。</summary>
-    private static Task<HttpResponseMessage> CreateAsync(HttpClient client, Guid requestId, int userCode = 3) =>
-        client.PostAsJsonAsync("/admin/accounts", new { requestId, userCode });
+    /// <summary>人物を指定せず再送識別子だけを一般アカウント発行APIへ送る。</summary>
+    private static Task<HttpResponseMessage> CreateAsync(HttpClient client, Guid requestId) =>
+        client.PostAsJsonAsync("/admin/accounts", new { requestId });
 
     /// <summary>要求記録の保存中に本人確認の有効期間を超過させる。</summary>
     private sealed class DelayCreation(LoginTestApp.LoginTime time) : DbCommandInterceptor

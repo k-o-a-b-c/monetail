@@ -2,6 +2,7 @@
 
 const form = document.getElementById("enrollment-form");
 const code = document.getElementById("code");
+const displayName = document.getElementById("display-name");
 const button = document.getElementById("register");
 const message = document.getElementById("message");
 
@@ -25,7 +26,7 @@ async function post(path, body, token) {
     });
     if (!response.ok) {
         if (response.status === 429) throw new Error("操作が続いています。1分ほど待ってからやり直してください。");
-        throw new Error("登録を完了できませんでした。コードを確認し、登録操作をやり直してください。期限切れの場合は再発行を依頼してください。");
+        throw new Error("登録を完了できませんでした。コードと初回登録時の表示名（100文字以内）を確認してください。期限切れの場合は再発行を依頼してください。");
     }
     return response.json();
 }
@@ -41,7 +42,7 @@ form.addEventListener("submit", async event => {
         const csrfResponse = await fetch("/auth/csrf", { credentials: "same-origin", cache: "no-store" });
         if (!csrfResponse.ok) throw new Error("登録処理を利用できません。画面を開き直してください。");
         const { token } = await csrfResponse.json();
-        const options = await post("/auth/enrollment/options", { code: code.value.trim() }, token);
+        const options = await post("/auth/enrollment/options", { code: code.value.trim(), displayName: displayName.value }, token);
         options.challenge = decode(options.challenge);
         options.user.id = decode(options.user.id);
         for (const credential of options.excludeCredentials || []) credential.id = decode(credential.id);

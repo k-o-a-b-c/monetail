@@ -6,7 +6,7 @@ namespace Monetail.Api.Authentication;
 
 /// <summary>現在の本人をパスキーで再確認し、既存セッションの確認日時だけを更新する。</summary>
 public sealed class PasskeyReauthenticationService(AuthDbContext context, UserManager<AuthUser> users,
-    IPasskeyHandler<AuthUser> passkeys, IAccountPersonLookup people, ReauthenticationChallenges challenges, TimeProvider time,
+    IPasskeyHandler<AuthUser> passkeys, ReauthenticationChallenges challenges, TimeProvider time,
     ILogger<PasskeyReauthenticationService> logger)
 {
     /// <summary>現在の本人のパスキーだけを使う再確認を、既存セッションに結び付けて開始する。</summary>
@@ -19,7 +19,7 @@ public sealed class PasskeyReauthenticationService(AuthDbContext context, UserMa
         if (options.AssertionState is null) return null;
         var expires = time.GetUtcNow().AddMinutes(5);
         var id = challenges.Add(new ReauthenticationChallenge(options.AssertionState, user.Id,
-            current.Session.IdHash, current.UserCode, expires), http.Request.Cookies[ReauthenticationChallenges.CookieName]);
+            current.Session.IdHash, expires), http.Request.Cookies[ReauthenticationChallenges.CookieName]);
         if (id is null) return null;
         http.Response.Cookies.Append(ReauthenticationChallenges.CookieName, id, Cookie(expires));
         return options.RequestOptionsJson;
@@ -41,8 +41,6 @@ public sealed class PasskeyReauthenticationService(AuthDbContext context, UserMa
         var now = time.GetUtcNow();
         if (!result.Succeeded || result.User.Id != challenge.AuthUserId || !result.User.IsEnabled ||
             challenge.ExpiresAtUtc <= now) return false;
-        var person = await people.FindAsync(challenge.AuthUserId, token);
-        if (person is null || person.UserCode != challenge.UserCode) return false;
         if (!(await users.AddOrUpdatePasskeyAsync(result.User, result.Passkey)).Succeeded)
             throw new InvalidOperationException("パスキーの認証状態を保存できません。");
         now = time.GetUtcNow();
@@ -52,8 +50,8 @@ public sealed class PasskeyReauthenticationService(AuthDbContext context, UserMa
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.VerifiedAtUtc, now.UtcDateTime), token);
         if (updated != 1) return false;
         await transaction.CommitAsync(token);
-        logger.LogInformation("本人を再確認しました。認証ID={AuthUserId} 対象人物={PersonCode} 日時={OccurredAtUtc} 結果=成功",
-            challenge.AuthUserId, challenge.UserCode, now);
+        logger.LogInformation("本人を再確認しました。認証ID={AuthUserId} 日時={OccurredAtUtc} 結果=成功",
+            challenge.AuthUserId, now);
         return true;
     }
 

@@ -18,7 +18,7 @@ namespace Monetail.Api.Tests;
 public class AdminEnrollmentCodeReissueTests
 {
     [Fact]
-    public async Task ReissuePreservesAccountsAndSessionsAndTheNewCodeCanEnrollTheSamePerson()
+    public async Task ReissuePreservesAccountsAndSessionsAndTheNewCodeCanEnrollTheSameAccount()
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
@@ -42,15 +42,15 @@ public class AdminEnrollmentCodeReissueTests
         Assert.Equal(before, app.Database.Snapshot(tables));
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var rejected = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code });
+        using var rejected = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
         Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code, displayName = "新しいアカウント名" });
         Assert.Equal(HttpStatusCode.OK, begin.StatusCode);
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         using var complete = await enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, RandomNumberGenerator.GetBytes(32)) });
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
         Assert.Equal(1L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{target.Id}'"));
-        Assert.Equal(3L, app.Database.Scalar($"SELECT user_code FROM auth_user_links WHERE auth_user_id='{target.Id}'"));
+        Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_user_links WHERE auth_user_id='{target.Id}'"));
         using var anonymous = await enrollee.GetAsync("/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
     }
@@ -71,7 +71,7 @@ public class AdminEnrollmentCodeReissueTests
         }
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var key = RandomNumberGenerator.GetBytes(32);
         using var completed = await enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, key) });
@@ -80,7 +80,7 @@ public class AdminEnrollmentCodeReissueTests
         using var login = await app.VerifyAsync(enrollee, app.AssertionFor(options, target.Id, key));
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         await using (var scope = app.Factory.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(3);
+            await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(target.Id);
         var tables = app.Database.Tables().Except(new[] { "auth_enrollment_codes" }).ToArray();
         var before = app.Database.Snapshot(tables);
         using var issued = await ReissueAsync(admin, target.Id);
@@ -93,7 +93,7 @@ public class AdminEnrollmentCodeReissueTests
         var code = (await issued.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString()!;
         using var recovered = app.Client();
         await LoginTestApp.CsrfAsync(recovered);
-        using var recoveryBegin = await recovered.PostAsJsonAsync("/auth/enrollment/options", new { code });
+        using var recoveryBegin = await recovered.PostAsJsonAsync("/auth/enrollment/options", new { code, displayName = "新しいアカウント名" });
         Assert.Equal(HttpStatusCode.OK, recoveryBegin.StatusCode);
         options = await recoveryBegin.Content.ReadFromJsonAsync<JsonElement>();
         var newKey = RandomNumberGenerator.GetBytes(32);
@@ -153,7 +153,7 @@ public class AdminEnrollmentCodeReissueTests
         var target = await PrepareAsync(app, admin);
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         using var reissued = await ReissueAsync(admin, target.Id);
         Assert.Equal(HttpStatusCode.OK, reissued.StatusCode);
@@ -171,7 +171,7 @@ public class AdminEnrollmentCodeReissueTests
         var target = await PrepareAsync(app, admin);
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var enrollment = enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, RandomNumberGenerator.GetBytes(32)) });
         var reissue = ReissueAsync(admin, target.Id);
@@ -193,8 +193,6 @@ public class AdminEnrollmentCodeReissueTests
 
     [Theory]
     [InlineData("missing", HttpStatusCode.NotFound)]
-    [InlineData("person", HttpStatusCode.NotFound)]
-    [InlineData("link", HttpStatusCode.NotFound)]
     [InlineData("enabled", HttpStatusCode.Conflict)]
     [InlineData("key", HttpStatusCode.Conflict)]
     [InlineData("admin-enabled", HttpStatusCode.Conflict)]
@@ -215,8 +213,6 @@ public class AdminEnrollmentCodeReissueTests
         }
         switch (change)
         {
-            case "person": app.Database.Execute("DELETE FROM m_user WHERE code=3"); break;
-            case "link": app.Database.Execute("DELETE FROM auth_user_links WHERE user_code=3"); break;
             case "enabled":
             case "admin-enabled": app.Database.Execute($"UPDATE AspNetUsers SET IsEnabled=1 WHERE Id='{target.Id}'"); break;
         }
@@ -234,7 +230,6 @@ public class AdminEnrollmentCodeReissueTests
     [InlineData("disabled", HttpStatusCode.Unauthorized)]
     [InlineData("revoked", HttpStatusCode.Unauthorized)]
     [InlineData("expired", HttpStatusCode.Unauthorized)]
-    [InlineData("link", HttpStatusCode.Forbidden)]
     public async Task InvalidCallerCannotReissue(string change, HttpStatusCode expected)
     {
         await using var app = await LoginTestApp.CreateAsync();
@@ -249,7 +244,6 @@ public class AdminEnrollmentCodeReissueTests
             case "disabled": app.Database.Execute($"UPDATE AspNetUsers SET IsEnabled=0 WHERE Id='{app.UserId}'"); break;
             case "revoked": app.Database.Execute("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc"); break;
             case "expired": app.Database.Execute("UPDATE auth_sessions SET ExpiresAtUtc=CreatedAtUtc"); break;
-            case "link": app.Database.Execute("DELETE FROM auth_user_links WHERE user_code=1"); break;
         }
         var before = app.Database.Snapshot(app.Database.Tables());
         using var result = await ReissueAsync(change == "anonymous" ? anonymous : admin, target.Id);
@@ -280,10 +274,7 @@ public class AdminEnrollmentCodeReissueTests
     [InlineData("DELETE FROM AspNetUserRoles WHERE UserId='{actor}'", HttpStatusCode.Forbidden)]
     [InlineData("UPDATE AspNetUsers SET IsEnabled=0 WHERE Id='{actor}'", HttpStatusCode.Forbidden)]
     [InlineData("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc WHERE AuthUserId='{actor}'", HttpStatusCode.Forbidden)]
-    [InlineData("DELETE FROM auth_user_links WHERE auth_user_id='{actor}'", HttpStatusCode.Forbidden)]
     [InlineData("UPDATE AspNetUsers SET IsEnabled=1 WHERE Id=NEW.AuthUserId", HttpStatusCode.Conflict)]
-    [InlineData("DELETE FROM auth_user_links WHERE auth_user_id=NEW.AuthUserId", HttpStatusCode.NotFound)]
-    [InlineData("UPDATE auth_user_links SET user_code=4 WHERE auth_user_id=NEW.AuthUserId", HttpStatusCode.Conflict)]
     public async Task ActorOrTargetChangesDuringSavingRollBackTheWholeReissue(string mutation, HttpStatusCode expected)
     {
         await using var app = await LoginTestApp.CreateAsync();
@@ -353,7 +344,7 @@ public class AdminEnrollmentCodeReissueTests
     {
         await app.LoginAsync(admin);
         await LoginTestApp.CsrfAsync(admin);
-        using var created = await admin.PostAsJsonAsync("/admin/accounts", new { requestId = Guid.NewGuid(), userCode = 3 });
+        using var created = await admin.PostAsJsonAsync("/admin/accounts", new { requestId = Guid.NewGuid() });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var body = await created.Content.ReadFromJsonAsync<JsonElement>();
         return (body.GetProperty("authUserId").GetString()!, body.GetProperty("code").GetString()!);

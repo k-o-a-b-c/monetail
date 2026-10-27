@@ -12,12 +12,14 @@
 | --- | --- |
 | Identity標準テーブル | `AspNetUsers`、`AspNetRoles`、各Claim・Login・Role・Tokenと`AspNetUserPasskeys`を追加する |
 | アカウントの利用可否 | `AspNetUsers.IsEnabled`の初期値はfalse。移行だけではログイン可能なアカウントを作らない |
-| `auth_user_links` | 認証IDをNOT NULLの主キー、人物コードをNOT NULLかつUNIQUEにする。Identityアカウントと`m_user(code)`へのFKは双方RESTRICT |
-| `auth_account_creation_requests` | [54](54-admin-account-creation.md)の追加移行で発行要求ID・実行者・作成アカウント・人物コード・日時を保存。再送でコードを再表示せず、既存の認証・業務行を保持する |
+| `auth_user_links` | 旧人物対応の保持用。新規発行・認証では使用しない。認証IDをNOT NULLの主キー、人物コードをNOT NULLかつUNIQUEにする。Identityアカウントと`m_user(code)`へのFKは双方RESTRICT |
+| `auth_account_creation_requests` | [54](54-admin-account-creation.md)の追加移行で発行要求ID・実行者・作成アカウント・人物コード・日時を保存。旧人物コードは履歴として保持し、新規行はNULL。再送でコードを再表示せず、既存の認証・業務行を保持する |
 | 既存`m_user` | Codeだけを参照先としてモデルに置き、`ExcludeFromMigrations()`で移行対象から除外する。表示名等による自動紐付けは行わない |
 | EFの移行管理 | `__EFMigrationsHistory`と`__EFMigrationsLock`が追加される。既存の`PRAGMA user_version`とは分ける |
 
 生成した初回移行は認証テーブル・索引の追加だけを行う。既存業務テーブルを再作成・変更せず、人物・取引・対象者・過去の`update_user`・保存済み`receipt.total`を更新しない。`total`のNULLも再計算・補完しない。適用済み移行の再実行では既存の認証情報も維持する。
+
+`20261026235549_AddIndependentAccounts`で`AspNetUsers.DisplayName`をNULL許容で追加し、発行要求履歴の`UserCode`をNULL許容にする。既存人物名のコピー・認証IDによる仮名補完・新規アカウントの自動作成は行わない。初回登録で本人が表示名を保存する（DEC-045、[43](43-passkey-authentication-design.md)）。
 
 ## 隔離したコピーでの適用
 

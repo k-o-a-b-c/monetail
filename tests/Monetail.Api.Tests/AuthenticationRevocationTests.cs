@@ -30,7 +30,7 @@ public class AuthenticationRevocationTests
         var accounts = await AccountSnapshotAsync(app, other.UserId);
         var preserved = OtherAuthenticationSnapshot(app, app.UserId);
         var codeCount = app.Database.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes");
-        await RevokeAsync(app, 2);
+        await RevokeAsync(app, other.UserId);
         Assert.Equal(0L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{other.UserId}'"));
         Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM AspNetUserPasskeys WHERE UserId='{other.UserId}'"));
         Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_sessions WHERE AuthUserId='{other.UserId}' AND RevokedAtUtc IS NULL"));
@@ -57,20 +57,20 @@ public class AuthenticationRevocationTests
         using var client = app.Client();
         await app.LoginAsync(client);
         var original = app.Database.Snapshot(app.Database.Tables());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => RevokeAsync(app, 1));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => RevokeAsync(app, app.UserId));
         Assert.Equal(original, app.Database.Snapshot(app.Database.Tables()));
         var protectedTables = ProtectedTables(app);
         var before = app.Database.Snapshot(protectedTables);
-        await RevokeAsync(app, 1, emergency: true);
+        await RevokeAsync(app, app.UserId, emergency: true);
         Assert.Equal(0L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
         Assert.Equal(before, app.Database.Snapshot(protectedTables));
         var counts = app.Database.Snapshot(app.Database.Tables());
         app.Time.Advance(TimeSpan.FromHours(1));
-        await RevokeAsync(app, 1, emergency: true);
+        await RevokeAsync(app, app.UserId, emergency: true);
         Assert.Equal(counts, app.Database.Snapshot(app.Database.Tables()));
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(1);
+        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(app.UserId);
         Assert.Equal(app.UserId, issued.AuthUserId);
         Assert.Equal(0L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserRoles"));
@@ -85,8 +85,8 @@ public class AuthenticationRevocationTests
     [InlineData("valid", true)]
     [InlineData("disabled", false)]
     [InlineData("no-key", false)]
-    [InlineData("no-person", false)]
-    [InlineData("no-link", false)]
+    [InlineData("no-person", true)]
+    [InlineData("no-link", true)]
     [InlineData("not-admin", false)]
     public async Task NormalRevocationRequiresAnotherUsableAdministrator(string state, bool allowed)
     {
@@ -108,13 +108,13 @@ public class AuthenticationRevocationTests
         var before = app.Database.Snapshot(app.Database.Tables());
         if (allowed)
         {
-            await RevokeAsync(app, 1);
+            await RevokeAsync(app, app.UserId);
             Assert.Equal(0L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{app.UserId}'"));
             Assert.Equal(1L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{other.UserId}'"));
         }
         else
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => RevokeAsync(app, 1));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => RevokeAsync(app, app.UserId));
             Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
         }
     }
@@ -167,27 +167,24 @@ public class AuthenticationRevocationTests
         await SeedHistoryAsync(app, app.UserId);
         app.Database.Execute($"CREATE TRIGGER fail_revocation BEFORE {operation} ON {table} BEGIN SELECT RAISE(ABORT,'injected'); END");
         var before = app.Database.Snapshot(app.Database.Tables());
-        await Assert.ThrowsAnyAsync<Exception>(() => all ? ResetAsync(app) : RevokeAsync(app, 1, emergency: true));
+        await Assert.ThrowsAnyAsync<Exception>(() => all ? ResetAsync(app) : RevokeAsync(app, app.UserId, emergency: true));
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
         app.Database.Execute("DROP TRIGGER fail_revocation");
-        if (all) await ResetAsync(app); else await RevokeAsync(app, 1, emergency: true);
+        if (all) await ResetAsync(app); else await RevokeAsync(app, app.UserId, emergency: true);
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_sessions WHERE RevokedAtUtc IS NULL"));
     }
 
     [Theory]
     [InlineData("unknown")]
-    [InlineData("person-only")]
-    [InlineData("missing-person")]
     [InlineData("missing-account")]
     public async Task InvalidTargetDoesNotChangeAnyData(string state)
     {
         await using var app = await LoginTestApp.CreateAsync();
-        var personCode = state == "unknown" ? 999 : state == "person-only" ? 2 : 1;
-        if (state == "missing-person") app.Database.Execute("DELETE FROM m_user WHERE code=1");
+        var authUserId = state == "unknown" ? "missing" : app.UserId;
         if (state == "missing-account") app.Database.Execute("DELETE FROM AspNetUsers");
         var before = app.Database.Snapshot(app.Database.Tables());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => RevokeAsync(app, personCode, emergency: true));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => RevokeAsync(app, authUserId, emergency: true));
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 
@@ -201,7 +198,7 @@ public class AuthenticationRevocationTests
         await using var services = fixture.CreateServices();
         await using var scope = services.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => all ? service.ResetAfterRestoreAsync() : service.RevokeAccountAsync(1, true));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => all ? service.ResetAfterRestoreAsync() : service.RevokeAccountAsync("missing", true));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
     }
 
@@ -224,7 +221,7 @@ public class AuthenticationRevocationTests
         }
         else options = await app.BeginAsync(client);
         var verify = client.PostAsJsonAsync(path, new { credential = app.Assertion(options) });
-        var revoke = Task.Run(() => RevokeAsync(app, 1, emergency: true));
+        var revoke = Task.Run(() => RevokeAsync(app, app.UserId, emergency: true));
         await Task.WhenAll(verify, revoke);
         using var result = await verify;
         Assert.Contains(result.StatusCode, new[] { HttpStatusCode.OK, HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden });
@@ -245,9 +242,9 @@ public class AuthenticationRevocationTests
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
             Assert.True((await users.AddToRoleAsync((await users.FindByIdAsync(other.UserId))!, "Admin")).Succeeded);
         }
-        var results = await Task.WhenAll(new[] { 1, 2 }.Select(personCode => Task.Run(async () =>
+        var results = await Task.WhenAll(new[] { app.UserId, other.UserId }.Select(authUserId => Task.Run(async () =>
         {
-            try { await RevokeAsync(app, personCode); return true; }
+            try { await RevokeAsync(app, authUserId); return true; }
             catch (InvalidOperationException) { return false; }
         })));
         Assert.Single(results, succeeded => succeeded);
@@ -306,10 +303,10 @@ public class AuthenticationRevocationTests
     }
 
     /// <summary>CLIと同様に新しいスコープから対象アカウントを全失効する。</summary>
-    private static async Task RevokeAsync(LoginTestApp app, int personCode, bool emergency = false)
+    private static async Task RevokeAsync(LoginTestApp app, string authUserId, bool emergency = false)
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(personCode, emergency);
+        await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(authUserId, emergency);
     }
 
     /// <summary>CLIと同様に新しいスコープから復元後の全体リセットを行う。</summary>

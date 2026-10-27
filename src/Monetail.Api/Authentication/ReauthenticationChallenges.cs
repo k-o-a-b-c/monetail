@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>本人再確認の検証状態を、開始時のアカウント・セッション・人物に固定する。</summary>
+/// <summary>本人再確認の検証状態を、開始時のアカウントとセッションに固定する。</summary>
 public sealed record ReauthenticationChallenge(string AssertionState, string AuthUserId, byte[] SessionHash,
-    int UserCode, DateTimeOffset ExpiresAtUtc);
+    DateTimeOffset ExpiresAtUtc);
 
 /// <summary>本人再確認専用の状態を、ブラウザーに結び付けて一度だけ取り出す。</summary>
 public sealed class ReauthenticationChallenges(TimeProvider time)

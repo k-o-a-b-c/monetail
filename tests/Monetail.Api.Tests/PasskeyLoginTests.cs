@@ -58,7 +58,7 @@ public class PasskeyLoginTests
         Assert.False(me.Headers.Contains("Set-Cookie"));
         var person = await me.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(app.UserId, person.GetProperty("authUserId").GetString());
-        Assert.Equal(1, person.GetProperty("userCode").GetInt32());
+        Assert.False(person.TryGetProperty("userCode", out _));
         Assert.Equal("同じ名前", person.GetProperty("displayName").GetString());
         Assert.Equal(expected, person.GetProperty("expiresAtUtc").GetDateTimeOffset());
         Assert.Equal(sessionBefore, app.Database.Snapshot(["auth_sessions"]));
@@ -91,8 +91,6 @@ public class PasskeyLoginTests
     [Theory]
     [InlineData("disabled")]
     [InlineData("key-deleted")]
-    [InlineData("link-deleted")]
-    [InlineData("person-deleted")]
     [InlineData("challenge-expired")]
     public async Task PendingLoginCannotUseRevokedOrMissingAuthenticationState(string change)
     {
@@ -103,8 +101,6 @@ public class PasskeyLoginTests
         {
             case "disabled": app.Database.Execute("UPDATE AspNetUsers SET IsEnabled=0"); break;
             case "key-deleted": app.Database.Execute("DELETE FROM AspNetUserPasskeys"); break;
-            case "link-deleted": app.Database.Execute("DELETE FROM auth_user_links"); break;
-            case "person-deleted": app.Database.Execute("DELETE FROM m_user WHERE code=1"); break;
             case "challenge-expired": app.Time.Advance(TimeSpan.FromMinutes(5)); break;
         }
         var before = app.Database.Snapshot(app.Database.Tables());
@@ -189,8 +185,6 @@ public class PasskeyLoginTests
     [InlineData("revoked", HttpStatusCode.Unauthorized)]
     [InlineData("expired", HttpStatusCode.Unauthorized)]
     [InlineData("disabled", HttpStatusCode.Unauthorized)]
-    [InlineData("person", HttpStatusCode.Forbidden)]
-    [InlineData("link", HttpStatusCode.Forbidden)]
     [InlineData("store", HttpStatusCode.ServiceUnavailable)]
     public async Task EveryProtectedRequestChecksLiveDatabaseState(string change, HttpStatusCode expected)
     {
@@ -202,8 +196,6 @@ public class PasskeyLoginTests
             case "revoked": app.Database.Execute("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc"); break;
             case "expired": app.Database.Execute("UPDATE auth_sessions SET ExpiresAtUtc=CreatedAtUtc"); break;
             case "disabled": app.Database.Execute("UPDATE AspNetUsers SET IsEnabled=0"); break;
-            case "person": app.Database.Execute("DELETE FROM m_user WHERE code=1"); break;
-            case "link": app.Database.Execute("DELETE FROM auth_user_links"); break;
             case "store": app.Database.Execute("ALTER TABLE auth_sessions RENAME TO inaccessible_sessions"); break;
         }
         using var response = await client.GetAsync("/auth/me");
