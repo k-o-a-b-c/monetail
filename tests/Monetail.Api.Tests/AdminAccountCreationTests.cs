@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
-using Monetail.Api.Features.Monetail.Accounts;
+using Monetail.Api.Features.Accounts;
 using Xunit;
 
 namespace Monetail.Api.Tests;

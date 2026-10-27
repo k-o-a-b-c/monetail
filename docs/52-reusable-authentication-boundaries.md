@@ -7,7 +7,8 @@
 | 領域 | 扱うもの |
 | --- | --- |
 | 再利用を目指す認証処理 | 認証アカウント、パスキー、セッションとその失効。「誰がログインしたか」を扱う処理をアプリ固有の処理から区別する |
-| Monetail固有の処理 | 家計簿の人物、レシート、振替、計算など。人物と認証アカウントの対応・アカウント一覧・初回発行・再発行もここに属する |
+| 全体アカウント管理 | 全体管理者向けのアカウント一覧・初回発行・コード再発行。家計簿の所属や人物を扱わない |
+| Monetailの家計簿処理 | 人物、レシート、振替、計算と、家計簿ごとの参加・権限・任意の人物対応。業務APIは後続 |
 | 将来の別アプリ | 在庫など、そのアプリのデータと利用権限。独立した認証アカウントを持ち、Monetailの人物マスタを利用者マスタとして流用する前提を置かない |
 
 再利用するのはコードであり、アカウント・登録済みパスキー情報・セッション・権限等の認証データはアプリ間で共有しない。ログイン状態の引継ぎや単一の認証サービスへの接続も今回の方針に含めない。
@@ -18,28 +19,27 @@
 
 ```text
 src/Monetail.Api/
-├─ Authentication/                  認証と既存の認証DB構成
+├─ Authentication/                 認証・認証DBと発行履歴の保存モデル
+│  └─ AccountCreationRequest.cs
 ├─ Features/
-│  └─ Monetail/
-│     └─ Accounts/                 アカウント一覧・初回発行・再発行
-│        ├─ AdminAccountEndpoints.cs
-│        ├─ AdminAccountService.cs
-│        ├─ AdminAccountProvisioningService.cs
-│        └─ AccountCreationRequest.cs
+│  └─ Accounts/                    全体のアカウント管理API
+│     ├─ AdminAccountEndpoints.cs
+│     ├─ AdminAccountService.cs
+│     └─ AdminAccountProvisioningService.cs
 └─ Program.cs                      認証と各機能の登録・起動
 ```
 
-アカウント管理の登録・URL公開は`Program.cs`から行い、認証基盤の`PasskeyWeb`へMonetail機能を登録しない。人物必須を外した現行の一覧・初回発行契約は[51](51-admin-account-list.md)・[54](54-admin-account-creation.md)を参照する。
+家計簿の業務APIは未実装で、`Features/Monetail`は後続の配置先とする。全体のアカウント管理の登録・URL公開は`Program.cs`から行い、認証基盤の`PasskeyWeb`へMonetail機能を登録しない。人物必須を外した現行の一覧・初回発行契約は[51](51-admin-account-list.md)・[54](54-admin-account-creation.md)を参照する。
 
-将来の在庫管理をMonetailと同じAPIへ追加することは前提にしない。今回は別アプリの作成や認証ライブラリの別プロジェクト化は行わず、既存API・プロジェクト・DBの名称や配置も変更しない。
+将来の在庫管理をMonetailと同じAPIへ追加することは前提にしない。今回は別アプリの作成や認証ライブラリの別プロジェクト化は行わず、既存APIのURL・入出力・認証条件と、プロジェクト名・DB構造は変更しない。
 
 ## 現在残る依存と後続作業
 
-人物を認証の前提から外し、表示名をアカウント自身に保存した。`CurrentSession`・チャレンジは人物コードを持たず、CLIも認証ID指定とする。旧照合窓口は削除した（[53 履歴](53-account-person-lookup.md)、[43 現行契約](43-passkey-authentication-design.md)）。アカウント管理のファイル配置は維持し、追加のフォルダ整理・汎用認証ライブラリ化は行っていない。
+人物を認証の前提から外し、表示名をアカウント自身に保存した。`CurrentSession`・チャレンジは人物コードを持たず、CLIも認証ID指定とする。旧照合窓口は削除した（[53 履歴](53-account-person-lookup.md)、[43 現行契約](43-passkey-authentication-design.md)）。全体アカウント管理を`Features/Accounts`へ分けた。`AccountCreationRequest`は認証情報の保存モデルとして`Authentication`へ移し、`AuthDbContext`から機能フォルダへの参照を除去した。機能側から認証基盤を使う構成とし、認証基盤に家計簿の機能を参照させない。汎用認証ライブラリ化は行っていない。
 
 `AuthDbContext`の旧`AuthUserLink`・`LegacyPerson`と既存移行履歴は保存保持のため残す。`migrate-auth-db`も既存業務DBを検証する。認証経路の人物非依存と、移行用DBモデルの互換性は区別する。このまま別アプリへモデル・履歴まで無変更で持ち出せるわけではなく、必要時に分離する。
 
-家計簿ごとの任意人物対応・参加権限・新規空DBの準備は[56](56-new-user-onboarding-policy.md)・[57](57-ledger-data-ownership.md)で後続設計する。今回の追加移行は表示名列と旧発行履歴の人物コードNULL許容化。Windows版・既存業務値・保存済み`receipt.total`・本番設定・実データは変更しない。
+家計簿ごとの任意人物対応・参加権限・新規空DBの準備は[56](56-new-user-onboarding-policy.md)・[57](57-ledger-data-ownership.md)で後続設計する。表示名列と旧発行履歴の人物コードNULL許容化は既存の追加移行（DEC-045）。今回の配置整理ではDB移行を追加せず、現在のモデルスナップショットの型名だけを実装に合わせる。適用済み移行の本体・Designerは履歴として変更しない。Windows版・既存業務値・保存済み`receipt.total`・本番設定・実データは変更しない。
 
 Monetail内で同じアカウントが複数の家計簿へ参加できる方針と、別アプリとのアカウント共有は別の話として扱う。共通アカウント案は利用者の変更により今回取り下げ、アプリごとの独立アカウントと認証コードの再利用へ方針を修正した。
 

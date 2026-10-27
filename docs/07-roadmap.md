@@ -123,7 +123,7 @@ D1への変更、未決定の認証・権限の先行実装、実DBへの未検�
 
 - [x] 管理者向けアカウント一覧APIを実装。名前だけの人物も含め、現在のAdminロールを要求し、認証IDと保存済み利用可否だけを添える。Web管理画面・発行等の更新APIは後続（[51](51-admin-account-list.md)）。
 
-- [x] 別アプリのアカウントは独立させ、認証コードを再利用しやすくする方針を決定。アカウント管理をFeatures/Monetail/Accountsへ移し、認証基盤と機能の登録を分離（[52](52-reusable-authentication-boundaries.md)、DEC-036）。人物照合窓口の分離（[53 履歴](53-account-person-lookup.md)）を経て、認証・CLIの人物依存を除去し独立表示名を実装。旧モデル・履歴は保持し、ライブラリ化は後続。
+- [x] 別アプリのアカウントは独立させ、認証コードを再利用しやすくする方針を決定。全体アカウント管理をFeatures/Accountsへ分け、認証基盤と機能の登録を分離（[52](52-reusable-authentication-boundaries.md)、DEC-036）。人物照合窓口の分離（[53 履歴](53-account-person-lookup.md)）を経て、認証・CLIの人物依存を除去し独立表示名を実装。旧モデル・履歴は保持し、ライブラリ化は後続。
 
 - [x] 人物を選ばない一般アカウント・初回登録コード発行APIを実装。Admin・直近本人確認・CSRF、要求IDによる永続的再送識別、保存の原子性と既存人物・業務値保持を確認。Web管理画面・新規人物追加・停止のHTTP操作は後続（[54](54-admin-account-creation.md)）。
 

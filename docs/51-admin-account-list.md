@@ -23,4 +23,4 @@
 
 固定HTTPS・ホスト／ポート・`no-store`等は`/auth`と共通。不一致は400。パスキー設定なしの既定構成は`/health`のみで、このAPIを公開しない。
 
-配置は引き続き`Features/Monetail/Accounts`（[52](52-reusable-authentication-boundaries.md)）。一覧からの新規発行APIは[54](54-admin-account-creation.md)、再発行は[55](55-admin-enrollment-code-reissue.md)。Web管理画面・家計簿参加・人物管理は後続（[56](56-new-user-onboarding-policy.md)、[57](57-ledger-data-ownership.md)）。Windows版・業務値・保存済み`receipt.total`は変更しない。検証結果は[tests/README.md](../tests/README.md)を参照する。
+配置は家計簿側から分離した`Features/Accounts`（[52](52-reusable-authentication-boundaries.md)）。一覧からの新規発行APIは[54](54-admin-account-creation.md)、再発行は[55](55-admin-enrollment-code-reissue.md)。Web管理画面・家計簿参加・人物管理は後続（[56](56-new-user-onboarding-policy.md)、[57](57-ledger-data-ownership.md)）。Windows版・業務値・保存済み`receipt.total`は変更しない。検証結果は[tests/README.md](../tests/README.md)を参照する。

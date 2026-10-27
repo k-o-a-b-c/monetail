@@ -37,9 +37,9 @@ Windows デスクトップアプリ
 | `.../Logic/ReceiptAmountValidation.vb` | 既存計算を使う金額範囲の確認。反映候補と選択税設定で確認し、元モデルを変更しない |
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
-| `src/Monetail.Api/` | ASP.NET Core API、認証DB、パスキー登録・ログインとセッション管理、管理者向け人物・アカウント一覧。業務機能は未実装 |
-| `src/Monetail.Api/Authentication/` | 別アプリへコードを流用しやすくする認証処理と既存認証DB構成。人物照合は窓口へ委譲し、人物コードやDBモデルへの依存は残る |
-| `src/Monetail.Api/Features/Monetail/Accounts/` | 人物と認証アカウントを組み合わせる管理者一覧APIと、認証へ人物情報を渡す照合実装。登録・起動はProgram.csで構成 |
+| `src/Monetail.Api/` | ASP.NET Core API、認証DB、パスキー登録・ログインとセッション管理、全体管理者向けアカウント一覧・初回発行・再発行。業務機能は未実装 |
+| `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル。旧人物対応は互換性のため保持する |
+| `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
 | `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
 | `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
@@ -98,7 +98,7 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 
 ## オンライン化に向けた境界
 
-まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。APIの土台と認証DBの接続・追加移行はC#／ASP.NET Core／.NET 10で実装した。以下の認証・業務API・本番配置は後続の構成案で、まだ実装していない。
+まずWindows版を進め、後続のWeb化は必須とする。Web版はレシート入力→振替入力の順に優先する（[33 方針](33-windows-first-web-input-priorities.md)）。APIの土台と認証DBの接続・追加移行はC#／ASP.NET Core／.NET 10で実装した。パスキー認証とアカウント管理APIは実装済み（[43](43-passkey-authentication-design.md)）。業務APIと本番配置は後続の構成案で、未実装。
 
 ```text
 Web / スマートフォン / デスクトップ

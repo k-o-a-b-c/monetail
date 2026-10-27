@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Monetail.Api.Features.Monetail.Accounts;
 
 namespace Monetail.Api.Authentication;
 

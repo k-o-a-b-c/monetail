@@ -334,7 +334,7 @@ namespace Monetail.Api.Authentication.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Monetail.Api.Features.Monetail.Accounts.AccountCreationRequest", b =>
+            modelBuilder.Entity("Monetail.Api.Authentication.AccountCreationRequest", b =>
                 {
                     b.Property<string>("RequestId")
                         .HasColumnType("TEXT");
@@ -500,7 +500,7 @@ namespace Monetail.Api.Authentication.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Monetail.Api.Features.Monetail.Accounts.AccountCreationRequest", b =>
+            modelBuilder.Entity("Monetail.Api.Authentication.AccountCreationRequest", b =>
                 {
                     b.HasOne("Monetail.Api.Authentication.AuthUser", null)
                         .WithMany()
