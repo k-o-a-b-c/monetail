@@ -14,7 +14,7 @@ public enum PasskeyRemovalResult { Removed, NotFound, LastPasskey, Authenticatio
 
 /// <summary>現在の本人のパスキーを一覧・追加・削除し、削除時は全セッションを失効させる。</summary>
 public sealed class PasskeyManagementService(AuthDbContext context, UserManager<AuthUser> users,
-    IPasskeyHandler<AuthUser> passkeys, IAccountPersonLookup people, PasskeyAdditionChallenges challenges, TimeProvider time,
+    IPasskeyHandler<AuthUser> passkeys, PasskeyAdditionChallenges challenges, TimeProvider time,
     ILogger<PasskeyManagementService> logger)
 {
     /// <summary>現在の本人のパスキーだけを、公開鍵や検証用データを含めず返す。</summary>
@@ -31,16 +31,15 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
     public async Task<string?> BeginAsync(HttpContext http, CancellationToken token)
     {
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
-        var target = await FindCurrentUserAsync(current, token);
-        if (target is null) return null;
-        var user = target.Value.User;
+        var user = await FindCurrentUserAsync(current, token);
+        if (user is null || user.DisplayName is null) return null;
         var options = await passkeys.MakeCreationOptionsAsync(new PasskeyUserEntity
         {
-            Id = user.Id, Name = target.Value.Person.DisplayName, DisplayName = target.Value.Person.DisplayName
+            Id = user.Id, Name = user.DisplayName, DisplayName = user.DisplayName
         }, http);
         if (options.AttestationState is null) return null;
         var expires = time.GetUtcNow().AddMinutes(5);
-        var id = challenges.Add(new PasskeyAdditionChallenge(user.Id, current.UserCode, current.Session.IdHash,
+        var id = challenges.Add(new PasskeyAdditionChallenge(user.Id, current.Session.IdHash,
             options.AttestationState, expires), http.Request.Cookies[PasskeyAdditionChallenges.CookieName]);
         if (id is null) return null;
         http.Response.Cookies.Append(PasskeyAdditionChallenges.CookieName, id, Cookie(expires));
@@ -53,12 +52,11 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
         var challenge = challenges.Take(http.Request.Cookies[PasskeyAdditionChallenges.CookieName]);
         http.Response.Cookies.Delete(PasskeyAdditionChallenges.CookieName, Cookie(null));
-        if (challenge is null || challenge.AuthUserId != current.Session.AuthUserId || challenge.UserCode != current.UserCode ||
+        if (challenge is null || challenge.AuthUserId != current.Session.AuthUserId ||
             !CryptographicOperations.FixedTimeEquals(challenge.SessionHash, current.Session.IdHash)) return false;
         await using var transaction = await context.Database.BeginTransactionAsync(token);
-        var target = await FindCurrentUserAsync(current, token);
-        if (target is null) return false;
-        var user = target.Value.User;
+        var user = await FindCurrentUserAsync(current, token);
+        if (user is null) return false;
         var result = await passkeys.PerformAttestationAsync(new PasskeyAttestationContext
         {
             HttpContext = http, CredentialJson = credentialJson, AttestationState = challenge.AttestationState
@@ -80,9 +78,8 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
         if (credentialId is null) return PasskeyRemovalResult.NotFound;
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
         await using var transaction = await context.Database.BeginTransactionAsync(token);
-        var target = await FindCurrentUserAsync(current, token);
-        if (target is null) return PasskeyRemovalResult.AuthenticationChanged;
-        var user = target.Value.User;
+        var user = await FindCurrentUserAsync(current, token);
+        if (user is null) return PasskeyRemovalResult.AuthenticationChanged;
         var keys = await users.GetPasskeysAsync(user);
         if (!keys.Any(key => key.CredentialId.AsSpan().SequenceEqual(credentialId))) return PasskeyRemovalResult.NotFound;
         if (keys.Count <= 1) return PasskeyRemovalResult.LastPasskey;
@@ -99,7 +96,7 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
     }
 
     /// <summary>DBで本人・セッション・直近5分を再照合し、Identityの保存と同じアカウントを追跡する。</summary>
-    private async Task<(AuthUser User, AccountPerson Person)?> FindCurrentUserAsync(CurrentSession current, CancellationToken token)
+    private async Task<AuthUser?> FindCurrentUserAsync(CurrentSession current, CancellationToken token)
     {
         var now = time.GetUtcNow().UtcDateTime;
         var user = await (from session in context.Sessions
@@ -108,9 +105,7 @@ public sealed class PasskeyManagementService(AuthDbContext context, UserManager<
                           account.IsEnabled && session.RevokedAtUtc == null &&
                           session.ExpiresAtUtc > now && session.VerifiedAtUtc <= now && session.VerifiedAtUtc > now.AddMinutes(-5)
                       select account).SingleOrDefaultAsync(token);
-        if (user is null) return null;
-        var person = await people.FindAsync(user.Id, token);
-        return person is null || person.UserCode != current.UserCode ? null : (user, person);
+        return user;
     }
 
     /// <summary>パスキー識別子を長さ制限付きで検証し、標準のbase64urlから復元する。</summary>

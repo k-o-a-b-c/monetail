@@ -57,18 +57,18 @@ Monetailの**レガシー版**。購入した品物を明細単位で記録し�
 | [36 支払方法別レシートの一括読込](docs/36-batch-payment-receipt-reads.md) | 残高推算向け読込も1 SELECTへ変更し、期間条件と推算順序を維持 |
 | [37 レシートの子再読込とモデル保持](docs/37-receipt-child-reload-state.md) | 途中失敗では元の子・参照を保持し、成功時だけ反映 |
 | [42 APIの土台](docs/42-api-foundation.md) | 独立したASP.NET Coreプロジェクト、ローカル起動・Docker・CIと実装範囲 |
-| [43 パスキー認証の設計](docs/43-passkey-authentication-design.md) | 初回登録・ログイン・紛失復旧と人物対応の設計。登録・ログインまで実装 |
+| [43 パスキー認証の設計](docs/43-passkey-authentication-design.md) | 人物に依存しない登録・ログイン・失効・表示名とAPI契約 |
 | [44 認証DBの土台](docs/44-auth-database-foundation.md) | Identityと人物対応の追加移行、既存値保持と隔離したコピーでの確認 |
-| [45 初期管理者と登録コード](docs/45-initial-admin-enrollment.md) | 既存人物への初期管理者作成と、コードの明示的な再発行 |
+| [45 初期管理者と登録コード](docs/45-initial-admin-enrollment.md) | 人物を指定しない初期管理者作成と、コードの明示的な再発行 |
 | [46 パスキー登録](docs/46-passkey-enrollment.md) | HTTPS設定・登録画面・コード検証と原子的な有効化 |
 | [47 ログイン・セッション](docs/47-passkey-login-sessions.md) | パスキー認証、13日経過後の午前2時までの固定期限、本人情報とログアウト |
 | [48 パスキー本人再確認](docs/48-passkey-reauthentication.md) | 同じ本人・セッションの再確認、直近5分の判定、固定期限の維持 |
 | [49 全失効・管理コマンドによる復旧](docs/49-authentication-revocation-recovery.md) | 個別全失効、最後の管理者保護、緊急復旧、復元後の全体リセット |
 | [50 本人のパスキー管理](docs/50-self-service-passkeys.md) | 本人の鍵一覧・追加・最後の鍵保護・削除後の全端末ログアウト |
-| [51 管理者向けの人物・アカウント一覧](docs/51-admin-account-list.md) | 名前だけの人物を含む一覧・対応アカウントの利用可否・管理者認可 |
-| [52 認証処理の再利用と機能別の境界](docs/52-reusable-authentication-boundaries.md) | アプリごとの独立アカウントと認証コードの再利用、現在の人物依存と配置整理 |
-| [53 認証からの人物照合・表示名取得の分離](docs/53-account-person-lookup.md) | 認証5経路の照合窓口・Monetail側の実装・同一トランザクションと現行条件の維持 |
-| [54 既存人物への一般アカウント発行](docs/54-admin-account-creation.md) | 初回登録コードの発行・永続的な再送識別・管理者条件・追加移行 |
+| [51 管理者向けアカウント一覧](docs/51-admin-account-list.md) | 人物から独立したアカウント一覧・利用可否・管理者認可 |
+| [52 認証処理の再利用と機能別の境界](docs/52-reusable-authentication-boundaries.md) | アプリごとの独立アカウントと認証コードの再利用、人物非依存の認証と旧モデル保持・配置 |
+| [53 認証からの人物照合・表示名取得の分離](docs/53-account-person-lookup.md) | 旧人物照合窓口の分離記録。現在は窓口を廃止し認証を人物非依存に変更 |
+| [54 独立した一般アカウント発行](docs/54-admin-account-creation.md) | 初回登録コードの発行・永続的な再送識別・管理者条件・追加移行 |
 | [55 管理者による登録コード再発行](docs/55-admin-enrollment-code-reissue.md) | 一般・管理者アカウントへの再発行・旧コード失効・登録との直列化・保存失敗時の復元 |
 | [56 新規利用を基本とする導入設計](docs/56-new-user-onboarding-policy.md) | 新規導入優先・全体管理者による登録招待・一度きりの既存DB移行・画面遷移の設計課題 |
 | [57 アカウント・家計簿・人物とマスタの所属](docs/57-ledger-data-ownership.md) | 全体のアカウント・家計簿ごとの人物／業務マスタ・SQLite 1ファイルと家計簿ID・残る設計 |

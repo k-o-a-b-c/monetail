@@ -1,6 +1,6 @@
 # 49 認証情報の全失効と管理コマンドによる復旧
 
-**対象人物の全失効・最後の有効な管理者の通常停止拒否・明示的な緊急復旧・バックアップ復元後の全体リセットを実装。** [43 認証設計](43-passkey-authentication-design.md)を引き継ぎ、コード発行は[45](45-initial-admin-enrollment.md)の別操作を使う。Web管理画面、追加管理者の作成・権限変更は後続。
+**対象アカウントの全失効・最後の有効な管理者の通常停止拒否・明示的な緊急復旧・バックアップ復元後の全体リセットを実装。** [43 認証設計](43-passkey-authentication-design.md)を引き継ぎ、コード発行は[45](45-initial-admin-enrollment.md)の別操作を使う。Web管理画面、追加管理者の作成・権限変更は後続。
 
 ## コマンド
 
@@ -8,19 +8,19 @@
 
 ```sh
 # 対象人物の認証情報を全失効する。
-dotnet run --project src/Monetail.Api -- revoke-account --person-code 1
+dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID
 
 # 最後の管理者も含め、紛失した本人の認証情報を明示的に全失効する。
-dotnet run --project src/Monetail.Api -- revoke-account --person-code 1 --emergency-recovery
+dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID --emergency-recovery
 
 # サービス停止・バックアップ復元後に、全アカウントを全失効する。
 dotnet run --project src/Monetail.Api -- reset-authentication --after-restore
 
 # 必要な本人の登録コードを別操作で発行する。
-dotnet run --project src/Monetail.Api -- issue-enrollment-code --person-code 1
+dotnet run --project src/Monetail.Api -- issue-enrollment-code --account-id ACCOUNT_ID
 ```
 
-人物コードと復元後の意図は必須。緊急復旧の指定は人物コードの直後に置く。操作オプションの重複・別コマンド用オプションの混在はDB変更前に拒否する。未移行・接続不能・対象人物や対応アカウントの不備も失敗とし、終了コード1を返す。成功は0。失効コマンドは生コードを表示せず、コード発行コマンドだけが成功後に一度表示する。
+個別操作には認証ID、復元後リセットには復元後の意図を明示する。緊急復旧の指定は認証IDの直後に置く。旧`--person-code`は拒否する。操作オプションの重複・別コマンド用オプションの混在はDB変更前に拒否する。未移行・接続不能・対象アカウントの不在も失敗とし、終了コード1を返す。成功は0。失効コマンドは生コードを表示せず、コード発行コマンドだけが成功後に一度表示する。
 
 ## 全失効の更新境界
 
@@ -31,7 +31,7 @@ dotnet run --project src/Monetail.Api -- issue-enrollment-code --person-code 1
 3. 未取消の全セッションへ`RevokedAtUtc`を設定する。期限切れのセッションも含む。
 4. 未使用・未取消の登録コードへ`RevokedAtUtc`を設定する。期限切れの未使用コードも含む。
 
-個別全失効は指定人物のアカウントだけ、復元後リセットは人物対応のないアカウントも含む全体を対象にする。途中失敗・取消では全変更を戻す。再実行で既存の取消日時や消費済みコードの履歴を上書きしない。
+個別全失効は指定した認証IDのアカウントだけ、復元後リセットは人物対応のないアカウントも含む全体を対象にする。途中失敗・取消では全変更を戻す。再実行で既存の取消日時や消費済みコードの履歴を上書きしない。
 
 人物・認証ID・人物対応・管理者ロール・他のアカウントプロパティ・全業務データを保持する。保存済み`receipt.total`、過去の更新者、セッションの発行／固定失効／確認日時を再計算・上書きしない。登録コードを新規発行せず、停止後は明示的なコード発行と本人のパスキー登録を済ませるまで利用できない。EF移行・Windows版・旧SQL・本番設定・実データは変更しない。
 
@@ -57,4 +57,4 @@ dotnet run --project src/Monetail.Api -- issue-enrollment-code --person-code 1
 
 隔離SQLite・実Identity・HTTP認証と実プロセスのCLIで、対象範囲・既存値保持・最後の管理者保護・緊急復旧・各保存段階のRollback・再実行・認証との競合・管理者同時停止・不正引数・非待受・別操作のコード発行を検証する。件数とCI結果は[tests/README.md](../tests/README.md)へ集約する。
 
-本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。既存人物への一般アカウント初回発行APIは[54](54-admin-account-creation.md)で実装した。一般・管理者アカウントへの再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。Web管理画面、新規人物追加、停止のHTTP経路、追加管理者の管理、家計の業務APIは後続。実環境のバックアップ復元・本番配備は未確認。
+本人のパスキー追加／削除は[50](50-self-service-passkeys.md)で実装した。人物を選ばない一般アカウント初回発行APIは[54](54-admin-account-creation.md)で実装した。一般・管理者アカウントへの再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。Web管理画面、新規人物追加、停止のHTTP経路、追加管理者の管理、家計の業務APIは後続。実環境のバックアップ復元・本番配備は未確認。

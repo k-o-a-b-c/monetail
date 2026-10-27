@@ -2,14 +2,20 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>ログイン可能な人物の認証情報を管理する。</summary>
+/// <summary>人物から独立したログイン用アカウントを管理する。</summary>
 public sealed class AuthUser : IdentityUser
 {
+    /// <summary>初回登録で受け付ける表示名の最大文字数を定める。</summary>
+    public const int DisplayNameMaxLength = 100;
+
+    /// <summary>人物名と同期しないアカウント自身の表示名を保持する。</summary>
+    public string? DisplayName { get; set; }
+
     /// <summary>パスキー登録を完了したアカウントの利用可否を保持する。</summary>
     public bool IsEnabled { get; set; }
 }
 
-/// <summary>認証アカウントと既存の人物コードを対応付ける。</summary>
+/// <summary>旧版の人物対応を履歴として保持する。新規発行・認証には使用しない。</summary>
 public sealed class AuthUserLink
 {
     public string AuthUserId { get; set; } = null!;

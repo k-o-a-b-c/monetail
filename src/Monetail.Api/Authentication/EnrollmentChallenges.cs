@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.WebUtilities;
 namespace Monetail.Api.Authentication;
 
 /// <summary>登録対象とIdentityの検証状態を、5分だけブラウザーに結び付ける。</summary>
-public sealed record EnrollmentChallenge(string AuthUserId, int UserCode, byte[] CodeHash,
+public sealed record EnrollmentChallenge(string AuthUserId, string DisplayName, byte[] CodeHash,
     string AttestationState, DateTimeOffset ExpiresAtUtc);
 
 /// <summary>再起動で破棄する登録チャレンジを、件数制限付きで原子的に管理する。</summary>

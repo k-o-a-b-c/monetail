@@ -15,6 +15,7 @@ public class AuthenticationCommandTests
     [InlineData("duplicate-target")]
     [InlineData("wrong-emergency-position")]
     [InlineData("unexpected-restore-flag")]
+    [InlineData("legacy-person-option")]
     public async Task InvalidOperationOptionsFailWithoutChangingDatabase(string usage)
     {
         using var fixture = new AuthDatabaseFixture();
@@ -22,12 +23,13 @@ public class AuthenticationCommandTests
         var arguments = usage switch
         {
             "missing-target" => new[] { "revoke-account" },
-            "invalid-target" => ["revoke-account", "--person-code", "invalid"],
+            "invalid-target" => ["revoke-account", "--account-id", "invalid"],
             "missing-restore-intent" => ["reset-authentication"],
-            "mixed-scope" => ["reset-authentication", "--after-restore", "--person-code", "1"],
-            "duplicate-target" => ["revoke-account", "--person-code", "1", "--person-code=2"],
-            "wrong-emergency-position" => ["revoke-account", "--emergency-recovery", "--person-code", "1"],
-            _ => ["revoke-account", "--person-code", "1", "--after-restore"]
+            "mixed-scope" => ["reset-authentication", "--after-restore", "--account-id", "1"],
+            "duplicate-target" => ["revoke-account", "--account-id", "1", "--account-id=other"],
+            "wrong-emergency-position" => ["revoke-account", "--emergency-recovery", "--account-id", "1"],
+            "legacy-person-option" => ["initialize-admin", "--person-code", "1"],
+            _ => ["revoke-account", "--account-id", "1", "--after-restore"]
         };
         var before = fixture.Snapshot(fixture.Tables());
         var result = await RunAsync(fixture.ConnectionString, arguments);
@@ -38,17 +40,41 @@ public class AuthenticationCommandTests
     }
 
     [Fact]
+    public async Task InitializeAdminNeedsNoPeopleAndReexecutionDoesNotIssueAnotherCode()
+    {
+        using var fixture = new AuthDatabaseFixture();
+        await fixture.MigrateAsync();
+        fixture.Execute("DELETE FROM m_user");
+        var tables = fixture.Tables().Where(table => !table.StartsWith("AspNet") && !table.StartsWith("auth_")).ToArray();
+        var before = fixture.Snapshot(tables);
+        var created = await RunAsync(fixture.ConnectionString, ["initialize-admin"]);
+        Assert.Equal(0, created.ExitCode);
+        Assert.Contains("アカウントID:", created.Output);
+        Assert.Equal(1, created.Output.Split('\n').Count(line => line.StartsWith("登録コード:", StringComparison.Ordinal)));
+        Assert.DoesNotContain("Now listening", created.Output);
+        Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM AspNetUsers WHERE IsEnabled=0 AND DisplayName IS NULL"));
+        Assert.Equal(0L, fixture.Scalar("SELECT COUNT(*) FROM auth_user_links"));
+        Assert.Equal(before, fixture.Snapshot(tables));
+        var all = fixture.Tables();
+        var createdState = fixture.Snapshot(all);
+        var repeated = await RunAsync(fixture.ConnectionString, ["initialize-admin"]);
+        Assert.Equal(0, repeated.ExitCode);
+        Assert.DoesNotContain("登録コード:", repeated.Output);
+        Assert.Equal(createdState, fixture.Snapshot(all));
+    }
+
+    [Fact]
     public async Task RecoveryCommandProtectsLastAdminThenExplicitlyRevokesAndAllowsSeparateCodeIssuance()
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var client = app.Client();
         await app.LoginAsync(client);
         var before = app.Database.Snapshot(app.Database.Tables());
-        var refused = await RunAsync(app.Database.ConnectionString, ["revoke-account", "--person-code", "1"]);
+        var refused = await RunAsync(app.Database.ConnectionString, ["revoke-account", "--account-id", app.UserId]);
         Assert.Equal(1, refused.ExitCode);
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
         var codeCount = app.Database.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes");
-        var revoked = await RunAsync(app.Database.ConnectionString, ["revoke-account", "--person-code", "1", "--emergency-recovery"]);
+        var revoked = await RunAsync(app.Database.ConnectionString, ["revoke-account", "--account-id", app.UserId, "--emergency-recovery"]);
         Assert.Equal(0, revoked.ExitCode);
         Assert.DoesNotContain("登録コード:", revoked.Output);
         Assert.DoesNotContain("Now listening", revoked.Output);
@@ -57,7 +83,7 @@ public class AuthenticationCommandTests
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
         using var me = await client.GetAsync("/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
-        var issued = await RunAsync(app.Database.ConnectionString, ["issue-enrollment-code", "--person-code", "1"]);
+        var issued = await RunAsync(app.Database.ConnectionString, ["issue-enrollment-code", "--account-id", app.UserId]);
         Assert.Equal(0, issued.ExitCode);
         Assert.Equal(1, issued.Output.Split('\n').Count(line => line.StartsWith("登録コード:", StringComparison.Ordinal)));
         Assert.DoesNotContain("Now listening", issued.Output);
@@ -90,7 +116,7 @@ public class AuthenticationCommandTests
         using var fixture = new AuthDatabaseFixture(createFile: false);
         var result = await RunAsync(fixture.ConnectionString, all
             ? ["reset-authentication", "--after-restore"]
-            : ["revoke-account", "--person-code", "1", "--emergency-recovery"]);
+            : ["revoke-account", "--account-id", "1", "--emergency-recovery"]);
         Assert.Equal(1, result.ExitCode);
         Assert.False(File.Exists(fixture.DatabasePath));
         Assert.DoesNotContain("登録コード:", result.Output);

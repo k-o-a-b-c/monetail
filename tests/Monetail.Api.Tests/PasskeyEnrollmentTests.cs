@@ -36,7 +36,8 @@ public class PasskeyEnrollmentTests
         Assert.Equal(1L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE ConsumedAtUtc IS NOT NULL"));
-        Assert.Equal(1L, app.Database.Scalar("SELECT user_code FROM auth_user_links"));
+        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_user_links"));
+        Assert.Equal("同じ名前", app.Database.Scalar("SELECT DisplayName FROM AspNetUsers"));
         Assert.Equal(before, app.Database.Snapshot(tables));
         using var replay = await app.VerifyAsync(client, Credential(options));
         Assert.Equal(HttpStatusCode.BadRequest, replay.StatusCode);
@@ -94,10 +95,8 @@ public class PasskeyEnrollmentTests
     [InlineData("expired")]
     [InlineData("challenge-expired")]
     [InlineData("disabled-code")]
-    [InlineData("link")]
-    [InlineData("person")]
     [InlineData("enabled")]
-    public async Task FinalizationRechecksCurrentCodeAccountPersonAndChallenge(string change)
+    public async Task FinalizationRechecksCurrentCodeAccountAndChallenge(string change)
     {
         await using var app = await EnrollmentApp.CreateAsync();
         using var client = app.Client();
@@ -107,13 +106,11 @@ public class PasskeyEnrollmentTests
         {
             case "reissue":
                 await using (var scope = app.Factory.Services.CreateAsyncScope())
-                    await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(1);
+                    await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(app.Code.AuthUserId);
                 break;
             case "expired": app.Time.Advance(TimeSpan.FromMinutes(1)); break;
             case "challenge-expired": app.Time.Advance(TimeSpan.FromMinutes(5)); break;
             case "disabled-code": app.Database.Execute("UPDATE auth_enrollment_codes SET RevokedAtUtc=CreatedAtUtc"); break;
-            case "link": app.Database.Execute("UPDATE auth_user_links SET user_code=2"); break;
-            case "person": app.Database.Execute("DELETE FROM m_user WHERE code=1"); break;
             case "enabled": app.Database.Execute("UPDATE AspNetUsers SET IsEnabled=1"); break;
         }
         var before = app.Database.Snapshot(app.Database.Tables());
@@ -219,11 +216,11 @@ public class PasskeyEnrollmentTests
             var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
             context.UserLinks.Add(new AuthUserLink { AuthUserId = user.Id, UserCode = 2 });
             await context.SaveChangesAsync();
-            secondCode = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(2);
+            secondCode = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(user.Id);
         }
         using var second = app.Client();
         await app.CsrfAsync(second);
-        using var begin = await second.PostAsJsonAsync("/auth/enrollment/options", new { code = secondCode.Code });
+        using var begin = await second.PostAsJsonAsync("/auth/enrollment/options", new { code = secondCode.Code, displayName = "同じ名前" });
         Assert.Equal(HttpStatusCode.OK, begin.StatusCode);
         var secondOptions = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var before = app.Database.Snapshot(app.Database.Tables());
@@ -297,6 +294,7 @@ public class PasskeyEnrollmentTests
     private static void AssertUnregistered(EnrollmentApp app)
     {
         Assert.Equal(0L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
+        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUsers WHERE DisplayName IS NOT NULL"));
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE ConsumedAtUtc IS NOT NULL"));
     }
@@ -356,7 +354,7 @@ public class PasskeyEnrollmentTests
             await app.Database.MigrateAsync();
             app.Factory = app.NewFactory();
             await using var scope = app.Factory.Services.CreateAsyncScope();
-            app.Code = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync(1))!;
+            app.Code = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync())!;
             return app;
         }
 
@@ -385,7 +383,7 @@ public class PasskeyEnrollmentTests
         public async Task<JsonElement> BeginAsync(HttpClient client)
         {
             await CsrfAsync(client);
-            using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = Code.Code });
+            using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = Code.Code, displayName = "同じ名前" });
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             ChallengeCookie = response.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
             return await response.Content.ReadFromJsonAsync<JsonElement>();

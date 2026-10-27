@@ -27,7 +27,7 @@ public static class PasskeyLoginEndpoints
             var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
             return Results.Ok(new
             {
-                authUserId = current.Session.AuthUserId, userCode = current.UserCode, displayName = current.DisplayName,
+                authUserId = current.Session.AuthUserId, displayName = current.DisplayName,
                 expiresAtUtc = DateTime.SpecifyKind(current.Session.ExpiresAtUtc, DateTimeKind.Utc),
                 verifiedAtUtc = DateTime.SpecifyKind(current.Session.VerifiedAtUtc, DateTimeKind.Utc)
             });

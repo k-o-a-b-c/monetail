@@ -1,42 +1,26 @@
-# 51 管理者向けの人物・アカウント一覧
+# 51 管理者向けアカウント一覧
 
-**人物一覧へ対応アカウントの状態を添える参照APIを実装。** [43 認証設計](43-passkey-authentication-design.md)を引き継ぐ。人物と認証アカウントは別のまま、既存の人物対応からまとめて返す。
-
-[52 認証処理の再利用と機能別の境界](52-reusable-authentication-boundaries.md)に従い、この一覧は`Features/Monetail/Accounts`へ配置する。認証アカウントだけを扱う共通機能ではなく、Monetailの人物との対応を扱う機能とする。URLと認証条件は維持する。
-
-## 新規導入で設計する一覧
-
-新規導入は、家計簿から独立したアカウント一覧を全体管理者だけが参照し、そこから新規登録を招待する方針とする（DEC-039、[56](56-new-user-onboarding-policy.md)）。家計簿未参加のアカウントも対象にする。アカウントはMonetail全体、人物は家計簿ごとに管理する方針が確定した（DEC-040、[57](57-ledger-data-ownership.md)）。家計簿の管理権限だけでは全体一覧・検索・存在照会を提供せず、参加は家計簿管理者の招待から行う。新しい一覧ではアカウント自身の表示名を使う。人物との対応は家計簿ごとの任意設定とする（DEC-044）。以下の人物起点のAPIは現在の実装を記録したもので、新しいアカウント一覧や画面を実装済みとは扱わない。
+**家計簿や人物から独立したアカウント一覧APIを実装。** [43 認証設計](43-passkey-authentication-design.md)に従い、全体管理者だけへ公開する。人物一覧・家計簿の参加者一覧とは分ける。
 
 ## API契約
 
-`GET /admin/accounts`は、有効なログインと現在の`Admin`ロールを要求し、人物コード昇順のJSON配列を返す。
+`GET /admin/accounts`は有効なログインと現在の`Admin`ロールを要求し、認証ID順に返す。
 
 ```json
 [
-  {
-    "userCode": 1,
-    "displayName": "人物A",
-    "account": { "authUserId": "example-account-id", "isEnabled": true }
-  },
-  { "userCode": 2, "displayName": "人物B", "account": null }
+  { "authUserId": "example-account-a", "displayName": "表示名A", "isEnabled": true },
+  { "authUserId": "example-account-b", "displayName": null, "isEnabled": false }
 ]
 ```
 
-- `m_user`を起点に`auth_user_links`と`AspNetUsers`を外部結合する。アカウント未作成の人物も返し、人物に対応しない孤立アカウントは一覧へ追加しない。同名や同じWindows用`account_name`から対応を推測しない。
-- `account`は対応するアカウントがなければ`null`、あれば認証IDと保存済み`IsEnabled`だけを返す。`false`を登録待ち・停止中の別状態へ推測変換せず、鍵・セッションの有効性まで示す値とも扱わない。
-- ロール・Windows用アカウント名・登録コード・コードハッシュ・公開鍵・資格情報・セッション情報を返さない。人物一覧の取得は1回のSELECTで行い、認証時のDB照合は別途行う。
+- `AspNetUsers`だけを起点にし、人物対応なし・家計簿未参加・登録待ち・停止中のアカウントも含む。名前だけの人物は含めない。
+- 表示名はアカウント自身の保存値。初回登録前や補完しない旧行は`null`。`isEnabled=false`から登録待ち／停止を推測せず、鍵・セッションの有効性を示す値とも扱わない。
+- 公開項目は認証ID・表示名・利用可否だけ。人物コード・Windows用`account_name`・ロール・コード・ハッシュ・資格情報・セッション情報は返さない。名前から自動対応しない。
 
-## 認証と保存境界
+## 保護と範囲
 
-一覧参照のため直近5分の本人確認・CSRFトークンは要求しない。既存人物への初回発行は[54](54-admin-account-creation.md)の別操作として追加し、管理者・直近本人確認・CSRFを要求する。再発行は[55](55-admin-enrollment-code-reissue.md)で実装し、停止のHTTP操作は後続とする。
+参照に直近本人確認・CSRFは要求せず、認証更新のレート枠も消費しない。要求ごとに有効セッション・アカウント・最新ロールを確認する。未認証・失効・利用停止は401、一般利用者・Admin取消後は403、DB障害は秘密を含めない503。人物未対応では拒否しない。302転送・Cookie／期限更新・DB更新は行わない。
 
-Cookieのセッション・有効期限・アカウント利用可否・人物対応・現在のロールを既存の認証経路で毎要求確認する。未認証・期限切れ・失効・利用停止は401、一般利用者や管理者権限取消後は403、人物対応不備も403、DB障害は秘密情報を含めない503とする。ログイン画面へ302転送しない。
+固定HTTPS・ホスト／ポート・`no-store`等は`/auth`と共通。不一致は400。パスキー設定なしの既定構成は`/health`のみで、このAPIを公開しない。
 
-`/admin`にも既存`/auth`と同じ固定HTTPS・ホスト・ポート検証と`no-store`等の共通ヘッダーを適用する。不一致は400。パスキー設定を指定しない既定の`/health`だけの構成では一覧APIを公開しない。認証更新用のIPごと1分20回の制限枠は、今回のGETでは消費しない。
-
-DBの作成・移行・更新、アカウントやコードの自動発行、Cookieやログイン期限の更新は行わない。EF移行・依存パッケージの追加は不要で、Windows版・業務値・保存済み`receipt.total`を変更しない。
-
-現在の`Admin`はアカウント管理の既存ロールであり、将来の家計簿ごとの管理者・所属・共有範囲を今回確定しない（DEC-035）。一般アカウントの初回発行APIは[54](54-admin-account-creation.md)、再発行APIは[55](55-admin-enrollment-code-reissue.md)で実装した。Web管理画面、人物追加、停止のHTTP操作、追加管理者の管理、業務APIは後続とする。
-
-検証結果・件数・CIは[tests/README.md](../tests/README.md)を参照する。本番設定・実データ・実配置は変更していない。
+配置は引き続き`Features/Monetail/Accounts`（[52](52-reusable-authentication-boundaries.md)）。一覧からの新規発行APIは[54](54-admin-account-creation.md)、再発行は[55](55-admin-enrollment-code-reissue.md)。Web管理画面・家計簿参加・人物管理は後続（[56](56-new-user-onboarding-policy.md)、[57](57-ledger-data-ownership.md)）。Windows版・業務値・保存済み`receipt.total`は変更しない。検証結果は[tests/README.md](../tests/README.md)を参照する。

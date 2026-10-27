@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.WebUtilities;
 namespace Monetail.Api.Authentication;
 
 /// <summary>追加するパスキーの検証状態を、開始時の本人とセッションに固定する。</summary>
-public sealed record PasskeyAdditionChallenge(string AuthUserId, int UserCode, byte[] SessionHash,
+public sealed record PasskeyAdditionChallenge(string AuthUserId, byte[] SessionHash,
     string AttestationState, DateTimeOffset ExpiresAtUtc);
 
 /// <summary>パスキー追加専用の状態を、ブラウザーに結び付けて一度だけ消費する。</summary>

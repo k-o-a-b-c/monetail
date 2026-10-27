@@ -8,7 +8,7 @@ namespace Monetail.Api.Authentication;
 
 /// <summary>名前入力なしのパスキー認証から、固定期限のセッションを作成する。</summary>
 public sealed class PasskeyLoginService(AuthDbContext context, UserManager<AuthUser> users,
-    IPasskeyHandler<AuthUser> passkeys, IAccountPersonLookup people, LoginChallenges challenges, TimeProvider time,
+    IPasskeyHandler<AuthUser> passkeys, LoginChallenges challenges, TimeProvider time,
     ILogger<PasskeyLoginService> logger)
 {
     /// <summary>本人を先に指定せず、端末の地域を一時的に結び付けた認証オプションを発行する。</summary>
@@ -36,8 +36,6 @@ public sealed class PasskeyLoginService(AuthDbContext context, UserManager<AuthU
             HttpContext = http, CredentialJson = credentialJson, AssertionState = challenge.AssertionState
         });
         if (!result.Succeeded || !result.User.IsEnabled || challenge.ExpiresAtUtc <= time.GetUtcNow()) return false;
-        var person = await people.FindAsync(result.User.Id, token);
-        if (person is null) return false;
         if (!(await users.AddOrUpdatePasskeyAsync(result.User, result.Passkey)).Succeeded)
             throw new InvalidOperationException("パスキーの認証状態を保存できません。");
         var now = time.GetUtcNow();
@@ -52,8 +50,8 @@ public sealed class PasskeyLoginService(AuthDbContext context, UserManager<AuthU
         await transaction.CommitAsync(token);
         await http.SignInAsync(SessionCookieEvents.Scheme, SessionCookieEvents.Principal(result.User.Id, id),
             new AuthenticationProperties { IsPersistent = true, AllowRefresh = false, IssuedUtc = now, ExpiresUtc = expires });
-        logger.LogInformation("ログインしました。認証ID={AuthUserId} 対象人物={PersonCode} 日時={OccurredAtUtc} 結果=成功",
-            result.User.Id, person.UserCode, now);
+        logger.LogInformation("ログインしました。認証ID={AuthUserId} 日時={OccurredAtUtc} 結果=成功",
+            result.User.Id, now);
         return true;
     }
 

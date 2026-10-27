@@ -19,10 +19,10 @@ public class SessionMigrationTests
         await CreatePreviousSchemaAsync(database);
         var previousTables = database.Tables().Where(name => !name.StartsWith("__EF")).ToArray();
         var before = database.Snapshot(previousTables);
-        await database.MigrateAsync();
+        await MigrateSessionsAsync(database);
         Assert.Equal(before, database.Snapshot(previousTables));
         Assert.Contains("auth_sessions", database.Tables());
-        await database.MigrateAsync();
+        await MigrateSessionsAsync(database);
         Assert.Equal(before, database.Snapshot(previousTables));
         Assert.Equal(0L, database.Scalar("SELECT COUNT(*) FROM pragma_table_info('auth_sessions') WHERE lower(name) LIKE '%zone%'"));
         using var connection = database.OpenForeignKeyConnection();
@@ -46,17 +46,17 @@ public class SessionMigrationTests
         database.Execute("CREATE TABLE auth_sessions(sentinel TEXT); INSERT INTO auth_sessions VALUES('keep')");
         var tables = database.Tables().Where(name => !name.StartsWith("__EF")).ToArray();
         var before = database.Snapshot(tables);
-        await Assert.ThrowsAsync<SqliteException>(() => database.MigrateAsync());
+        await Assert.ThrowsAsync<SqliteException>(() => MigrateSessionsAsync(database));
         Assert.Equal(before, database.Snapshot(tables));
     }
 
     /// <summary>PR52時点の移行まで適用し、既存のアカウント・鍵・コードを保存する。</summary>
     private static async Task CreatePreviousSchemaAsync(AuthDatabaseFixture database)
     {
+        await database.MigrateAsync();
         await using var services = database.CreateServices();
         await using var scope = services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-        await context.GetService<IMigrator>().MigrateAsync("20261024233649_AddEnrollmentCodes");
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
         var user = new AuthUser { Id = "existing", UserName = "existing", IsEnabled = true };
         Assert.True((await users.CreateAsync(user)).Succeeded);
@@ -69,5 +69,14 @@ public class SessionMigrationTests
             ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10), ConsumedAtUtc = DateTime.UtcNow
         });
         await context.SaveChangesAsync();
+        await context.GetService<IMigrator>().MigrateAsync("20261024233649_AddEnrollmentCodes");
+    }
+
+    /// <summary>後続の列追加を含めず、履歴であるセッション表の追加移行だけを検証する。</summary>
+    private static async Task MigrateSessionsAsync(AuthDatabaseFixture database)
+    {
+        await using var services = database.CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<AuthDbContext>().GetService<IMigrator>().MigrateAsync("20261025080829_AddSessions");
     }
 }

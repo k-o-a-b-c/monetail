@@ -14,11 +14,11 @@ using Xunit;
 
 namespace Monetail.Api.Tests;
 
-/// <summary>管理者の人物・アカウント一覧と、認証・権限・参照時の保存保持を検証する。</summary>
+/// <summary>独立したアカウント一覧と、認証・権限・参照時の保存保持を検証する。</summary>
 public class AdminAccountTests
 {
     [Fact]
-    public async Task ListIncludesNameOnlyPeopleAndOnlyPublicAccountStateWithoutChangingStoredData()
+    public async Task ListIncludesOnlyAccountsAndPublicStateWithoutChangingStoredData()
     {
         await using var app = await LoginTestApp.CreateAsync();
         string pendingId;
@@ -46,21 +46,18 @@ public class AdminAccountTests
         Assert.Equal("no-store", response.Headers.CacheControl!.ToString());
         var list = await response.Content.ReadFromJsonAsync<JsonElement>();
         var rows = list.EnumerateArray().ToArray();
-        Assert.Equal(new[] { 1, 2, 3, 4 }, rows.Select(row => row.GetProperty("userCode").GetInt32()).ToArray());
-        Assert.Equal("同じ名前", rows[0].GetProperty("displayName").GetString());
-        Assert.Equal("同じ名前", rows[1].GetProperty("displayName").GetString());
-        AssertAccount(rows[0], app.UserId, true);
-        AssertAccount(rows[1], pendingId, false);
-        Assert.Equal("名前だけ", rows[2].GetProperty("displayName").GetString());
-        Assert.Equal(JsonValueKind.Null, rows[2].GetProperty("account").ValueKind);
-        AssertAccount(rows[3], stopped.UserId, false);
+        Assert.Equal(new[] { app.UserId, pendingId, stopped.UserId }.Order(), rows.Select(row => row.GetProperty("authUserId").GetString()));
+        AssertAccount(rows.Single(row => row.GetProperty("authUserId").GetString() == app.UserId), app.UserId, true);
+        AssertAccount(rows.Single(row => row.GetProperty("authUserId").GetString() == pendingId), pendingId, false);
+        AssertAccount(rows.Single(row => row.GetProperty("authUserId").GetString() == stopped.UserId), stopped.UserId, false);
+        Assert.Null(rows.Single(row => row.GetProperty("authUserId").GetString() == pendingId).GetProperty("displayName").GetString());
         foreach (var row in rows)
-            Assert.Equal(new[] { "account", "displayName", "userCode" }, row.EnumerateObject().Select(property => property.Name).Order().ToArray());
+            Assert.Equal(new[] { "authUserId", "displayName", "isEnabled" }, row.EnumerateObject().Select(property => property.Name).Order().ToArray());
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 
     [Fact]
-    public async Task AnonymousAndOrdinaryAccountsCannotReadAnyPeople()
+    public async Task AnonymousAndOrdinaryAccountsCannotReadAccountList()
     {
         await using var app = await LoginTestApp.CreateAsync();
         var other = await app.AddAccountAsync(2);
@@ -116,10 +113,8 @@ public class AdminAccountTests
     [InlineData("disabled", HttpStatusCode.Unauthorized)]
     [InlineData("revoked", HttpStatusCode.Unauthorized)]
     [InlineData("expired", HttpStatusCode.Unauthorized)]
-    [InlineData("person", HttpStatusCode.Forbidden)]
-    [InlineData("link", HttpStatusCode.Forbidden)]
     [InlineData("store", HttpStatusCode.ServiceUnavailable)]
-    public async Task LiveSessionAndPersonFailuresRefuseTheListWithoutWritingData(string change, HttpStatusCode expected)
+    public async Task LiveSessionFailuresRefuseTheListWithoutWritingData(string change, HttpStatusCode expected)
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var client = app.Client();
@@ -129,8 +124,6 @@ public class AdminAccountTests
             case "disabled": app.Database.Execute("UPDATE AspNetUsers SET IsEnabled=0"); break;
             case "revoked": app.Database.Execute("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc"); break;
             case "expired": app.Database.Execute("UPDATE auth_sessions SET ExpiresAtUtc=CreatedAtUtc"); break;
-            case "person": app.Database.Execute("DELETE FROM m_user WHERE code=1"); break;
-            case "link": app.Database.Execute("DELETE FROM auth_user_links"); break;
             case "store": app.Database.Execute("ALTER TABLE auth_sessions RENAME TO unavailable_sessions"); break;
         }
         var before = app.Database.Snapshot(app.Database.Tables());
@@ -179,18 +172,18 @@ public class AdminAccountTests
     }
 
     [Fact]
-    public async Task PeopleWithoutLinksAndOrphanAccountsAreNotMatchedByDisplayOrLegacyAccountName()
+    public async Task UnlinkedAccountsAreListedWithoutMatchingPeopleByName()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        await app.AddAccountAsync(2);
+        var other = await app.AddAccountAsync(2);
         app.Database.Execute("DELETE FROM auth_user_links WHERE user_code=2");
         using var client = app.Client();
         await app.LoginAsync(client);
         var before = app.Database.Snapshot(app.Database.Tables());
         var rows = (await client.GetFromJsonAsync<JsonElement>("/admin/accounts")).EnumerateArray().ToArray();
-        Assert.Equal(4, rows.Length);
-        AssertAccount(rows[0], app.UserId, true);
-        Assert.All(rows.Skip(1), row => Assert.Equal(JsonValueKind.Null, row.GetProperty("account").ValueKind));
+        Assert.Equal(2, rows.Length);
+        AssertAccount(rows.Single(row => row.GetProperty("authUserId").GetString() == other.UserId), other.UserId, true);
+        Assert.All(rows, row => Assert.False(row.TryGetProperty("userCode", out _)));
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 
@@ -203,22 +196,22 @@ public class AdminAccountTests
         Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
     }
 
-    /// <summary>アカウントの公開項目だけが、人物対応と保存済み利用可否に一致することを確認する。</summary>
-    private static void AssertAccount(JsonElement person, string id, bool enabled)
+    /// <summary>アカウントの公開項目と保存済み利用可否が一致することを確認する。</summary>
+    private static void AssertAccount(JsonElement account, string id, bool enabled)
     {
-        var account = person.GetProperty("account");
-        Assert.Equal(new[] { "authUserId", "isEnabled" }, account.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        Assert.Equal(new[] { "authUserId", "displayName", "isEnabled" }, account.EnumerateObject().Select(property => property.Name).Order().ToArray());
         Assert.Equal(id, account.GetProperty("authUserId").GetString());
         Assert.Equal(enabled, account.GetProperty("isEnabled").GetBoolean());
     }
 
-    /// <summary>セッション検証を成功させた後で、人物一覧のSQLだけを失敗させる。</summary>
+    /// <summary>セッション検証を成功させた後で、アカウント一覧のSQLだけを失敗させる。</summary>
     private sealed class FailedListQuery : DbCommandInterceptor
     {
         public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
             CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
         {
-            if (command.CommandText.Contains("LEFT JOIN AspNetUsers", StringComparison.Ordinal))
+            if (command.CommandText.Contains("ORDER BY", StringComparison.Ordinal) &&
+                command.CommandText.Contains("AspNetUsers", StringComparison.Ordinal))
                 throw new SqliteException("synthetic-sensitive-db-detail", 1);
             return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
         }

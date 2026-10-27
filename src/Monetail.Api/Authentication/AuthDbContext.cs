@@ -4,7 +4,7 @@ using Monetail.Api.Features.Monetail.Accounts;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>Identityと人物対応を既存SQLiteに保存する。</summary>
+/// <summary>Identityと認証履歴を既存SQLiteに保存し、旧人物対応を保持する。</summary>
 public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     : IdentityDbContext<AuthUser>(options)
 {
@@ -17,6 +17,7 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
     {
         base.OnModelCreating(builder);
         builder.Entity<AuthUser>().Property(user => user.IsEnabled).HasDefaultValue(false);
+        builder.Entity<AuthUser>().Property(user => user.DisplayName).HasMaxLength(AuthUser.DisplayNameMaxLength);
         builder.Entity<LegacyPerson>(person =>
         {
             person.ToTable("m_user", table => table.ExcludeFromMigrations());

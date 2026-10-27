@@ -21,10 +21,10 @@ public class AccountCreationMigrationTests
         await DowngradeAsync(app);
         var tables = app.Database.Tables().Where(name => !name.StartsWith("__EF", StringComparison.Ordinal)).ToArray();
         var before = app.Database.Snapshot(tables);
-        await app.Database.MigrateAsync();
+        await MigrateRequestsAsync(app);
         Assert.Equal(new[] { "auth_account_creation_requests" }, app.Database.Tables().Except(tables).Where(name => !name.StartsWith("__EF", StringComparison.Ordinal)).ToArray());
         Assert.Equal(before, app.Database.Snapshot(tables));
-        await app.Database.MigrateAsync();
+        await MigrateRequestsAsync(app);
         Assert.Equal(before, app.Database.Snapshot(tables));
         using var connection = app.Database.OpenForeignKeyConnection();
         var insert = $"INSERT INTO auth_account_creation_requests VALUES('request','{app.UserId}','{target.UserId}',2,'2026-10-26')";
@@ -40,7 +40,7 @@ public class AccountCreationMigrationTests
         Assert.Equal(19, Assert.Throws<SqliteException>(() => AuthDatabaseFixture.Execute(connection, insert.Replace("'request'", "'another'"))).SqliteErrorCode);
         var all = app.Database.Tables();
         var allBefore = app.Database.Snapshot(all);
-        await app.Database.MigrateAsync();
+        await MigrateRequestsAsync(app);
         Assert.Equal(allBefore, app.Database.Snapshot(all));
     }
 
@@ -52,10 +52,10 @@ public class AccountCreationMigrationTests
         app.Database.Execute("CREATE TABLE auth_account_creation_requests(sentinel TEXT); INSERT INTO auth_account_creation_requests VALUES('keep')");
         var tables = app.Database.Tables().Where(name => !name.StartsWith("__EF", StringComparison.Ordinal)).ToArray();
         var before = app.Database.Snapshot(tables);
-        await Assert.ThrowsAsync<SqliteException>(() => app.Database.MigrateAsync());
+        await Assert.ThrowsAsync<SqliteException>(() => MigrateRequestsAsync(app));
         Assert.Equal(before, app.Database.Snapshot(tables));
         app.Database.Execute("DROP TABLE auth_account_creation_requests");
-        await app.Database.MigrateAsync();
+        await MigrateRequestsAsync(app);
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_account_creation_requests"));
     }
 
@@ -64,5 +64,12 @@ public class AccountCreationMigrationTests
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>().GetService<IMigrator>().MigrateAsync("20261025080829_AddSessions");
+    }
+
+    /// <summary>後続の表示名追加を含めず、発行要求テーブルの追加移行だけを検証する。</summary>
+    private static async Task MigrateRequestsAsync(LoginTestApp app)
+    {
+        await using var scope = app.Factory.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<AuthDbContext>().GetService<IMigrator>().MigrateAsync("20261026064157_AddAccountCreationRequests");
     }
 }

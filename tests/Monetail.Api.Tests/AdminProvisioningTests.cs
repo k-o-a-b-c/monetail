@@ -26,7 +26,7 @@ public class AdminProvisioningTests
         await using var services = Services(fixture, logs);
         await using var scope = services.CreateAsyncScope();
         var issued = Assert.IsType<IssuedEnrollmentCode>(await scope.ServiceProvider
-            .GetRequiredService<AdminProvisioningService>().InitializeAdminAsync(3));
+            .GetRequiredService<AdminProvisioningService>().InitializeAdminAsync());
         var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
         var stored = await context.EnrollmentCodes.AsNoTracking().SingleAsync();
         Assert.Equal(32, Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(issued.Code).Length);
@@ -42,7 +42,8 @@ public class AdminProvisioningTests
         Assert.Null(user.PasswordHash);
         Assert.Null(user.Email);
         Assert.True(await scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>().IsInRoleAsync(user, "Admin"));
-        Assert.Equal(3, (await context.UserLinks.SingleAsync()).UserCode);
+        Assert.Empty(await context.UserLinks.ToArrayAsync());
+        Assert.Null(user.DisplayName);
         Assert.Equal(before, fixture.Snapshot(tables));
         Assert.DoesNotContain(issued.Code, fixture.Snapshot(fixture.Tables()));
         Assert.DoesNotContain(issued.Code, string.Join("\n", logs.Messages));
@@ -55,11 +56,9 @@ public class AdminProvisioningTests
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
-        await Bootstrap(fixture, 3);
+        await Bootstrap(fixture);
         var before = fixture.Snapshot(fixture.Tables());
-        Assert.Null(await Bootstrap(fixture, 3));
-        Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Bootstrap(fixture, 4));
+        Assert.Null(await Bootstrap(fixture));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
     }
 
@@ -68,12 +67,12 @@ public class AdminProvisioningTests
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
-        var old = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture, 3));
+        var old = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture));
         var protectedTables = fixture.Tables().Where(table => table != "auth_enrollment_codes").ToArray();
         var before = fixture.Snapshot(protectedTables);
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
-        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(3);
+        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!);
         Assert.Equal(old.AuthUserId, issued.AuthUserId);
         Assert.NotEqual(old.Code, issued.Code);
         var codes = await scope.ServiceProvider.GetRequiredService<AuthDbContext>().EnrollmentCodes.AsNoTracking().ToListAsync();
@@ -85,16 +84,16 @@ public class AdminProvisioningTests
     }
 
     [Fact]
-    public async Task BootstrapFailureRollsBackAccountRoleLinkAndCodeThenAllowsRetry()
+    public async Task BootstrapFailureRollsBackAccountRoleAndCodeThenAllowsRetry()
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
         fixture.Execute("CREATE TRIGGER reject_code BEFORE INSERT ON auth_enrollment_codes BEGIN SELECT RAISE(ABORT,'injected'); END");
         var before = fixture.Snapshot(fixture.Tables());
-        await Assert.ThrowsAsync<DbUpdateException>(() => Bootstrap(fixture, 3));
+        await Assert.ThrowsAsync<DbUpdateException>(() => Bootstrap(fixture));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
         fixture.Execute("DROP TRIGGER reject_code");
-        Assert.NotNull(await Bootstrap(fixture, 3));
+        Assert.NotNull(await Bootstrap(fixture));
     }
 
     [Fact]
@@ -102,13 +101,13 @@ public class AdminProvisioningTests
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
-        await Bootstrap(fixture, 3);
+        await Bootstrap(fixture);
         fixture.Execute("CREATE TRIGGER reject_code BEFORE INSERT ON auth_enrollment_codes BEGIN SELECT RAISE(ABORT,'injected'); END");
         var before = fixture.Snapshot(fixture.Tables());
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
         await Assert.ThrowsAsync<DbUpdateException>(() => scope.ServiceProvider
-            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(3));
+            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
     }
 
@@ -119,7 +118,7 @@ public class AdminProvisioningTests
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
-        await Bootstrap(fixture, 3);
+        await Bootstrap(fixture);
         await using var services = Services(fixture);
         await using (var setup = services.CreateAsyncScope())
         {
@@ -139,31 +138,27 @@ public class AdminProvisioningTests
         var before = fixture.Snapshot(fixture.Tables());
         await using var scope = services.CreateAsyncScope();
         await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider
-            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(3));
+            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
     }
 
     [Fact]
-    public async Task UnknownPersonUnlinkedAccountAndUnmigratedDatabaseAreRejected()
+    public async Task UnknownAccountAndUnmigratedDatabaseAreRejected()
     {
         using var fixture = new AuthDatabaseFixture();
         var original = fixture.Snapshot(fixture.Tables());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Bootstrap(fixture, 3));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Bootstrap(fixture));
         Assert.Equal(original, fixture.Snapshot(fixture.Tables()));
         await fixture.MigrateAsync();
         var before = fixture.Snapshot(fixture.Tables());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Bootstrap(fixture, 999));
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider
-            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(3));
+        var service = scope.ServiceProvider.GetRequiredService<AdminProvisioningService>();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.IssueEnrollmentCodeAsync("missing"));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
-        await Bootstrap(fixture, 3);
-        fixture.Execute("DELETE FROM m_user WHERE code=3");
-        var orphaned = fixture.Snapshot(fixture.Tables());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider
-            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(3));
-        Assert.Equal(orphaned, fixture.Snapshot(fixture.Tables()));
+        fixture.Execute("DELETE FROM m_user");
+        var issued = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture));
+        Assert.Equal(issued.AuthUserId, (await service.IssueEnrollmentCodeAsync(issued.AuthUserId)).AuthUserId);
     }
 
     [Fact]
@@ -171,18 +166,16 @@ public class AdminProvisioningTests
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
-        await using (var services = Services(fixture))
-        await using (var scope = services.CreateAsyncScope())
-        {
-            var user = new AuthUser { UserName = "general" };
-            Assert.True((await scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>().CreateAsync(user)).Succeeded);
-            var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-            context.UserLinks.Add(new AuthUserLink { AuthUserId = user.Id, UserCode = 3 });
-            await context.SaveChangesAsync();
-        }
-        var before = fixture.Snapshot(fixture.Tables());
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Bootstrap(fixture, 3));
-        Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
+        var general = new AuthUser { UserName = "general" };
+        await using var services = Services(fixture);
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
+        Assert.True((await users.CreateAsync(general)).Succeeded);
+        var issued = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture));
+        Assert.NotEqual(general.Id, issued.AuthUserId);
+        Assert.Empty(await users.GetRolesAsync(general));
+        Assert.False((await users.FindByIdAsync(general.Id))!.IsEnabled);
+        Assert.Equal(0L, fixture.Scalar("SELECT COUNT(*) FROM auth_user_links"));
     }
 
     [Fact]
@@ -190,10 +183,10 @@ public class AdminProvisioningTests
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
-        var results = await Task.WhenAll(Task.Run(() => Bootstrap(fixture, 3)), Task.Run(() => Bootstrap(fixture, 3)));
+        var results = await Task.WhenAll(Task.Run(() => Bootstrap(fixture)), Task.Run(() => Bootstrap(fixture)));
         Assert.Single(results, result => result != null);
         Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM AspNetUsers"));
-        Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM auth_user_links"));
+        Assert.Equal(0L, fixture.Scalar("SELECT COUNT(*) FROM auth_user_links"));
         Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes"));
     }
 
@@ -208,11 +201,11 @@ public class AdminProvisioningTests
     }
 
     /// <summary>CLIと同様に独立したスコープで初期作成する。</summary>
-    private static async Task<IssuedEnrollmentCode?> Bootstrap(AuthDatabaseFixture fixture, int personCode)
+    private static async Task<IssuedEnrollmentCode?> Bootstrap(AuthDatabaseFixture fixture)
     {
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
-        return await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync(personCode);
+        return await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync();
     }
 
     private sealed class FixedTime : TimeProvider

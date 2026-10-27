@@ -1,5 +1,7 @@
 # 53 認証からの人物照合・表示名取得の分離
 
+**過去の実装記録。2026-10-27に人物必須の認証を廃止し、`IAccountPersonLookup`と`MonetailAccountPersonLookup`は削除した。以下は当時の設計・検証を保持した履歴であり、現在の契約は[43](43-passkey-authentication-design.md)を参照する。**
+
 **登録・ログイン・セッション検証・本人再確認・本人のパスキー管理の人物照合を、Monetail側の専用処理へ分離した。** [52 認証処理の再利用方針](52-reusable-authentication-boundaries.md)を引き継ぎ、URL・JSON・認証条件・保存値は維持する。
 
 ## 境界

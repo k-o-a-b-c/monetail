@@ -18,6 +18,9 @@
     <form id="enrollment-form">
       <label for="code">登録コード</label>
       <input id="code" type="password" required maxlength="43" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <label for="display-name">表示名（初回登録のみ必須）</label>
+      <input id="display-name" type="text" maxlength="100" autocomplete="nickname">
+      <p>表示名は100文字以内で入力してください。復旧による再登録では既存の表示名を引き継ぎます。</p>
       <button id="register" type="submit">パスキーを登録する</button>
     </form>
     <p id="message" role="status" aria-live="polite"></p>

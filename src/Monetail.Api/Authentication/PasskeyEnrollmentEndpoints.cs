@@ -13,7 +13,7 @@ public static class PasskeyEnrollmentEndpoints
         group.MapGet("/enroll.js", () => Results.Content(PasskeyWeb.ReadPage("Enrollment.js"), "text/javascript; charset=utf-8"));
         group.MapPost("/enrollment/options", async (EnrollmentRequest request, HttpContext http, PasskeyEnrollmentService service) =>
         {
-            var json = await service.BeginAsync(request.Code, http, http.RequestAborted);
+            var json = await service.BeginAsync(request.Code, request.DisplayName, http, http.RequestAborted);
             return json is null ? Rejected() : Results.Content(json, "application/json");
         }).AddEndpointFilter<AuthRequestFilter>().RequireRateLimiting("passkey-authentication");
         group.MapPost("/enrollment/verify", async (AttestationRequest request, HttpContext http, PasskeyEnrollmentService service) =>
@@ -25,8 +25,8 @@ public static class PasskeyEnrollmentEndpoints
     }
 
     /// <summary>対象人物を明かさず、登録失敗を同じ応答にする。</summary>
-    private static IResult Rejected() => Results.BadRequest(new { message = "登録を完了できませんでした。コードを確認し、登録操作をやり直してください。" });
+    private static IResult Rejected() => Results.BadRequest(new { message = "登録を完了できませんでした。コードと初回登録時の表示名（100文字以内）を確認し、登録操作をやり直してください。" });
 
-    public sealed record EnrollmentRequest(string? Code);
+    public sealed record EnrollmentRequest(string? Code, string? DisplayName);
     public sealed record AttestationRequest(JsonElement Credential);
 }

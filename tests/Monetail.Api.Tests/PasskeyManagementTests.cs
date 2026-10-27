@@ -91,9 +91,6 @@ public class PasskeyManagementTests
     [InlineData("disabled", HttpStatusCode.Unauthorized)]
     [InlineData("revoked", HttpStatusCode.Unauthorized)]
     [InlineData("expired", HttpStatusCode.Unauthorized)]
-    [InlineData("person", HttpStatusCode.Forbidden)]
-    [InlineData("link", HttpStatusCode.Forbidden)]
-    [InlineData("relinked", HttpStatusCode.Forbidden)]
     [InlineData("stale", HttpStatusCode.Forbidden)]
     [InlineData("store", HttpStatusCode.ServiceUnavailable)]
     public async Task PendingAdditionRechecksLiveIdentityAndSession(string change, HttpStatusCode expected)
@@ -107,9 +104,6 @@ public class PasskeyManagementTests
             case "disabled": app.Database.Execute("UPDATE AspNetUsers SET IsEnabled=0"); break;
             case "revoked": app.Database.Execute("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc"); break;
             case "expired": app.Database.Execute("UPDATE auth_sessions SET ExpiresAtUtc=CreatedAtUtc"); break;
-            case "person": app.Database.Execute("DELETE FROM m_user WHERE code=1"); break;
-            case "link": app.Database.Execute("DELETE FROM auth_user_links"); break;
-            case "relinked": app.Database.Execute("UPDATE auth_user_links SET user_code=2"); break;
             case "stale": app.Time.Advance(TimeSpan.FromMinutes(5)); break;
             case "store": app.Database.Execute("ALTER TABLE auth_sessions RENAME TO unavailable_sessions"); break;
         }
