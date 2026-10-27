@@ -25,6 +25,8 @@
 
 別アプリのアカウントは独立させ、認証コードを流用しやすい構成を目指す（DEC-036、[52](52-reusable-authentication-boundaries.md)）。共通アカウント・共通ログインは採用しない。旧人物照合窓口`IAccountPersonLookup`とMonetail側の実装は不要となり削除した。[53](53-account-person-lookup.md)は過去の実装記録。`CurrentSession`とチャレンジも人物コードを保持しない。
 
+全体のアカウント管理APIは`Features/Accounts`、発行要求の保存モデルは`Authentication`に配置し、認証基盤から家計簿機能への参照を持たせない。APIのURL・入出力・認証条件は維持する。
+
 互換性のため旧人物対応モデル・移行履歴・発行履歴の人物コード列は残す。新規空DBや家計簿データのスキーマは後続設計であり、認証基盤を別ライブラリにする作業は今回含めない。
 
 ## 普段のログイン

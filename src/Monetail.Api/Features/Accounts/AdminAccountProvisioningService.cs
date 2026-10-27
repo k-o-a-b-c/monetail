@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
 
-namespace Monetail.Api.Features.Monetail.Accounts;
+namespace Monetail.Api.Features.Accounts;
 
 /// <summary>初回だけ生コードを返し、再送時には作成済みアカウントだけを返す。</summary>
 public sealed record AccountCreationResponse(string AuthUserId, string? Code, DateTime? ExpiresAtUtc)

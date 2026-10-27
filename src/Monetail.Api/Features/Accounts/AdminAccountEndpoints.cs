@@ -1,7 +1,7 @@
 using Monetail.Api.Authentication;
 using System.Text.Json.Serialization;
 
-namespace Monetail.Api.Features.Monetail.Accounts;
+namespace Monetail.Api.Features.Accounts;
 
 /// <summary>管理者によるアカウント一覧・新規発行・登録コード再発行を受け付ける。</summary>
 public static class AdminAccountEndpoints

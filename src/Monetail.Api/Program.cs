@@ -1,5 +1,5 @@
 using Monetail.Api.Authentication;
-using Monetail.Api.Features.Monetail.Accounts;
+using Monetail.Api.Features.Accounts;
 
 var command = args.FirstOrDefault();
 var isAuthCommand = command is "migrate-auth-db" or "initialize-admin" or "issue-enrollment-code" or

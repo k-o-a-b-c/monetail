@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
 
-namespace Monetail.Api.Features.Monetail.Accounts;
+namespace Monetail.Api.Features.Accounts;
 
 /// <summary>管理者へ返すアカウント自身の識別子・表示名・利用可否を保持する。</summary>
 public sealed record AdminAccountSummary(string AuthUserId, string? DisplayName, bool IsEnabled);
