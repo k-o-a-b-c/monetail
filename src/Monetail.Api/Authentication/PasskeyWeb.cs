@@ -87,13 +87,14 @@ public static class PasskeyWeb
         });
     }
 
-    /// <summary>認証・管理経路のHTTPS境界と、保護APIの既定認証を構成する。</summary>
-    public static void MapPasskeyWeb(this WebApplication app, PasskeySettings settings)
+    /// <summary>認証・管理・追加保護経路のHTTPS境界と、保護APIの既定認証を構成する。</summary>
+    public static void MapPasskeyWeb(this WebApplication app, PasskeySettings settings, params string[] additionalProtectedPaths)
     {
         app.UseForwardedHeaders();
         app.Use(async (http, next) =>
         {
-            if (http.Request.Path.StartsWithSegments("/auth") || http.Request.Path.StartsWithSegments("/admin"))
+            if (http.Request.Path.StartsWithSegments("/auth") || http.Request.Path.StartsWithSegments("/admin") ||
+                additionalProtectedPaths.Any(path => http.Request.Path.StartsWithSegments(path)))
             {
                 http.Response.Headers.CacheControl = "no-store";
                 http.Response.Headers["Referrer-Policy"] = "no-referrer";

@@ -1,6 +1,6 @@
 # 42 APIの起動・設定・運用
 
-起動・配備設定・管理コマンドの正本。認証仕様は[43](43-passkey-authentication-design.md)、未実装の導入・家計簿設計は[58](58-ledger-foundation-design.md)、検証結果は[tests/README.md](../tests/README.md)を参照する。
+起動・配備設定・管理コマンドの正本。認証仕様は[43](43-passkey-authentication-design.md)、家計簿のAPIと後続設計は[58](58-ledger-foundation-design.md)、検証結果は[tests/README.md](../tests/README.md)を参照する。
 
 ## 実装した範囲
 
@@ -78,7 +78,7 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 
 ## DB移行・登録・復旧コマンド
 
-APIは未リリース。現在のEF移行1件は空DBに最初のテーブルを作る定義であり、公開済みの旧APIから更新する処理ではない。初回適用もEFの移行履歴へ記録し、今後の定義追加と二重適用の防止に利用する。
+APIは未リリース。現在のEF移行1件は空DBに最初のテーブルを作る定義であり、公開済みの旧APIから更新する処理ではない。初回適用もEFの移行履歴へ記録し、今後の定義追加と二重適用の防止に利用する。未リリースの開発用DBで定義が一致しない場合も自動変換しない。新しい別ファイルへ初期化して確認する。
 
 新規導入は空または未存在のSQLiteファイルを指定する。親ディレクトリを事前に用意し、APIを停止して実行する。既存Windows版DBへの適用は拒否する。一度きりのSQL移行の方針は[58](58-ledger-foundation-design.md#新規利用と既存dbの境界)を参照し、作業コピーとバックアップを用意する。
 

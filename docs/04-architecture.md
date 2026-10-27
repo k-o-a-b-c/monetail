@@ -102,13 +102,13 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 | --- | --- |
 | `Authentication` | パスキー・セッション・失効と認証用保存モデル。家計簿の機能フォルダを参照しない |
 | `Features/Accounts` | 全体のアカウント一覧・初回発行・再発行。認証基盤を使う |
-| `Features/Monetail`（後続） | 家計簿・参加権限・人物・業務入力。認証IDを使い、全体Adminを家計簿権限へ読み替えない |
-| `Persistence` | API全体のDbContext・EF移行・明示初期化と構造検証。認証用モデルを保存し、後続の家計簿も同じ移行系列で管理 |
-| `Program.cs` | 認証と各機能の登録・起動・管理コマンドの受付 |
+| `Features/Monetail/Ledgers` | 家計簿作成・参加範囲内の一覧／参照と、その保存モデル・制約。人物対応・業務入力は後続 |
+| `Persistence` | API全体のDbContext・EF移行・明示初期化と構造検証。認証・家計簿のモデルを構成し、同じ初回定義で管理 |
+| `Program.cs` | 認証と各機能の登録・起動・管理コマンドの受付。家計簿の保護経路を認証のHTTP境界へ指定する |
 
 別アプリは独立したアカウントを持ち、流用するのは認証コードとする。アカウント・鍵・セッション・権限の共有やSSOは採用しない。認証ライブラリの別プロジェクト化は必要時に検討する。
 
-現行API契約は[43](43-passkey-authentication-design.md)、起動・運用は[42](42-api-foundation.md)、未実装の家計簿設計は[58](58-ledger-foundation-design.md)。優先順位は[07](07-roadmap.md)だけに記載する。
+現行API契約は[43](43-passkey-authentication-design.md)、起動・運用は[42](42-api-foundation.md)、家計簿のAPIと後続設計は[58](58-ledger-foundation-design.md)。優先順位は[07](07-roadmap.md)だけに記載する。
 
 ## 関連する詳細資料
 
