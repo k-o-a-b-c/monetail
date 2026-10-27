@@ -17,7 +17,7 @@
 
 2026-10-27: 全体管理者向けAPIの3ファイルを`Features/Monetail/Accounts`から`Features/Accounts`へ、`AccountCreationRequest`を`Authentication`へ移した。認証基盤から家計簿の機能フォルダへの参照を除去し、URL・JSON・認証条件・処理本体・DB構造は維持する（[52 配置と境界](../docs/52-reusable-authentication-boundaries.md)）。現在のモデルスナップショットは型名だけを更新し、適用済みの移行本体・Designerは変更しない。
 
-変更前はmain `e4216a9`と同じ製品・テスト・CIソースの[CI 40430056604](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40430056604)成功を再利用した。変更後は管理者一覧・初回発行・再発行と追加移行の関連70件がローカル成功。Releaseビルドは警告・エラー0、スナップショット更新後もEFの未反映モデル差分はない。移動した4ファイルは名前空間以外の差分がないことも比較した。新しい動作を追加していないため、テスト件数は増やさない。API全体とDockerの最終結果はCI確認後に記録する。
+変更前はmain `e4216a9`と同じ製品・テスト・CIソースの[CI 40430056604](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40430056604)成功を再利用した。変更後は管理者一覧・初回発行・再発行と追加移行の関連70件がローカル成功。Releaseビルドは警告・エラー0、スナップショット更新後もEFの未反映モデル差分はない。移動した4ファイルは名前空間以外の差分がないことも比較した。新しい動作を追加していないため、テスト件数は増やさない。実装コミット`1d676b0`の[CI 40451120287](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40451120287)でもAPI全276件（失敗・スキップ0）・CI選択15件・Dockerビルドと非root起動、UTC／ニューヨークの地域解決・DB未作成の確認が成功した。最後の更新はこの結果の文書追記だけで、製品・テスト・CIソースは成功時と同じ。
 
 Windows版・計算／Python移行・性能・認証画面は未変更のため、無関係な検証や実ブラウザー操作を繰り返さない。本番DBや設定は変更していない。
 
