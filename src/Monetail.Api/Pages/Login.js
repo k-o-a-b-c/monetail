@@ -1,5 +1,15 @@
 "use strict";
 
+// OAuthの認可要求へだけ戻り、外部URLへの転送を許可しない。
+function continueAuthorization() {
+    const value = new URLSearchParams(location.search).get("returnUrl");
+    if (!value) return;
+    let target;
+    try { target = new URL(value, location.origin); } catch { return; }
+    if (target.origin === location.origin && target.pathname === "/connect/authorize" &&
+        !target.username && !target.password && !target.hash) location.assign(target.href);
+}
+
 const loginButton = document.getElementById("login");
 const reauthenticationButton = document.getElementById("reauthenticate");
 const logoutButton = document.getElementById("logout");
@@ -94,6 +104,7 @@ async function verifyIdentity(reauthentication) {
             await authenticate("/auth/login", { timeZone });
         }
         await refresh();
+        if (!reauthentication) continueAuthorization();
     } catch (error) {
         await refresh().catch(() => {});
         message.textContent = error.name === "NotAllowedError" || error.name === "AbortError"

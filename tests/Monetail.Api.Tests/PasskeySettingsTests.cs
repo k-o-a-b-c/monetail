@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -27,25 +28,57 @@ public class PasskeySettingsTests
     }
 
     [Fact]
-    public async Task MissingSettingsDoNotExposeEnrollmentAndConfiguredStartupDoesNotMigrateDatabase()
+    public async Task ConfiguredStartupDoesNotMigrateDatabase()
     {
-        await using (var factory = new WebApplicationFactory<Program>())
-        using (var client = factory.CreateClient())
-        using (var response = await client.GetAsync("/auth/enroll"))
-            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-
         using var database = new AuthDatabaseFixture();
         var before = database.Snapshot(database.Tables());
         await using var configured = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
-            foreach (var pair in Settings()) builder.UseSetting(pair.Key, pair.Value);
-            builder.UseSetting("Passkeys:DataProtectionKeysPath", Path.Combine(Path.GetDirectoryName(database.DatabasePath)!, "keys"));
-            builder.UseSetting("ConnectionStrings:Monetail", database.ConnectionString);
+            builder.UseApiTestSettings(database);
         });
         using var configuredClient = configured.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://monetail.example.test") });
         using var page = await configuredClient.GetAsync("/auth/enroll");
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Equal(before, database.Snapshot(database.Tables()));
+    }
+
+    [Fact]
+    public async Task MissingConfigurationRejectsStartup()
+    {
+        await using var factory = new WebApplicationFactory<Program>();
+        var error = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+        Assert.Contains("Passkeys:Origin", error.Message);
+    }
+
+    [Theory]
+    [InlineData("Passkeys:Origin")]
+    [InlineData("Passkeys:RpId")]
+    [InlineData("Passkeys:DataProtectionKeysPath")]
+    [InlineData("ConnectionStrings:Monetail")]
+    [InlineData("DesktopOAuth:SigningCertificatePath")]
+    [InlineData("DesktopOAuth:EncryptionCertificatePath")]
+    public async Task MissingRequiredSettingRejectsStartupWithoutCreatingDatabase(string key)
+    {
+        using var database = new AuthDatabaseFixture(createFile: false);
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.UseApiTestSettings(database).UseSetting(key, ""));
+        Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+        Assert.False(File.Exists(database.DatabasePath));
+    }
+
+    [Theory]
+    [InlineData("signing")]
+    [InlineData("encryption")]
+    public async Task InvalidOAuthCertificateRejectsStartupWithoutCreatingDatabase(string name)
+    {
+        using var database = new AuthDatabaseFixture(createFile: false);
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseApiTestSettings(database);
+            File.WriteAllText(Path.Combine(Path.GetDirectoryName(database.DatabasePath)!, name + ".pfx"), "invalid-test-certificate");
+        });
+        Assert.ThrowsAny<CryptographicException>(() => factory.CreateClient());
+        Assert.False(File.Exists(database.DatabasePath));
     }
 
     [Theory]
@@ -56,9 +89,7 @@ public class PasskeySettingsTests
         using var database = new AuthDatabaseFixture();
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
-            foreach (var pair in Settings()) builder.UseSetting(pair.Key, pair.Value);
-            builder.UseSetting("Passkeys:DataProtectionKeysPath", Path.Combine(Path.GetDirectoryName(database.DatabasePath)!, "keys"));
-            builder.UseSetting("ConnectionStrings:Monetail", database.ConnectionString);
+            builder.UseApiTestSettings(database);
             builder.UseSetting("Passkeys:TrustedProxies:0", "192.0.2.1");
             builder.ConfigureServices(services => services.AddSingleton<IStartupFilter>(new RemoteAddressStartupFilter(trusted)));
         });

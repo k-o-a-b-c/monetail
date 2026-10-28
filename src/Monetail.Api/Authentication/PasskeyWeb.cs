@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>同一HTTPSオリジンのパスキー認証に必要な共通設定とHTTP境界を構成する。</summary>
+/// <summary>パスキー・Cookie／APIトークン認証の共通設定とHTTP境界を構成する。</summary>
 public static class PasskeyWeb
 {
     /// <summary>パスキー検証・セッション認証・CSRF・既知プロキシ・試行回数制限を登録する。</summary>
@@ -25,10 +25,16 @@ public static class PasskeyWeb
         services.AddSingleton<ReauthenticationChallenges>();
         services.AddScoped<PasskeyReauthenticationService>();
         services.AddSingleton<PasskeyAdditionChallenges>();
+        services.AddSingleton<AuthenticationAttemptLimiter>();
         services.AddScoped<PasskeyManagementService>();
         services.AddScoped<IAuthorizationHandler, RecentPasskeyHandler>();
         services.AddScoped<SessionCookieEvents>();
-        services.AddAuthentication(SessionCookieEvents.Scheme).AddCookie(SessionCookieEvents.Scheme, options =>
+        services.AddScoped<SessionValidator>();
+        services.AddAuthentication(DesktopTokenHandler.RequestScheme)
+            .AddPolicyScheme(DesktopTokenHandler.RequestScheme, null, options => options.ForwardDefaultSelector = http =>
+                !string.IsNullOrEmpty(http.Request.Headers.Authorization)
+                    ? DesktopTokenHandler.SchemeName : SessionCookieEvents.Scheme)
+            .AddCookie(SessionCookieEvents.Scheme, options =>
         {
             options.Cookie.Name = SessionCookieEvents.CookieName;
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
@@ -40,9 +46,9 @@ public static class PasskeyWeb
         });
         services.AddOptions<CookieAuthenticationOptions>(SessionCookieEvents.Scheme)
             .Configure<TimeProvider>((options, time) => options.TimeProvider = time);
-        services.AddAuthorizationBuilder().SetFallbackPolicy(new AuthorizationPolicyBuilder(SessionCookieEvents.Scheme)
+        services.AddAuthorizationBuilder().SetFallbackPolicy(new AuthorizationPolicyBuilder(DesktopTokenHandler.RequestScheme)
             .RequireAuthenticatedUser().Build())
-            .AddPolicy(RecentPasskeyRequirement.PolicyName, policy => policy.AddAuthenticationSchemes(SessionCookieEvents.Scheme)
+            .AddPolicy(RecentPasskeyRequirement.PolicyName, policy => policy.AddAuthenticationSchemes(DesktopTokenHandler.RequestScheme)
                 .RequireAuthenticatedUser().AddRequirements(new RecentPasskeyRequirement()));
         services.AddScoped<IPasskeyHandler<AuthUser>, PasskeyHandler<AuthUser>>();
         services.AddDataProtection().SetApplicationName("Monetail.Api")
@@ -79,11 +85,8 @@ public static class PasskeyWeb
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy("passkey-authentication", http => RateLimitPartition.GetFixedWindowLimiter(
-                http.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
-                {
-                    PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
-                }));
+            // IP枠はOAuthの早期応答も数えられる共通処理で確認する。ここでは同じ要求を重ねて数えない。
+            options.AddPolicy("passkey-authentication", _ => RateLimitPartition.GetNoLimiter("authentication-counted"));
         });
     }
 
@@ -108,9 +111,12 @@ public static class PasskeyWeb
                 }
                 if (HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method))
                 {
-                    if (http.Request.Headers.Origin != settings.Origin.GetLeftPart(UriPartial.Authority))
+                    // Cookie要求のOriginは従来どおり先に確認し、Bearer候補だけを認証後の判定へ回す。
+                    if (http.Request.Path != "/connect/token" &&
+                        string.IsNullOrEmpty(http.Request.Headers.Authorization) &&
+                        http.Request.Headers.Origin != settings.Origin.GetLeftPart(UriPartial.Authority))
                     {
-                        http.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        http.Response.StatusCode = 403;
                         return;
                     }
                     if (http.Request.ContentLength > 65536)
@@ -125,8 +131,28 @@ public static class PasskeyWeb
             await next(http);
         });
         app.UseRouting();
+        app.Use((http, next) => http.RequestServices.GetRequiredService<AuthenticationAttemptLimiter>().InvokeAsync(http, next));
+        // OAuth標準処理が早期終了する要求も、認証API共通のIP枠と保存先の検証を通す。
+        app.UseWhen(http => DesktopOAuth.IsPath(http.Request.Path), branch =>
+        {
+            branch.Use(DesktopOAuth.StoreBoundary);
+        });
         app.UseAuthentication();
-        // Cookieを検証してから、確定したアカウント単位の回数制限を判定する。
+        app.Use(async (http, next) =>
+        {
+            var protectedPath = http.Request.Path.StartsWithSegments("/auth") || http.Request.Path.StartsWithSegments("/admin") ||
+                additionalProtectedPaths.Any(path => http.Request.Path.StartsWithSegments(path));
+            var write = HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method) || HttpMethods.IsPut(http.Request.Method);
+            if (protectedPath && write && http.Request.Path != "/connect/token" &&
+                http.User.Identity?.AuthenticationType != DesktopTokenHandler.SchemeName &&
+                http.Request.Headers.Origin != settings.Origin.GetLeftPart(UriPartial.Authority))
+            {
+                http.Response.StatusCode = 403;
+                return;
+            }
+            await next(http);
+        });
+        // Cookie／Bearerを検証してから、確定したアカウント単位の回数制限を判定する。
         app.UseRateLimiter();
         app.Use(async (http, next) =>
         {

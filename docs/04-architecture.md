@@ -21,7 +21,7 @@ Windows デスクトップアプリ
 - 起動フォーム: `ViewForm`（`My Project/Application.Designer.vb`）
 - 現行データ操作: WindowsクライアントからSQLiteへ直接SQL発行。APIへの接続切替やクラウド同期は行っていない。
 
-同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。既定のHTTP機能は`/health`で、設定時は[46 パスキー登録](46-passkey-enrollment.md)と[47 ログイン・セッション](47-passkey-login-sessions.md)の画面・APIも提供する。Windows版のプロジェクト・モデルは参照しない。既存SQLiteへの認証テーブル追加移行と初期管理者・登録コード発行を専用コマンドとして実装し、通常起動はDBなしで行える。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。[42 APIの土台](42-api-foundation.md)、[44 認証DB](44-auth-database-foundation.md)参照。
+同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。Windows版のプロジェクト・モデルは参照しない。API専用SQLiteの初期化と初期管理者・登録コード発行を専用コマンドで行い、通常起動ではDBを自動作成・移行しない。既存Windows版DBの一度きりのSQL引継ぎと、Windows版を先にAPIへ接続する方針は[58](58-ledger-foundation-design.md)を参照する。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。認証の現行契約は[43](43-passkey-authentication-design.md)、起動・DB準備は[42](42-api-foundation.md)を正本とする。
 
 ## ディレクトリ
 
@@ -100,7 +100,7 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 
 | 配置 | 責務 |
 | --- | --- |
-| `Authentication` | パスキー・セッション・失効と認証用保存モデル。家計簿の機能フォルダを参照しない |
+| `Authentication` | パスキー・Cookie／OAuth・セッション・失効と認証用保存モデル。家計簿の機能フォルダを参照しない |
 | `Features/Accounts` | 全体のアカウント一覧・初回発行・再発行。認証基盤を使う |
 | `Features/Monetail/Ledgers` | 家計簿作成・参加範囲内の一覧／参照と、その保存モデル・制約。人物対応・業務入力は後続 |
 | `Persistence` | API全体のDbContext・EF移行・明示初期化と構造検証。認証・家計簿のモデルを構成し、同じ初回定義で管理 |

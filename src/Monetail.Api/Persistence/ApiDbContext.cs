@@ -23,6 +23,7 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        DesktopOAuthModel.Configure(builder);
         LedgerModel.Configure(builder);
         builder.Entity<AuthUser>().Property(user => user.IsEnabled).HasDefaultValue(false);
         builder.Entity<AuthUser>().Property(user => user.DisplayName).HasMaxLength(AuthUser.DisplayNameMaxLength);

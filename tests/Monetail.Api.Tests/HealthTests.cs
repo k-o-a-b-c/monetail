@@ -11,8 +11,9 @@ public class HealthTests
     [Fact]
     public async Task HealthReturnsHealthyWithoutDatabaseOrLogin()
     {
+        using var database = new AuthDatabaseFixture(createFile: false);
         await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder => builder.UseEnvironment("Production"));
+            .WithWebHostBuilder(builder => builder.UseApiTestSettings(database));
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync("/health");
@@ -21,5 +22,6 @@ public class HealthTests
         Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
         Assert.True(response.Headers.CacheControl?.NoStore);
+        Assert.False(File.Exists(database.DatabasePath));
     }
 }

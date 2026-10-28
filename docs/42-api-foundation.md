@@ -22,7 +22,7 @@ Windows版は従来のVB／WinForms／.NET Framework 4.8と直接SQLite接続を
 
 ## ローカル起動
 
-.NET 10 SDKを用意し、リポジトリ直下で実行する。
+.NET 10 SDKを用意し、下記の[必須設定](#認証の必須設定)を外部設定で指定してから、リポジトリ直下で実行する。
 
 ```sh
 dotnet run --project src/Monetail.Api --urls http://127.0.0.1:5080
@@ -42,7 +42,7 @@ dotnet test tests/Monetail.Api.Tests --configuration Release
 
 ## Dockerで起動
 
-DockerとComposeを用意し、リポジトリ直下で実行する。ビルドコンテキストはリポジトリ直下だが、`.dockerignore`でAPIソースを中心に送信対象を限定し、`.env`やSQLite等を除外する。DBファイルのマウントは行わない。
+DockerとComposeを用意する。既定の`compose.yaml`には認証設定や永続化領域を含めないため、そのままでは起動しない。環境ごとのCompose overrideで下記の[必須設定](#認証の必須設定)を環境変数へ渡し、DBの親フォルダ・Data Protectionキー・OAuth証明書をマウントしてから実行する。証明書は読取専用にする。ビルドコンテキストはリポジトリ直下だが、`.dockerignore`でAPIソースを中心に送信対象を限定し、`.env`やSQLite等を除外する。
 
 ```sh
 docker compose up --build -d
@@ -61,9 +61,9 @@ docker build --tag monetail-api:ci .
 bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 ```
 
-## 認証を有効にする設定
+## 認証の必須設定
 
-既定はDB不要の`/health`だけ。認証を公開する場合は`ConnectionStrings:Monetail`と次の`Passkeys`設定を外部設定で指定する。環境変数では区切りを`__`にする。実接続先・秘密・実データはコミットしない。
+通常のAPI起動ではCookie認証とWindows版向けOAuthを常に公開する。`ConnectionStrings:Monetail`・次の`Passkeys`設定・下記の`DesktopOAuth`証明書設定が必須で、不足・不正なら起動を拒否する。管理コマンドはWeb認証設定・OAuth証明書なしで実行できる。環境変数では区切りを`__`にする。実接続先・秘密・実データはコミットしない。
 
 | 設定 | 条件 |
 | --- | --- |
@@ -74,7 +74,22 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 | `ConnectionStrings:Monetail` | 永続SQLiteファイル。通常接続はReadWrite・FK有効、新規作成はinitialize-dbだけ |
 | `TZ` | Dockerの既定はEtc/UTC。Composeで変更し、.NETが解決した地域を起動ログで確認 |
 
-固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開の稼働確認用で、DBマウントやHTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
+固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開用で、認証設定・DBマウント・HTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
+
+### Windows版向けOAuthの有効化
+
+`Passkeys`の固定HTTPS設定に加え、通常起動では次のファイルを必ず準備する。OAuthを無効にする設定は設けない。
+
+| 設定 | 条件 |
+| --- | --- |
+| `DesktopOAuth:SigningCertificatePath` | 秘密鍵付きRSA署名証明書のPFX。絶対パス |
+| `DesktopOAuth:EncryptionCertificatePath` | 別の秘密鍵付きRSA暗号化証明書のPFX。絶対パス |
+| `DesktopOAuth:SigningCertificatePassword` | 署名PFXをパスワード保護した場合の読込用秘密値 |
+| `DesktopOAuth:EncryptionCertificatePassword` | 暗号化PFXをパスワード保護した場合の読込用秘密値 |
+
+証明書はRSA 2048ビット以上、署名と暗号化で別々の鍵とする。HTTPS用証明書とは別に用意し、OpenIddict公式の[証明書生成例](https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html#registering-a-certificate-recommended-for-production)を参考にできる。自己署名でもよく、認証サーバー用の鍵として外部の永続化領域へ保存する。非rootアプリだけが読めるファイル権限にし、秘密鍵・パスワードをGitや通常ログへ残さない。証明書が不備なら起動時に拒否する。
+
+DB・Data Protectionキーと併せて、この2つのPFXもバックアップ・再起動後の復元対象とする。単一の署名／暗号化鍵を別の鍵へ置き換える場合、以前のWindows用トークンを検証できなくなるため再取得が必要。HTTPの期限・失効・コールバック等の契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)を参照する。Windows側の画面・復帰・安全な保存はまだ未実装で、今回の有効化だけで既存Windows版がAPI接続へ変わるわけではない。
 
 ## DB移行・登録・復旧コマンド
 

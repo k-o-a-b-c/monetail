@@ -186,15 +186,6 @@ public class AdminAccountTests
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 
-    [Fact]
-    public async Task HealthOnlyConfigurationDoesNotPublishTheAdminList()
-    {
-        await using var factory = new WebApplicationFactory<Program>();
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
-        using var result = await client.GetAsync("/admin/accounts");
-        Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
-    }
-
     /// <summary>アカウントの公開項目と保存済み利用可否が一致することを確認する。</summary>
     private static void AssertAccount(JsonElement account, string id, bool enabled)
     {

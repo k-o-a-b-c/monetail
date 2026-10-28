@@ -56,9 +56,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
     /// <summary>同じ永続キーとDBを使い、プロセス再起動相当のホストを構築する。</summary>
     public WebApplicationFactory<Program> NewFactory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
-        builder.UseEnvironment("Production").UseSetting("ConnectionStrings:Monetail", Database.ConnectionString)
-            .UseSetting("Passkeys:Origin", Origin).UseSetting("Passkeys:RpId", "monetail.example.test")
-            .UseSetting("Passkeys:DataProtectionKeysPath", Path.Combine(Path.GetDirectoryName(Database.DatabasePath)!, "keys"));
+        builder.UseApiTestSettings(Database);
         builder.ConfigureServices(services =>
         {
             services.AddSingleton<TimeProvider>(Time);

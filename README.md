@@ -22,6 +22,6 @@
 
 Windows版は[ソリューション](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)をVisual Studioで開き、NuGet復元後にビルドします。DBは含みません。[接続設定](docs/19-database-startup-settings.md)に従ってバックアップしたコピーを指定し、新規セットアップにはマスタの準備も必要です。
 
-APIは.NET 10で`dotnet run --project src/Monetail.Api --urls http://127.0.0.1:5080`、Dockerは`docker compose up --build -d`で稼働確認できます。既定はDB不要の`/health`だけです。認証を有効にする設定・永続化・復旧は[運用手順](docs/42-api-foundation.md)を参照してください。
+APIは.NET 10、Docker Composeで起動できます。起動前に必要な認証設定・永続化領域の準備と、稼働確認・復旧の操作は[運用手順](docs/42-api-foundation.md)を参照してください。
 
 実データ・秘密・.envをコミットしないでください。自動テストの成功と、実端末・実DB・本番配備の確認は区別します。
