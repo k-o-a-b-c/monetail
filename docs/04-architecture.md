@@ -1,6 +1,6 @@
 # 04 アーキテクチャ・開発環境
 
-更新日: 2026-10-24 / Windows版の構成に、独立したASP.NET Core APIの土台を追加。Windows CIで既存ソリューションのビルドと対象画面・永続化テストを確認済み。実運用DBでの起動・手動確認は未実施。
+更新日: 2026-10-28 / 現行Windows版・APIの構成と、新版Windows版の設計を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
 
 ## 構成
 
@@ -22,6 +22,14 @@ Windows デスクトップアプリ
 - 現行データ操作: WindowsクライアントからSQLiteへ直接SQL発行。APIへの接続切替やクラウド同期は行っていない。
 
 同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。Windows版のプロジェクト・モデルは参照しない。API専用SQLiteの初期化と初期管理者・登録コード発行を専用コマンドで行い、通常起動ではDBを自動作成・移行しない。既存Windows版DBの一度きりのSQL引継ぎと、Windows版を先にAPIへ接続する方針は[58](58-ledger-foundation-design.md)を参照する。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。認証の現行契約は[43](43-passkey-authentication-design.md)、起動・DB準備は[42](42-api-foundation.md)を正本とする。
+
+### 新版Windows版の構成（未実装）
+
+新版は**.NET 10 LTS・C#・WinForms**とし、同じリポジトリの`src/Monetail.Windows/`にSDK形式の独立プロジェクトを設ける。ターゲットは`net10.0-windows`。現在のVB.NET／.NET Framework 4.8のプロジェクトは残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。配置先は設計であり、プロジェクトはまだ作成していない。
+
+画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、フォームへSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する未実装)を正本とする。
+
+新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定、配布方法、対応Windowsバージョンは実装前に具体化する。
 
 ## ディレクトリ
 
