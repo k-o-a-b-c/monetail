@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
+using Monetail.Api.Features.Monetail.Ledgers;
 
 namespace Monetail.Api.Persistence;
 
@@ -22,6 +23,7 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        LedgerModel.Configure(builder);
         builder.Entity<AuthUser>().Property(user => user.IsEnabled).HasDefaultValue(false);
         builder.Entity<AuthUser>().Property(user => user.DisplayName).HasMaxLength(AuthUser.DisplayNameMaxLength);
         builder.Entity<EnrollmentCode>(code =>

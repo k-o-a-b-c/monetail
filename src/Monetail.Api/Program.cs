@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Accounts;
+using Monetail.Api.Features.Monetail.Ledgers;
 using Monetail.Api.Persistence;
 
 var command = args.FirstOrDefault();
@@ -65,6 +66,8 @@ if (passkeySettings is not null)
     builder.Services.AddPasskeyWeb(passkeySettings);
     builder.Services.AddScoped<AdminAccountService>();
     builder.Services.AddScoped<AdminAccountProvisioningService>();
+    builder.Services.AddScoped<LedgerService>();
+    builder.Services.AddLedgerRateLimits();
 }
 
 var app = builder.Build();
@@ -134,8 +137,9 @@ if (isAuthCommand)
 if (passkeySettings is not null)
 {
     app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
-    app.MapPasskeyWeb(passkeySettings);
+    app.MapPasskeyWeb(passkeySettings, "/ledgers");
     app.MapAdminAccounts();
+    app.MapLedgers();
 }
 app.MapHealthChecks("/health").AllowAnonymous();
 app.Run();

@@ -248,6 +248,82 @@ namespace Monetail.Api.Persistence.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "ledgers",
+                columns: table => new
+                {
+                    id = table.Column<string>(type: "TEXT", nullable: false),
+                    name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    created_by_auth_user_id = table.Column<string>(type: "TEXT", nullable: false),
+                    created_at_utc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    revision = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ledgers", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_ledgers_AspNetUsers_created_by_auth_user_id",
+                        column: x => x.created_by_auth_user_id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ledger_creation_requests",
+                columns: table => new
+                {
+                    request_id = table.Column<string>(type: "TEXT", nullable: false),
+                    actor_auth_user_id = table.Column<string>(type: "TEXT", nullable: false),
+                    ledger_id = table.Column<string>(type: "TEXT", nullable: false),
+                    requested_name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    created_at_utc = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ledger_creation_requests", x => x.request_id);
+                    table.ForeignKey(
+                        name: "FK_ledger_creation_requests_AspNetUsers_actor_auth_user_id",
+                        column: x => x.actor_auth_user_id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ledger_creation_requests_ledgers_ledger_id",
+                        column: x => x.ledger_id,
+                        principalTable: "ledgers",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ledger_members",
+                columns: table => new
+                {
+                    ledger_id = table.Column<string>(type: "TEXT", nullable: false),
+                    auth_user_id = table.Column<string>(type: "TEXT", nullable: false),
+                    role = table.Column<string>(type: "TEXT", nullable: false),
+                    joined_at_utc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    revision = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ledger_members", x => new { x.ledger_id, x.auth_user_id });
+                    table.CheckConstraint("CK_ledger_members_role", "role IN ('Viewer','Editor','Admin')");
+                    table.ForeignKey(
+                        name: "FK_ledger_members_AspNetUsers_auth_user_id",
+                        column: x => x.auth_user_id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ledger_members_ledgers_ledger_id",
+                        column: x => x.ledger_id,
+                        principalTable: "ledgers",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -312,6 +388,27 @@ namespace Monetail.Api.Persistence.Migrations
                 name: "IX_auth_sessions_AuthUserId",
                 table: "auth_sessions",
                 column: "AuthUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ledger_creation_requests_actor_auth_user_id",
+                table: "ledger_creation_requests",
+                column: "actor_auth_user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ledger_creation_requests_ledger_id",
+                table: "ledger_creation_requests",
+                column: "ledger_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ledger_members_auth_user_id_ledger_id",
+                table: "ledger_members",
+                columns: new[] { "auth_user_id", "ledger_id" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ledgers_created_by_auth_user_id",
+                table: "ledgers",
+                column: "created_by_auth_user_id");
         }
 
         /// <inheritdoc />
@@ -345,7 +442,16 @@ namespace Monetail.Api.Persistence.Migrations
                 name: "auth_sessions");
 
             migrationBuilder.DropTable(
+                name: "ledger_creation_requests");
+
+            migrationBuilder.DropTable(
+                name: "ledger_members");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
+
+            migrationBuilder.DropTable(
+                name: "ledgers");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
