@@ -174,6 +174,7 @@ public class AuthenticationCommandTests
             start.ArgumentList.Add(argument);
         start.Environment["ConnectionStrings__Monetail"] = connectionString;
         start.Environment["Passkeys__Origin"] = "invalid-web-setting";
+        start.Environment["DesktopOAuth__SigningCertificatePath"] = "invalid-oauth-setting";
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
         var error = process.StandardError.ReadToEndAsync();

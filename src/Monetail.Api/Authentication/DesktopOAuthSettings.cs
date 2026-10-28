@@ -2,7 +2,7 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>Windows版向けOAuthの有効化と、永続化した署名・暗号化証明書を指定する。</summary>
+/// <summary>通常起動に必須のOAuth署名・暗号化証明書を指定する。</summary>
 public sealed class DesktopOAuthSettings
 {
     /// <summary>永続化した署名用PFXの絶対パスを保持する。</summary>
@@ -14,11 +14,10 @@ public sealed class DesktopOAuthSettings
     /// <summary>暗号化用PFXの読込パスワードを保持する。</summary>
     public string? EncryptionCertificatePassword { get; init; }
 
-    /// <summary>未指定ならOAuthを公開せず、指定された証明書の絶対パスを検証する。</summary>
-    public static DesktopOAuthSettings? Read(IConfiguration configuration)
+    /// <summary>必須の署名・暗号化証明書の絶対パスを検証する。</summary>
+    public static DesktopOAuthSettings Read(IConfiguration configuration)
     {
         var section = configuration.GetSection("DesktopOAuth");
-        if (!section.Exists()) return null;
         var signing = section["SigningCertificatePath"];
         var encryption = section["EncryptionCertificatePath"];
         if (string.IsNullOrWhiteSpace(signing) || !Path.IsPathFullyQualified(signing) ||

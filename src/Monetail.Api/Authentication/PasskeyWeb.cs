@@ -15,7 +15,7 @@ namespace Monetail.Api.Authentication;
 public static class PasskeyWeb
 {
     /// <summary>パスキー検証・セッション認証・CSRF・既知プロキシ・試行回数制限を登録する。</summary>
-    public static void AddPasskeyWeb(this IServiceCollection services, PasskeySettings settings, bool desktopOAuthEnabled = false)
+    public static void AddPasskeyWeb(this IServiceCollection services, PasskeySettings settings)
     {
         services.AddSingleton(settings);
         services.AddSingleton<EnrollmentChallenges>();
@@ -32,7 +32,7 @@ public static class PasskeyWeb
         services.AddScoped<SessionValidator>();
         services.AddAuthentication(DesktopTokenHandler.RequestScheme)
             .AddPolicyScheme(DesktopTokenHandler.RequestScheme, null, options => options.ForwardDefaultSelector = http =>
-                desktopOAuthEnabled && !string.IsNullOrEmpty(http.Request.Headers.Authorization)
+                !string.IsNullOrEmpty(http.Request.Headers.Authorization)
                     ? DesktopTokenHandler.SchemeName : SessionCookieEvents.Scheme)
             .AddCookie(SessionCookieEvents.Scheme, options =>
         {
@@ -93,7 +93,6 @@ public static class PasskeyWeb
     /// <summary>認証・管理・追加保護経路のHTTPS境界と、保護APIの既定認証を構成する。</summary>
     public static void MapPasskeyWeb(this WebApplication app, PasskeySettings settings, params string[] additionalProtectedPaths)
     {
-        var desktopOAuthEnabled = app.Services.GetService<DesktopOAuthSettings>() is not null;
         app.UseForwardedHeaders();
         app.Use(async (http, next) =>
         {
@@ -114,7 +113,7 @@ public static class PasskeyWeb
                 {
                     // Cookie要求のOriginは従来どおり先に確認し、Bearer候補だけを認証後の判定へ回す。
                     if (http.Request.Path != "/connect/token" &&
-                        !(desktopOAuthEnabled && !string.IsNullOrEmpty(http.Request.Headers.Authorization)) &&
+                        string.IsNullOrEmpty(http.Request.Headers.Authorization) &&
                         http.Request.Headers.Origin != settings.Origin.GetLeftPart(UriPartial.Authority))
                     {
                         http.Response.StatusCode = 403;
@@ -134,7 +133,7 @@ public static class PasskeyWeb
         app.UseRouting();
         app.Use((http, next) => http.RequestServices.GetRequiredService<AuthenticationAttemptLimiter>().InvokeAsync(http, next));
         // OAuth標準処理が早期終了する要求も、認証API共通のIP枠と保存先の検証を通す。
-        app.UseWhen(http => desktopOAuthEnabled && DesktopOAuth.IsPath(http.Request.Path), branch =>
+        app.UseWhen(http => DesktopOAuth.IsPath(http.Request.Path), branch =>
         {
             branch.Use(DesktopOAuth.StoreBoundary);
         });

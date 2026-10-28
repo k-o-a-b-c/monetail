@@ -10,11 +10,10 @@ public sealed class PasskeySettings
     public required string DataProtectionKeysPath { get; init; }
     public required IPAddress[] TrustedProxies { get; init; }
 
-    /// <summary>外部設定を検証し、不完全な設定では登録画面を公開しない。</summary>
-    public static PasskeySettings? Read(IConfiguration configuration)
+    /// <summary>通常起動に必須の固定HTTPS設定を検証する。</summary>
+    public static PasskeySettings Read(IConfiguration configuration)
     {
         var section = configuration.GetSection("Passkeys");
-        if (!section.Exists()) return null;
         if (!Uri.TryCreate(section["Origin"], UriKind.Absolute, out var origin) ||
             origin.Scheme != "https" || origin.AbsolutePath != "/" ||
             origin.UserInfo.Length > 0 || origin.Query.Length > 0 || origin.Fragment.Length > 0)

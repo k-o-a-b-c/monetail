@@ -21,7 +21,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task DiscoveryRequiresS256AndPublishesOnlyStandardCodeFlow()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var native = Native(app);
         var discovery = await native.GetFromJsonAsync<JsonElement>("/.well-known/openid-configuration");
         Assert.Equal(LoginTestApp.Origin + "/", discovery.GetProperty("issuer").GetString());
@@ -34,7 +34,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task ExistingBrowserLoginIssuesIndependentNativeSessionWithSameDeadlineAndNoNewCookie()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         var original = await browser.GetFromJsonAsync<JsonElement>("/auth/me");
@@ -68,7 +68,7 @@ public class DesktopOAuthTests
     [InlineData("scope")]
     public async Task InvalidAuthorizationRequestsDoNotCreateSessions(string change)
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         var values = Parameters(Verifier());
@@ -105,7 +105,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task AnonymousAuthorizationReturnsToTheCachedRequestAfterLogin()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         using var native = Native(app);
         var verifier = Verifier();
@@ -130,7 +130,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task WrongVerifierAndCodeReplayAreRejectedByStandardOAuthValidation()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);
@@ -150,7 +150,7 @@ public class DesktopOAuthTests
     [InlineData("expired")]
     public async Task RevokedOrExpiredSessionsRejectAccessAndRefreshImmediately(string change)
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);
@@ -170,7 +170,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task TokenRefreshAndServerRestartKeepTheOriginalFixedDeadline()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         var original = await browser.GetFromJsonAsync<JsonElement>("/auth/me");
@@ -194,7 +194,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task NativeLogoutRevokesOnlyItsOwnSessionAndDoesNotSignOutBrowser()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);
@@ -212,7 +212,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task InvalidBearerNeverFallsBackToValidBrowserCookie()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         browser.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "invalid");
@@ -226,7 +226,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task InvalidOAuthRequestsAndPasskeyRequestsShareOneIpQuota()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         for (var index = 0; index < 20; index++)
         {
@@ -241,7 +241,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task CookieAndNativeSessionsShareTheSameAccountCreationQuota()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);
@@ -261,7 +261,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task AuthorizationCodeExpiresWithoutCreatingUsableTokens()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);
@@ -276,7 +276,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task LatestRolesAndOAuthTokenRevocationAreCheckedOnEveryRequest()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);
@@ -308,7 +308,7 @@ public class DesktopOAuthTests
     [Fact]
     public async Task MissingSessionStoreReturns503WithoutRecreatingTablesOrReturningCredentials()
     {
-        await using var app = await LoginTestApp.CreateAsync(desktopOAuth: true);
+        await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);

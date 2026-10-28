@@ -58,16 +58,14 @@ builder.Services.AddHealthChecks();
 var connectionString = builder.Configuration.GetConnectionString("Monetail");
 if (!string.IsNullOrWhiteSpace(connectionString))
     builder.Services.AddAuthDatabase(connectionString);
-var passkeySettings = isAuthCommand ? null : PasskeySettings.Read(builder.Configuration);
-var desktopOAuth = isAuthCommand ? null : DesktopOAuthSettings.Read(builder.Configuration);
-if (desktopOAuth is not null && passkeySettings is null)
-    throw new InvalidOperationException("DesktopOAuthにはPasskeysの設定も必要です。");
-if (passkeySettings is not null)
+if (!isAuthCommand)
 {
+    var passkeySettings = PasskeySettings.Read(builder.Configuration);
+    var desktopOAuth = DesktopOAuthSettings.Read(builder.Configuration);
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
-    builder.Services.AddPasskeyWeb(passkeySettings, desktopOAuth is not null);
-    if (desktopOAuth is not null) builder.Services.AddDesktopOAuth(desktopOAuth, passkeySettings);
+    builder.Services.AddPasskeyWeb(passkeySettings);
+    builder.Services.AddDesktopOAuth(desktopOAuth, passkeySettings);
     builder.Services.AddScoped<AdminAccountService>();
     builder.Services.AddScoped<AdminAccountProvisioningService>();
     builder.Services.AddScoped<LedgerService>();
@@ -138,14 +136,11 @@ if (isAuthCommand)
     await app.DisposeAsync();
     return;
 }
-if (passkeySettings is not null)
-{
-    app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
-    app.MapPasskeyWeb(passkeySettings, "/ledgers", "/connect", "/.well-known");
-    if (desktopOAuth is not null) app.MapDesktopOAuth();
-    app.MapAdminAccounts();
-    app.MapLedgers();
-}
+app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
+app.MapPasskeyWeb(app.Services.GetRequiredService<PasskeySettings>(), "/ledgers", "/connect", "/.well-known");
+app.MapDesktopOAuth();
+app.MapAdminAccounts();
+app.MapLedgers();
 app.MapHealthChecks("/health").AllowAnonymous();
 app.Run();
 

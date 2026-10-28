@@ -7,13 +7,13 @@
 | 計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 338 |
+| ASP.NET Core API | 346 |
 | CIの実行対象選択 | 15 |
-| 合計 | 496 |
+| 合計 | 504 |
 
-変更前のAPI全318件・Dockerは[PR75の成功CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40600285143)を再利用する。Windows向けOAuthの実HTTP検証20件を追加し、ローカルのAPI全338件が成功した。実パスキー署名、認可コード・PKCE S256・再利用／期限切れ拒否、元の固定期限の継承、更新・再起動、独立ログアウト、最新ロール・失効の反映、Cookieへの認証切替の拒否、DB障害とIP／アカウント枠の共有を確認する。最終API全件とDockerには今回のPRの最新成功CIを採用する。
+変更前のAPI全338件・Dockerは[PR77の成功CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40695894493)を再利用する。OAuthを通常起動で必須とし、設定不足・不正な証明書による起動拒否を9件追加、不要になったhealth専用構成の1件を削除した。ローカルのAPI全346件（失敗・スキップ0）が成功。管理コマンドがWeb／OAuthの不正設定に依存しないこと、通常起動・healthがDBを作成・移行しないことも確認した。最終API全件とDockerには今回のPRの最新成功CIを採用する。
 
-CI選択の既存成功結果は再利用し、差分からAPI／Dockerのみが対象となることを確認する。Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
+CI選択15件・Docker確認スクリプトの構文検査が成功し、差分からAPI／Dockerのみが対象となることを確認した。Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
 
 ## 実行方法（リポジトリ直下）
 

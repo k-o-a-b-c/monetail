@@ -181,7 +181,7 @@ public class AuthDatabaseTests
     {
         using var db = new AuthDatabaseFixture(createFile: !missing);
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseEnvironment("Production").UseSetting("ConnectionStrings:Monetail", db.ConnectionString));
+            builder.UseApiTestSettings(db));
         using var client = factory.CreateClient();
         using var response = await client.GetAsync("/health");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
