@@ -59,11 +59,15 @@ var connectionString = builder.Configuration.GetConnectionString("Monetail");
 if (!string.IsNullOrWhiteSpace(connectionString))
     builder.Services.AddAuthDatabase(connectionString);
 var passkeySettings = isAuthCommand ? null : PasskeySettings.Read(builder.Configuration);
+var desktopOAuth = isAuthCommand ? null : DesktopOAuthSettings.Read(builder.Configuration);
+if (desktopOAuth is not null && passkeySettings is null)
+    throw new InvalidOperationException("DesktopOAuthにはPasskeysの設定も必要です。");
 if (passkeySettings is not null)
 {
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
-    builder.Services.AddPasskeyWeb(passkeySettings);
+    builder.Services.AddPasskeyWeb(passkeySettings, desktopOAuth is not null);
+    if (desktopOAuth is not null) builder.Services.AddDesktopOAuth(desktopOAuth, passkeySettings);
     builder.Services.AddScoped<AdminAccountService>();
     builder.Services.AddScoped<AdminAccountProvisioningService>();
     builder.Services.AddScoped<LedgerService>();
@@ -137,7 +141,8 @@ if (isAuthCommand)
 if (passkeySettings is not null)
 {
     app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
-    app.MapPasskeyWeb(passkeySettings, "/ledgers");
+    app.MapPasskeyWeb(passkeySettings, "/ledgers", "/connect", "/.well-known");
+    if (desktopOAuth is not null) app.MapDesktopOAuth();
     app.MapAdminAccounts();
     app.MapLedgers();
 }

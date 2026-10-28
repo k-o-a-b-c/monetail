@@ -14,7 +14,7 @@ namespace Monetail.Api.Authentication;
 public sealed record CurrentSession(AuthSession Session, string? DisplayName);
 
 /// <summary>Cookieの要求ごとに、セッション・アカウントの利用可否・現在の権限を確認する。</summary>
-public sealed class SessionCookieEvents(ApiDbContext context, UserManager<AuthUser> users, TimeProvider time,
+public sealed class SessionCookieEvents(SessionValidator validator,
     ILogger<SessionCookieEvents> logger) : CookieAuthenticationEvents
 {
     public const string Scheme = "Monetail.Session";
@@ -27,23 +27,15 @@ public sealed class SessionCookieEvents(ApiDbContext context, UserManager<AuthUs
     {
         try
         {
-            var hash = Hash(cookie.Principal?.FindFirstValue(IdClaim));
             var id = cookie.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (hash is null || id is null) { Reject(cookie, 401); return; }
             var token = cookie.HttpContext.RequestAborted;
-            var session = await context.Sessions.AsNoTracking().SingleOrDefaultAsync(row => row.IdHash == hash, token);
-            if (session is null || session.AuthUserId != id || session.RevokedAtUtc is not null ||
-                session.ExpiresAtUtc <= time.GetUtcNow().UtcDateTime)
-            { Reject(cookie, 401); return; }
-            var user = await context.Users.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, token);
-            if (user is null || !user.IsEnabled) { Reject(cookie, 401); return; }
-            var principal = Principal(id, cookie.Principal!.FindFirstValue(IdClaim)!);
-            var identity = (ClaimsIdentity)principal.Identity!;
-            if (user.DisplayName is not null) identity.AddClaim(new Claim(ClaimTypes.Name, user.DisplayName));
-            foreach (var role in await users.GetRolesAsync(user)) identity.AddClaim(new Claim(ClaimTypes.Role, role));
+            var sessionId = cookie.Principal?.FindFirstValue(IdClaim);
+            var current = await validator.FindAsync(id, sessionId, token);
+            if (current is null) { Reject(cookie, 401); return; }
+            var principal = await validator.PrincipalAsync(current, sessionId!, Scheme, token);
             cookie.ReplacePrincipal(principal);
             cookie.ShouldRenew = false;
-            cookie.HttpContext.Items[typeof(CurrentSession)] = new CurrentSession(session, user.DisplayName);
+            cookie.HttpContext.Items[typeof(CurrentSession)] = current;
         }
         catch (Exception exception) when (exception is SqliteException or DbUpdateException or InvalidOperationException)
         {

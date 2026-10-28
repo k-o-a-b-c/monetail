@@ -24,6 +24,7 @@ public static class AuthDatabaseServices
             options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
         }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ApiDbContext>();
         services.AddDbContext<ApiDbContext>(options => ApiDbContext.Configure(options, connection.ToString()));
+        services.AddOpenIddict().AddCore(options => options.UseEntityFrameworkCore().UseDbContext<ApiDbContext>());
         services.AddScoped<DatabaseInitializer>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<AdminProvisioningService>();

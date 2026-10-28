@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Net;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text;
 using Microsoft.AspNetCore.Builder;
@@ -27,12 +28,15 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public string SessionCookie { get; private set; } = "";
     public byte[] CredentialId { get; } = RandomNumberGenerator.GetBytes(32);
     private readonly ECDsa key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+    private bool desktopOAuth;
 
     /// <summary>有効アカウントとテスト公開鍵を用意する。</summary>
-    public static async Task<LoginTestApp> CreateAsync()
+    public static async Task<LoginTestApp> CreateAsync(bool desktopOAuth = false)
     {
         var app = new LoginTestApp();
         await app.Database.MigrateAsync();
+        app.desktopOAuth = desktopOAuth;
+        if (desktopOAuth) app.CreateOAuthCertificates();
         app.Factory = app.NewFactory();
         await using var scope = app.Factory.Services.CreateAsyncScope();
         var issued = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync())!;
@@ -59,12 +63,31 @@ internal sealed class LoginTestApp : IAsyncDisposable
         builder.UseEnvironment("Production").UseSetting("ConnectionStrings:Monetail", Database.ConnectionString)
             .UseSetting("Passkeys:Origin", Origin).UseSetting("Passkeys:RpId", "monetail.example.test")
             .UseSetting("Passkeys:DataProtectionKeysPath", Path.Combine(Path.GetDirectoryName(Database.DatabasePath)!, "keys"));
+        if (desktopOAuth)
+        {
+            builder.UseSetting("DesktopOAuth:SigningCertificatePath", Path.Combine(Path.GetDirectoryName(Database.DatabasePath)!, "signing.pfx"))
+                .UseSetting("DesktopOAuth:EncryptionCertificatePath", Path.Combine(Path.GetDirectoryName(Database.DatabasePath)!, "encryption.pfx"));
+        }
         builder.ConfigureServices(services =>
         {
             services.AddSingleton<TimeProvider>(Time);
             services.AddSingleton<IStartupFilter, ProtectedProbe>();
         });
     });
+
+    /// <summary>隔離した一時フォルダへ、テスト専用の署名・暗号化証明書を生成する。</summary>
+    private void CreateOAuthCertificates()
+    {
+        foreach (var name in new[] { "signing", "encryption" })
+        {
+            using var algorithm = RSA.Create(2048);
+            var request = new CertificateRequest("CN=synthetic-" + name, algorithm, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(name == "signing"
+                ? X509KeyUsageFlags.DigitalSignature : X509KeyUsageFlags.KeyEncipherment, true));
+            using var certificate = request.CreateSelfSigned(Time.GetUtcNow().AddYears(-1), Time.GetUtcNow().AddYears(2));
+            File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(Database.DatabasePath)!, name + ".pfx"), certificate.Export(X509ContentType.Pfx));
+        }
+    }
 
     /// <summary>Cookieを他ブラウザーと共有しないHTTPSクライアントを作る。</summary>
     public HttpClient Client(WebApplicationFactory<Program>? factory = null)

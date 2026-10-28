@@ -100,7 +100,7 @@ Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAcce
 
 | 配置 | 責務 |
 | --- | --- |
-| `Authentication` | パスキー・セッション・失効と認証用保存モデル。家計簿の機能フォルダを参照しない |
+| `Authentication` | パスキー・Cookie／OAuth・セッション・失効と認証用保存モデル。家計簿の機能フォルダを参照しない |
 | `Features/Accounts` | 全体のアカウント一覧・初回発行・再発行。認証基盤を使う |
 | `Features/Monetail/Ledgers` | 家計簿作成・参加範囲内の一覧／参照と、その保存モデル・制約。人物対応・業務入力は後続 |
 | `Persistence` | API全体のDbContext・EF移行・明示初期化と構造検証。認証・家計簿のモデルを構成し、同じ初回定義で管理 |

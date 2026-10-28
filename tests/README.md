@@ -7,11 +7,11 @@
 | 計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 318 |
+| ASP.NET Core API | 338 |
 | CIの実行対象選択 | 15 |
-| 合計 | 476 |
+| 合計 | 496 |
 
-変更前のAPI全315件・Dockerは[PR75の成功CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40596869498)を再利用する。アカウント別の回数制限を実HTTPで3件追加し、ローカルで成功した。作成20回、一覧・個別参照合計60回、端末／セッション／IPをまたぐ合算、別アカウント・用途・認証IP枠の独立、失効時401を確認する。最終API全件とDockerには今回のPRの最新成功CIを採用する。
+変更前のAPI全318件・Dockerは[PR75の成功CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40600285143)を再利用する。Windows向けOAuthの実HTTP検証20件を追加し、ローカルのAPI全338件が成功した。実パスキー署名、認可コード・PKCE S256・再利用／期限切れ拒否、元の固定期限の継承、更新・再起動、独立ログアウト、最新ロール・失効の反映、Cookieへの認証切替の拒否、DB障害とIP／アカウント枠の共有を確認する。最終API全件とDockerには今回のPRの最新成功CIを採用する。
 
 CI選択の既存成功結果は再利用し、差分からAPI／Dockerのみが対象となることを確認する。Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
 

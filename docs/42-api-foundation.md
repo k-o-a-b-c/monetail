@@ -76,6 +76,21 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 
 固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開の稼働確認用で、DBマウントやHTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
 
+### Windows版向けOAuthの有効化
+
+`DesktopOAuth`を指定しなければ、既存のCookie認証を公開し、Windows版向けの認可・交換エンドポイントは公開しない。指定する場合は`Passkeys`の固定HTTPS設定に加え、次のファイルを準備する。
+
+| 設定 | 条件 |
+| --- | --- |
+| `DesktopOAuth:SigningCertificatePath` | 秘密鍵付きRSA署名証明書のPFX。絶対パス |
+| `DesktopOAuth:EncryptionCertificatePath` | 別の秘密鍵付きRSA暗号化証明書のPFX。絶対パス |
+| `DesktopOAuth:SigningCertificatePassword` | 署名PFXをパスワード保護した場合の読込用秘密値 |
+| `DesktopOAuth:EncryptionCertificatePassword` | 暗号化PFXをパスワード保護した場合の読込用秘密値 |
+
+証明書はRSA 2048ビット以上、署名と暗号化で別々の鍵とする。HTTPS用証明書とは別に用意し、OpenIddict公式の[証明書生成例](https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html#registering-a-certificate-recommended-for-production)を参考にできる。自己署名でもよく、認証サーバー用の鍵として外部の永続化領域へ保存する。非rootアプリだけが読めるファイル権限にし、秘密鍵・パスワードをGitや通常ログへ残さない。証明書が不備なら起動時に拒否する。
+
+DB・Data Protectionキーと併せて、この2つのPFXもバックアップ・再起動後の復元対象とする。単一の署名／暗号化鍵を別の鍵へ置き換える場合、以前のWindows用トークンを検証できなくなるため再取得が必要。HTTPの期限・失効・コールバック等の契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)を参照する。Windows側の画面・復帰・安全な保存はまだ未実装で、今回の有効化だけで既存Windows版がAPI接続へ変わるわけではない。
+
 ## DB移行・登録・復旧コマンド
 
 APIは未リリース。現在のEF移行1件は空DBに最初のテーブルを作る定義であり、公開済みの旧APIから更新する処理ではない。初回適用もEFの移行履歴へ記録し、今後の定義追加と二重適用の防止に利用する。未リリースの開発用DBで定義が一致しない場合も自動変換しない。新しい別ファイルへ初期化して確認する。
