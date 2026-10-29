@@ -7,13 +7,13 @@
 | 計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 346 |
+| ASP.NET Core API | 354 |
 | CIの実行対象選択 | 15 |
-| 合計 | 504 |
+| 合計 | 512 |
 
-変更前のAPI全338件・Dockerは[PR77の成功CI](https://github.com/k-o-a-b-c/monetail-legacy/actions/runs/40695894493)を再利用する。OAuthを通常起動で必須とし、設定不足・不正な証明書による起動拒否を9件追加、不要になったhealth専用構成の1件を削除した。ローカルのAPI全346件（失敗・スキップ0）が成功。管理コマンドがWeb／OAuthの不正設定に依存しないこと、通常起動・healthがDBを作成・移行しないことも確認した。最終API全件とDockerには今回のPRの最新成功CIを採用する。
+変更前のAPI全346件・Dockerの採用結果は[CI 40764853423](https://github.com/k-o-a-b-c/monetail/actions/runs/40764853423)（ソース`fd836eedfdb1fde178650b90038a391c83bf02dc`）。認証APIのDB準備確認と管理コマンドの設定エラーを修正し、Cookie／Bearerでの拒否・正常化後の復帰2件、不正な接続設定でのコマンド終了6件を追加した。変更後のAPI・Dockerの検証は[CI 40830448904](https://github.com/k-o-a-b-c/monetail/actions/runs/40830448904)（ソース`8508e42738eb69f44e7e0172e5ae140111e4c680`）を参照する。API全354件（失敗・スキップ0）、CI選択15件とDockerのビルド・起動が成功した。ローカルでもAPI全354件が成功し、認証情報の応答漏れ・DBの書換えがないこと、終了コード1・秘密値や例外スタックの非表示を確認した。
 
-CI選択15件・Docker確認スクリプトの構文検査が成功し、差分からAPI／Dockerのみが対象となることを確認した。Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
+Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
 
 ## 実行方法（リポジトリ直下）
 
@@ -42,7 +42,7 @@ Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbpro
 | Windows・計算・SQL等 | 依存するテスト、製品ビルド、必要なら性能計測 |
 | CI・共通SDK／ビルド設定 | 全対象 |
 
-同じ製品ソースの成功CIは再利用し、新しい変更・失敗・懸念があるときだけ再実行する。省略を検証成功として数えない。[Actions](https://github.com/k-o-a-b-c/monetail-legacy/actions/workflows/tests.yml)ではコミットと選択された対象を確認する。
+同じ製品ソースの成功CIは再利用し、新しい変更・失敗・懸念があるときだけ再実行する。省略を検証成功として数えない。[Actions](https://github.com/k-o-a-b-c/monetail/actions/workflows/tests.yml)ではコミットと選択された対象を確認する。
 
 ## Windowsで画面を手動確認する手順（利用者環境では未実施）
 
