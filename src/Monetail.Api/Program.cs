@@ -53,26 +53,41 @@ if (command is not null && !isAuthCommand &&
     Environment.ExitCode = 1;
     return;
 }
-var builder = WebApplication.CreateBuilder(configurationArgs);
-builder.Services.AddHealthChecks();
-var connectionString = builder.Configuration.GetConnectionString("Monetail");
-if (!string.IsNullOrWhiteSpace(connectionString))
-    builder.Services.AddAuthDatabase(connectionString);
-if (!isAuthCommand)
+WebApplication app;
+string? connectionString;
+// 管理コマンドは設定読込・DI構築の失敗も終了コード1で返す。
+try
 {
-    var passkeySettings = PasskeySettings.Read(builder.Configuration);
-    var desktopOAuth = DesktopOAuthSettings.Read(builder.Configuration);
-    if (string.IsNullOrWhiteSpace(connectionString))
-        throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
-    builder.Services.AddPasskeyWeb(passkeySettings);
-    builder.Services.AddDesktopOAuth(desktopOAuth, passkeySettings);
-    builder.Services.AddScoped<AdminAccountService>();
-    builder.Services.AddScoped<AdminAccountProvisioningService>();
-    builder.Services.AddScoped<LedgerService>();
-    builder.Services.AddLedgerRateLimits();
+    var builder = WebApplication.CreateBuilder(configurationArgs);
+    builder.Services.AddHealthChecks();
+    connectionString = builder.Configuration.GetConnectionString("Monetail");
+    if (!string.IsNullOrWhiteSpace(connectionString))
+        builder.Services.AddAuthDatabase(connectionString);
+    if (!isAuthCommand)
+    {
+        var passkeySettings = PasskeySettings.Read(builder.Configuration);
+        var desktopOAuth = DesktopOAuthSettings.Read(builder.Configuration);
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
+        builder.Services.AddPasskeyWeb(passkeySettings);
+        builder.Services.AddDesktopOAuth(desktopOAuth, passkeySettings);
+        builder.Services.AddScoped<AdminAccountService>();
+        builder.Services.AddScoped<AdminAccountProvisioningService>();
+        builder.Services.AddScoped<LedgerService>();
+        builder.Services.AddLedgerRateLimits();
+    }
+
+    app = builder.Build();
+}
+catch (Exception exception) when (isAuthCommand && exception is
+    (ArgumentException or FormatException or InvalidOperationException or IOException or UnauthorizedAccessException or
+        Microsoft.Data.Sqlite.SqliteException))
+{
+    Console.Error.WriteLine("管理コマンドを開始できません。接続設定・構成ファイルを確認してください。");
+    Environment.ExitCode = 1;
+    return;
 }
 
-var app = builder.Build();
 if (isAuthCommand)
 {
     if (string.IsNullOrWhiteSpace(connectionString))

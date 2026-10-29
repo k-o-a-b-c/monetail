@@ -162,6 +162,27 @@ public class AuthenticationCommandTests
         Assert.DoesNotContain("Now listening", result.Output);
     }
 
+    [Theory]
+    [InlineData(false, "Data Source=:memory:")]
+    [InlineData(true, "Data Source=:memory:")]
+    [InlineData(false, "unsupported-key=synthetic-secret")]
+    [InlineData(true, "unsupported-key=synthetic-secret")]
+    [InlineData(false, "synthetic-secret")]
+    [InlineData(true, "synthetic-secret")]
+    public async Task InvalidDatabaseConfigurationFailsCleanlyWithoutStartingWeb(bool restore, string connectionString)
+    {
+        using var fixture = new AuthDatabaseFixture(createFile: false);
+        var result = await RunAsync(connectionString, restore
+            ? ["reset-authentication", "--after-restore"] : ["initialize-db"]);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("接続設定・構成ファイルを確認", result.Output);
+        Assert.DoesNotContain("Unhandled exception", result.Output);
+        Assert.DoesNotContain("synthetic-secret", result.Output);
+        Assert.DoesNotContain("登録コード:", result.Output);
+        Assert.DoesNotContain("Now listening", result.Output);
+        Assert.False(File.Exists(fixture.DatabasePath));
+    }
+
     /// <summary>Web設定が不正でも、実際のAPIエントリーポイントを管理コマンドとして起動する。</summary>
     private static async Task<(int ExitCode, string Output)> RunAsync(string connectionString, string[] arguments)
     {
