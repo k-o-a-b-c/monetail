@@ -31,7 +31,7 @@ public static class PasskeyLoginEndpoints
                 expiresAtUtc = DateTime.SpecifyKind(current.Session.ExpiresAtUtc, DateTimeKind.Utc),
                 verifiedAtUtc = DateTime.SpecifyKind(current.Session.VerifiedAtUtc, DateTimeKind.Utc)
             });
-        }).RequireAuthorization();
+        }).RequireAuthorization().AddEndpointFilter<AuthRequestFilter>();
         group.MapPost("/logout", async (HttpContext http, PasskeyLoginService service) =>
         {
             await service.LogoutAsync(http, http.RequestAborted);

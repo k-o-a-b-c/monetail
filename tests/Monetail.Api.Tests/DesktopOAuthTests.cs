@@ -321,6 +321,40 @@ public class DesktopOAuthTests
         Assert.DoesNotContain("auth_sessions", app.Database.Tables());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CurrentAccountRejectsUnreadyDatabaseForCookieAndBearerAndRecovers(bool unknownHistory)
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var browser = app.Client();
+        await app.LoginAsync(browser);
+        using var native = Native(app);
+        var tokens = await IssueAsync(app, browser, native);
+        app.Database.Execute(unknownHistory
+            ? "INSERT INTO __MonetailMigrationsHistory VALUES('99999999999999_Future','99.0.0')"
+            : "INSERT INTO __EFMigrationsLock VALUES(1,'2026-10-29')");
+        var before = app.Database.Snapshot(app.Database.Tables());
+        foreach (var client in new[] { browser, native })
+        {
+            using var response = await client.GetAsync("/auth/me");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.DoesNotContain(app.UserId, body);
+            Assert.DoesNotContain(tokens.GetProperty("access_token").GetString()!, body);
+            Assert.False(response.Headers.Contains("Set-Cookie"));
+        }
+        Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
+        app.Database.Execute(unknownHistory
+            ? "DELETE FROM __MonetailMigrationsHistory WHERE MigrationId='99999999999999_Future'"
+            : "DELETE FROM __EFMigrationsLock");
+        foreach (var client in new[] { browser, native })
+        {
+            using var recovered = await client.GetAsync("/auth/me");
+            Assert.Equal(HttpStatusCode.OK, recovered.StatusCode);
+        }
+    }
+
     /// <summary>ブラウザーのCookie・Origin・CSRFを持たないWindows版相当のクライアントを作る。</summary>
     private static HttpClient Native(LoginTestApp app, WebApplicationFactory<Program>? factory = null) =>
         (factory ?? app.Factory).CreateClient(new WebApplicationFactoryClientOptions
