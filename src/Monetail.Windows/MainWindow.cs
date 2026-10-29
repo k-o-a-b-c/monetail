@@ -139,6 +139,8 @@ public sealed class MainWindow : Form
             OpenBrowser();
             // 利用者のブラウザー操作には接続用の10秒制限を適用しない。
             var result = await login.CompleteAsync(cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            Reset("Monetail", "接続中…");
             var account = await session!.AcceptLoginAsync(result, cancellation.Token);
             if (account is null) ShowLogin("ログインを続けられませんでした。もう一度ログインしてください。");
             else ShowWorkspace(account);
