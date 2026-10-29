@@ -103,6 +103,12 @@ OpenIddict 7.7.2のサーバー・検証機能を使い、外部ブラウザー�
 - `OpenIddictApplications`・`OpenIddictAuthorizations`・`OpenIddictScopes`・`OpenIddictTokens`は標準ライブラリの保存モデル。既存の初回EF定義に含め、Windowsクライアントの公開登録だけを初期データにする。アカウント・家計簿・人物は自動作成しない。
 - 認可コード・更新／アクセストークンを通常ログへ残さない。OpenIddictの詳細ログを抑制し、ブラウザーの戻り先も同じオリジンの認可エンドポイントに限定する。
 
+### Windows版の認証情報保存（未実装）
+
+Windows版のアクセス／更新トークンは、WindowsのDPAPI（`DataProtectionScope.CurrentUser`）で暗号化し、`%LOCALAPPDATA%\Monetail`内の専用ファイルへ保存する。接続先URLの`settings.json`とは分け、平文のトークンを設定ファイル・一時ファイル・通常ログへ残さない。暗号鍵の管理はWindowsに任せ、復号用パスワードの入力は追加しない。認証情報を別PC・別Windowsユーザーへ持ち運んで使う運用は前提にしない。
+
+復元後もサーバーで有効性を確認し、保存・読込・トークン更新によって元のログイン期限を延ばさない。ファイル形式・更新と削除の具体的な処理、復号できない場合の画面操作は実装前に具体化する。今回確定したのは保護方式と保存先で、Windowsクライアントの保存処理はまだ実装していない。
+
 ## API契約
 
 | メソッド・パス | 用途・応答 |
