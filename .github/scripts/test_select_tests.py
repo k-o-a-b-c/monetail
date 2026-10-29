@@ -27,6 +27,22 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["tests/Monetail.Api.Tests/HealthTests.cs"], "api")
         self.assert_flags(["tests/Monetail.Api.Tests/docker-smoke.sh"], "docker")
 
+    def test_new_windows_client_source_validates_portable_and_desktop_without_legacy(self):
+        self.assert_flags(["src/Monetail.Windows/Client/Authentication/BrowserOAuthLogin.cs"],
+                          "windows_client", "windows_client_build")
+        self.assert_flags(["src/Monetail.Windows/Client/Monetail.Windows.Client.csproj"],
+                          "windows_client", "windows_client_build")
+
+    def test_new_windows_form_only_validates_desktop(self):
+        self.assert_flags(["src/Monetail.Windows/ConnectionForm.cs"], "windows_client_build")
+        self.assert_flags(["src/Monetail.Windows/Monetail.Windows.csproj"], "windows_client_build")
+
+    def test_new_windows_tests_select_only_their_platform(self):
+        self.assert_flags(["tests/Monetail.Windows.Client.Tests/OAuthTests.cs"], "windows_client")
+        self.assert_flags(["tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj"],
+                          "windows_client")
+        self.assert_flags(["tests/Monetail.Windows.Tests/DpapiTests.cs"], "windows_client_build")
+
     def test_container_configuration_does_not_start_windows_or_api_tests(self):
         self.assert_flags(["Dockerfile", ".dockerignore"], "docker")
         self.assert_flags(["compose.yaml"], "compose")
@@ -71,9 +87,14 @@ class SelectionTests(unittest.TestCase):
             select(["src/Future.Shared/Tax.cs"])
 
     def test_every_existing_project_input_selects_its_suite(self):
-        for project, flag in [("tests/CalculationTests/CalculationTests.vbproj", "calculations"),
-                              ("tests/PersistenceTests/PersistenceTests.vbproj", "windows_tests"),
-                              ("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj", "api")]:
+        projects = [("tests/CalculationTests/CalculationTests.vbproj", "calculations"),
+                    ("tests/PersistenceTests/PersistenceTests.vbproj", "windows_tests"),
+                    ("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj", "api"),
+                    ("tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj", "windows_client"),
+                    ("tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj", "windows_client_build")]
+        for project, flag in projects:
+            if not (ROOT / project).exists():
+                continue
             for pattern in project_inputs(project):
                 for source in ROOT.glob(pattern):
                     if source.is_file() and not source.name.endswith(".md"):

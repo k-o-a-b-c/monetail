@@ -85,7 +85,7 @@ discoverable credential（ResidentKey=Required）とUserVerification=Requiredを
 
 ## Windows版のOAuth認証（DEC-051）
 
-OpenIddict 7.7.2のサーバー・検証機能を使い、外部ブラウザーでのパスキー認証後に認可コード＋PKCEでWindows版へAPI利用権限を渡す。Windowsクライアントの実装・実ブラウザーからの復帰は後続で、サーバーのHTTP経路を実装した段階。公開条件・証明書の準備は[42](42-api-foundation.md#windows版向けoauthの有効化)を参照する。
+OpenIddict 7.7.2のサーバー・検証機能を使い、外部ブラウザーでのパスキー認証後に認可コード＋PKCEでWindows版へAPI利用権限を渡す。新版WindowsにはPKCE S256・ランダムstate・実行時ポートのループバック受付・コード交換を実装した。ID tokenやopenidスコープには依存しない。公開条件・証明書の準備は[42](42-api-foundation.md#windows版向けoauthの有効化)、実ブラウザーを含む検証範囲は[tests/README](../tests/README.md)を参照する。
 
 | 経路 | 契約 |
 | --- | --- |
@@ -103,13 +103,15 @@ OpenIddict 7.7.2のサーバー・検証機能を使い、外部ブラウザー�
 - `OpenIddictApplications`・`OpenIddictAuthorizations`・`OpenIddictScopes`・`OpenIddictTokens`は標準ライブラリの保存モデル。既存の初回EF定義に含め、Windowsクライアントの公開登録だけを初期データにする。アカウント・家計簿・人物は自動作成しない。
 - 認可コード・更新／アクセストークンを通常ログへ残さない。OpenIddictの詳細ログを抑制し、ブラウザーの戻り先も同じオリジンの認可エンドポイントに限定する。
 
-### Windows版の認証情報保存（未実装）
+### Windows版の認証情報保存
 
 Windows版のアクセス／更新トークンは、WindowsのDPAPI（`DataProtectionScope.CurrentUser`）で暗号化し、`%LOCALAPPDATA%\Monetail`内の専用ファイルへ保存する。接続先URLの`settings.json`とは分け、平文のトークンを設定ファイル・一時ファイル・通常ログへ残さない。暗号鍵の管理はWindowsに任せ、復号用パスワードの入力は追加しない。認証情報を別PC・別Windowsユーザーへ持ち運んで使う運用は前提にしない。
 
 認証情報は取得元のAPI接続先と対応付け、接続先変更時は以前の認証情報を引き継がず、変更先でログインし直す。元のトークンを変更先へ送信しない。
 
-復元後もサーバーで有効性を確認し、保存・読込・トークン更新によって元のログイン期限を延ばさない。ファイル形式・更新と削除の具体的な処理は実装時に具体化する。起動時の期限切れ・復号失敗・認証キャンセルの画面操作は[58](58-ledger-foundation-design.md#windows版の起動表示接続失敗時の操作未実装)を正本とする。Windowsクライアントの保存処理はまだ実装していない。
+専用ファイルは`authentication.dat`。形式の版・取得元の正規化したHTTPSオリジン・両トークン・アクセス期限をまとめて暗号化し、暗号化済みの一時ファイルだけを経由して置き換える。設定も`version`と`apiUrl`を原子的に保存する。接続先は固定HTTPSオリジンとし、パス・クエリー・フラグメント・ユーザー情報を受け付けない。
+
+復元時は必要なトークン更新と`/auth/me`による確認を行う。アクセス期限の30秒前から更新を試み、有効期限内の401も一度だけ更新して再確認する。明確な失効（Bearerの401、更新時の`invalid_grant`）でのみ認証を破棄し、通信障害・503・保存先I/Oエラーでは保持する。更新済みトークンは以降の通信が失敗しても復元できるよう即保存する。元のログイン期限はサーバーが管理し、クライアントで延長・再計算しない。復号不能・破損・接続先不一致なら認証だけを破棄する。起動時の画面操作は[58](58-ledger-foundation-design.md#windows版の起動表示接続失敗時の操作)を正本とする。
 
 ## API契約
 

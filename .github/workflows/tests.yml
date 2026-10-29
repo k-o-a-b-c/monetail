@@ -16,6 +16,8 @@ jobs:
       windows_tests: ${{ steps.select.outputs.windows_tests }}
       windows_build: ${{ steps.select.outputs.windows_build }}
       performance: ${{ steps.select.outputs.performance }}
+      windows_client: ${{ steps.select.outputs.windows_client }}
+      windows_client_build: ${{ steps.select.outputs.windows_client_build }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,6 +25,30 @@ jobs:
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
       - id: select
         run: python3 .github/scripts/select_tests.py
+
+  windows-client-tests:
+    needs: changes
+    if: needs.changes.outputs.windows_client == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj --configuration Release
+
+  windows-client-build:
+    needs: changes
+    if: needs.changes.outputs.windows_client_build == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet build src/Monetail.Windows/Monetail.Windows.csproj --configuration Release
+      - run: dotnet test tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj --configuration Release
+        if: hashFiles('tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj') != ''
 
   api-foundation:
     needs: changes

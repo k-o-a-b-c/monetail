@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 FLAGS = ("api", "docker", "compose", "calculations", "migrations",
-         "windows_tests", "windows_build", "performance")
+         "windows_tests", "windows_build", "performance", "windows_client", "windows_client_build")
 PRODUCT = "HouseholdAccountsBeta/HouseholdAccountsBeta/"
 
 
@@ -49,6 +49,10 @@ def select(paths):
     calculation_inputs = project_inputs("tests/CalculationTests/CalculationTests.vbproj")
     windows_inputs = project_inputs("tests/PersistenceTests/PersistenceTests.vbproj")
     api_inputs = project_inputs("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj")
+    client_project = "tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj"
+    client_inputs = project_inputs(client_project) if (ROOT / client_project).exists() else set()
+    desktop_project = "tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj"
+    desktop_inputs = project_inputs(desktop_project) if (ROOT / desktop_project).exists() else set()
     performance_helpers = {
         "Program.vb", "ReceiptReadMeasurements.vb", "DatabaseFixture.vb",
         "BalanceBoundaryTests.vb", "ConcurrencyTests.vb", "PaymentReceiptReadTests.vb",
@@ -82,6 +86,16 @@ def select(paths):
             enable("api")
         if any(matches(path, pattern) for pattern in api_inputs):
             enable("api")
+        if path.startswith("src/Monetail.Windows/"):
+            enable("windows_client_build")
+        if path.startswith(("src/Monetail.Windows/Client/", "tests/Monetail.Windows.Client.Tests/")):
+            enable("windows_client")
+        if path.startswith("tests/Monetail.Windows.Tests/"):
+            enable("windows_client_build")
+        if any(matches(path, pattern) for pattern in client_inputs):
+            enable("windows_client")
+        if any(matches(path, pattern) for pattern in desktop_inputs):
+            enable("windows_client_build")
         if path in {"Dockerfile", ".dockerignore"}:
             enable("docker")
         if path == "compose.yaml":

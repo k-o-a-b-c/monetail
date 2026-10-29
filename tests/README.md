@@ -8,18 +8,27 @@
 | SQLite移行（税端数・更新版） | 10 |
 | Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 354 |
-| CIの実行対象選択 | 15 |
-| 合計 | 512 |
+| 新版Windowsクライアント（接続・認証・保存） | 98 |
+| Windowsの実DPAPI | 3 |
+| CIの実行対象選択 | 18 |
+| 合計（未実行の新Windows固有3件を含む） | 616 |
 
 変更前のAPI全346件・Dockerの採用結果は[CI 40764853423](https://github.com/k-o-a-b-c/monetail/actions/runs/40764853423)（ソース`fd836eedfdb1fde178650b90038a391c83bf02dc`）。認証APIのDB準備確認と管理コマンドの設定エラーを修正し、Cookie／Bearerでの拒否・正常化後の復帰2件、不正な接続設定でのコマンド終了6件を追加した。変更後のAPI・Dockerの検証は[CI 40830448904](https://github.com/k-o-a-b-c/monetail/actions/runs/40830448904)（ソース`8508e42738eb69f44e7e0172e5ae140111e4c680`）を参照する。API全354件（失敗・スキップ0）、CI選択15件とDockerのビルド・起動が成功した。ローカルでもAPI全354件が成功し、認証情報の応答漏れ・DBの書換えがないこと、終了コード1・秘密値や例外スタックの非表示を確認した。
 
-Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
+新版Windowsの接続・認証基盤は、.NET 10 SDKでReleaseビルド、クライアント98件（失敗・スキップ0）とCI選択18件をローカル確認した。クライアントは合成HTTP、実ループバック、合成暗号化保存を使い、PKCE・state・不正コールバック・キャンセル・トークン更新・失効と通信障害の区別・接続先への紐付けを検証する。Windows専用の実DPAPI3件は追加済みで、ローカルLinuxでは実行していない。
+
+既存Windows・API・計算・Python移行・性能の製品ソースは今回の変更対象外。物理端末のパスキー、実ブラウザー・画面の手動操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
 
 ## 実行方法（リポジトリ直下）
 
 ```sh
 # .NET 10
 dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj --configuration Release
+# Windows / .NET 10
+dotnet build src/Monetail.Windows/Monetail.Windows.csproj --configuration Release
+dotnet test tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj --configuration Release
+dotnet run --project src/Monetail.Windows/Monetail.Windows.csproj
 # .NET 8
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
 python3 -m unittest discover -s tests -p 'test_*migration.py' -v
@@ -38,6 +47,8 @@ Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbpro
 | 文書だけ | CI選択処理。API・Docker・Windows等は省略 |
 | APIソース | APIテスト・Dockerビルドと起動 |
 | APIテストだけ／Docker確認スクリプトだけ | 各対象だけ |
+| 新版WindowsのClient／WinForms画面 | クライアントテスト＋新版Windowsビルド・実DPAPI／新版Windowsビルド・実DPAPIだけ |
+| 新版Windowsの各テストだけ | 対応するテスト。API・旧Windowsは起動しない |
 | Dockerfile等／Compose | Docker確認／Compose設定 |
 | Windows・計算・SQL等 | 依存するテスト、製品ビルド、必要なら性能計測 |
 | CI・共通SDK／ビルド設定 | 全対象 |
