@@ -29,9 +29,9 @@ public sealed partial class MonetailApiClient
         catch (JsonException) { throw new ApiConnectionException(); }
     }
 
-    public async Task<LedgerInfo?> LastOpenedLedgerAsync(string accessToken, CancellationToken token = default)
+    public async Task<LedgerInfo?> OpenLastLedgerAsync(string accessToken, CancellationToken token = default)
     {
-        using var document = Parse(await SendAsync(HttpMethod.Get, "ledgers/last-opened", accessToken, null, false, token));
+        using var document = Parse(await SendAsync(HttpMethod.Post, "ledgers/open-last", accessToken, null, false, token));
         if (!document.RootElement.TryGetProperty("ledger", out var ledger)) throw new ApiConnectionException();
         return ledger.ValueKind == JsonValueKind.Null ? null : ReadLedger(ledger);
     }

@@ -29,7 +29,6 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
 
     private async Task CheckConnectionCoreAsync(CancellationToken cancellationToken)
     {
-        await SendAsync(HttpMethod.Get, "health", null, null, false, cancellationToken);
         var response = await SendAsync(HttpMethod.Get, ".well-known/openid-configuration", null, null, false, cancellationToken);
         using var document = Parse(response);
         var metadata = document.RootElement;

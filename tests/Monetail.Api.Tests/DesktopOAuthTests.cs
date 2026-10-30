@@ -33,7 +33,9 @@ public class DesktopOAuthTests
         Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
         Assert.Equal(ledger, await opened.Content.ReadFromJsonAsync<Monetail.Api.Features.Monetail.Ledgers.LedgerResponse>());
         Assert.Equal(ledger.LedgerId, app.Database.Scalar("SELECT last_opened_ledger_id FROM ledger_navigation"));
-        var previous = await browser.GetFromJsonAsync<JsonElement>("/ledgers/last-opened");
+        using var resumed = await native.PostAsync("/ledgers/open-last", null);
+        Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
+        var previous = await resumed.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(ledger.LedgerId, previous.GetProperty("ledger").GetProperty("ledgerId").GetString());
     }
 

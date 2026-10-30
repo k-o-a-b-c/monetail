@@ -22,25 +22,25 @@ public sealed class LedgerWorkspaceTests
         var rows = new[] { First, Second }.Take(count).ToArray();
         using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
         {
-            "/ledgers/last-opened" => Json(new { ledger = (LedgerInfo?)null }),
+            "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
             "/ledgers" => Json(rows),
             _ => Json(First)
         });
         var destination = await fixture.Workspace.StartAsync();
         Assert.Equal(count == 1 ? First : null, destination.Opened);
         Assert.Equal(count == 1 ? 0 : count, destination.Choices.Count);
-        Assert.Equal(count == 1 ? 1 : 0, fixture.Requests.Count(row => row.Method == HttpMethod.Post));
+        Assert.Equal(count == 1 ? 2 : 1, fixture.Requests.Count(row => row.Method == HttpMethod.Post));
         Assert.DoesNotContain(fixture.Requests, row => row.Method == HttpMethod.Put);
     }
 
     [Fact]
-    public async Task LastOpenedIsRecheckedAndNoListIsRequired()
+    public async Task LastOpenedIsOpenedInOneRequestWithoutAnotherIdLookup()
     {
-        using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath == "/ledgers/last-opened"
-            ? Json(new { ledger = First with { Role = "Admin" } }) : Json(First));
+        using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath == "/ledgers/open-last"
+            ? Json(new { ledger = First }) : Json(First));
         var destination = await fixture.Workspace.StartAsync();
         Assert.Equal(First, destination.Opened);
-        Assert.Equal(new[] { "/ledgers/last-opened", $"/ledgers/{First.LedgerId:N}/open" }, fixture.Requests.Select(row => row.Path));
+        Assert.Equal(new[] { "/ledgers/open-last" }, fixture.Requests.Select(row => row.Path));
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class LedgerWorkspaceTests
     {
         using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
         {
-            "/ledgers/last-opened" => Json(new { ledger = First }),
+            "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
             "/ledgers" => Json(new[] { Second }),
             var path when path == $"/ledgers/{First.LedgerId:N}/open" => new(HttpStatusCode.NotFound),
             _ => Json(Second)
@@ -83,7 +83,8 @@ public sealed class LedgerWorkspaceTests
         Assert.Equal(bodies[0].GetRawText(), bodies[1].GetRawText());
         Assert.Equal("家計簿", bodies[1].GetProperty("name").GetString());
         Assert.Equal(draft.RequestId, bodies[1].GetProperty("requestId").GetGuid());
-        Assert.DoesNotContain(fixture.Requests, row => row.Method == HttpMethod.Put);
+        Assert.All(fixture.Requests, row => Assert.Equal("/ledgers", row.Path));
+        Assert.Equal(2, fixture.Requests.Count);
     }
 
     [Fact]

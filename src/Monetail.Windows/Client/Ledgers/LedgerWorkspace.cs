@@ -24,12 +24,8 @@ public sealed class LedgerWorkspace(MonetailApiClient api, ClientSession session
 {
     public async Task<LedgerDestination> StartAsync(CancellationToken token = default)
     {
-        var previous = await session.ExecuteAuthenticatedAsync(api.LastOpenedLedgerAsync, token);
-        if (previous is not null)
-        {
-            try { return new(await OpenAsync(previous.LedgerId, token), []); }
-            catch (LedgerRequestException error) when (error.StatusCode == HttpStatusCode.NotFound) { }
-        }
+        var previous = await session.ExecuteAuthenticatedAsync(api.OpenLastLedgerAsync, token);
+        if (previous is not null) return new(previous, []);
         var choices = await ListAsync(token);
         if (choices.Length == 1)
         {
@@ -48,11 +44,7 @@ public sealed class LedgerWorkspace(MonetailApiClient api, ClientSession session
     public Task<LedgerInfo> OpenAsync(Guid ledgerId, CancellationToken token = default) =>
         session.ExecuteAuthenticatedAsync((access, ct) => api.OpenLedgerAsync(access, ledgerId, ct), token);
 
-    public async Task<LedgerInfo> CreateAsync(LedgerCreationDraft draft, CancellationToken token = default)
-    {
-        var created = await session.ExecuteAuthenticatedAsync(
-            (access, ct) => api.CreateLedgerAsync(access, draft.Name, draft.RequestId, ct), token);
-        return await OpenAsync(created.LedgerId, token);
-    }
+    public Task<LedgerInfo> CreateAsync(LedgerCreationDraft draft, CancellationToken token = default) =>
+        session.ExecuteAuthenticatedAsync((access, ct) => api.CreateLedgerAsync(access, draft.Name, draft.RequestId, ct), token);
 
 }

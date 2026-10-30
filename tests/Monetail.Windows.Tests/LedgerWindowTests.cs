@@ -38,6 +38,18 @@ public sealed class LedgerWindowTests
     });
 
     [Fact]
+    public Task SavedLastLedgerIsDisplayedWithoutASecondOpenRequest() => OnUiThread(() =>
+    {
+        using var fixture = new Fixture(2, hasPrevious: true);
+        Complete(fixture.Window.InitializeAsync());
+        Assert.Contains(Descendants(fixture.Window), control => control.Text == "レシート一覧");
+        Assert.Equal(fixture.Api.Rows[1].LedgerId, fixture.Api.LastOpened);
+        Assert.Equal(1, fixture.Api.OpenCount);
+        Assert.Single(fixture.Api.Paths, path => path.StartsWith("/ledgers", StringComparison.Ordinal));
+        Assert.DoesNotContain("/health", fixture.Api.Paths);
+    });
+
+    [Fact]
     public Task RetryingCreationKeepsTheRequestIdAndOnlyOpensAfterSuccess() => OnUiThread(() =>
     {
         using var fixture = new Fixture(0, failCreationOnce: true);
@@ -102,9 +114,9 @@ public sealed class LedgerWindowTests
         private readonly string directory = Path.Combine(Path.GetTempPath(), "monetail-ledger-ui", Guid.NewGuid().ToString("N"));
         public ApiStub Api { get; }
         public MainWindow Window { get; }
-        public Fixture(int count, bool failCreationOnce = false)
+        public Fixture(int count, bool failCreationOnce = false, bool hasPrevious = false)
         {
-            Api = new ApiStub(count, failCreationOnce);
+            Api = new ApiStub(count, failCreationOnce, hasPrevious);
             var endpoint = ApiEndpoint.Parse("https://synthetic-api.example");
             new ClientSettingsStore(directory).Save(endpoint);
             new FileTokenStore(directory, new DpapiDataProtector()).Save(endpoint,
@@ -125,18 +137,20 @@ public sealed class LedgerWindowTests
             ApiEndpoint.Parse(otherEndpoint ? "https://other-api.example" : "https://synthetic-api.example"));
     }
 
-    private sealed class ApiStub(int count, bool failCreationOnce) : HttpMessageHandler
+    private sealed class ApiStub(int count, bool failCreationOnce, bool hasPrevious) : HttpMessageHandler
     {
         public LedgerInfo[] Rows { get; } = Enumerable.Range(0, Math.Max(1, count))
             .Select(_ => new LedgerInfo(Guid.NewGuid(), "同じ家計簿名", "Admin", Guid.NewGuid().ToString("N"))).ToArray();
         public int OpenCount { get; private set; }
         public Guid? LastOpened { get; private set; }
         public List<Guid> Creations { get; } = [];
+        public List<string> Paths { get; } = [];
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {
             var path = request.RequestUri!.AbsolutePath;
-            if (path == "/health") return new(HttpStatusCode.OK) { Content = new StringContent("Healthy") };
+            Paths.Add(path);
+            Assert.NotEqual("/health", path);
             if (path == "/.well-known/openid-configuration") return Json(new
             {
                 issuer = "https://synthetic-api.example/", authorization_endpoint = "https://synthetic-api.example/connect/authorize",
@@ -145,13 +159,26 @@ public sealed class LedgerWindowTests
             });
             if (path == "/auth/me") return Json(new { authUserId = Guid.NewGuid(), displayName = "合成アカウント",
                 expiresAtUtc = DateTimeOffset.UtcNow.AddDays(1), verifiedAtUtc = DateTimeOffset.UtcNow });
-            if (path == "/ledgers/last-opened") return Json(new { ledger = (LedgerInfo?)null });
+            if (path == "/ledgers/open-last")
+            {
+                Assert.Equal(HttpMethod.Post, request.Method);
+                if (hasPrevious)
+                {
+                    LastOpened = Rows[1].LedgerId;
+                    OpenCount++;
+                    return Json(new { ledger = Rows[1] });
+                }
+                return Json(new { ledger = (LedgerInfo?)null });
+            }
             if (path == "/ledgers" && request.Method == HttpMethod.Get) return Json(Rows.Take(count).ToArray());
             if (path == "/ledgers" && request.Method == HttpMethod.Post)
             {
                 var body = await request.Content!.ReadFromJsonAsync<JsonElement>(token);
                 Creations.Add(body.GetProperty("requestId").GetGuid());
-                return failCreationOnce && Creations.Count == 1 ? new(HttpStatusCode.ServiceUnavailable) : Json(Rows[0]);
+                if (failCreationOnce && Creations.Count == 1) return new(HttpStatusCode.ServiceUnavailable);
+                LastOpened = Rows[0].LedgerId;
+                OpenCount++;
+                return Json(Rows[0]);
             }
             var selected = Rows.Single(row => path == $"/ledgers/{row.LedgerId:N}/open");
             Assert.Equal(HttpMethod.Post, request.Method);

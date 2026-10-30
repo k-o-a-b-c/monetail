@@ -11,13 +11,15 @@ public static class LedgerEndpoints
     public static void MapLedgers(this WebApplication app)
     {
         var routes = app.MapGroup("/ledgers").RequireAuthorization().AddEndpointFilter<AuthRequestFilter>();
-        routes.MapGet("/last-opened", async Task<IResult> (HttpContext http, LedgerService service) =>
+        routes.MapPost("/open-last", async Task<IResult> (HttpContext http, LedgerService service) =>
         {
-            var current = Current(http);
-            if (!await service.IsCurrentAsync(current, http.RequestAborted)) return Results.Unauthorized();
-            var ledger = await service.LastOpenedAsync(current, http.RequestAborted);
-            return await service.IsCurrentAsync(current, http.RequestAborted)
-                ? Results.Ok(new { ledger }) : Results.Unauthorized();
+            var opened = await service.OpenLastAsync(Current(http), http.RequestAborted);
+            return opened.Status switch
+            {
+                LedgerOpenStatus.Opened => Results.Ok(new { ledger = opened.Response }),
+                LedgerOpenStatus.NotFound => Results.Ok(new { ledger = (LedgerResponse?)null }),
+                _ => Results.Unauthorized()
+            };
         }).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         routes.MapPost("/{id:guid}/open", async Task<IResult> (Guid id, HttpContext http, LedgerService service) =>
         {
@@ -28,7 +30,7 @@ public static class LedgerEndpoints
                 LedgerOpenStatus.NotFound => Results.NotFound(),
                 _ => Results.Unauthorized()
             };
-        }).RequireRateLimiting(LedgerRateLimits.NavigationPolicy);
+        }).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         routes.MapPost("", async Task<IResult> (CreateLedgerRequest request, HttpContext http, LedgerService service) =>
         {
             var name = request.Name?.Trim();
@@ -62,7 +64,7 @@ public static class LedgerEndpoints
         }).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
     }
 
-    /// <summary>Cookieの検証で確定した現在のログインを取得する。</summary>
+    /// <summary>Cookie／Bearerの検証で確定した現在のログインを取得する。</summary>
     private static CurrentSession Current(HttpContext http) => (CurrentSession)http.Items[typeof(CurrentSession)]!;
 
     /// <summary>家計簿名と再送識別子だけを受け付ける。</summary>

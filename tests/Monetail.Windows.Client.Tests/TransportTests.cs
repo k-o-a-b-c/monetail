@@ -13,20 +13,20 @@ public sealed class TransportTests
     private static readonly ApiEndpoint Endpoint = ApiEndpoint.Parse("https://api.example.test");
 
     [Fact]
-    public async Task ConnectionChecksHealthAndOAuthMetadataBeforeUse()
+    public async Task ConnectionChecksOAuthMetadataWithOneRequest()
     {
         var paths = new List<string>();
         using var http = CreateHttp(request =>
         {
             paths.Add(request.RequestUri!.AbsolutePath);
             Assert.Null(request.Headers.Authorization);
-            return request.RequestUri.AbsolutePath == "/health" ? new(HttpStatusCode.OK) : Metadata();
+            return Metadata();
         });
         var api = new MonetailApiClient(Endpoint, http);
 
         await api.CheckConnectionAsync(CancellationToken.None);
 
-        Assert.Equal(new[] { "/health", "/.well-known/openid-configuration" }, paths);
+        Assert.Equal(new[] { "/.well-known/openid-configuration" }, paths);
     }
 
     [Theory]
@@ -39,8 +39,7 @@ public sealed class TransportTests
     [InlineData("token_endpoint", "https://api.example.test/connect/token?redirect=other")]
     public async Task ConnectionRejectsMetadataThatWouldChangeOAuthDestination(string field, string value)
     {
-        using var http = CreateHttp(request => request.RequestUri!.AbsolutePath == "/health"
-            ? new(HttpStatusCode.OK) : Metadata(field, value));
+        using var http = CreateHttp(_ => Metadata(field, value));
         var api = new MonetailApiClient(Endpoint, http);
 
         await Assert.ThrowsAsync<ApiConnectionException>(() => api.CheckConnectionAsync(CancellationToken.None));
@@ -51,8 +50,7 @@ public sealed class TransportTests
     [InlineData("code_challenge_methods_supported")]
     public async Task ConnectionRequiresAuthorizationCodeAndS256Capabilities(string field)
     {
-        using var http = CreateHttp(request => request.RequestUri!.AbsolutePath == "/health"
-            ? new(HttpStatusCode.OK) : Metadata(field, Array.Empty<string>()));
+        using var http = CreateHttp(_ => Metadata(field, Array.Empty<string>()));
         var api = new MonetailApiClient(Endpoint, http);
 
         await Assert.ThrowsAsync<ApiConnectionException>(() => api.CheckConnectionAsync(CancellationToken.None));
