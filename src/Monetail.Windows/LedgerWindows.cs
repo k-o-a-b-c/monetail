@@ -59,7 +59,7 @@ public sealed partial class MainWindow
         list.DoubleClick += async (_, _) => await OpenSelectionAsync();
         AcceptButton = open;
         AddButton("＋追加", () => ShowLedgerCreation(noMembership: choices.Count == 0));
-        if (openedLedger is not null) AddButton("戻る", () => ShowLedgerHome(openedLedger));
+        if (openedLedger is not null) Button("戻る", () => OpenLedgerAsync(openedLedger.LedgerId));
         AddAccountActions();
     }
 
@@ -73,7 +73,7 @@ public sealed partial class MainWindow
         content.Controls.Add(name);
         var create = Button("作成", () => CreateLedgerAsync(name.Text, noMembership));
         AcceptButton = create;
-        if (openedLedger is not null) AddButton("キャンセル", () => ShowLedgerHome(openedLedger));
+        if (openedLedger is not null) Button("キャンセル", () => OpenLedgerAsync(openedLedger.LedgerId));
         else if (!noMembership) Button("キャンセル", ShowLedgerListAsync);
         AddAccountActions();
         name.Focus();

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Monetail.Windows.Client.Authentication;
 
 namespace Monetail.Windows.Client;
 
@@ -20,10 +21,12 @@ public sealed class FileTokenStore(string directory, IDataProtector protector) :
         {
             plaintext = protector.Unprotect(encrypted);
             var payload = JsonSerializer.Deserialize<Payload>(plaintext);
-            if (payload is not { Version: 1 } || payload.ApiUrl != endpoint.Value ||
+            if (payload is not { Version: 1 } || string.IsNullOrWhiteSpace(payload.ApiUrl) ||
                 string.IsNullOrWhiteSpace(payload.AccessToken) ||
                 payload.AccessTokenExpiresAtUtc == default)
                 return Discard();
+            // 別ウィンドウが保存した接続先の認証を、古い接続先の読込で消さない。
+            if (payload.ApiUrl != endpoint.Value) throw new AuthenticationContextChangedException();
             return new TokenSet(payload.AccessToken, payload.RefreshToken, payload.AccessTokenExpiresAtUtc);
         }
         catch (CryptographicException) { return Discard(); }

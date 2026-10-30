@@ -141,6 +141,29 @@ public sealed class LedgerWorkspaceTests
 
     private static HttpResponseMessage Json(object value) => new(HttpStatusCode.OK) { Content = JsonContent.Create(value) };
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AnotherWindowChangingAuthenticationNeverPerformsAnOperationAsTheOtherAccount(bool logout)
+    {
+        var endpoint = ApiEndpoint.Parse("https://synthetic-api.example");
+        var store = new Store();
+        using var http = new HttpClient(new Handler(request =>
+        {
+            Assert.Equal("/auth/me", request.RequestUri!.AbsolutePath);
+            return Json(new { authUserId = Guid.NewGuid(), displayName = "アカウントA",
+                expiresAtUtc = DateTimeOffset.UtcNow.AddDays(1), verifiedAtUtc = DateTimeOffset.UtcNow });
+        }));
+        var api = new MonetailApiClient(endpoint, http);
+        var session = new ClientSession(api, endpoint, store);
+        Assert.NotNull(await session.RestoreAsync());
+        var other = new TokenSet("account-b-access", "account-b-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
+        store.Current = other;
+        if (logout) await Assert.ThrowsAsync<AuthenticationContextChangedException>(() => session.LogoutAsync());
+        else await Assert.ThrowsAsync<AuthenticationContextChangedException>(() => new LedgerWorkspace(api, session).OpenAsync(First.LedgerId));
+        Assert.Same(other, store.Current);
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly HttpClient http;
@@ -160,6 +183,36 @@ public sealed class LedgerWorkspaceTests
             Workspace = new LedgerWorkspace(api, new ClientSession(api, endpoint, Store));
         }
         public void Dispose() => http.Dispose();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoginChangedDuringRefreshIsNeitherOverwrittenNorDeleted(bool refreshSucceeded)
+    {
+        var endpoint = ApiEndpoint.Parse("https://synthetic-api.example");
+        var store = new Store();
+        var other = new TokenSet("account-b-access", "account-b-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
+        using var http = new HttpClient(new Handler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath == "/auth/me")
+                return Json(new { authUserId = Guid.NewGuid(), displayName = "アカウントA",
+                    expiresAtUtc = DateTimeOffset.UtcNow.AddDays(1), verifiedAtUtc = DateTimeOffset.UtcNow });
+            if (request.RequestUri.AbsolutePath == "/connect/token")
+            {
+                store.Current = other;
+                return refreshSucceeded
+                    ? Json(new { access_token = "rotated-a-access", refresh_token = "rotated-a-refresh", token_type = "Bearer", expires_in = 900 })
+                    : new(HttpStatusCode.BadRequest) { Content = JsonContent.Create(new { error = "invalid_grant" }) };
+            }
+            Assert.Equal("old-access", request.Headers.Authorization!.Parameter);
+            return new(HttpStatusCode.Unauthorized);
+        }));
+        var api = new MonetailApiClient(endpoint, http);
+        var session = new ClientSession(api, endpoint, store);
+        Assert.NotNull(await session.RestoreAsync());
+        await Assert.ThrowsAsync<AuthenticationContextChangedException>(() => new LedgerWorkspace(api, session).OpenAsync(First.LedgerId));
+        Assert.Same(other, store.Current);
     }
     private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {

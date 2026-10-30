@@ -70,8 +70,10 @@ public sealed class StorageTests : IDisposable
         using var protector = new TestProtector();
         var store = new FileTokenStore(directory, protector);
         store.Save(endpoint, tokens);
-        Assert.Null(store.Load(ApiEndpoint.Parse("https://different.example")));
-        Assert.False(File.Exists(TokenPath));
+        Assert.Throws<Monetail.Windows.Client.Authentication.AuthenticationContextChangedException>(
+            () => store.Load(ApiEndpoint.Parse("https://different.example")));
+        Assert.True(File.Exists(TokenPath));
+        Assert.Equal(tokens.AccessToken, store.Load(endpoint)!.AccessToken);
     }
 
     [Fact]

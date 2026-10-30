@@ -54,6 +54,22 @@ public sealed class LedgerWindowTests
         Assert.Equal(1, fixture.Api.OpenCount);
     });
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task AnotherWindowsLoginChangeStopsSelectionAndKeepsTheNewAuthentication(bool otherEndpoint) => OnUiThread(() =>
+    {
+        using var fixture = new Fixture(2);
+        Complete(fixture.Window.InitializeAsync());
+        fixture.Window.Show();
+        fixture.ReplaceSavedLogin(otherEndpoint);
+        Assert.Single(Descendants(fixture.Window).OfType<ListBox>()).SelectedIndex = 0;
+        Click(fixture.Window, "開く");
+        PumpUntil(() => Descendants(fixture.Window).OfType<Button>().Any(button => button.Text == "ログイン"));
+        Assert.Equal(0, fixture.Api.OpenCount);
+        Assert.Equal("other-access", fixture.ReadSavedLogin(otherEndpoint)!.AccessToken);
+    });
+
     private static void Click(Control root, string text) => Assert.Single(
         Descendants(root).OfType<Button>(), button => button.Text == text).PerformClick();
 
@@ -102,6 +118,11 @@ public sealed class LedgerWindowTests
             Window.Dispose();
             Directory.Delete(directory, recursive: true);
         }
+        public void ReplaceSavedLogin(bool otherEndpoint) => new FileTokenStore(directory, new DpapiDataProtector()).Save(
+            ApiEndpoint.Parse(otherEndpoint ? "https://other-api.example" : "https://synthetic-api.example"),
+            new TokenSet("other-access", "other-refresh", DateTimeOffset.UtcNow.AddMinutes(10)));
+        public TokenSet? ReadSavedLogin(bool otherEndpoint) => new FileTokenStore(directory, new DpapiDataProtector()).Load(
+            ApiEndpoint.Parse(otherEndpoint ? "https://other-api.example" : "https://synthetic-api.example"));
     }
 
     private sealed class ApiStub(int count, bool failCreationOnce) : HttpMessageHandler

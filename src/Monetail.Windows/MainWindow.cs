@@ -165,6 +165,7 @@ public sealed partial class MainWindow : Form
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (ObjectDisposedException) when (lifetime.IsCancellationRequested) { }
         catch (AuthenticationRejectedException) { ShowLogin("ログインを継続できません。もう一度ログインしてください。"); }
+        catch (AuthenticationContextChangedException error) { ShowLogin(error.Message); }
         catch (LedgerRequestException error) { ShowLedgerFailure(error, retry); }
         catch (Exception error) when (error is ApiConnectionException or HttpRequestException or OperationCanceledException
             or IOException or UnauthorizedAccessException or CryptographicException or System.Net.Sockets.SocketException)
