@@ -9,12 +9,12 @@ using Monetail.Windows.Client.Transport;
 namespace Monetail.Windows;
 
 /// <summary>接続・ログインの画面だけを受け持ち、認証情報の処理はClientへ委譲する。</summary>
-public sealed class MainWindow : Form
+public sealed partial class MainWindow : Form
 {
     private readonly ClientSettingsStore settings;
     private readonly ITokenStore tokens;
     private readonly CancellationTokenSource lifetime = new();
-    private readonly HttpClient http = MonetailApiClient.CreateHttpClient();
+    private readonly HttpClient http;
     private readonly FlowLayoutPanel content = new()
     {
         Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
@@ -26,11 +26,13 @@ public sealed class MainWindow : Form
     private ClientSession? session;
     private CancellationTokenSource? browserCancellation;
     private bool busy;
+    private readonly List<Button> temporarilyDisabled = [];
 
     public MainWindow() : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Monetail")) { }
 
-    internal MainWindow(string directory)
+    internal MainWindow(string directory, HttpClient? httpClient = null)
     {
+        http = httpClient ?? MonetailApiClient.CreateHttpClient();
         settings = new ClientSettingsStore(directory);
         tokens = new FileTokenStore(directory, new DpapiDataProtector());
         Text = "Monetail";
@@ -64,6 +66,7 @@ public sealed class MainWindow : Form
     {
         api = new MonetailApiClient(value, http);
         session = new ClientSession(api, value, tokens);
+        SetLedgerClient();
     }
 
     private async Task RestoreAsync()
@@ -74,7 +77,7 @@ public sealed class MainWindow : Form
         await api!.CheckConnectionAsync(timeout.Token);
         var account = await session!.RestoreAsync(timeout.Token);
         if (account is null) ShowLogin();
-        else ShowWorkspace(account);
+        else await ShowWorkspaceAsync(account, timeout.Token);
     }
 
     private void ShowConnection(string? message = null)
@@ -107,12 +110,13 @@ public sealed class MainWindow : Form
             SetClient(candidate);
             var account = await session!.RestoreAsync(timeout.Token);
             if (account is null) ShowLogin();
-            else ShowWorkspace(account);
+            else await ShowWorkspaceAsync(account, timeout.Token);
         }, () => ConnectAsync(input));
     }
 
     private void ShowLogin(string? message = null)
     {
+        ClearLedgerState();
         Reset("Monetail", message);
         Button("ログイン", LoginAsync);
     }
@@ -143,23 +147,13 @@ public sealed class MainWindow : Form
             Reset("Monetail", "接続中…");
             var account = await session!.AcceptLoginAsync(result, cancellation.Token);
             if (account is null) ShowLogin("ログインを続けられませんでした。もう一度ログインしてください。");
-            else ShowWorkspace(account);
+            else await ShowWorkspaceAsync(account, cancellation.Token);
             TryBringToFront();
         }
         catch (OperationCanceledException) when (!lifetime.IsCancellationRequested && cancellation.IsCancellationRequested) { ShowLogin(); }
         catch (AuthenticationRejectedException) { ShowLogin("ログインできませんでした。もう一度ログインしてください。"); }
         finally { browserCancellation = null; }
     }, () => InitializeAsync());
-
-    private void ShowWorkspace(AuthenticatedAccount account)
-    {
-        Reset("Monetail", $"{account.DisplayName} さん\n家計簿の一覧・作成画面は今後追加します。");
-        Button("ログアウト", () => RunAsync(async () =>
-        {
-            await session!.LogoutAsync(lifetime.Token);
-            ShowLogin();
-        }, () => InitializeAsync()));
-    }
 
     private async Task RunAsync(Func<Task> action, Func<Task> retry)
     {
@@ -170,6 +164,8 @@ public sealed class MainWindow : Form
         try { await action(); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (ObjectDisposedException) when (lifetime.IsCancellationRequested) { }
+        catch (AuthenticationRejectedException) { ShowLogin("ログインを継続できません。もう一度ログインしてください。"); }
+        catch (LedgerRequestException error) { ShowLedgerFailure(error, retry); }
         catch (Exception error) when (error is ApiConnectionException or HttpRequestException or OperationCanceledException
             or IOException or UnauthorizedAccessException or CryptographicException or System.Net.Sockets.SocketException)
         {
@@ -217,7 +213,19 @@ public sealed class MainWindow : Form
 
     private void SetButtonsEnabled(bool enabled)
     {
-        foreach (var button in content.Controls.OfType<Button>()) button.Enabled = enabled;
+        if (!enabled)
+        {
+            foreach (var button in content.Controls.OfType<Button>().Where(button => button.Enabled))
+            {
+                temporarilyDisabled.Add(button);
+                button.Enabled = false;
+            }
+        }
+        else
+        {
+            foreach (var button in temporarilyDisabled.Where(button => !button.IsDisposed)) button.Enabled = true;
+            temporarilyDisabled.Clear();
+        }
     }
 
     private void TryBringToFront()

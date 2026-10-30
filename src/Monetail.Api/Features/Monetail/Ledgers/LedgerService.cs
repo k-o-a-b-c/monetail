@@ -7,6 +7,10 @@ namespace Monetail.Api.Features.Monetail.Ledgers;
 /// <summary>家計簿名と現在の自分の役割・更新版を返す。</summary>
 public sealed record LedgerResponse(string LedgerId, string Name, string Role, string Revision);
 
+/// <summary>家計簿を開く操作の結果と、公開できるデータを保持する。</summary>
+public enum LedgerOpenStatus { Opened, NotFound, AuthenticationChanged }
+public sealed record LedgerOpenResult(LedgerOpenStatus Status, LedgerResponse? Response = null);
+
 /// <summary>家計簿作成の成功・再送・競合・認証失効を区別する。</summary>
 public enum LedgerCreationStatus { Created, Replayed, Conflict, NotFound, AuthenticationChanged }
 
@@ -16,6 +20,34 @@ public sealed record LedgerCreationResult(LedgerCreationStatus Status, LedgerRes
 /// <summary>家計簿を原子的に作成し、現在の参加範囲だけを参照する。</summary>
 public sealed class LedgerService(ApiDbContext context, TimeProvider time, ILogger<LedgerService> logger)
 {
+    /// <summary>履歴は権限として使わず、現在も参加している場合だけ返す。参照では履歴を書き換えない。</summary>
+    public Task<LedgerResponse?> LastOpenedAsync(CurrentSession current, CancellationToken token) =>
+        (from navigation in context.Set<LedgerNavigation>().AsNoTracking()
+         join ledger in context.Set<Ledger>().AsNoTracking() on navigation.LastOpenedLedgerId equals ledger.Id
+         join member in context.Set<LedgerMember>().AsNoTracking() on ledger.Id equals member.LedgerId
+         where navigation.AuthUserId == current.Session.AuthUserId && member.AuthUserId == current.Session.AuthUserId
+         select new LedgerResponse(ledger.Id, ledger.Name, member.Role, ledger.Revision)).SingleOrDefaultAsync(token);
+
+    /// <summary>書込ロック内で本人と参加を確認し、最後に開いた家計簿だけを更新する。</summary>
+    public async Task<LedgerOpenResult> OpenAsync(string ledgerId, CurrentSession current, CancellationToken token)
+    {
+        await using var transaction = await context.Database.BeginTransactionAsync(token);
+        if (!await IsCurrentAsync(current, token)) return new(LedgerOpenStatus.AuthenticationChanged);
+        var ledger = await VisibleLedgers(current, ledgerId).SingleOrDefaultAsync(token);
+        if (ledger is null) return new(LedgerOpenStatus.NotFound);
+        var navigation = await context.Set<LedgerNavigation>().SingleOrDefaultAsync(
+            row => row.AuthUserId == current.Session.AuthUserId, token);
+        if (navigation is null)
+            context.Add(new LedgerNavigation { AuthUserId = current.Session.AuthUserId, LastOpenedLedgerId = ledgerId });
+        else navigation.LastOpenedLedgerId = ledgerId;
+        await context.SaveChangesAsync(token);
+        if (!await IsCurrentAsync(current, token)) return new(LedgerOpenStatus.AuthenticationChanged);
+        ledger = await VisibleLedgers(current, ledgerId).SingleOrDefaultAsync(token);
+        if (ledger is null) return new(LedgerOpenStatus.NotFound);
+        await transaction.CommitAsync(token);
+        return new(LedgerOpenStatus.Opened, ledger);
+    }
+
     /// <summary>家計簿・作成者の管理者参加・作成要求を同じトランザクションで保存する。</summary>
     public async Task<LedgerCreationResult> CreateAsync(string name, Guid requestId, CurrentSession current, CancellationToken token)
     {

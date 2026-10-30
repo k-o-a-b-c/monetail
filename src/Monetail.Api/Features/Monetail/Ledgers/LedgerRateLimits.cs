@@ -10,6 +10,8 @@ public static class LedgerRateLimits
     public const string CreationPolicy = "ledger-creation";
     /// <summary>一覧と個別参照で共有する回数制限を識別する。</summary>
     public const string ReadPolicy = "ledger-read";
+    /// <summary>家計簿を開いた記録の更新を識別する。</summary>
+    public const string NavigationPolicy = "ledger-navigation";
 
     /// <summary>作成20回・参照60回の独立した1分枠を登録する。</summary>
     public static void AddLedgerRateLimits(this IServiceCollection services)
@@ -19,6 +21,7 @@ public static class LedgerRateLimits
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy(CreationPolicy, http => ForAccount(http, 20));
             options.AddPolicy(ReadPolicy, http => ForAccount(http, 60));
+            options.AddPolicy(NavigationPolicy, http => ForAccount(http, 60));
         });
     }
 

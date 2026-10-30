@@ -549,11 +549,42 @@ namespace Monetail.Api.Persistence.Migrations
                 table: "OpenIddictTokens",
                 column: "ReferenceId",
                 unique: true);
+            migrationBuilder.CreateTable(
+                name: "ledger_navigation",
+                columns: table => new
+                {
+                    auth_user_id = table.Column<string>(type: "TEXT", nullable: false),
+                    last_opened_ledger_id = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ledger_navigation", x => x.auth_user_id);
+                    table.ForeignKey(
+                        name: "FK_ledger_navigation_AspNetUsers_auth_user_id",
+                        column: x => x.auth_user_id,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ledger_navigation_ledgers_last_opened_ledger_id",
+                        column: x => x.last_opened_ledger_id,
+                        principalTable: "ledgers",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ledger_navigation_last_opened_ledger_id",
+                table: "ledger_navigation",
+                column: "last_opened_ledger_id");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "ledger_navigation");
+
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 

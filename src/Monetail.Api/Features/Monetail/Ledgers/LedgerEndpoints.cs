@@ -11,6 +11,24 @@ public static class LedgerEndpoints
     public static void MapLedgers(this WebApplication app)
     {
         var routes = app.MapGroup("/ledgers").RequireAuthorization().AddEndpointFilter<AuthRequestFilter>();
+        routes.MapGet("/last-opened", async Task<IResult> (HttpContext http, LedgerService service) =>
+        {
+            var current = Current(http);
+            if (!await service.IsCurrentAsync(current, http.RequestAborted)) return Results.Unauthorized();
+            var ledger = await service.LastOpenedAsync(current, http.RequestAborted);
+            return await service.IsCurrentAsync(current, http.RequestAborted)
+                ? Results.Ok(new { ledger }) : Results.Unauthorized();
+        }).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
+        routes.MapPost("/{id:guid}/open", async Task<IResult> (Guid id, HttpContext http, LedgerService service) =>
+        {
+            var opened = await service.OpenAsync(id.ToString("N"), Current(http), http.RequestAborted);
+            return opened.Status switch
+            {
+                LedgerOpenStatus.Opened => Results.Ok(opened.Response),
+                LedgerOpenStatus.NotFound => Results.NotFound(),
+                _ => Results.Unauthorized()
+            };
+        }).RequireRateLimiting(LedgerRateLimits.NavigationPolicy);
         routes.MapPost("", async Task<IResult> (CreateLedgerRequest request, HttpContext http, LedgerService service) =>
         {
             var name = request.Name?.Trim();
@@ -50,4 +68,5 @@ public static class LedgerEndpoints
     /// <summary>家計簿名と再送識別子だけを受け付ける。</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public sealed record CreateLedgerRequest(string? Name, Guid RequestId);
+
 }

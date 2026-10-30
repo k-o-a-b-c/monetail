@@ -19,6 +19,25 @@ public class DesktopOAuthTests
     private const string Callback = "http://127.0.0.1:49152/callback/";
 
     [Fact]
+    public async Task BearerOpenReturnsLedgerAndRemembersItWithoutCookieOriginOrCsrf()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var browser = app.Client();
+        await app.LoginAsync(browser);
+        using var native = Native(app);
+        await IssueAsync(app, browser, native);
+        using var created = await native.PostAsJsonAsync("/ledgers", new { name = "Windowsの家計簿", requestId = Guid.NewGuid() });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var ledger = (await created.Content.ReadFromJsonAsync<Monetail.Api.Features.Monetail.Ledgers.LedgerResponse>())!;
+        using var opened = await native.PostAsync($"/ledgers/{ledger.LedgerId}/open", null);
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+        Assert.Equal(ledger, await opened.Content.ReadFromJsonAsync<Monetail.Api.Features.Monetail.Ledgers.LedgerResponse>());
+        Assert.Equal(ledger.LedgerId, app.Database.Scalar("SELECT last_opened_ledger_id FROM ledger_navigation"));
+        var previous = await browser.GetFromJsonAsync<JsonElement>("/ledgers/last-opened");
+        Assert.Equal(ledger.LedgerId, previous.GetProperty("ledger").GetProperty("ledgerId").GetString());
+    }
+
+    [Fact]
     public async Task DiscoveryRequiresS256AndPublishesOnlyStandardCodeFlow()
     {
         await using var app = await LoginTestApp.CreateAsync();

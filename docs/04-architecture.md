@@ -1,6 +1,6 @@
 # 04 アーキテクチャ・開発環境
 
-更新日: 2026-10-29 / 現行Windows版・APIの構成と、新版Windows版の実装範囲を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
+更新日: 2026-10-30 / 現行Windows版・APIの構成と、新版Windows版の実装範囲を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
 
 ## 構成
 
@@ -25,7 +25,7 @@ Windows デスクトップアプリ
 
 ### 新版Windows版の構成
 
-新版は**.NET 10 LTS・C#・WinForms**の独立プロジェクト`src/Monetail.Windows/Monetail.Windows.csproj`とし、ターゲットは`net10.0-windows`。画面はこのプロジェクト、API通信・認証・保存は配下の`Client/Monetail.Windows.Client.csproj`（`net10.0`）へ分ける。現在のVB.NET／.NET Framework 4.8のプロジェクトは残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。接続と認証の土台を実装した段階で、家計簿・業務画面とインストーラーは後続とする。
+新版は**.NET 10 LTS・C#・WinForms**の独立プロジェクト`src/Monetail.Windows/Monetail.Windows.csproj`とし、ターゲットは`net10.0-windows`。画面はこのプロジェクト、API通信・認証・保存は配下の`Client/Monetail.Windows.Client.csproj`（`net10.0`）へ分ける。現在のVB.NET／.NET Framework 4.8のプロジェクトは残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。接続・認証と家計簿の選択・作成・切替までを実装し、レシート等の業務画面とインストーラーは後続とする。
 
 画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、フォームへSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
 
@@ -54,8 +54,8 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
-| `src/Monetail.Windows/` | 新版WinFormsの起動・接続設定・ログイン待ち・アプリの枠 |
-| `src/Monetail.Windows/Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存 |
+| `src/Monetail.Windows/` | 新版WinFormsの起動・接続設定・ログイン待ち・家計簿画面 |
+| `src/Monetail.Windows/Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定 |
 | `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
 | `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル |
 | `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |

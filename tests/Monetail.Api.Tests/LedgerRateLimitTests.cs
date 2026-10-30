@@ -95,6 +95,30 @@ public class LedgerRateLimitTests
         Assert.Equal(HttpStatusCode.OK, read.StatusCode);
     }
 
+    [Fact]
+    public async Task OpenHasAnAccountSharedLimitIndependentOfReadAndCreate()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var first = await LoginAsync(app);
+        using var second = await LoginAsync(app);
+        using var creation = await CreateAsync(first, "家計簿");
+        var ledger = (await creation.Content.ReadFromJsonAsync<LedgerResponse>())!;
+        for (var index = 0; index < 60; index++)
+        {
+            using var opened = await (index % 2 == 0 ? first : second).PostAsync($"/ledgers/{ledger.LedgerId}/open", null);
+            Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+        }
+        using var blocked = await first.PostAsync($"/ledgers/{ledger.LedgerId}/open", null);
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+        using var read = await second.GetAsync("/ledgers/last-opened");
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        using var create = await CreateAsync(second, "別枠の作成");
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        using var other = await LoginAsync(app, account: await app.AddAccountAsync());
+        using var notJoined = await other.PostAsync($"/ledgers/{ledger.LedgerId}/open", null);
+        Assert.Equal(HttpStatusCode.NotFound, notJoined.StatusCode);
+    }
+
     /// <summary>指定したアカウント・IP・セッションでログインしてCSRFを取得する。</summary>
     private static async Task<HttpClient> LoginAsync(LoginTestApp app, WebApplicationFactory<Program>? factory = null,
         (string UserId, byte[] CredentialId)? account = null, string? ip = null)

@@ -9,6 +9,31 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
     private readonly TimeProvider time = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim gate = new(1, 1);
 
+    /// <summary>業務APIも期限を更新しながら呼び出す。拒否された時だけ認証を破棄する。</summary>
+    public async Task<T> ExecuteAuthenticatedAsync<T>(Func<string, CancellationToken, Task<T>> operation,
+        CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var current = tokens.Load(endpoint) ?? throw new AuthenticationRejectedException();
+            var refreshed = false;
+            if (current.AccessTokenExpiresAtUtc <= time.GetUtcNow().AddSeconds(30))
+            {
+                current = await RefreshAsync(current, cancellationToken);
+                refreshed = true;
+            }
+            try { return await operation(current.AccessToken, cancellationToken); }
+            catch (AuthenticationRejectedException) when (!refreshed)
+            {
+                current = await RefreshAsync(current, cancellationToken);
+                return await operation(current.AccessToken, cancellationToken);
+            }
+        }
+        catch (AuthenticationRejectedException) { tokens.Clear(); throw; }
+        finally { gate.Release(); }
+    }
+
     public async Task<AuthenticatedAccount?> RestoreAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
