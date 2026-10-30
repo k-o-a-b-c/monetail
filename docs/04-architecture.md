@@ -29,6 +29,8 @@ Windows デスクトップアプリ
 
 画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、フォームへSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
 
+通信回数をなるべく減らす。1つの操作で必要な処理と応答データをAPI側でまとめ、IDを取得してから同じ対象を再要求する往復を避ける。現在の認証・権限確認はAPI内部で維持し、振る舞いを変える統合は利用者の確認後に行う。
+
 API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settings.json`に保存する。通常設定と認証情報は分け、JSONにトークンを含めない。認証情報は[43のDPAPI保存方針](43-passkey-authentication-design.md#windows版の認証情報保存)、初回入力と変更は[58の接続先設定](58-ledger-foundation-design.md#windows版の接続先設定)に従う。
 
 新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定、インストーラーの作成方式、対応Windowsバージョンは実装前に具体化する。
