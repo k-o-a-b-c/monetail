@@ -11,11 +11,11 @@
 | 新版Windowsクライアント（接続・認証・保存・家計簿） | 116 |
 | Windowsの実DPAPI・新版画面 | 10 |
 | CIの実行対象選択 | 18 |
-| 合計（新規Windows画面7件はCI確認待ち） | 661 |
+| 合計 | 661 |
 
 変更前の採用結果は[CI 40853317101](https://github.com/k-o-a-b-c/monetail/actions/runs/40853317101)（ソース`821683bd1ef3de610a9428d68c8ba717d349a8a0`）。旧Windows・計算・Python移行・性能のソースは今回変更せず、この成功結果を再利用する。
 
-家計簿の開く操作と最終選択の更新を一本化し、ローカルでAPI372件と追加の失敗時保持・同時実行2件、クライアント116件、CI選択18件が成功した。新版Windowsと画面テストはReleaseビルドを確認し、新規画面7件の実行はWindows CIで確認する。
+今回の採用結果は[CI 41017009467](https://github.com/k-o-a-b-c/monetail/actions/runs/41017009467)（製品ソース`38c7fbcd405efe2be3e0c8cd44e61d2a97a867c3`）。API374件、クライアント116件、Windowsの実DPAPI3件＋画面7件、CI選択18件の計518件が成功し、実行テストの失敗・スキップは0。新版WindowsのReleaseビルド（警告・エラー0）とAPIのDockerビルド・非root起動・タイムゾーン・DB未作成も確認した。変更対象外の143件は上記の変更前CIを採用し、今回省略したジョブを新たな検証成功として数えない。以降の検証記録更新はMarkdownのみで、同一製品ソースの成功結果を再利用する。
 
 APIは合成アカウント・実HTTP・隔離SQLiteで、現在の参加、他アカウントへの非公開、失効・参加喪失時の巻き戻し、保存失敗時の前回選択保持、同時に開く操作、Bearer・Cookieの境界と回数制限を検証する。クライアントは合成HTTPで起動先・作成の再送・認証更新を確認する。Windowsでは実DPAPIに加え、所属0／1／複数の表示、同名家計簿のID選択、作成の通信再試行、別ウィンドウによるアカウント／接続先の変更時に操作を止めて新しい認証を保持することを検証する。
 
@@ -49,7 +49,7 @@ Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbpro
 | 文書だけ | CI選択処理。API・Docker・Windows等は省略 |
 | APIソース | APIテスト・Dockerビルドと起動 |
 | APIテストだけ／Docker確認スクリプトだけ | 各対象だけ |
-| 新版WindowsのClient／WinForms画面 | クライアントテスト＋新版Windowsビルド・実DPAPI／新版Windowsビルド・実DPAPIだけ |
+| 新版WindowsのClient／WinForms画面 | クライアントテスト＋新版Windowsビルド・DPAPI／画面テスト。WinForms画面だけなら新版Windowsビルド・DPAPI／画面テストだけ |
 | 新版Windowsの各テストだけ | 対応するテスト。API・旧Windowsは起動しない |
 | Dockerfile等／Compose | Docker確認／Compose設定 |
 | Windows・計算・SQL等 | 依存するテスト、製品ビルド、必要なら性能計測 |
