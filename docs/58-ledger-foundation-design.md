@@ -104,7 +104,7 @@ POST /ledgersの本文はnameと空でないUUIDのrequestIdだけを受け付�
 | --- | --- |
 | POST /ledgers | 20回 |
 | GET /ledgers、GET /ledgers/{id}、GET /ledgers/last-opened | 参照を合わせて60回 |
-| POST /ledgers/{id}/open | 作成・参照とは独立して60回 |
+| POST /ledgers/{id}/open | **未確認の暫定実装：** 作成・参照とは独立して60回。別枠にすることと上限は利用者の了承を得ておらず、確定仕様ではない |
 
 認証後の検証済みアカウントIDで数え、端末・セッション・IPが違っても合算する。別アカウントと作成／参照の枠は独立。制限判定を通る要求は入力不備等も数え、超過は待機させず429とする。Cookie検証で未認証・失効と判断した要求はアカウント枠を使わず401等の認証結果を返す。ログイン等の認証APIは[43](43-passkey-authentication-design.md)のIP単位の制限を維持する。DBにカウンターや列を追加しない。
 
