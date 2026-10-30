@@ -433,6 +433,24 @@ namespace Monetail.Api.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerNavigation", b =>
+                {
+                    b.Property<string>("AuthUserId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("auth_user_id");
+
+                    b.Property<string>("LastOpenedLedgerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("last_opened_ledger_id");
+
+                    b.HasKey("AuthUserId");
+
+                    b.HasIndex("LastOpenedLedgerId");
+
+                    b.ToTable("ledger_navigation", (string)null);
+                });
+
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>
                 {
                     b.Property<string>("Id")
@@ -826,6 +844,21 @@ namespace Monetail.Api.Persistence.Migrations
                     b.HasOne("Monetail.Api.Features.Monetail.Ledgers.Ledger", null)
                         .WithMany()
                         .HasForeignKey("LedgerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerNavigation", b =>
+                {
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Monetail.Api.Features.Monetail.Ledgers.Ledger", null)
+                        .WithMany()
+                        .HasForeignKey("LastOpenedLedgerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

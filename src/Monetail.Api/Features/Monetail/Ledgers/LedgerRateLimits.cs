@@ -8,17 +8,17 @@ public static class LedgerRateLimits
 {
     /// <summary>家計簿作成の回数制限を識別する。</summary>
     public const string CreationPolicy = "ledger-creation";
-    /// <summary>一覧と個別参照で共有する回数制限を識別する。</summary>
+    /// <summary>参照と開く操作で共有する回数制限を識別する。</summary>
     public const string ReadPolicy = "ledger-read";
 
-    /// <summary>作成20回・参照60回の独立した1分枠を登録する。</summary>
+    /// <summary>作成20回・参照と開く操作120回の独立した1分枠を登録する。</summary>
     public static void AddLedgerRateLimits(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy(CreationPolicy, http => ForAccount(http, 20));
-            options.AddPolicy(ReadPolicy, http => ForAccount(http, 60));
+            options.AddPolicy(ReadPolicy, http => ForAccount(http, 120));
         });
     }
 

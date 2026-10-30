@@ -102,6 +102,7 @@
 | DEC-051 | **利用者確認済み・サーバー実装（2026-10-28）** | Windows版を先にAPIへ接続し、外部ブラウザーとOAuthの認可コード＋PKCEで認証する | WebのCookie認証は維持する。ブラウザーがログイン済みなら再認証を省略し、Windows用セッションも元の固定期限を引き継いで延長しない。APIの契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、Windows接続の境界は[58](58-ledger-foundation-design.md)を正本とする。Windowsクライアントは後続。 |
 | DEC-052 | **利用者確認済み・未実装（2026-10-28）** | 新版Windows版は.NET 10 LTS・C#・WinFormsを採用する | 旧版を残して別プロジェクトへ機能単位で移す。技術構成は[04](04-architecture.md#新版windows版の構成)、段階移行と起動時の遷移は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。 |
 | DEC-053 | **利用者確認済み・未実装（2026-10-28）** | 新版の命名・業務DBの列構成・キーの採番は一から設計し、基本的に旧版と同じ機能を実現する | 旧名・旧列・旧採番の機械的な引継ぎを前提にしない。ソースの命名は[04](04-architecture.md#新版windows版の構成)、業務モデル・DBの検討範囲は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を正本とする。具体的な表・列・採番方式は後続で確定する。 |
+| DEC-054 | **利用者確認済み・実装（2026-10-30）** | 家計簿APIは自然な操作単位で往復をまとめ、参照と開く操作の回数枠を共有する | 最後を開く・作成して開く操作、共有枠の契約は[58](58-ledger-foundation-design.md#作成参照apiと後続案)。接続確認の重複削減は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)。本人情報の一括返却や一覧キャッシュは追加しない。 |
 
 税率の初期選択は利用箇所である`RegisterForm.SetGroupTaxRate`内で行い、従来の日付・軽減対象のルールを保って税率値でマスタを選ぶ。独立クラスへの切り出しは行わない。期間による税率マスタ選択は未実装。[38 仕様](38-tax-default-selection.md)。
 

@@ -221,6 +221,7 @@ public class LedgerApiTests
     [InlineData("ledgers")]
     [InlineData("ledger_members")]
     [InlineData("ledger_creation_requests")]
+    [InlineData("ledger_navigation")]
     public async Task EveryWriteFailureRollsBackAllRowsAndAllowsRetry(string table)
     {
         await using var app = await LoginTestApp.CreateAsync();

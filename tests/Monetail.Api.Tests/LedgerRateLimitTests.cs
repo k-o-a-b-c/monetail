@@ -36,7 +36,7 @@ public class LedgerRateLimitTests
     }
 
     [Fact]
-    public async Task ReadsShareSixtyAcrossRoutesSessionsAndIpsAndRejectRevokedSessionsAsUnauthorized()
+    public async Task ReadsAndOpensShare120AcrossRoutesSessionsAndIpsAndRejectRevokedSessions()
     {
         await using var app = await LoginTestApp.CreateAsync();
         await using var factory = app.NewFactory().WithWebHostBuilder(builder =>
@@ -48,17 +48,25 @@ public class LedgerRateLimitTests
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var ledger = (await created.Content.ReadFromJsonAsync<LedgerResponse>())!;
         var before = app.Database.Snapshot(app.Database.Tables());
-        for (var index = 0; index < 60; index++)
+        for (var index = 0; index < 120; index++)
         {
             var client = index % 2 == 0 ? first : second;
-            var path = index % 3 == 0 ? "/ledgers" : $"/ledgers/{ledger.LedgerId}";
-            using var read = await client.GetAsync(path);
+            var path = (index % 4) switch
+            {
+                0 => "/ledgers", 1 => $"/ledgers/{ledger.LedgerId}",
+                2 => $"/ledgers/{ledger.LedgerId}/open", _ => "/ledgers/open-last"
+            };
+            using var read = index % 4 < 2 ? await client.GetAsync(path) : await client.PostAsync(path, null);
             Assert.Equal(HttpStatusCode.OK, read.StatusCode);
         }
         using var blockedList = await first.GetAsync("/ledgers");
         using var blockedDetail = await second.GetAsync($"/ledgers/{ledger.LedgerId}");
         Assert.Equal(HttpStatusCode.TooManyRequests, blockedList.StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, blockedDetail.StatusCode);
+        using var blockedOpen = await first.PostAsync($"/ledgers/{ledger.LedgerId}/open", null);
+        using var blockedLast = await second.PostAsync("/ledgers/open-last", null);
+        Assert.Equal(HttpStatusCode.TooManyRequests, blockedOpen.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, blockedLast.StatusCode);
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
         using var creation = await CreateAsync(second, "参照枠とは別の作成");
         Assert.Equal(HttpStatusCode.Created, creation.StatusCode);
@@ -93,6 +101,25 @@ public class LedgerRateLimitTests
         Assert.Equal(HttpStatusCode.Created, creation.StatusCode);
         using var read = await second.GetAsync("/ledgers");
         Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+    }
+
+    [Fact]
+    public async Task RejectedOpensConsumeTheShared120WithoutBlockingCreationOrAnotherAccount()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var first = await LoginAsync(app);
+        for (var index = 0; index < 120; index++)
+        {
+            using var missing = await first.PostAsync($"/ledgers/{Guid.NewGuid():N}/open", null);
+            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        }
+        using var blocked = await first.GetAsync("/ledgers");
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+        using var create = await CreateAsync(first, "別枠の作成");
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        using var other = await LoginAsync(app, account: await app.AddAccountAsync());
+        using var allowed = await other.PostAsync("/ledgers/open-last", null);
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
     }
 
     /// <summary>指定したアカウント・IP・セッションでログインしてCSRFを取得する。</summary>

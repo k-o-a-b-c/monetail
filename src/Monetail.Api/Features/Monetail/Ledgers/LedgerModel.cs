@@ -9,6 +9,15 @@ public static class LedgerModel
     /// <summary>家計簿のモデルをAPI全体の保存構成へ追加する。</summary>
     public static void Configure(ModelBuilder builder)
     {
+        builder.Entity<LedgerNavigation>(navigation =>
+        {
+            navigation.ToTable("ledger_navigation");
+            navigation.HasKey(row => row.AuthUserId);
+            navigation.Property(row => row.AuthUserId).HasColumnName("auth_user_id").ValueGeneratedNever();
+            navigation.Property(row => row.LastOpenedLedgerId).HasColumnName("last_opened_ledger_id").IsRequired();
+            navigation.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId).OnDelete(DeleteBehavior.Restrict);
+            navigation.HasOne<Ledger>().WithMany().HasForeignKey(row => row.LastOpenedLedgerId).OnDelete(DeleteBehavior.Restrict);
+        });
         builder.Entity<Ledger>(ledger =>
         {
             ledger.ToTable("ledgers");

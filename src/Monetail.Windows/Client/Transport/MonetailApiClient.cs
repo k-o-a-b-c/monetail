@@ -6,7 +6,7 @@ using Monetail.Windows.Client.Authentication;
 namespace Monetail.Windows.Client.Transport;
 
 /// <summary>Cookieを共有せず、固定HTTPS接続先へWindows用の認証要求を送る。</summary>
-public sealed class MonetailApiClient(ApiEndpoint endpoint, HttpClient http, TimeProvider? timeProvider = null)
+public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient http, TimeProvider? timeProvider = null)
 {
     public const string ClientId = "monetail-windows";
     public static readonly TimeSpan ConnectionTimeout = TimeSpan.FromSeconds(10);
@@ -29,7 +29,6 @@ public sealed class MonetailApiClient(ApiEndpoint endpoint, HttpClient http, Tim
 
     private async Task CheckConnectionCoreAsync(CancellationToken cancellationToken)
     {
-        await SendAsync(HttpMethod.Get, "health", null, null, false, cancellationToken);
         var response = await SendAsync(HttpMethod.Get, ".well-known/openid-configuration", null, null, false, cancellationToken);
         using var document = Parse(response);
         var metadata = document.RootElement;
@@ -85,7 +84,7 @@ public sealed class MonetailApiClient(ApiEndpoint endpoint, HttpClient http, Tim
     }
 
     private async Task<byte[]> SendAsync(HttpMethod method, string path, string? bearer,
-        Dictionary<string, string>? form, bool tokenExchange, CancellationToken cancellationToken)
+        Dictionary<string, string>? form, bool tokenExchange, CancellationToken cancellationToken, HttpContent? body = null)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ConnectionTimeout);
@@ -94,11 +93,15 @@ public sealed class MonetailApiClient(ApiEndpoint endpoint, HttpClient http, Tim
             using var request = new HttpRequestMessage(method, endpoint.Resolve(path));
             if (bearer is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
             if (form is not null) request.Content = new FormUrlEncodedContent(form);
+            else if (body is not null) request.Content = body;
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             if (response.StatusCode == HttpStatusCode.Unauthorized && bearer is not null) throw new AuthenticationRejectedException();
             // 方向転換先へ認証情報を持ち出さない。生成用HttpClientでは自動転送も無効にする。
             if ((int)response.StatusCode is >= 300 and < 400) throw new ApiConnectionException();
             var bytes = await ReadBoundedAsync(response.Content, timeout.Token);
+            if (path.StartsWith("ledgers", StringComparison.Ordinal) && response.StatusCode is
+                HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests)
+                throw new LedgerRequestException(response.StatusCode);
             if (tokenExchange && response.StatusCode == HttpStatusCode.BadRequest)
             {
                 using var error = Parse(bytes);
