@@ -1,6 +1,6 @@
 # 04 アーキテクチャ・開発環境
 
-更新日: 2026-10-28 / 現行Windows版・APIの構成と、新版Windows版の設計を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
+更新日: 2026-10-29 / 現行Windows版・APIの構成と、新版Windows版の実装範囲を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
 
 ## 構成
 
@@ -23,13 +23,13 @@ Windows デスクトップアプリ
 
 同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。Windows版のプロジェクト・モデルは参照しない。API専用SQLiteの初期化と初期管理者・登録コード発行を専用コマンドで行い、通常起動ではDBを自動作成・移行しない。既存Windows版DBの一度きりのSQL引継ぎと、Windows版を先にAPIへ接続する方針は[58](58-ledger-foundation-design.md)を参照する。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。認証の現行契約は[43](43-passkey-authentication-design.md)、起動・DB準備は[42](42-api-foundation.md)を正本とする。
 
-### 新版Windows版の構成（未実装）
+### 新版Windows版の構成
 
-新版は**.NET 10 LTS・C#・WinForms**とし、同じリポジトリの`src/Monetail.Windows/`にSDK形式の独立プロジェクトを設ける。ターゲットは`net10.0-windows`。現在のVB.NET／.NET Framework 4.8のプロジェクトは残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。配置先は設計であり、プロジェクトはまだ作成していない。
+新版は**.NET 10 LTS・C#・WinForms**の独立プロジェクト`src/Monetail.Windows/Monetail.Windows.csproj`とし、ターゲットは`net10.0-windows`。画面はこのプロジェクト、API通信・認証・保存は配下の`Client/Monetail.Windows.Client.csproj`（`net10.0`）へ分ける。現在のVB.NET／.NET Framework 4.8のプロジェクトは残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。接続と認証の土台を実装した段階で、家計簿・業務画面とインストーラーは後続とする。
 
-画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、フォームへSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する未実装)を正本とする。
+画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、フォームへSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
 
-API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settings.json`に保存する。通常設定と認証情報は分け、JSONにトークンを含めない。認証情報は[43のDPAPI保存方針](43-passkey-authentication-design.md#windows版の認証情報保存未実装)、初回入力と変更は[58の接続先設定](58-ledger-foundation-design.md#windows版の接続先設定未実装)に従う。
+API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settings.json`に保存する。通常設定と認証情報は分け、JSONにトークンを含めない。認証情報は[43のDPAPI保存方針](43-passkey-authentication-design.md#windows版の認証情報保存)、初回入力と変更は[58の接続先設定](58-ledger-foundation-design.md#windows版の接続先設定)に従う。
 
 新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定、インストーラーの作成方式、対応Windowsバージョンは実装前に具体化する。
 
@@ -54,6 +54,9 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
+| `src/Monetail.Windows/` | 新版WinFormsの起動・接続設定・ログイン待ち・アプリの枠 |
+| `src/Monetail.Windows/Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存 |
+| `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
 | `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル |
 | `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |

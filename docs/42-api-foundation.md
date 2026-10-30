@@ -89,7 +89,7 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 
 証明書はRSA 2048ビット以上、署名と暗号化で別々の鍵とする。HTTPS用証明書とは別に用意し、OpenIddict公式の[証明書生成例](https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html#registering-a-certificate-recommended-for-production)を参考にできる。自己署名でもよく、認証サーバー用の鍵として外部の永続化領域へ保存する。非rootアプリだけが読めるファイル権限にし、秘密鍵・パスワードをGitや通常ログへ残さない。証明書が不備なら起動時に拒否する。
 
-DB・Data Protectionキーと併せて、この2つのPFXもバックアップ・再起動後の復元対象とする。単一の署名／暗号化鍵を別の鍵へ置き換える場合、以前のWindows用トークンを検証できなくなるため再取得が必要。HTTPの期限・失効・コールバック等の契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)を参照する。Windows側の画面・復帰・安全な保存はまだ未実装で、今回の有効化だけで既存Windows版がAPI接続へ変わるわけではない。
+DB・Data Protectionキーと併せて、この2つのPFXもバックアップ・再起動後の復元対象とする。単一の署名／暗号化鍵を別の鍵へ置き換える場合、以前のWindows用トークンを検証できなくなるため再取得が必要。HTTPの期限・失効・コールバック等の契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)を参照する。新版Windowsの接続・認証基盤は[04](04-architecture.md#新版windows版の構成)の独立プロジェクトで扱い、既存Windows版のSQLite接続は維持する。
 
 ## DB移行・登録・復旧コマンド
 

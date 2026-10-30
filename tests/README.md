@@ -8,18 +8,27 @@
 | SQLite移行（税端数・更新版） | 10 |
 | Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 354 |
-| CIの実行対象選択 | 15 |
-| 合計 | 512 |
+| 新版Windowsクライアント（接続・認証・保存） | 98 |
+| Windowsの実DPAPI | 3 |
+| CIの実行対象選択 | 18 |
+| 合計 | 616 |
 
-変更前のAPI全346件・Dockerの採用結果は[CI 40764853423](https://github.com/k-o-a-b-c/monetail/actions/runs/40764853423)（ソース`fd836eedfdb1fde178650b90038a391c83bf02dc`）。認証APIのDB準備確認と管理コマンドの設定エラーを修正し、Cookie／Bearerでの拒否・正常化後の復帰2件、不正な接続設定でのコマンド終了6件を追加した。変更後のAPI・Dockerの検証は[CI 40830448904](https://github.com/k-o-a-b-c/monetail/actions/runs/40830448904)（ソース`8508e42738eb69f44e7e0172e5ae140111e4c680`）を参照する。API全354件（失敗・スキップ0）、CI選択15件とDockerのビルド・起動が成功した。ローカルでもAPI全354件が成功し、認証情報の応答漏れ・DBの書換えがないこと、終了コード1・秘密値や例外スタックの非表示を確認した。
+今回の採用結果は[CI 40835058298](https://github.com/k-o-a-b-c/monetail/actions/runs/40835058298)（ソース`0aee53da29c3834b19696b1a19606e700c3d835d`）。全616件が成功し、失敗・スキップは0。新版WindowsのReleaseビルド（警告・エラー0）、旧Windowsビルド、Dockerのビルド・非root起動・Compose設定、レシート読込性能の検証も成功した。以降の検証記録更新はMarkdownのみで、同一製品ソースの成功結果を再利用する。
 
-Windows・計算・Python移行・性能は今回の変更対象外。物理端末のパスキー、実ブラウザー操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
+新版Windowsのクライアントは合成HTTP、実ループバック、合成暗号化保存を使い、PKCE・state・不正コールバック・キャンセル・トークン更新・失効と通信障害の区別・接続先への紐付けを検証する。Windows CIでは実DPAPI CurrentUserの暗号化・別インスタンスからの復元・破損時の認証だけの破棄も確認した。ローカルLinuxではクライアントとCI選択を実行し、Windows専用のDPAPIテストは実行していない。
+
+既存Windows・API・計算・Python移行・性能の製品ソースは今回の変更対象外。物理端末のパスキー、実ブラウザー・画面の手動操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
 
 ## 実行方法（リポジトリ直下）
 
 ```sh
 # .NET 10
 dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj --configuration Release
+# Windows / .NET 10
+dotnet build src/Monetail.Windows/Monetail.Windows.csproj --configuration Release
+dotnet test tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj --configuration Release
+dotnet run --project src/Monetail.Windows/Monetail.Windows.csproj
 # .NET 8
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
 python3 -m unittest discover -s tests -p 'test_*migration.py' -v
@@ -38,13 +47,27 @@ Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbpro
 | 文書だけ | CI選択処理。API・Docker・Windows等は省略 |
 | APIソース | APIテスト・Dockerビルドと起動 |
 | APIテストだけ／Docker確認スクリプトだけ | 各対象だけ |
+| 新版WindowsのClient／WinForms画面 | クライアントテスト＋新版Windowsビルド・実DPAPI／新版Windowsビルド・実DPAPIだけ |
+| 新版Windowsの各テストだけ | 対応するテスト。API・旧Windowsは起動しない |
 | Dockerfile等／Compose | Docker確認／Compose設定 |
 | Windows・計算・SQL等 | 依存するテスト、製品ビルド、必要なら性能計測 |
 | CI・共通SDK／ビルド設定 | 全対象 |
 
 同じ製品ソースの成功CIは再利用し、新しい変更・失敗・懸念があるときだけ再実行する。省略を検証成功として数えない。[Actions](https://github.com/k-o-a-b-c/monetail/actions/workflows/tests.yml)ではコミットと選択された対象を確認する。
 
-## Windowsで画面を手動確認する手順（利用者環境では未実施）
+## 新版Windowsの手動確認（未実施）
+
+テスト用Windowsユーザーと、[42の準備](../docs/42-api-foundation.md)を済ませたHTTPSのテストAPI・合成アカウントを使う。旧Windows版のDB・設定は使わない。
+
+1. 新版を上記コマンドで起動する。初回はURL入力、不正URLは保存しないこと、接続確認成功後だけログインへ進むことを確認する。
+2. ログインから外部ブラウザーを開き、パスキー認証後にアプリの枠へ進む。ブラウザーがログイン済みなら再認証を挟まないこと、タブ終了とアプリ前面復帰が制限されても操作できることを確認する。
+3. ブラウザーを閉じて「ブラウザーを開く」で再表示する。「キャンセル」はログインへ戻り、再試行できることを確認する。
+4. 再起動時は保存済み認証でログインを省略する。同一URLの正規化表記を保存し直しても認証を維持し、別のテストAPIへ変更した場合はログインが必要になることを確認する。
+5. API停止時の起動・再試行では認証ファイルを失わず、復旧後に復元する。接続確認が遅い場合の1秒後の小窓、10秒での接続エラーと3つの操作を確認する。
+6. テストセッションの失効・トークン期限切れと更新、破損した認証ファイルでは、URLを残してログインへ戻ることを確認する。ログアウトはWindowsセッションだけを終了し、ブラウザーのセッションは維持する。
+7. `%LOCALAPPDATA%\Monetail\settings.json`にトークンがなく、`authentication.dat`と残存する一時ファイルに平文トークンがないことを確認する。トークン値は記録・共有しない。
+
+## 旧Windowsで画面を手動確認する手順（利用者環境では未実施）
 
 1. 確認対象の作業ブランチ（mainへの取り込み後は `main`）をチェックアウトし、READMEの開発手順で既存ソリューションをビルドします。
 2. DBをバックアップしてテスト用コピーを作ります。税端数の2列が未追加なら`docs/migrations/20261017_01_shop_tax_rounding.sql`を一度適用します。次にレシート・振替・残高の3表を`PRAGMA table_info`で確認し、`revision_token`が未追加なら`docs/migrations/20261019_01_revision_tokens.sql`を一度適用します。適用済みの移行は再実行しません。`App.config`の接続先をそのコピーに変更して起動します。
