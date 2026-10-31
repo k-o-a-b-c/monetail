@@ -6,18 +6,18 @@ namespace Monetail.Api.Features.Monetail.Ledgers;
 /// <summary>家計簿APIの回数を、検証済みアカウントと用途ごとに制限する。</summary>
 public static class LedgerRateLimits
 {
-    /// <summary>家計簿作成の回数制限を識別する。</summary>
-    public const string CreationPolicy = "ledger-creation";
+    /// <summary>家計簿・人物・参加者・招待の書込の回数制限を識別する。</summary>
+    public const string WritePolicy = "ledger-write";
     /// <summary>参照と開く操作で共有する回数制限を識別する。</summary>
     public const string ReadPolicy = "ledger-read";
 
-    /// <summary>作成20回・参照と開く操作120回の独立した1分枠を登録する。</summary>
+    /// <summary>書込20回・参照と開く操作120回の独立した1分枠を登録する。</summary>
     public static void AddLedgerRateLimits(this IServiceCollection services)
     {
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy(CreationPolicy, http => ForAccount(http, 20));
+            options.AddPolicy(WritePolicy, http => ForAccount(http, 20));
             options.AddPolicy(ReadPolicy, http => ForAccount(http, 120));
         });
     }

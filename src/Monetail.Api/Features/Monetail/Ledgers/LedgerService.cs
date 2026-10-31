@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
 using Monetail.Api.Persistence;
+using Monetail.Api.Features.Monetail.Operations;
 
 namespace Monetail.Api.Features.Monetail.Ledgers;
 
@@ -47,7 +48,7 @@ public sealed class LedgerService(ApiDbContext context, TimeProvider time, ILogg
     }
 
     /// <summary>呼出元のトランザクション内で最終選択を保存する。ここでは確定しない。</summary>
-    private async Task RememberOpenedAsync(string ledgerId, CurrentSession current, CancellationToken token)
+    internal async Task RememberOpenedAsync(string ledgerId, CurrentSession current, CancellationToken token)
     {
         var navigation = await context.Set<LedgerNavigation>().SingleOrDefaultAsync(
             row => row.AuthUserId == current.Session.AuthUserId, token);
@@ -63,18 +64,19 @@ public sealed class LedgerService(ApiDbContext context, TimeProvider time, ILogg
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         if (!await IsCurrentAsync(current, token)) return new(LedgerCreationStatus.AuthenticationChanged);
         var key = requestId.ToString("N");
-        var previous = await context.Set<LedgerCreationRequest>().AsNoTracking()
+        var hash = OperationRequest.Hash(name);
+        var previous = await context.Set<OperationRequest>().AsNoTracking()
             .SingleOrDefaultAsync(row => row.RequestId == key, token);
         if (previous is not null)
         {
-            if (previous.ActorAuthUserId != current.Session.AuthUserId || previous.RequestedName != name)
+            if (!previous.Matches("ledger.create", current.Session.AuthUserId, hash))
                 return new(LedgerCreationStatus.Conflict);
-            var replay = await VisibleLedgers(current, previous.LedgerId).SingleOrDefaultAsync(token);
+            var replay = await VisibleLedgers(current, previous.ResultId).SingleOrDefaultAsync(token);
             if (!await IsCurrentAsync(current, token)) return new(LedgerCreationStatus.AuthenticationChanged);
             if (replay is null) return new(LedgerCreationStatus.NotFound);
-            await RememberOpenedAsync(previous.LedgerId, current, token);
+            await RememberOpenedAsync(previous.ResultId, current, token);
             if (!await IsCurrentAsync(current, token)) return new(LedgerCreationStatus.AuthenticationChanged);
-            replay = await VisibleLedgers(current, previous.LedgerId).SingleOrDefaultAsync(token);
+            replay = await VisibleLedgers(current, previous.ResultId).SingleOrDefaultAsync(token);
             if (replay is null) return new(LedgerCreationStatus.NotFound);
             await transaction.CommitAsync(token);
             return new(LedgerCreationStatus.Replayed, replay);
@@ -91,10 +93,10 @@ public sealed class LedgerService(ApiDbContext context, TimeProvider time, ILogg
             LedgerId = ledger.Id, AuthUserId = current.Session.AuthUserId, Role = "Admin",
             JoinedAtUtc = now, Revision = Guid.NewGuid().ToString("N")
         });
-        context.Add(new LedgerCreationRequest
+        context.Add(new OperationRequest
         {
-            RequestId = key, ActorAuthUserId = current.Session.AuthUserId, LedgerId = ledger.Id,
-            RequestedName = name, CreatedAtUtc = now
+            RequestId = key, ActorAuthUserId = current.Session.AuthUserId, ResultId = ledger.Id,
+            OperationType = "ledger.create", RequestHash = hash, CreatedAtUtc = now
         });
         await context.SaveChangesAsync(token);
         await RememberOpenedAsync(ledger.Id, current, token);

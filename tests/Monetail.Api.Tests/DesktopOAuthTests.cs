@@ -19,6 +19,27 @@ public class DesktopOAuthTests
     private const string Callback = "http://127.0.0.1:49152/callback/";
 
     [Fact]
+    public async Task BearerCanManagePeopleAndInvitationsWithoutCookieOriginOrCsrf()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var browser = app.Client();
+        await app.LoginAsync(browser);
+        using var native = Native(app);
+        await IssueAsync(app, browser, native);
+        using var created = await native.PostAsJsonAsync("/ledgers", new { name = "Windowsの家計簿", requestId = Guid.NewGuid() });
+        var ledger = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var id = ledger.GetProperty("ledgerId").GetString();
+        using var added = await native.PostAsJsonAsync($"/ledgers/{id}/people", new { name = "本人", requestId = Guid.NewGuid() });
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+        var person = (await added.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("people")[0];
+        using var edited = await native.PatchAsJsonAsync($"/ledgers/{id}/people/{person.GetProperty("personId").GetString()}",
+            new { revision = person.GetProperty("revision").GetString(), name = "変更後" });
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        using var invitation = await native.PostAsJsonAsync($"/ledgers/{id}/invitations", new { requestId = Guid.NewGuid() });
+        Assert.Equal(HttpStatusCode.Created, invitation.StatusCode);
+    }
+
+    [Fact]
     public async Task BearerOpenReturnsLedgerAndRemembersItWithoutCookieOriginOrCsrf()
     {
         await using var app = await LoginTestApp.CreateAsync();

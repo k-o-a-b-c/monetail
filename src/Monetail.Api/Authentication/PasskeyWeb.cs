@@ -109,7 +109,8 @@ public static class PasskeyWeb
                     http.Response.StatusCode = StatusCodes.Status400BadRequest;
                     return;
                 }
-                if (HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method))
+                if (HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method) ||
+                    HttpMethods.IsPut(http.Request.Method) || HttpMethods.IsPatch(http.Request.Method))
                 {
                     // Cookie要求のOriginは従来どおり先に確認し、Bearer候補だけを認証後の判定へ回す。
                     if (http.Request.Path != "/connect/token" &&
@@ -142,7 +143,8 @@ public static class PasskeyWeb
         {
             var protectedPath = http.Request.Path.StartsWithSegments("/auth") || http.Request.Path.StartsWithSegments("/admin") ||
                 additionalProtectedPaths.Any(path => http.Request.Path.StartsWithSegments(path));
-            var write = HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method) || HttpMethods.IsPut(http.Request.Method);
+            var write = HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method) ||
+                HttpMethods.IsPut(http.Request.Method) || HttpMethods.IsPatch(http.Request.Method);
             if (protectedPath && write && http.Request.Path != "/connect/token" &&
                 http.User.Identity?.AuthenticationType != DesktopTokenHandler.SchemeName &&
                 http.Request.Headers.Origin != settings.Origin.GetLeftPart(UriPartial.Authority))
