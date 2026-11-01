@@ -21,6 +21,7 @@ public sealed partial class MainWindow : Form
         AutoScroll = true, Padding = new Padding(24)
     };
     private readonly ToolStripMenuItem connectionMenu = new("接続先の設定");
+    private readonly ToolStripMenuItem peopleMenu = new("人物管理") { Visible = false };
     private ApiEndpoint? endpoint;
     private MonetailApiClient? api;
     private ClientSession? session;
@@ -43,9 +44,11 @@ public sealed partial class MainWindow : Form
         var menu = new MenuStrip();
         var root = new ToolStripMenuItem("メニュー");
         root.DropDownItems.Add(connectionMenu);
+        root.DropDownItems.Add(peopleMenu);
         root.DropDownItems.Add("終了", null, (_, _) => Close());
         menu.Items.Add(root);
         connectionMenu.Click += (_, _) => ShowConnection();
+        peopleMenu.Click += async (_, _) => await OpenPeopleAsync();
         Controls.Add(content);
         Controls.Add(menu);
         MainMenuStrip = menu;
@@ -160,6 +163,7 @@ public sealed partial class MainWindow : Form
         if (busy) return;
         busy = true;
         connectionMenu.Enabled = false;
+        peopleMenu.Enabled = false;
         SetButtonsEnabled(false);
         try { await action(); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
@@ -175,7 +179,7 @@ public sealed partial class MainWindow : Form
         finally
         {
             busy = false;
-            if (!IsDisposed) { connectionMenu.Enabled = true; SetButtonsEnabled(true); }
+            if (!IsDisposed) { connectionMenu.Enabled = true; peopleMenu.Enabled = true; SetButtonsEnabled(true); }
         }
     }
 
@@ -190,6 +194,7 @@ public sealed partial class MainWindow : Form
 
     private void Reset(string heading, string? message)
     {
+        peopleMenu.Visible = false;
         AcceptButton = null;
         CancelButton = null;
         while (content.Controls.Count > 0) content.Controls[0].Dispose();

@@ -113,6 +113,7 @@ public sealed partial class MainWindow
     {
         openedLedger = ledger;
         Reset("Monetail", null);
+        peopleMenu.Visible = true;
         var selector = AddButton(ledger.Name + " ▾", () => { });
         selector.Click += async (_, _) => await RunAsync(async () =>
         {
