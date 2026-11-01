@@ -6,6 +6,7 @@
 - 新版Windows版: 技術構成と配置は[04](docs/04-architecture.md#新版windows版の構成)を参照する
 - API: ASP.NET Core / .NET 10、言語はC#。Windows版とは独立してビルドする
 - 高解像度表示に対応
+- 新Windows版のUIを作成・変更するときは、共通の表示・配置基準である[UI_DESIGN.md](UI_DESIGN.md)を読む。権限・保存・画面遷移等は各機能の正本を参照する。
 
 ## コーディング規約
 変数等は英語、コメントは日本語
