@@ -21,7 +21,7 @@ public class LedgerApiTests
         var account = await app.AddAccountAsync();
         using var client = await LoginAsync(app, account);
         app.Time.Advance(TimeSpan.FromMinutes(6));
-        var preserved = app.Database.Tables().Where(table => !table.StartsWith("ledger", StringComparison.Ordinal)).ToArray();
+        var preserved = app.Database.Tables().Where(table => !table.StartsWith("ledger", StringComparison.Ordinal) && table != "operation_requests").ToArray();
         var before = app.Database.Snapshot(preserved);
         using var first = await CreateAsync(client, "  同じ名前  ");
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
@@ -38,7 +38,7 @@ public class LedgerApiTests
         Assert.Equal(2L, app.Database.Scalar("SELECT COUNT(*) FROM ledger_members WHERE role='Admin'"));
         Assert.Equal(account.UserId, app.Database.Scalar($"SELECT created_by_auth_user_id FROM ledgers WHERE id='{ledger.LedgerId}'"));
         Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM AspNetUserRoles WHERE UserId='{account.UserId}'"));
-        Assert.DoesNotContain("ledger_people", app.Database.Tables());
+        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM ledger_people"));
         Assert.DoesNotContain("m_payment_classification", app.Database.Tables());
         Assert.Equal(before, app.Database.Snapshot(preserved));
     }
@@ -211,7 +211,7 @@ public class LedgerApiTests
         {
             Assert.Equal(sameRequest ? 1 : 2, responses.Count(response => response.StatusCode == HttpStatusCode.Created));
             Assert.Equal(sameRequest ? 1 : 0, responses.Count(response => response.StatusCode == HttpStatusCode.OK));
-            foreach (var table in new[] { "ledgers", "ledger_members", "ledger_creation_requests" })
+            foreach (var table in new[] { "ledgers", "ledger_members", "operation_requests" })
                 Assert.Equal(sameRequest ? 1L : 2L, app.Database.Scalar($"SELECT COUNT(*) FROM {table}"));
         }
         finally { foreach (var response in responses) response.Dispose(); }
@@ -220,7 +220,7 @@ public class LedgerApiTests
     [Theory]
     [InlineData("ledgers")]
     [InlineData("ledger_members")]
-    [InlineData("ledger_creation_requests")]
+    [InlineData("operation_requests")]
     [InlineData("ledger_navigation")]
     public async Task EveryWriteFailureRollsBackAllRowsAndAllowsRetry(string table)
     {
@@ -246,7 +246,7 @@ public class LedgerApiTests
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var client = await LoginAsync(app);
-        app.Database.Execute($"CREATE TRIGGER change_ledger_actor AFTER INSERT ON ledger_creation_requests BEGIN {mutation}; END");
+        app.Database.Execute($"CREATE TRIGGER change_ledger_actor AFTER INSERT ON operation_requests BEGIN {mutation}; END");
         var before = app.Database.Snapshot(app.Database.Tables());
         using var result = await CreateAsync(client, "家計簿");
         Assert.Equal(HttpStatusCode.Unauthorized, result.StatusCode);
@@ -293,8 +293,7 @@ public class LedgerApiTests
             insert.Replace(app.UserId, "missing"),
             "UPDATE ledger_members SET role='Owner'",
             "UPDATE ledger_members SET role=NULL",
-            "UPDATE ledger_creation_requests SET actor_auth_user_id='missing'",
-            "UPDATE ledger_creation_requests SET ledger_id='missing'"
+            "UPDATE operation_requests SET actor_auth_user_id='missing'"
         }) Assert.Equal(19, Assert.Throws<SqliteException>(() => AuthDatabaseFixture.Execute(connection, sql)).SqliteErrorCode);
         await using var scope = app.Factory.Services.CreateAsyncScope();
         Assert.Single(scope.ServiceProvider.GetRequiredService<ApiDbContext>().Database.GetMigrations());

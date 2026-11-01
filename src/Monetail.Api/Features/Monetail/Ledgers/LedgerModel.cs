@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
+using Monetail.Api.Features.Monetail.Operations;
 
 namespace Monetail.Api.Features.Monetail.Ledgers;
 
@@ -27,6 +28,7 @@ public static class LedgerModel
             ledger.Property(row => row.CreatedByAuthUserId).HasColumnName("created_by_auth_user_id").IsRequired();
             ledger.Property(row => row.CreatedAtUtc).HasColumnName("created_at_utc");
             ledger.Property(row => row.Revision).HasColumnName("revision").IsRequired().IsConcurrencyToken();
+            ledger.Property(row => row.PeopleOrderRevision).HasColumnName("people_order_revision").IsRequired().IsConcurrencyToken();
             ledger.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.CreatedByAuthUserId).OnDelete(DeleteBehavior.Restrict);
         });
         builder.Entity<LedgerMember>(member =>
@@ -38,22 +40,60 @@ public static class LedgerModel
             member.Property(row => row.Role).HasColumnName("role").IsRequired();
             member.Property(row => row.JoinedAtUtc).HasColumnName("joined_at_utc");
             member.Property(row => row.Revision).HasColumnName("revision").IsRequired().IsConcurrencyToken();
+            member.Property(row => row.PersonId).HasColumnName("person_id");
+            member.HasIndex(row => new { row.LedgerId, row.PersonId }).IsUnique();
+            member.HasOne<LedgerPerson>().WithMany().HasForeignKey(row => new { row.LedgerId, row.PersonId })
+                .OnDelete(DeleteBehavior.Restrict);
             member.HasIndex(row => new { row.AuthUserId, row.LedgerId });
             member.HasOne<Ledger>().WithMany().HasForeignKey(row => row.LedgerId).OnDelete(DeleteBehavior.Restrict);
             member.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId).OnDelete(DeleteBehavior.Restrict);
         });
-        builder.Entity<LedgerCreationRequest>(request =>
+        builder.Entity<LedgerPerson>(person =>
         {
-            request.ToTable("ledger_creation_requests");
+            person.ToTable("ledger_people", table => table.HasCheckConstraint("CK_ledger_people_period",
+                "valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to"));
+            person.HasKey(row => new { row.LedgerId, row.Id });
+            person.Property(row => row.LedgerId).HasColumnName("ledger_id");
+            person.Property(row => row.Id).HasColumnName("person_id").ValueGeneratedNever();
+            person.Property(row => row.Name).HasColumnName("name").IsRequired().UseCollation("BINARY");
+            person.Property(row => row.ValidFrom).HasColumnName("valid_from");
+            person.Property(row => row.ValidTo).HasColumnName("valid_to");
+            person.Property(row => row.DisplayOrder).HasColumnName("display_order");
+            person.Property(row => row.Revision).HasColumnName("revision").IsRequired().IsConcurrencyToken();
+            person.HasIndex(row => new { row.LedgerId, row.Name }).IsUnique();
+            person.HasIndex(row => new { row.LedgerId, row.DisplayOrder });
+            person.HasOne<Ledger>().WithMany().HasForeignKey(row => row.LedgerId).OnDelete(DeleteBehavior.Restrict);
+        });
+        builder.Entity<OperationRequest>(request =>
+        {
+            request.ToTable("operation_requests");
             request.HasKey(row => row.RequestId);
             request.Property(row => row.RequestId).HasColumnName("request_id").ValueGeneratedNever();
             request.Property(row => row.ActorAuthUserId).HasColumnName("actor_auth_user_id").IsRequired();
-            request.Property(row => row.LedgerId).HasColumnName("ledger_id").IsRequired();
-            request.Property(row => row.RequestedName).HasColumnName("requested_name").HasMaxLength(Ledger.NameMaxLength).IsRequired();
+            request.Property(row => row.OperationType).HasColumnName("operation_type").IsRequired();
+            request.Property(row => row.RequestHash).HasColumnName("request_hash").IsRequired();
+            request.Property(row => row.ResultId).HasColumnName("result_id").IsRequired();
             request.Property(row => row.CreatedAtUtc).HasColumnName("created_at_utc");
-            request.HasIndex(row => row.LedgerId).IsUnique();
             request.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.ActorAuthUserId).OnDelete(DeleteBehavior.Restrict);
-            request.HasOne<Ledger>().WithMany().HasForeignKey(row => row.LedgerId).OnDelete(DeleteBehavior.Restrict);
+        });
+        builder.Entity<LedgerInvitation>(invite =>
+        {
+            invite.ToTable("ledger_invitations");
+            invite.HasKey(row => row.Id);
+            invite.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            invite.Property(row => row.LedgerId).HasColumnName("ledger_id");
+            invite.Property(row => row.Token).HasColumnName("token").IsRequired();
+            invite.Property(row => row.CreatedByAuthUserId).HasColumnName("created_by_auth_user_id");
+            invite.Property(row => row.CreatedAtUtc).HasColumnName("created_at_utc");
+            invite.Property(row => row.ExpiresAtUtc).HasColumnName("expires_at_utc");
+            invite.Property(row => row.UsedByAuthUserId).HasColumnName("used_by_auth_user_id");
+            invite.Property(row => row.UsedAtUtc).HasColumnName("used_at_utc");
+            invite.Property(row => row.RevokedAtUtc).HasColumnName("revoked_at_utc");
+            invite.HasIndex(row => row.Token).IsUnique();
+            invite.HasIndex(row => new { row.LedgerId, row.ExpiresAtUtc });
+            invite.HasOne<Ledger>().WithMany().HasForeignKey(row => row.LedgerId).OnDelete(DeleteBehavior.Restrict);
+            invite.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.CreatedByAuthUserId).OnDelete(DeleteBehavior.Restrict);
+            invite.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.UsedByAuthUserId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

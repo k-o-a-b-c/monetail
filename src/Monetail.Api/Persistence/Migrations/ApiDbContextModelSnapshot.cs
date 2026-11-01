@@ -349,6 +349,12 @@ namespace Monetail.Api.Persistence.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("name");
 
+                    b.Property<string>("PeopleOrderRevision")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("people_order_revision");
+
                     b.Property<string>("Revision")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -362,40 +368,59 @@ namespace Monetail.Api.Persistence.Migrations
                     b.ToTable("ledgers", (string)null);
                 });
 
-            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerCreationRequest", b =>
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerInvitation", b =>
                 {
-                    b.Property<string>("RequestId")
+                    b.Property<string>("Id")
                         .HasColumnType("TEXT")
-                        .HasColumnName("request_id");
-
-                    b.Property<string>("ActorAuthUserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("actor_auth_user_id");
+                        .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at_utc");
+
+                    b.Property<string>("CreatedByAuthUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("created_by_auth_user_id");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("expires_at_utc");
 
                     b.Property<string>("LedgerId")
                         .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("ledger_id");
 
-                    b.Property<string>("RequestedName")
-                        .IsRequired()
-                        .HasMaxLength(100)
+                    b.Property<DateTime?>("RevokedAtUtc")
                         .HasColumnType("TEXT")
-                        .HasColumnName("requested_name");
+                        .HasColumnName("revoked_at_utc");
 
-                    b.HasKey("RequestId");
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("token");
 
-                    b.HasIndex("ActorAuthUserId");
+                    b.Property<DateTime?>("UsedAtUtc")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("used_at_utc");
 
-                    b.HasIndex("LedgerId")
+                    b.Property<string>("UsedByAuthUserId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("used_by_auth_user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByAuthUserId");
+
+                    b.HasIndex("Token")
                         .IsUnique();
 
-                    b.ToTable("ledger_creation_requests", (string)null);
+                    b.HasIndex("UsedByAuthUserId");
+
+                    b.HasIndex("LedgerId", "ExpiresAtUtc");
+
+                    b.ToTable("ledger_invitations", (string)null);
                 });
 
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerMember", b =>
@@ -412,6 +437,10 @@ namespace Monetail.Api.Persistence.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("joined_at_utc");
 
+                    b.Property<string>("PersonId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("person_id");
+
                     b.Property<string>("Revision")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -426,6 +455,9 @@ namespace Monetail.Api.Persistence.Migrations
                     b.HasKey("LedgerId", "AuthUserId");
 
                     b.HasIndex("AuthUserId", "LedgerId");
+
+                    b.HasIndex("LedgerId", "PersonId")
+                        .IsUnique();
 
                     b.ToTable("ledger_members", null, t =>
                         {
@@ -449,6 +481,90 @@ namespace Monetail.Api.Persistence.Migrations
                     b.HasIndex("LastOpenedLedgerId");
 
                     b.ToTable("ledger_navigation", (string)null);
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerPerson", b =>
+                {
+                    b.Property<string>("LedgerId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ledger_id");
+
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("person_id");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("name")
+                        .UseCollation("BINARY");
+
+                    b.Property<string>("Revision")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("revision");
+
+                    b.Property<DateOnly?>("ValidFrom")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("valid_to");
+
+                    b.HasKey("LedgerId", "Id");
+
+                    b.HasIndex("LedgerId", "DisplayOrder");
+
+                    b.HasIndex("LedgerId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ledger_people", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ledger_people_period", "valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to");
+                        });
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Operations.OperationRequest", b =>
+                {
+                    b.Property<string>("RequestId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("request_id");
+
+                    b.Property<string>("ActorAuthUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("actor_auth_user_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("OperationType")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("operation_type");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("ResultId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("result_id");
+
+                    b.HasKey("RequestId");
+
+                    b.HasIndex("ActorAuthUserId");
+
+                    b.ToTable("operation_requests", (string)null);
                 });
 
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>
@@ -818,11 +934,11 @@ namespace Monetail.Api.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerCreationRequest", b =>
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerInvitation", b =>
                 {
                     b.HasOne("Monetail.Api.Authentication.AuthUser", null)
                         .WithMany()
-                        .HasForeignKey("ActorAuthUserId")
+                        .HasForeignKey("CreatedByAuthUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -831,6 +947,11 @@ namespace Monetail.Api.Persistence.Migrations
                         .HasForeignKey("LedgerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("UsedByAuthUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerMember", b =>
@@ -846,6 +967,11 @@ namespace Monetail.Api.Persistence.Migrations
                         .HasForeignKey("LedgerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Monetail.Api.Features.Monetail.Ledgers.LedgerPerson", null)
+                        .WithMany()
+                        .HasForeignKey("LedgerId", "PersonId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerNavigation", b =>
@@ -859,6 +985,24 @@ namespace Monetail.Api.Persistence.Migrations
                     b.HasOne("Monetail.Api.Features.Monetail.Ledgers.Ledger", null)
                         .WithMany()
                         .HasForeignKey("LastOpenedLedgerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerPerson", b =>
+                {
+                    b.HasOne("Monetail.Api.Features.Monetail.Ledgers.Ledger", null)
+                        .WithMany()
+                        .HasForeignKey("LedgerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Operations.OperationRequest", b =>
+                {
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("ActorAuthUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

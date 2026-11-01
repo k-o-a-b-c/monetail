@@ -74,6 +74,7 @@ try
         builder.Services.AddScoped<AdminAccountService>();
         builder.Services.AddScoped<AdminAccountProvisioningService>();
         builder.Services.AddScoped<LedgerService>();
+        builder.Services.AddScoped<LedgerManagementService>();
         builder.Services.AddLedgerRateLimits();
     }
 
@@ -152,10 +153,11 @@ if (isAuthCommand)
     return;
 }
 app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
-app.MapPasskeyWeb(app.Services.GetRequiredService<PasskeySettings>(), "/ledgers", "/connect", "/.well-known");
+app.MapPasskeyWeb(app.Services.GetRequiredService<PasskeySettings>(), "/ledgers", "/ledger-invitations", "/connect", "/.well-known");
 app.MapDesktopOAuth();
 app.MapAdminAccounts();
 app.MapLedgers();
+app.MapLedgerManagement();
 app.MapHealthChecks("/health").AllowAnonymous();
 app.Run();
 

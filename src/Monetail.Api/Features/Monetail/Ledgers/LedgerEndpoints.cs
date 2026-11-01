@@ -45,7 +45,7 @@ public static class LedgerEndpoints
                 LedgerCreationStatus.NotFound => Results.NotFound(),
                 _ => Results.Unauthorized()
             };
-        }).RequireRateLimiting(LedgerRateLimits.CreationPolicy);
+        }).RequireRateLimiting(LedgerRateLimits.WritePolicy);
         routes.MapGet("", async Task<IResult> (HttpContext http, LedgerService service) =>
         {
             var current = Current(http);
