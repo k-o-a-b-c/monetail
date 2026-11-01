@@ -1,0 +1,27 @@
+name: Windows preview (one-off)
+
+on:
+  push:
+    branches: [preview/windows-people]
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Get Japanese font for preview
+        shell: pwsh
+        run: Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf' -OutFile "$env:RUNNER_TEMP/preview-font.otf"
+      - name: Capture real WinForms controls with sample data
+        shell: pwsh
+        run: dotnet run --project .github/windows-preview/WindowsPreview.csproj --configuration Release -- "$env:RUNNER_TEMP/screenshots" "$env:RUNNER_TEMP/preview-font.otf"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-people-screenshots
+          path: ${{ runner.temp }}/screenshots/*.png

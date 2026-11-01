@@ -2,6 +2,7 @@ name: Tests
 
 on:
   push:
+    branches-ignore: [preview/windows-people]
   pull_request:
 
 jobs:
