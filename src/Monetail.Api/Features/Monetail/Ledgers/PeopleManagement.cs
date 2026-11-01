@@ -46,10 +46,10 @@ public sealed partial class LedgerManagementService
         }, token);
 
     public Task<object> UpdatePersonAsync(string id, string personId, LedgerPayload input, CurrentSession actor, CancellationToken token) =>
-        InLedgerAsync(id, actor, member => member.Role == "Admin" || member.PersonId == personId, async member =>
+        InLedgerAsync(id, actor, member => member.Role == "Admin" ||
+            member.PersonId == personId && !input.Has("validFrom") && !input.Has("validTo"), async _ =>
         {
             var person = await context.Set<LedgerPerson>().SingleOrDefaultAsync(row => row.LedgerId == id && row.Id == personId, token) ?? throw Missing();
-            if (member.Role != "Admin" && (input.Has("validFrom") || input.Has("validTo"))) throw Forbidden();
             if (person.Revision != input.Uuid("revision")) throw Conflict(Person(person));
             var name = input.Has("name") ? PersonName(input.Text("name")) : person.Name;
             var from = input.Has("validFrom") ? input.Date("validFrom") : person.ValidFrom;

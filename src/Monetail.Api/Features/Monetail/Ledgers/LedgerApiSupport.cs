@@ -13,6 +13,7 @@ public sealed class LedgerApiFault(int status, string code, string message, stri
     : Exception(message)
 {
     public int Status { get; } = status;
+    public bool HasLatest => latest is not null;
     public object Body => new { code, message = Message, field = fieldName, latest };
 }
 
@@ -109,7 +110,14 @@ public sealed partial class LedgerManagementService(ApiDbContext context, Ledger
     {
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         var member = await RequireMemberAsync(ledgerId, actor, permission, token);
-        var result = await action(member);
+        object result;
+        try { result = await action(member); }
+        catch (LedgerApiFault error) when (error.HasLatest)
+        {
+            // 競合による早期応答でも、最新情報を読み込んだ後の本人・権限を確認する。
+            await RequireMemberAsync(ledgerId, actor, permission, token);
+            throw;
+        }
         await RequireMemberAsync(ledgerId, actor, permission, token);
         await transaction.CommitAsync(token);
         return result;

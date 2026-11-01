@@ -2,8 +2,14 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Data.Common;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Features.Monetail.Ledgers;
+using Monetail.Api.Persistence;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -502,6 +508,73 @@ public sealed class LedgerManagementTests
             new { revision = Revision(person) }, referenced ? HttpStatusCode.Conflict : HttpStatusCode.ServiceUnavailable);
         Assert.Equal(referenced ? "person_referenced" : "store_unavailable", Code(failure));
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
+    }
+
+    [Fact]
+    public async Task AdminLosingRoleWhileEditingOwnValidityCannotSaveThePeriod()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var owner = await LoginAsync(app);
+        var id = await LedgerAsync(owner);
+        var person = await PersonAsync(owner, id, "本人");
+        var self = Member(await Call(owner, "GET", $"/ledgers/{id}/members"), app.UserId);
+        await Call(owner, "PATCH", $"/ledgers/{id}/members/{app.UserId}",
+            new { revision = Revision(self), personId = person.GetProperty("personId").GetString() });
+        app.Database.Execute($"CREATE TRIGGER change_role_during_period AFTER UPDATE ON ledger_people BEGIN UPDATE ledger_members SET role='Viewer' WHERE ledger_id='{id}' AND auth_user_id='{app.UserId}'; END");
+        var before = app.Database.Snapshot(app.Database.Tables());
+        await Call(owner, "PATCH", $"/ledgers/{id}/people/{person.GetProperty("personId").GetString()}",
+            new { revision = Revision(person), name = "保存不可", validFrom = "2026-04-01" }, HttpStatusCode.Forbidden);
+        Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
+    }
+
+    [Theory]
+    [InlineData("person")]
+    [InlineData("member")]
+    [InlineData("order")]
+    public async Task SessionExpiringDuringConflictReadDoesNotDiscloseLatestData(string kind)
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var owner = await LoginAsync(app);
+        var id = await LedgerAsync(owner);
+        var person = await PersonAsync(owner, id, "最新内容を公開しない人物");
+        var interceptor = new ExpireDuringConflictRead(app.Time, kind);
+        await using var factory = app.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+            services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(interceptor))));
+        using var client = app.Client(factory);
+        await app.LoginAsync(client);
+        await LoginTestApp.CsrfAsync(client);
+        interceptor.Armed = true;
+        var path = kind == "person" ? $"/ledgers/{id}/people/{person.GetProperty("personId").GetString()}" :
+            kind == "member" ? $"/ledgers/{id}/members/{app.UserId}" : $"/ledgers/{id}/people/order";
+        object body = kind == "person" ? new { revision = Guid.NewGuid(), name = "未保存の入力" } :
+            kind == "member" ? new { revision = Guid.NewGuid(), personId = (string?)null } :
+            new { revision = Guid.NewGuid(), personIds = new[] { person.GetProperty("personId").GetString() } };
+        var rejected = await Call(client, kind == "order" ? "PUT" : "PATCH", path, body, HttpStatusCode.Unauthorized);
+        Assert.DoesNotContain("最新内容を公開しない人物", rejected.ToString());
+        Assert.Equal(JsonValueKind.Null, rejected.GetProperty("latest").ValueKind);
+        Assert.Equal("最新内容を公開しない人物", app.Database.Scalar("SELECT name FROM ledger_people"));
+    }
+
+    /// <summary>競合用データの読込中にだけ時計を進め、応答直前の期限切れを再現する。</summary>
+    private sealed class ExpireDuringConflictRead(LoginTestApp.LoginTime time, string kind) : DbCommandInterceptor
+    {
+        public bool Armed { get; set; }
+        public override ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData,
+            DbDataReader result, CancellationToken cancellationToken = default)
+        {
+            var target = kind switch
+            {
+                "member" => command.CommandText.Contains("LEFT JOIN \"ledger_people\"", StringComparison.Ordinal),
+                "order" => command.CommandText.Split('\n', 2)[0].EndsWith(".\"people_order_revision\"", StringComparison.Ordinal),
+                _ => command.CommandText.Contains("FROM \"ledger_people\"", StringComparison.Ordinal)
+            };
+            if (Armed && target)
+            {
+                Armed = false;
+                time.Advance(TimeSpan.FromDays(15));
+            }
+            return ValueTask.FromResult(result);
+        }
     }
 
     private static string Code(JsonElement value) => value.GetProperty("code").GetString()!;
