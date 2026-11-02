@@ -234,8 +234,7 @@ public sealed partial class MainWindow
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
-        PersonEditorContent.IsEnabled = enabled;
-        PersonDialog.IsCloseButtonEnabled = enabled;
+        PersonDialog.IsEnabled = enabled;
         UpdatePeopleActions();
         var showProgress = !enabled && StartupPage.Visibility != Visibility.Visible;
         BusyProgress.IsActive = showProgress;
