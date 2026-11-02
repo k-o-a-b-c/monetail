@@ -1,3 +1,4 @@
+# このブランチではサンプルデータの画面を単発撮影する。
 name: WinUI 3 foundation
 
 on:
