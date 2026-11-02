@@ -74,10 +74,12 @@ public partial class App : Application
             Invoke(Find<Button>(root, "ReturnButton"));
             await Settle();
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
+            var rasterizationScale = root.XamlRoot.RasterizationScale;
+            await CheckConnectionFlow(output, capture);
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,
-                    rasterizationScale = root.XamlRoot.RasterizationScale, checks }));
-            window.Close();
+                    rasterizationScale, checks }));
+            window?.Close();
             Environment.Exit(0);
         }
         catch (Exception error)

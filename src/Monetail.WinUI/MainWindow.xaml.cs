@@ -7,19 +7,37 @@ namespace Monetail.WinUI;
 public sealed partial class MainWindow : Window
 {
     public MainWindow()
+        : this(ClientConnection.CreateDefault()) { }
+
+    internal MainWindow(ClientConnection connection)
     {
+        this.connection = connection;
         InitializeComponent();
         Title = "Monetail";
         AppWindow.Resize(new SizeInt32(1100, 780));
+        Closed += CloseConnection;
     }
 
     /// <summary>APIから受け取った表示用データを反映する。サンプルを通常起動へ埋め込まない。</summary>
     public void DisplayWorkspace(LedgerInfo ledger, PeopleInfo people)
     {
+        DisplayLedger(ledger);
+        DisplayPeople(people);
+    }
+
+    private void DisplayLedger(LedgerInfo ledger)
+    {
+        currentLedger = ledger;
         LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);
         Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(LedgerSelector, ledger.Name);
         LedgerContext.Text = ledger.Name;
+        LedgerSelector.IsEnabled = account is not null;
+        ShowPage(HomePage);
+    }
+
+    private void DisplayPeople(PeopleInfo people)
+    {
         PeopleList.ItemsSource = people.People.OrderByDescending(person => person.PersonId == people.MyPersonId)
             .ThenBy(person => person.DisplayOrder)
             .Select(person => new PersonRow(person, person.PersonId == people.MyPersonId)).ToArray();
@@ -29,14 +47,16 @@ public sealed partial class MainWindow : Window
 
     private void ShowRecord(object sender, RoutedEventArgs e)
     {
-        HomePage.Visibility = Visibility.Visible;
-        ManagementPage.Visibility = Visibility.Collapsed;
+        ShowPage(HomePage);
     }
 
-    private void ShowManagement(object sender, RoutedEventArgs e)
+    private async void ShowManagement(object sender, RoutedEventArgs e)
     {
-        HomePage.Visibility = Visibility.Collapsed;
-        ManagementPage.Visibility = Visibility.Visible;
+        ShowPage(ManagementPage);
+        PeopleContent.Visibility = Visibility.Visible;
+        ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
+        var alreadySelected = ReferenceEquals(ManagementNavigation.SelectedItem, PeopleNavigation);
         ManagementNavigation.SelectedItem = PeopleNavigation;
+        if (alreadySelected) await LoadPeopleAsync();
     }
 }
