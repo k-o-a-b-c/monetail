@@ -15,6 +15,7 @@ public sealed partial class MainWindow
 
     private async Task OpenDestinationAsync(CancellationToken token)
     {
+        if (await ResumePersonEditAsync(token)) return;
         var destination = await connection.Ledgers.StartAsync(token);
         ledgerChoices = destination.Choices;
         if (destination.Opened is not null) DisplayLedger(destination.Opened);
@@ -126,6 +127,7 @@ public sealed partial class MainWindow
     private async void SelectManagement(object sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item || busy) return;
+        DropPendingPersonEdit();
         DiscardPersonEditor();
         PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
         if (ReferenceEquals(item, PeopleNavigation))

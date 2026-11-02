@@ -19,6 +19,10 @@ public sealed partial class MainWindow
     private bool editingPeriod;
     private bool editorDenied;
     private FormKeyboard personKeyboard = null!;
+    private PersonEditSnapshot? pendingPersonEdit;
+
+    private sealed record PersonEditSnapshot(Guid AccountId, string ApiOrigin, LedgerInfo Ledger, PeopleInfo People,
+        PersonInfo? Person, PersonCreationDraft? Creation, bool IncludedPeriod, string Name, string From, string To);
 
     private bool IsPeopleAdmin => peoplePermissions?.CurrentRole == "Admin";
     private bool CanViewPeople => peoplePermissions is null || peoplePermissions.CurrentRole is not null;
@@ -86,6 +90,7 @@ public sealed partial class MainWindow
         PersonValidFrom.SuppressCompletion = PersonValidTo.SuppressCompletion = false;
         PersonPeriodPermission.Visibility = editingPeriod ? Visibility.Collapsed : Visibility.Visible;
         PersonConflict.Visibility = Visibility.Collapsed;
+        PersonRestoredNotice.Visibility = Visibility.Collapsed;
         ClearPersonErrors();
         PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
         PersonEditorContent.Visibility = Visibility.Visible;
@@ -186,6 +191,7 @@ public sealed partial class MainWindow
     private void CancelPerson(object sender, RoutedEventArgs args)
     {
         if (busy) return;
+        DropPendingPersonEdit();
         DiscardPersonEditor();
         if (!CanViewPeople) { ShowPage(HomePage); return; }
         PeopleContent.Visibility = Visibility.Visible;
@@ -202,6 +208,76 @@ public sealed partial class MainWindow
         ClearPersonErrors();
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
+        UpdatePeopleActions();
+    }
+
+    private void RememberPersonEdit()
+    {
+        if (PersonEditorContent.Visibility != Visibility.Visible || account is null || currentLedger is null || peopleInfo is null)
+            return;
+        pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo, editingPerson,
+            personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text);
+    }
+
+    private void DropPendingPersonEdit()
+    {
+        if (pendingPersonEdit is null) return;
+        pendingPersonEdit = null;
+        PersonName.Text = PersonValidFrom.Text = PersonValidTo.Text = "";
+    }
+
+    private async Task<bool> ResumePersonEditAsync(CancellationToken token)
+    {
+        if (pendingPersonEdit is not { } draft || account is null) return false;
+        if (draft.AccountId != account.AuthUserId || draft.ApiOrigin != connection.Endpoint!.Value)
+        {
+            DropPendingPersonEdit();
+            return false;
+        }
+        LedgerInfo opened;
+        try { opened = await connection.Ledgers.OpenAsync(draft.Ledger.LedgerId, token); }
+        catch (LedgerRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            // 既に本人へ返した入力だけを保持する。未参加の家計簿の最新情報は取得しない。
+            RestorePersonEditor(draft, draft.Ledger, draft.People, new(null, null),
+                "この家計簿を開く権限がありません。未保存の入力は残していますが、保存できません。");
+            return true;
+        }
+        try
+        {
+            var people = await new PeopleWorkspace(connection.Api, connection.Session, opened.LedgerId).ListAsync(token);
+            RestorePersonEditor(draft, opened, people);
+        }
+        catch (PeopleRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            RestorePersonEditor(draft, opened, draft.People, error.Permissions ?? new(null, null),
+                "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
+        }
+        return true;
+    }
+
+    private void RestorePersonEditor(PersonEditSnapshot draft, LedgerInfo ledger, PeopleInfo people,
+        PeoplePermissions? permission = null, string? failure = null)
+    {
+        DisplayLedger(ledger);
+        DisplayPeople(people);
+        ShowPage(ManagementPage);
+        ManagementNavigation.SelectedItem = PeopleNavigation;
+        if (permission is not null) peoplePermissions = permission;
+        OpenPersonEditor(draft.Person);
+        PersonName.Text = draft.Name;
+        PersonValidFrom.Text = draft.From;
+        PersonValidTo.Text = draft.To;
+        personDraft = draft.Creation;
+        if (draft.Person is not null && !people.People.Any(person => person.PersonId == draft.Person.PersonId))
+            missingPeople.Add(draft.Person.PersonId);
+        // 古い版と作成要求IDを維持し、再ログインを理由に上書き・重複作成しない。
+        editorDenied = failure is not null || draft.IncludedPeriod && !IsPeopleAdmin ||
+            (draft.Person is null ? !IsPeopleAdmin : !CanEditPerson(draft.Person));
+        PersonRestoredNotice.Visibility = Visibility.Visible;
+        if (editorDenied) ShowPersonError(null, failure ?? "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
+        pendingPersonEdit = null;
+        RenderPeopleRows();
         UpdatePeopleActions();
     }
 

@@ -77,6 +77,7 @@ public partial class App : Application
             var rasterizationScale = root.XamlRoot.RasterizationScale;
             await CheckConnectionFlow(output, capture);
             await CheckPeopleFlow(output, capture);
+            await CheckPersonReauthentication();
             await CheckInputControls();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,

@@ -79,6 +79,7 @@ public sealed partial class MainWindow
 
     private void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
     {
+        DropPendingPersonEdit();
         if (account is not null && currentLedger is not null)
         {
             ShowPage(ManagementPage);
@@ -168,6 +169,7 @@ public sealed partial class MainWindow
 
     private Task LogoutAsync() => RunAsync(async () =>
     {
+        DropPendingPersonEdit();
         await connection.Session.LogoutAsync(lifetime.Token);
         ShowLogin();
     }, LogoutAsync);
@@ -182,8 +184,12 @@ public sealed partial class MainWindow
         try { await action(); }
         catch (OperationCanceledException) when (closed) { }
         catch (ObjectDisposedException) when (closed) { }
-        catch (AuthenticationRejectedException) { ShowLogin("ログインを継続できません。もう一度ログインしてください。"); }
-        catch (AuthenticationContextChangedException error) { ShowLogin(error.Message); }
+        catch (AuthenticationRejectedException)
+        {
+            RememberPersonEdit();
+            ShowLogin("ログインを継続できません。もう一度ログインしてください。");
+        }
+        catch (AuthenticationContextChangedException error) { DropPendingPersonEdit(); ShowLogin(error.Message); }
         catch (LedgerRequestException error)
         {
             var message = error.StatusCode switch
@@ -198,7 +204,9 @@ public sealed partial class MainWindow
         catch (PeopleRequestException error)
         {
             ApplyPeopleFailureContext(error);
-            ShowError("人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。");
+            ReportFailure(error.StatusCode == HttpStatusCode.TooManyRequests
+                ? "操作回数の上限に達しました。しばらく待って再試行してください。"
+                : "人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。", repeat, connectionFailure);
         }
         catch (Exception error) when (error is ApiConnectionException or HttpRequestException or OperationCanceledException
             or IOException or UnauthorizedAccessException or CryptographicException or SocketException)

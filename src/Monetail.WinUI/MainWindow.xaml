@@ -262,6 +262,8 @@
                     <ScrollViewer x:Name="PersonEditorContent" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" Spacing="16">
                             <TextBlock x:Name="PersonEditorTitle" Text="人物の追加" Style="{ThemeResource TitleTextBlockStyle}" />
+                            <TextBlock x:Name="PersonRestoredNotice" Visibility="Collapsed" Text="未保存の入力を復元しました。内容を確認してください。"
+                                       Style="{StaticResource Description}" />
                             <TextBox x:Name="PersonName" Header="人物名" />
                             <TextBlock x:Name="PersonNameError" Visibility="Collapsed" TextWrapping="Wrap"
                                        Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />

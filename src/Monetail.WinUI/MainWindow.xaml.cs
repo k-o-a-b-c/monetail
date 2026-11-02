@@ -62,6 +62,7 @@ public sealed partial class MainWindow : Window
 
     private void ShowRecord(object sender, RoutedEventArgs e)
     {
+        DropPendingPersonEdit();
         DiscardPersonEditor();
         ShowPage(HomePage);
     }
