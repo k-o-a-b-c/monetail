@@ -192,6 +192,12 @@ public partial class App
             new(mine, "父", null, null, 1, Guid.NewGuid())
         ];
 
+        internal void ChangeOwnPerson()
+        {
+            var position = people.FindIndex(person => person.PersonId == mine);
+            people[position] = people[position] with { Name = "父・認証待ち中の変更", Revision = Guid.NewGuid() };
+        }
+
         internal async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken token)
         {
             if (request.Method == HttpMethod.Get) { Reads++; return Json(Result()); }

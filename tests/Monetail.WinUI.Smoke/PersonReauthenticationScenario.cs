@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.WinUI.Input;
+using Monetail.Windows.Client;
 
 namespace Monetail.WinUI.Smoke;
 
@@ -46,12 +47,32 @@ public partial class App
             fixture.RejectSession = true;
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage"));
+            server.ChangeOwnPerson();
             await LoginAgain(fixture, root);
-            server.ConflictNextSave = true;
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Find<Border>(root, "PersonConflict").Visibility == Visibility.Visible);
             Check(Find<TextBox>(root, "PersonName").Text == "編集を継続する入力" && !Find<Button>(root, "SavePersonButton").IsEnabled,
                 "編集復帰でも元の更新版を維持し、他人の変更を上書きしない");
+        }
+
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            var server = new PeopleServer();
+            var root = await OpenPersonWindow(fixture, server);
+            Invoke(Find<Button>(root, "AddPersonButton"));
+            await Settle();
+            Find<TextBox>(root, "PersonName").Text = "別サーバーへ渡さない入力";
+            fixture.RejectSession = true;
+            Invoke(Find<Button>(root, "SavePersonButton"));
+            await Wait(() => Visible(root, "LoginPage"));
+            fixture.RejectSession = false;
+            fixture.Settings.Save(ApiEndpoint.Parse("https://other.example.test/"));
+            // 別の起動が変更先でログイン済みの状態。IDが同じでも接続先を区別する。
+            fixture.Tokens.Current = new("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
+            await window!.StartAsync();
+            Check(Visible(root, "HomePage") && Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0 &&
+                !fixture.OtherServerRequests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
+                "同じアカウントIDでも別のAPI接続先へ入力を引き継がない");
         }
 
         using (var fixture = new SyntheticConnection(saved: true))
