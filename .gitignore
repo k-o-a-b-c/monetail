@@ -5,3 +5,6 @@ packages/
 
 # Python migration tests
 __pycache__/
+
+# WinUI one-off preview font (downloaded in CI)
+/tests/Monetail.WinUI.Smoke/Assets/PreviewFont.otf

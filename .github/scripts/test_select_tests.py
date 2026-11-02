@@ -37,6 +37,13 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["src/Monetail.Windows/ConnectionForm.cs"], "windows_client_build")
         self.assert_flags(["src/Monetail.Windows/Monetail.Windows.csproj"], "windows_client_build")
 
+    def test_winui_source_and_smoke_are_handled_by_the_dedicated_workflow(self):
+        self.assert_flags(["src/Monetail.WinUI/Monetail.WinUI.csproj", "src/Monetail.WinUI/MainWindow.xaml",
+                           "src/Monetail.WinUI/MainWindow.xaml.cs", "tests/Monetail.WinUI.Smoke/run.ps1"])
+
+    def test_winui_workflow_does_not_start_unrelated_api_or_legacy_jobs(self):
+        self.assert_flags([".github/workflows/winui.yml"])
+
     def test_new_windows_tests_select_only_their_platform(self):
         self.assert_flags(["tests/Monetail.Windows.Client.Tests/OAuthTests.cs"], "windows_client")
         self.assert_flags(["tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj"],

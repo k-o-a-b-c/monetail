@@ -70,6 +70,8 @@ def select(paths):
             continue
         if path in {".github/scripts/select_tests.py", ".github/scripts/test_select_tests.py"}:
             continue  # 選択処理自身はchangesジョブで必ず検証する。
+        if path == ".github/workflows/winui.yml" or path.startswith(("src/Monetail.WinUI/", "tests/Monetail.WinUI.Smoke/")):
+            continue  # Windows固有のWinUIビルド・起動は専用ワークフローで検証する。
         known = False
 
         def enable(*flags):

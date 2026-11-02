@@ -25,7 +25,11 @@ Windows デスクトップアプリ
 
 ### 新版Windows版の構成
 
-新版のUIは**.NET 10 LTS・C#・WinUI 3（Windows App SDK）へ切り替える**ことを利用者が決定した。現時点で実装・検証済みのUIはWinFormsの`src/Monetail.Windows/Monetail.Windows.csproj`（`net10.0-windows`）であり、WinUI 3への移行は未着手。移行先のプロジェクト作成前に対応Windowsを確定し、起動・ビルドと左メニュー／右コンテンツの最小構成から検証する。移行中の比較と確認に使うため、現行WinFormsをただちに削除しない。
+新版のUIは**.NET 10 LTS・C#・WinUI 3（Windows App SDK）**へ切り替え、対応OSは**Windows 11のみ**とする（利用者確認済み）。移行先は`src/Monetail.WinUI/Monetail.WinUI.csproj`。ターゲットは`net10.0-windows10.0.26100.0`、最小対応バージョンはWindows 11初版の`10.0.22000.0`。Windows App SDKは安定版1.8系列を使用する。初期ビルドと起動の検証はx64で行い、ARM64は未検証とする。
+
+まず起動・ビルドと、ホーム／左メニューを残した右側の人物一覧の表示を検証する。現段階のWinUI 3は画面の土台で、接続・ログイン・家計簿の選択と人物の保存操作はまだ移していない。通常起動ではサンプルデータを表示せず、Clientの型を受け取る表示処理だけを備える。移行元のWinFormsは`src/Monetail.Windows/Monetail.Windows.csproj`に残し、比較と検証に使う。
+
+開発・CIでは非パッケージの自己完結した配置を使い、Windows App SDKと.NETランタイムを出力先に含めて起動を確認する。これは検証用の設定で、製品インストーラーの方式・更新方法・配布対象CPUを決定したものではない。WinUI 3のビルド・製品起動・同じXAMLによるスモークテストは専用の`.github/workflows/winui.yml`で行う。画像の取得は`preview/winui-*`ブランチでの単発実行に限定する。
 
 API通信・認証・保存・日付と時刻の補完は`src/Monetail.Windows/Client/Monetail.Windows.Client.csproj`（`net10.0`）に分離済みで、WinUI 3から再利用する。WinFormsの画面・入力コントロール・Enter移動・IME連携・画面テストはそのまま移植せず、[59の入力仕様](59-input-controls-design.md)を基にWinUI 3で作り直して検証する。API・認証契約・保存形式・通信単位をUI移行の都合で変えない。現在のVB.NET／.NET Framework 4.8のプロジェクトも残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。レシート等の業務画面とインストーラーは後続とする。
 
@@ -35,7 +39,7 @@ API通信・認証・保存・日付と時刻の補完は`src/Monetail.Windows/C
 
 API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settings.json`に保存する。通常設定と認証情報は分け、JSONにトークンを含めない。認証情報は[43のDPAPI保存方針](43-passkey-authentication-design.md#windows版の認証情報保存)、初回入力と変更は[58の接続先設定](58-ledger-foundation-design.md#windows版の接続先設定)に従う。
 
-新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定、インストーラーの作成方式、対応Windowsバージョンは実装前に具体化する。
+新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定とインストーラーの作成方式は実装前に具体化する。
 
 ### 新版Windows版の配布・削除（未実装）
 
