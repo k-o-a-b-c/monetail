@@ -34,7 +34,7 @@ internal static class Program
             using var api = new PreviewApi();
             using var window = (MainWindow)Activator.CreateInstance(typeof(MainWindow), BindingFlags.Instance | BindingFlags.NonPublic,
                 null, [directory, new HttpClient(api)], null)!;
-            window.ClientSize = new Size(600, 680);
+            window.ClientSize = new Size(640, 460);
             window.Show();
             var initialize = (Task)typeof(MainWindow).GetMethod("InitializeAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
             Wait(() => initialize.IsCompleted); initialize.GetAwaiter().GetResult();
@@ -43,6 +43,11 @@ internal static class Program
             root.DropDownItems.OfType<ToolStripMenuItem>().Single(item => item.Text == "人物管理").PerformClick();
             Wait(() => Controls(window).OfType<ListView>().Any());
             Capture(window, output, "02-people-list");
+            window.ClientSize = new Size(900, 650);
+            Capture(window, output, "02b-people-list-wide");
+            window.Size = window.MinimumSize;
+            Capture(window, output, "02c-people-list-minimum");
+            window.ClientSize = new Size(640, 460);
             var list = Controls(window).OfType<ListView>().Single();
             list.Items[0].Selected = true; Application.DoEvents(); Click(window, "編集");
             Capture(window, output, "03-people-edit");
@@ -54,8 +59,10 @@ internal static class Program
             Capture(window, output, "06-date-completion");
             Controls(window).OfType<TextBox>().Single(input => input.AccessibleName == "人物名").Text = "変更途中の名前";
             api.Conflict = true; Click(window, "保存");
+            window.ClientSize = new Size(640, 720);
             Capture(window, output, "04-people-conflict");
             Click(window, "キャンセル"); Click(window, "並び順を変更");
+            window.ClientSize = new Size(640, 460);
             list = Controls(window).OfType<ListView>().Single(); list.Items[1].Selected = true; Application.DoEvents();
             Capture(window, output, "05-people-order");
             window.Close();
