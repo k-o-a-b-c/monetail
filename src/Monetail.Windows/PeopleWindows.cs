@@ -32,8 +32,9 @@ public sealed partial class MainWindow
         var page = PeoplePage("人物管理", backToHome: true);
         var toolbar = new TableLayoutPanel
         {
-            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2,
+            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2, RowCount = 1,
             ColumnStyles = { new ColumnStyle(SizeType.Percent, 100), new ColumnStyle(SizeType.AutoSize) },
+            RowStyles = { new RowStyle(SizeType.AutoSize) },
             Margin = new Padding(0, 0, 0, 12), TabStop = false
         };
         var actions = PageLayout.Actions(); actions.Margin = Padding.Empty;

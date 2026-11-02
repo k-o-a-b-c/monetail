@@ -1,10 +1,16 @@
 namespace Monetail.Windows.Controls;
 
 /// <summary>標準レイアウトだけで見出し・操作列・伸縮する本文を配置する。</summary>
-internal sealed class PageLayout : TableLayoutPanel
+internal sealed class PageLayout : Panel
 {
     private readonly Font bodyFont;
     private readonly Font headingFont;
+    private readonly TableLayoutPanel layout = new()
+    {
+        Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+        ColumnCount = 1, RowCount = 0, ColumnStyles = { new ColumnStyle(SizeType.Percent, 100) },
+        Padding = new Padding(24, 20, 24, 20), Margin = Padding.Empty, TabStop = false
+    };
 
     public PageLayout(Font font)
     {
@@ -13,20 +19,19 @@ internal sealed class PageLayout : TableLayoutPanel
         Font = bodyFont;
         Dock = DockStyle.Fill;
         AutoScroll = true;
-        Padding = new Padding(24, 20, 24, 20);
-        ColumnCount = 1;
-        RowCount = 0;
-        ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        Controls.Add(layout);
+        // 本文が最小高より大きければ一覧へ配分し、小さければ全体をスクロールする。
+        SizeChanged += (_, _) => layout.MinimumSize = new Size(0, ClientSize.Height);
         TabStop = false;
     }
 
     public void AddSection(Control control, bool expand = false)
     {
-        var row = RowCount++;
-        RowStyles.Add(new RowStyle(expand ? SizeType.Percent : SizeType.AutoSize, expand ? 100 : 0));
+        var row = layout.RowCount++;
+        layout.RowStyles.Add(new RowStyle(expand ? SizeType.Percent : SizeType.AutoSize, expand ? 100 : 0));
         control.Dock = DockStyle.Fill;
         control.TabIndex = row;
-        Controls.Add(control, 0, row);
+        layout.Controls.Add(control, 0, row);
     }
 
     public void AddHeading(string title, string ledgerName)
