@@ -27,6 +27,12 @@ public sealed partial class MainWindow : Window
 
     private void DisplayLedger(LedgerInfo ledger)
     {
+        if (currentLedger?.LedgerId != ledger.LedgerId)
+        {
+            PeopleList.ItemsSource = null;
+            EmptyPeople.Text = "人物一覧を読み込んでいます。";
+            EmptyPeople.Visibility = Visibility.Visible;
+        }
         currentLedger = ledger;
         LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);

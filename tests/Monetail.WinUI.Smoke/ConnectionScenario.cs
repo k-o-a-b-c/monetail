@@ -12,7 +12,6 @@ public partial class App
 {
     private async Task CheckConnectionFlow(string output, bool capture)
     {
-        window!.Close();
         using (var fixture = new SyntheticConnection())
         {
             var root = await OpenSyntheticWindow(fixture);
@@ -92,7 +91,6 @@ public partial class App
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Tokens.Current is null && fixture.Settings.Load() is not null,
                 "ログアウト成功で認証だけを消し、接続先設定を保持");
-            window.Close();
         }
 
         using (var fixture = new SyntheticConnection(saved: true))
@@ -109,7 +107,6 @@ public partial class App
             Check(fixture.Requests.Count(path => path == "/ledgers/open-last") == 1 &&
                 !fixture.Requests.Contains("/ledgers") && !fixture.Requests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
                 "保存ログインは本人確認後、open-lastの1応答から直接ホームへ復元");
-            window.Close();
         }
 
         using (var fixture = new SyntheticConnection(saved: true))
@@ -123,17 +120,17 @@ public partial class App
             Invoke(Find<Button>(root, "OpenLedgerButton"));
             await Wait(() => Visible(root, "HomePage"));
             Check(Find<TextBlock>(root, "LedgerName").Text == "もう一つの家計簿", "選択した家計簿を1回で開く");
-            window.Close();
         }
-        window = null;
     }
 
     private async Task<FrameworkElement> OpenSyntheticWindow(SyntheticConnection fixture)
     {
+        var previous = window;
         window = new MainWindow(fixture.CreateConnection());
         var root = (FrameworkElement)window.Content;
         window.Activate();
         await Wait(() => root.IsLoaded);
+        previous?.Close();
         return root;
     }
 
