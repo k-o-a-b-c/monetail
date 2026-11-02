@@ -13,6 +13,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <ProjectReference Include="../../src/Monetail.Windows/Client/Monetail.Windows.Client.csproj" />
+    <ProjectReference Include="../../src/Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
   </ItemGroup>
 </Project>

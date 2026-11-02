@@ -25,13 +25,13 @@ Windows デスクトップアプリ
 
 ### 新版Windows版の構成
 
-新版のUIは**.NET 10 LTS・C#・WinUI 3（Windows App SDK）**へ切り替え、対応OSは**Windows 11のみ**とする（利用者確認済み）。移行先は`src/Monetail.WinUI/Monetail.WinUI.csproj`。ターゲットは`net10.0-windows10.0.26100.0`、最小対応バージョンはWindows 11初版の`10.0.22000.0`。Windows App SDKは安定版1.8系列を使用する。初期ビルドと起動の検証はx64で行い、ARM64は未検証とする。
+新版は**Windows 11のみ・.NET 10 LTS・C#・WinUI 3（Windows App SDK）**のアプリとする。プロジェクトは`src/Monetail.WinUI/Monetail.WinUI.csproj`。ターゲットは`net10.0-windows10.0.26100.0`、最小対応バージョンはWindows 11初版の`10.0.22000.0`。Windows App SDKは安定版1.8系列を使用する。初期ビルドと起動の検証はx64で行い、ARM64は未検証とする。
 
-まず起動・ビルドと、ホーム／左メニューを残した右側の人物一覧の表示を検証する。現段階のWinUI 3は画面の土台で、接続・ログイン・家計簿の選択と人物の保存操作はまだ移していない。通常起動ではサンプルデータを表示せず、Clientの型を受け取る表示処理だけを備える。移行元のWinFormsは`src/Monetail.Windows/Monetail.Windows.csproj`に残し、比較と検証に使う。
+現在は起動・ホーム・左メニューを残した右側の人物一覧の表示まで。接続・ログイン・家計簿選択・人物の保存操作の画面は未実装。通常起動ではサンプルデータを表示せず、Clientの型を受け取る表示処理を備える。
 
 開発・CIでは非パッケージの自己完結した配置を使い、Windows App SDKと.NETランタイムを出力先に含めて起動を確認する。これは検証用の設定で、製品インストーラーの方式・更新方法・配布対象CPUを決定したものではない。WinUI 3のビルド・製品起動・同じXAMLによるスモークテストは専用の`.github/workflows/winui.yml`で行う。画像の取得は`preview/winui-*`ブランチでの単発実行に限定する。
 
-API通信・認証・保存・日付と時刻の補完は`src/Monetail.Windows/Client/Monetail.Windows.Client.csproj`（`net10.0`）に分離済みで、WinUI 3から再利用する。WinFormsの画面・入力コントロール・Enter移動・IME連携・画面テストはそのまま移植せず、[59の入力仕様](59-input-controls-design.md)を基にWinUI 3で作り直して検証する。API・認証契約・保存形式・通信単位をUI移行の都合で変えない。現在のVB.NET／.NET Framework 4.8のプロジェクトも残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。レシート等の業務画面とインストーラーは後続とする。
+API通信・認証・保存・日付と時刻の補完は`src/Monetail.Windows.Client/Monetail.Windows.Client.csproj`（`net10.0`）に分ける。画面はClientを参照し、入力欄・フォーカス・IMEは[59の入力仕様](59-input-controls-design.md)に従ってWinUI 3で実装する。API・認証契約・保存形式・通信単位を表示上の都合で変えない。旧VB.NET／.NET Framework 4.8は独立したアプリとして残し、新版から旧版の実行ファイル・プロジェクトを参照しない。レシート等の業務画面とインストーラーは後続とする。
 
 画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、画面へSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
 
@@ -62,12 +62,10 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
-| `src/Monetail.WinUI/` | Windows 11向けの移行先。WinUI 3の起動・ホーム・左ナビゲーションと右側の人物一覧の土台 |
+| `src/Monetail.WinUI/` | Windows 11向けアプリ。WinUI 3の起動・ホーム・左ナビゲーションと右側の人物一覧の土台 |
 | `tests/Monetail.WinUI.Smoke/` | 製品の起動と、同じXAML・コードを使った合成データの画面スモーク。単発画像の取得も担当 |
-| `src/Monetail.Windows/` | 移行元WinFormsの起動・接続設定・ログイン待ち・家計簿画面・人物管理画面 |
-| `src/Monetail.Windows/Controls/` | 日付／時刻の入力欄、Enter移動を共用するForm、標準コンテナーによるPageLayout。IME状態を監視し、変換確定のEnterを移動・保存へ流さない |
-| `src/Monetail.Windows/Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定・人物管理の通信・画面に依存しない日付／時刻の補完 |
-| `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
+| `src/Monetail.Windows.Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定・人物管理の通信・画面に依存しない日付／時刻の補完 |
+| `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Storage.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
 | `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル |
 | `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |

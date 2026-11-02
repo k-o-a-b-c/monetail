@@ -5,13 +5,13 @@ on:
   push:
     paths:
       - 'src/Monetail.WinUI/**'
-      - 'src/Monetail.Windows/Client/**'
+      - 'src/Monetail.Windows.Client/**'
       - 'tests/Monetail.WinUI.Smoke/**'
       - '.github/workflows/winui.yml'
   pull_request:
     paths:
       - 'src/Monetail.WinUI/**'
-      - 'src/Monetail.Windows/Client/**'
+      - 'src/Monetail.Windows.Client/**'
       - 'tests/Monetail.WinUI.Smoke/**'
       - '.github/workflows/winui.yml'
 

@@ -28,31 +28,42 @@
         <Grid x:Name="HomePage" Padding="32" RowSpacing="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="1" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Button Content="記録" Style="{StaticResource HeaderButton}"
+                <Button x:Name="LedgerSelector" IsEnabled="False" Style="{StaticResource HeaderButton}"
+                        HorizontalAlignment="Left" HorizontalContentAlignment="Stretch" MaxWidth="320" MinWidth="0"
+                        AutomationProperties.Name="家計簿の切替">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="LedgerName" Text="家計簿を選択" TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+                        <FontIcon Grid.Column="1" Glyph="&#xE70D;" FontSize="12" />
+                    </Grid>
+                </Button>
+                <Button Grid.Column="1" Content="記録" Style="{StaticResource HeaderButton}"
                         Background="{ThemeResource ControlFillColorSecondaryBrush}" Click="ShowRecord" />
-                <Button Grid.Column="1" Content="集計・分析" IsEnabled="False"
+                <Button Grid.Column="2" Content="集計・分析" IsEnabled="False"
                         Style="{StaticResource HeaderButton}" HorizontalAlignment="Left" />
-                <Button x:Name="SettingsButton" Grid.Column="2" Click="ShowManagement" Padding="18,12">
+                <Button x:Name="SettingsButton" Grid.Column="3" Click="ShowManagement" Padding="18,12">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <FontIcon Glyph="&#xE713;" />
                         <TextBlock Text="管理・設定" FontSize="18" />
                     </StackPanel>
                 </Button>
             </Grid>
-            <Button x:Name="LedgerSelector" Grid.Row="1" Content="家計簿を選択" IsEnabled="False"
-                    HorizontalAlignment="Left" AutomationProperties.Name="家計簿の切替" />
-            <Border Grid.Row="2" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
-            <Grid Grid.Row="3" ColumnSpacing="24" RowSpacing="24">
+            <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
+            <Grid Grid.Row="2" ColumnSpacing="24" RowSpacing="24">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="3*" />
                     <ColumnDefinition Width="2*" />
