@@ -9,14 +9,16 @@ internal sealed class PageLayout : Panel
     {
         Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
         ColumnCount = 1, RowCount = 0, ColumnStyles = { new ColumnStyle(SizeType.Percent, 100) },
-        Padding = new Padding(24, 20, 24, 20), Margin = Padding.Empty, TabStop = false
+        Padding = new Padding(32, 28, 32, 28), Margin = Padding.Empty, TabStop = false
     };
 
     public PageLayout(Font font)
     {
-        bodyFont = new Font(font.FontFamily, 10);
-        headingFont = new Font(font.FontFamily, 16);
+        bodyFont = new Font(font.FontFamily, 11);
+        headingFont = new Font(font.FontFamily, 18, FontStyle.Bold);
         Font = bodyFont;
+        BackColor = SystemColors.Window;
+        ForeColor = SystemColors.WindowText;
         Dock = DockStyle.Fill;
         AutoScroll = true;
         Controls.Add(layout);
@@ -39,15 +41,65 @@ internal sealed class PageLayout : Panel
         layout.Controls.Add(control, 0, row);
     }
 
-    public void AddHeading(string title, string ledgerName)
+    public void AddHeading(string title, string ledgerName, Button? back = null)
     {
         var header = Stack();
-        header.Margin = new Padding(0, 0, 0, 16);
-        var heading = TextLabel(title);
-        heading.Font = headingFont;
-        header.Controls.Add(heading);
-        header.Controls.Add(TextLabel(ledgerName));
+        header.Margin = new Padding(0, 0, 0, 24);
+        var titleRow = new TableLayoutPanel
+        {
+            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2,
+            ColumnStyles = { new ColumnStyle(SizeType.AutoSize), new ColumnStyle(SizeType.Percent, 100) },
+            Margin = Padding.Empty, Dock = DockStyle.Top, TabStop = false
+        };
+        if (back is not null) titleRow.Controls.Add(back, 0, 0);
+        titleRow.Controls.Add(HeadingLabel(title), 1, 0);
+        header.Controls.Add(titleRow);
+        if (ledgerName.Length > 0)
+        {
+            var ledger = TextLabel(ledgerName);
+            ledger.ForeColor = SystemColors.GrayText;
+            ledger.AccessibleName = "家計簿名";
+            header.Controls.Add(ledger);
+        }
         AddSection(header);
+    }
+
+    public Label HeadingLabel(string text)
+    {
+        var label = TextLabel(text);
+        label.Font = headingFont;
+        label.Anchor = AnchorStyles.Left;
+        return label;
+    }
+
+    public static void StyleButton(Button button, bool quiet = false)
+    {
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = quiet ? 0 : 1;
+        button.FlatAppearance.BorderColor = SystemColors.ControlLight;
+        button.FlatAppearance.MouseOverBackColor = SystemColors.Control;
+        button.FlatAppearance.MouseDownBackColor = SystemColors.ControlLight;
+        button.BackColor = SystemColors.Window;
+        button.ForeColor = SystemColors.WindowText;
+        button.UseVisualStyleBackColor = false;
+    }
+
+    public static Panel Divider() => new()
+    {
+        Height = 1, BackColor = SystemColors.ControlLight, Margin = new Padding(0, 8, 0, 16), TabStop = false
+    };
+
+    public static Panel Card(Control contents)
+    {
+        var border = new Panel
+        {
+            BackColor = SystemColors.ControlLight, Padding = new Padding(1),
+            Dock = DockStyle.Fill, Margin = new Padding(0, 0, 16, 16), TabStop = false
+        };
+        contents.Dock = DockStyle.Fill;
+        contents.BackColor = SystemColors.Window;
+        border.Controls.Add(contents);
+        return border;
     }
 
     public static TableLayoutPanel Stack() => new()

@@ -115,7 +115,18 @@ public sealed partial class MainWindow
         openedLedger = ledger;
         Reset("Monetail", null);
         peopleMenu.Visible = true;
-        var selector = AddButton(ledger.Name + " ▾", () => { });
+        AddLedgerSelector(ledger, body);
+        body.Controls.Add(new Label { AutoSize = true, Text = "レシート一覧", Margin = new Padding(0, 16, 0, 8) });
+        body.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(440, 0), Text = "レシートの一覧・入力機能は今後追加します。" });
+        AddAccountActions();
+    }
+
+    private void AddLedgerSelector(LedgerInfo ledger, Control parent)
+    {
+        var selector = AddButton(ledger.Name + " ▾", () => { }, parent);
+        selector.AccessibleName = "家計簿の切替";
+        selector.AutoEllipsis = true;
+        selector.MaximumSize = new Size(560, 56);
         selector.Click += async (_, _) => await RunAsync(async () =>
         {
             var choices = await ledgers!.ListAsync(lifetime.Token);
@@ -132,9 +143,6 @@ public sealed partial class MainWindow
             menu.Closed += (_, _) => BeginInvoke((Action)menu.Dispose);
             menu.Show(selector, new Point(0, selector.Height));
         }, () => OpenLedgerAsync(ledger.LedgerId));
-        body.Controls.Add(new Label { AutoSize = true, Text = "レシート一覧", Margin = new Padding(0, 16, 0, 8) });
-        body.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(440, 0), Text = "レシートの一覧・入力機能は今後追加します。" });
-        AddAccountActions();
     }
 
     private void ShowLedgerFailure(LedgerRequestException error, Func<Task> retry)

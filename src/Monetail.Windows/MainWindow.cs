@@ -222,10 +222,11 @@ public sealed partial class MainWindow : InputForm
     private Button AddButton(string text, Action action, Control? parent = null)
     {
         var button = new Button { Text = text, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            MinimumSize = parent is null ? new Size(130, 32) : new Size(88, 34),
-            Padding = parent is null ? Padding.Empty : new Padding(12, 4, 12, 4),
+            MinimumSize = parent is null ? new Size(130, 40) : new Size(96, 40),
+            Padding = new Padding(16, 8, 16, 8),
             Margin = parent is null ? new Padding(3) : new Padding(0, 0, 8, 0),
             TabIndex = (parent ?? body).Controls.Count };
+        PageLayout.StyleButton(button);
         button.Click += (_, _) => action();
         (parent ?? body).Controls.Add(button);
         return button;
