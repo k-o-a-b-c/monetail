@@ -91,7 +91,8 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="レシート" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                            <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False" />
+                            <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
+                                    AutomationProperties.Name="レシートの登録" />
                         </Grid>
                         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
                         <TextBlock Grid.Row="2" Text="レシートの一覧・入力機能は今後追加します。"
