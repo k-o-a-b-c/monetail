@@ -248,8 +248,6 @@ public sealed partial class MainWindow
         personDraft = null;
         editorDenied = false;
         ClearPersonErrors();
-        ErrorNotice.IsOpen = false;
-        ErrorNotice.Visibility = Visibility.Collapsed;
         UpdatePeopleActions();
     }
 
