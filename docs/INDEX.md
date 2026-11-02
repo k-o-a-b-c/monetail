@@ -10,6 +10,7 @@
 | API起動・設定・移行・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
 | コードの責務・配置 | [04 構成](04-architecture.md) |
 | 新Windows版の共通UI・配置・フォント・高DPI基準 | [UI_DESIGN.md](../UI_DESIGN.md) |
+| 新Windows版のキー操作・日付と時刻の入力形式・補完 | [59 入力コントロール設計](59-input-controls-design.md) |
 | 検証件数・実行方法・採用する結果 | [tests/README](../tests/README.md) |
 
 仕様を変更したら該当の正本、テスト構成や採用結果が変わったらtests/READMEを更新する。優先順位が変わらなければ07を更新しない。重要な新しい仕様判断だけ[13 決定履歴](13-glossary-decisions.md)へ追記し、過去の状態を遡って直さない。新しい改修ごとに番号付き文書を増やさない。
