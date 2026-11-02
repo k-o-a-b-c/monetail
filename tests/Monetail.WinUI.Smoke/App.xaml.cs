@@ -76,6 +76,8 @@ public partial class App : Application
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
             var rasterizationScale = root.XamlRoot.RasterizationScale;
             await CheckConnectionFlow(output, capture);
+            await CheckPeopleFlow(output, capture);
+            await CheckInputControls();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,
                     rasterizationScale, checks }));

@@ -240,6 +240,7 @@ public partial class App
         internal Uri? AuthorizationUri;
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
+        internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PeopleHandler;
         internal bool ConnectionCancelled, RateLimitOpening;
         internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
         internal int ChoiceCount, BrowserOpens;
@@ -318,6 +319,8 @@ public partial class App
             }
             if (path == $"/ledgers/{second.LedgerId:N}/open") return Json(second);
             if (path == $"/ledgers/{first.LedgerId:N}/open") return Json(first);
+            if (PeopleHandler is not null && path.Contains("/people", StringComparison.Ordinal))
+                return await PeopleHandler(request, token);
             if (path == $"/ledgers/{first.LedgerId:N}/people") return Json(new PeopleInfo(
                 [new(person, "父", null, null, 0, Guid.NewGuid())], person, "Admin", Guid.NewGuid()));
             throw new InvalidOperationException("想定しない合成API要求: " + path);

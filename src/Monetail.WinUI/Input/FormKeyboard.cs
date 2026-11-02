@@ -55,9 +55,10 @@ internal sealed class FormKeyboard
     {
         if (alt || IsComposing || root.XamlRoot is null) return null;
         var focused = FocusManager.GetFocusedElement(root.XamlRoot) as DependencyObject;
+        if (!Within(focused, root) || OpenCombo(root)) return null;
         var input = Ancestor<TextBox>(focused);
         var combo = Ancestor<ComboBox>(focused);
-        if (input is { AcceptsReturn: true } || Ancestor<RichEditBox>(focused) is not null ||
+        if (input is { AcceptsReturn: true } || Ancestor<RichEditBox>(focused) is not null || Ancestor<ListViewBase>(focused) is not null ||
             combo is { IsDropDownOpen: true }) return null;
         if (control)
             return saveButton is { IsEnabled: true, Visibility: Visibility.Visible } && save is not null ? save() : null;
@@ -75,6 +76,24 @@ internal sealed class FormKeyboard
             current = VisualTreeHelper.GetParent(current);
         }
         return null;
+    }
+
+    private static bool Within(DependencyObject? current, DependencyObject root)
+    {
+        while (current is not null)
+        {
+            if (ReferenceEquals(current, root)) return true;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return false;
+    }
+
+    private static bool OpenCombo(DependencyObject current)
+    {
+        if (current is ComboBox { IsDropDownOpen: true }) return true;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(current); index++)
+            if (OpenCombo(VisualTreeHelper.GetChild(current, index))) return true;
+        return false;
     }
 
     private static bool Down(VirtualKey key) =>
