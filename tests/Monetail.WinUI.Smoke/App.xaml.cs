@@ -74,6 +74,12 @@ public partial class App : Application
             Invoke(Find<Button>(root, "ReturnButton"));
             await Settle();
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
+            if (capture)
+            {
+                root.RequestedTheme = ElementTheme.Dark;
+                await Settle();
+                await Capture(root, output, "05-home-dark");
+            }
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,
                     rasterizationScale = root.XamlRoot.RasterizationScale, checks }));
