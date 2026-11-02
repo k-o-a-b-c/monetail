@@ -46,7 +46,8 @@ public partial class App : Application
             var navigation = Find<NavigationView>(root, "ManagementNavigation");
             var people = Find<ListView>(root, "PeopleList");
             Check(Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible, "管理・設定への切替");
-            Check(navigation.IsPaneOpen && navigation.SelectedItem == Find<NavigationViewItem>(root, "PeopleNavigation"), "左メニューを保持");
+            Check(navigation.IsPaneOpen && ReferenceEquals(navigation.SelectedItem,
+                Find<NavigationViewItem>(root, "PeopleNavigation")), "左メニューを保持");
             Check(people.Items.Count == 3, "右側に全員表示");
             Check(((PersonRow)people.Items[0]).Name == "父（本人）", "本人先頭");
             Check(((PersonRow)people.Items[1]).ValidFrom == "2026/04/01" &&

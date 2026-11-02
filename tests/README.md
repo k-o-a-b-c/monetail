@@ -1,6 +1,6 @@
 # テストの構成・実行と結果
 
-WinUI 3への切替を決定したが、現時点で移行先のUIは未実装。以下の新版Windowsの画面テスト・写真・ビルド結果は移行元WinFormsのもので、WinUI 3の成功結果とは扱わない。Clientの検証結果はUIから独立している。
+Windows 11向けWinUI 3の起動・ホーム・左メニューと右の人物一覧の土台を追加した。接続・ログインや人物の保存操作は未移植。以下のWinFormsとWinUI 3の検証結果を区別し、Clientの検証結果はUIから独立して扱う。
 
 件数・実行方法・最新の採用結果の正本。過去の詳細は[検証履歴](history.md)へ保存し、通常の改修では読み直さない。実データ・利用者環境への適用を自動検証済みとは扱わない。
 
@@ -11,9 +11,10 @@ WinUI 3への切替を決定したが、現時点で移行先のUIは未実装�
 | Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 430 |
 | 新版Windowsクライアント（接続・認証・保存・家計簿・人物・共通入力） | 218 |
-| Windowsの実DPAPI・新版画面 | 42 |
-| CIの実行対象選択 | 18 |
-| 合計 | 851 |
+| Windowsの実DPAPI・移行元WinForms画面 | 42 |
+| WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
+| CIの実行対象選択 | 20 |
+| 合計 | 854 |
 
 変更前の採用結果は[CI 40853317101](https://github.com/k-o-a-b-c/monetail/actions/runs/40853317101)（ソース`821683bd1ef3de610a9428d68c8ba717d349a8a0`）。旧Windows・計算・Python移行・性能のソースは今回変更せず、この成功結果を再利用する。
 
@@ -40,6 +41,8 @@ APIは合成アカウント・実HTTP・隔離SQLiteで、現在の参加、他�
 物理端末のパスキー、実ブラウザーを含む手動操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
 
 ## 実行方法（リポジトリ直下）
+
+WinUI 3はWindows上で`dotnet build src/Monetail.WinUI/Monetail.WinUI.csproj --configuration Release --runtime win-x64 -p:Platform=x64`でビルドする。製品の起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。スモークは製品EXEの起動を確認した後、実画面と同じXAML・コードへ合成データを渡し、ナビゲーション・本人先頭・日付表示・家計簿名・リサイズ・テーマ切替・同じウィンドウでの復帰を検証する。通常CIで画像は取らず、`preview/winui-*`ブランチでのみ単発撮影する。保存済みの接続先・トークン・実データは使用しない。x64・CIの96DPI以外のARM64／物理端末の高DPI・モニター間移動・IME・キー入力は未検証。
 
 ```sh
 # .NET 10
