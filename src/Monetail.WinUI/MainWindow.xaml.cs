@@ -16,8 +16,9 @@ public sealed partial class MainWindow : Window
     /// <summary>APIから受け取った表示用データを反映する。サンプルを通常起動へ埋め込まない。</summary>
     public void DisplayWorkspace(LedgerInfo ledger, PeopleInfo people)
     {
-        LedgerSelector.Content = ledger.Name + " ▾";
+        LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);
+        Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(LedgerSelector, ledger.Name);
         LedgerContext.Text = ledger.Name;
         PeopleList.ItemsSource = people.People.OrderByDescending(person => person.PersonId == people.MyPersonId)
             .ThenBy(person => person.DisplayOrder)
