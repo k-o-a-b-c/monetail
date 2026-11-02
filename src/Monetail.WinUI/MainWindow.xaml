@@ -35,16 +35,14 @@
             <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Monetail" FontSize="28" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Content="記録" Style="{StaticResource HeaderButton}"
+                <Button Content="記録" Style="{StaticResource HeaderButton}"
                         Background="{ThemeResource ControlFillColorSecondaryBrush}" Click="ShowRecord" />
-                <Button Grid.Column="2" Content="集計・分析" IsEnabled="False"
+                <Button Grid.Column="1" Content="集計・分析" IsEnabled="False"
                         Style="{StaticResource HeaderButton}" HorizontalAlignment="Left" />
-                <Button x:Name="SettingsButton" Grid.Column="3" Click="ShowManagement" Padding="18,12">
+                <Button x:Name="SettingsButton" Grid.Column="2" Click="ShowManagement" Padding="18,12">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <FontIcon Glyph="&#xE713;" />
                         <TextBlock Text="管理・設定" FontSize="18" />
