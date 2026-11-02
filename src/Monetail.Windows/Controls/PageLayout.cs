@@ -55,7 +55,7 @@ internal sealed class PageLayout : Panel
     public static FlowLayoutPanel Actions() => new()
     {
         AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-        FlowDirection = FlowDirection.LeftToRight, WrapContents = true,
+        FlowDirection = FlowDirection.LeftToRight, WrapContents = false,
         Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 12), TabStop = false
     };
 
