@@ -20,9 +20,14 @@ internal sealed class PageLayout : Panel
         Dock = DockStyle.Fill;
         AutoScroll = true;
         Controls.Add(layout);
-        // 本文が最小高より大きければ一覧へ配分し、小さければ全体をスクロールする。
-        SizeChanged += (_, _) => layout.MinimumSize = new Size(0, ClientSize.Height);
         TabStop = false;
+    }
+
+    protected override void OnLayout(LayoutEventArgs e)
+    {
+        // スクロール範囲の計算前に更新し、縮小前の高さを残さない。
+        layout.MinimumSize = new Size(0, ClientSize.Height);
+        base.OnLayout(e);
     }
 
     public void AddSection(Control control, bool expand = false)
