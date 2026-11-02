@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Monetail.Windows.Client.Input;
 
 namespace Monetail.WinUI.Input;
@@ -20,14 +19,15 @@ public sealed class DateInputBox : TextBox
     public DependencyObject? CancellationTarget { get; set; }
     public Func<DependencyObject?, bool>? IsCancellationTarget { get; set; }
     public bool SuppressCompletion { get; set; }
+    private bool leavingForCancellation;
 
     public DateInputBox()
     {
+        LosingFocus += (_, args) => leavingForCancellation =
+            ReferenceEquals(args.NewFocusedElement, CancellationTarget) || IsCancellationTarget?.Invoke(args.NewFocusedElement) == true;
         LostFocus += (_, _) =>
         {
-            if (SuppressCompletion || IsReadOnly || !IsEnabled || XamlRoot is null ||
-                ReferenceEquals(FocusManager.GetFocusedElement(XamlRoot), CancellationTarget) ||
-                IsCancellationTarget?.Invoke(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject) == true) return;
+            if (SuppressCompletion || IsReadOnly || !IsEnabled || leavingForCancellation) return;
             Complete();
         };
     }

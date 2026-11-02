@@ -41,6 +41,7 @@ public partial class App
                 Find<ContentDialog>(root, "PersonDialog").DefaultButton == ContentDialogButton.None,
                 "一覧を背後に残すContentDialogで、入力欄のEnterを既定の保存にしない");
             from.Focus(Microsoft.UI.Xaml.FocusState.Keyboard);
+            await Settle();
             from.Text = "not-a-date";
             Cancel().Focus(Microsoft.UI.Xaml.FocusState.Keyboard);
             await Settle();
