@@ -171,7 +171,11 @@ public partial class App
             Check(Find<ProgressRing>(root, "StartupProgress").IsActive &&
                 Find<ProgressRing>(root, "StartupProgress").IsEnabled && ReferenceEquals(window.Content, root),
                 "1秒以上かかったら同じWindowでProgressRingと接続中を表示");
-            if (capture) await Capture(root, output, "09-startup-wait");
+            if (capture)
+            {
+                await Settle();
+                await Capture(root, output, "09-startup-wait");
+            }
             fixture.ConnectionGate.SetResult(true);
             await startup;
             Check(Visible(root, "HomePage") && !Find<ProgressRing>(root, "StartupProgress").IsActive &&
