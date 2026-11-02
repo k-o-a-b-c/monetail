@@ -73,6 +73,7 @@ public sealed partial class MainWindow
         content.Controls.Add(name);
         var create = Button("作成", () => CreateLedgerAsync(name.Text, noMembership));
         AcceptButton = create;
+        SubmitButton = create;
         if (openedLedger is not null) Button("キャンセル", () => OpenLedgerAsync(openedLedger.LedgerId));
         else if (!noMembership) Button("キャンセル", ShowLedgerListAsync);
         AddAccountActions();

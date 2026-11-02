@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using Monetail.Windows.Client;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Controls;
 using Xunit;
 
 namespace Monetail.Windows.Tests;
@@ -74,6 +76,8 @@ public sealed class PeopleWindowTests
         Assert.Contains(All(f.Window), control => control.Visible && control.Text == "有効開始日：2026/04/01");
         Assert.Contains(All(f.Window), control => control.Visible && control.Text == "有効終了日：2026/09/30");
         Assert.Equal(before + 1, f.Api.Calls.Count);
+        f.Press(Keys.Control | Keys.Enter);
+        Assert.Equal(before + 1, f.Api.Calls.Count);
         f.Click("最新内容に切り替える");
         Assert.Equal("最新の本人", f.Input("人物名").Text);
         Assert.True(f.Button("保存").Enabled);
@@ -81,6 +85,25 @@ public sealed class PeopleWindowTests
         Assert.Equal("最新の本人（本人）", f.List.Items[0].Text);
         Assert.Equal(f.Api.People[1].Revision, f.Api.LastEditRevision);
         Assert.Equal(before + 2, f.Api.Calls.Count);
+    });
+
+    [Fact]
+    public Task DateEnterAndCtrlEnterNormalizePeriodsAndSaveWithoutAnotherGet() => OnUiThread(() =>
+    {
+        using var f = new Fixture(); f.Open(); f.Select(0); f.Click("編集");
+        var from = Assert.IsType<DateInput>(f.Input("有効開始日"));
+        var to = Assert.IsType<DateInput>(f.Input("有効終了日"));
+        Assert.True(from.AllowEmpty); Assert.True(to.AllowEmpty);
+        from.Focus(); from.Text = "２０２６－１１／２";
+        f.Press(Keys.Enter);
+        Assert.Equal("2026/11/02", from.Text); Assert.True(to.Focused);
+        to.Text = "4/31";
+        var before = f.Api.Calls.Count;
+        f.Press(Keys.Control | Keys.Enter);
+        Assert.NotNull(f.List);
+        Assert.Equal(before + 1, f.Api.Calls.Count);
+        Assert.Equal("2026-11-02", f.Api.LastEditBody.GetProperty("validFrom").GetString());
+        Assert.Equal(JsonValueKind.Null, f.Api.LastEditBody.GetProperty("validTo").ValueKind);
     });
 
     [Fact]
@@ -196,6 +219,15 @@ public sealed class PeopleWindowTests
             var root = Window.MainMenuStrip!.Items.OfType<ToolStripMenuItem>().Single();
             PumpUntil(() => root.DropDownItems.OfType<ToolStripMenuItem>().Single(item => item.Text == "接続先の設定").Enabled);
         }
+        public void Press(Keys keys)
+        {
+            var source = All(Window).FirstOrDefault(control => control.Focused) ?? Window;
+            var message = Message.Create(source.Handle, 0x0100, (IntPtr)(keys & Keys.KeyCode), IntPtr.Zero);
+            typeof(InputForm).GetMethod("ProcessCmdKey", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(Window, [message, keys]);
+            var root = Window.MainMenuStrip!.Items.OfType<ToolStripMenuItem>().Single();
+            PumpUntil(() => root.DropDownItems.OfType<ToolStripMenuItem>().Single(item => item.Text == "接続先の設定").Enabled);
+        }
         public void Select(int index)
         {
             foreach (ListViewItem row in List.Items) row.Selected = false;
@@ -215,6 +247,7 @@ public sealed class PeopleWindowTests
         public bool FailCreateOnce, ConflictEditOnce, ConflictOrderOnce, Referenced, LastEditHasPeriod;
         public HttpStatusCode? Rejection;
         public Guid LastEditRevision, LastOrderRevision;
+        public JsonElement LastEditBody;
         private PeopleInfo Data() => new(People.OrderBy(row => row.DisplayOrder).ToArray(), People[1].PersonId, role, OrderRevision);
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {
@@ -236,6 +269,7 @@ public sealed class PeopleWindowTests
             }
             else if (request.Method == HttpMethod.Patch)
             {
+                LastEditBody = body.Clone();
                 LastEditRevision = body.GetProperty("revision").GetGuid();
                 LastEditHasPeriod = body.TryGetProperty("validFrom", out _);
                 if (ConflictEditOnce)
