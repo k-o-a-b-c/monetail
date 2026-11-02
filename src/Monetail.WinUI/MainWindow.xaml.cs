@@ -16,6 +16,7 @@ public sealed partial class MainWindow : Window
         Title = "Monetail";
         AppWindow.Resize(new SizeInt32(1100, 780));
         Closed += CloseConnection;
+        InitializeInput();
         ShowPage(StartupPage);
     }
 
@@ -28,12 +29,7 @@ public sealed partial class MainWindow : Window
 
     private void DisplayLedger(LedgerInfo ledger)
     {
-        if (currentLedger?.LedgerId != ledger.LedgerId)
-        {
-            PeopleList.ItemsSource = null;
-            EmptyPeople.Text = "人物一覧を読み込んでいます。";
-            EmptyPeople.Visibility = Visibility.Visible;
-        }
+        ResetPeople();
         currentLedger = ledger;
         LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);
@@ -41,26 +37,47 @@ public sealed partial class MainWindow : Window
         LedgerContext.Text = ledger.Name;
         LedgerSelector.IsEnabled = account is not null;
         AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = account is not null;
+        UpdatePeopleActions();
         ShowPage(HomePage);
     }
 
     private void DisplayPeople(PeopleInfo people)
     {
-        PeopleList.ItemsSource = people.People.OrderByDescending(person => person.PersonId == people.MyPersonId)
-            .ThenBy(person => person.DisplayOrder)
-            .Select(person => new PersonRow(person, person.PersonId == people.MyPersonId)).ToArray();
+        peopleInfo = people;
+        peoplePermissions = new(people.CurrentRole, people.MyPersonId);
+        missingPeople.Clear();
+        RenderPeopleRows();
         EmptyPeople.Text = "人物は登録されていません。";
         EmptyPeople.Visibility = people.People.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdatePeopleActions();
+    }
+
+    private void RenderPeopleRows()
+    {
+        if (peopleInfo is null) return;
+        PeopleList.ItemsSource = peopleInfo.People.OrderByDescending(person => person.PersonId == peoplePermissions?.MyPersonId)
+            .ThenBy(person => person.DisplayOrder)
+            .Select(person => new PersonRow(person, person.PersonId == peoplePermissions?.MyPersonId)).ToArray();
     }
 
     private void ShowRecord(object sender, RoutedEventArgs e)
     {
+        DiscardPersonEditor();
         ShowPage(HomePage);
     }
 
     private async void ShowManagement(object sender, RoutedEventArgs e)
     {
         ShowPage(ManagementPage);
+        if (!CanViewPeople)
+        {
+            ManagementNavigation.SelectedItem = AccountNavigation;
+            AccountName.Text = account?.DisplayName ?? "";
+            AccountServer.Text = connection.Endpoint?.Value ?? "";
+            AccountContent.Visibility = Visibility.Visible;
+            PeopleContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;
+            return;
+        }
         PeopleContent.Visibility = Visibility.Visible;
         ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
         var alreadySelected = ReferenceEquals(ManagementNavigation.SelectedItem, PeopleNavigation);

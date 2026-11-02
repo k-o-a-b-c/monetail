@@ -30,6 +30,7 @@ public sealed partial class MainWindow
     private void ClearLedger()
     {
         currentLedger = null;
+        ResetPeople();
         ledgerChoices = [];
         creationDraft = null;
         LedgerChoices.ItemsSource = PeopleList.ItemsSource = null;
@@ -48,16 +49,18 @@ public sealed partial class MainWindow
         ShowPage(LedgerCreatePage);
     }
 
-    private async void CreateLedger(object sender, RoutedEventArgs args)
+    private async void CreateLedger(object sender, RoutedEventArgs args) => await CreateLedgerAsync();
+
+    private Task CreateLedgerAsync()
     {
         try
         {
             var name = NewLedgerName.Text.Trim();
             if (creationDraft?.Name != name) creationDraft = new LedgerCreationDraft(name);
         }
-        catch (FormatException error) { ShowError(error.Message); NewLedgerName.Focus(FocusState.Programmatic); return; }
+        catch (FormatException error) { ShowError(error.Message); NewLedgerName.Focus(FocusState.Programmatic); return Task.CompletedTask; }
         var draft = creationDraft;
-        await RunAsync(async () =>
+        return RunAsync(async () =>
         {
             var opened = await connection.Ledgers.CreateAsync(draft!, lifetime.Token);
             creationDraft = null;
@@ -112,7 +115,7 @@ public sealed partial class MainWindow
 
     private Task LoadPeopleAsync()
     {
-        if (account is null || currentLedger is null) return Task.CompletedTask;
+        if (account is null || currentLedger is null || !CanViewPeople) return Task.CompletedTask;
         return RunAsync(async () =>
         {
             var workspace = new PeopleWorkspace(connection.Api, connection.Session, currentLedger.LedgerId);
@@ -123,6 +126,7 @@ public sealed partial class MainWindow
     private async void SelectManagement(object sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item || busy) return;
+        DiscardPersonEditor();
         PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
         if (ReferenceEquals(item, PeopleNavigation))
         {
