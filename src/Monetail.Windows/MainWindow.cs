@@ -16,11 +16,8 @@ public sealed partial class MainWindow : InputForm
     private readonly ITokenStore tokens;
     private readonly CancellationTokenSource lifetime = new();
     private readonly HttpClient http;
-    private readonly FlowLayoutPanel content = new()
-    {
-        Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
-        AutoScroll = true, Padding = new Padding(24)
-    };
+    private readonly Panel content = new() { Dock = DockStyle.Fill };
+    private Control body = null!;
     private readonly ToolStripMenuItem connectionMenu = new("接続先の設定");
     private readonly ToolStripMenuItem peopleMenu = new("人物管理") { Visible = false };
     private ApiEndpoint? endpoint;
@@ -38,8 +35,8 @@ public sealed partial class MainWindow : InputForm
         settings = new ClientSettingsStore(directory);
         tokens = new FileTokenStore(directory, new DpapiDataProtector());
         Text = "Monetail";
-        ClientSize = new Size(560, 320);
-        MinimumSize = new Size(450, 300);
+        ClientSize = new Size(640, 460);
+        MinimumSize = new Size(560, 400);
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
         var menu = new MenuStrip();
@@ -88,7 +85,7 @@ public sealed partial class MainWindow : InputForm
     {
         Reset("接続先の設定", message ?? "サーバーのURLを入力してください。");
         var input = new TextBox { Width = 440, Text = endpoint?.Value ?? "", PlaceholderText = "https://…", AccessibleName = "サーバーURL" };
-        content.Controls.Add(input);
+        body.Controls.Add(input);
         var connect = Button("接続", () => ConnectAsync(input.Text));
         AcceptButton = connect;
         if (session is not null) Button("キャンセル", () => RunAsync(RestoreAsync, () => InitializeAsync()));
@@ -134,7 +131,7 @@ public sealed partial class MainWindow : InputForm
             await using var login = new BrowserOAuthLogin(api!, endpoint!);
             Reset("Monetail", "ブラウザーでログインしてください。");
             var notice = new Label { AutoSize = true, MaximumSize = new Size(450, 0) };
-            content.Controls.Add(notice);
+            body.Controls.Add(notice);
             void OpenBrowser()
             {
                 try { Process.Start(new ProcessStartInfo(login.AuthorizationUri.AbsoluteUri) { UseShellExecute = true }); }
@@ -195,27 +192,42 @@ public sealed partial class MainWindow : InputForm
 
     private void Reset(string heading, string? message)
     {
+        SetPage(new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false,
+            AutoScroll = true, Padding = new Padding(24)
+        });
+        body.Controls.Add(new Label { Text = heading, AutoSize = true, Font = new Font(Font.FontFamily, 16), Margin = new Padding(0, 0, 0, 18) });
+        if (message is not null) body.Controls.Add(new Label { Text = message, AutoSize = true, MaximumSize = new Size(450, 0), Margin = new Padding(0, 0, 0, 12) });
+    }
+
+    private void SetPage(Control page)
+    {
         peopleMenu.Visible = false;
         AcceptButton = null;
         SubmitButton = null;
         CancelButton = null;
         while (content.Controls.Count > 0) content.Controls[0].Dispose();
-        content.Controls.Add(new Label { Text = heading, AutoSize = true, Font = new Font(Font.FontFamily, 16), Margin = new Padding(0, 0, 0, 18) });
-        if (message is not null) content.Controls.Add(new Label { Text = message, AutoSize = true, MaximumSize = new Size(450, 0), Margin = new Padding(0, 0, 0, 12) });
+        body = page;
+        content.Controls.Add(page);
     }
 
-    private Button Button(string text, Func<Task> action)
+    private Button Button(string text, Func<Task> action, Control? parent = null)
     {
-        var button = AddButton(text, () => { });
+        var button = AddButton(text, () => { }, parent);
         button.Click += async (_, _) => await action();
         return button;
     }
 
-    private Button AddButton(string text, Action action)
+    private Button AddButton(string text, Action action, Control? parent = null)
     {
-        var button = new Button { Text = text, AutoSize = true, MinimumSize = new Size(130, 32) };
+        var button = new Button { Text = text, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = parent is null ? new Size(130, 32) : new Size(88, 34),
+            Padding = parent is null ? Padding.Empty : new Padding(12, 4, 12, 4),
+            Margin = parent is null ? new Padding(3) : new Padding(0, 0, 8, 0),
+            TabIndex = (parent ?? body).Controls.Count };
         button.Click += (_, _) => action();
-        content.Controls.Add(button);
+        (parent ?? body).Controls.Add(button);
         return button;
     }
 
@@ -223,7 +235,7 @@ public sealed partial class MainWindow : InputForm
     {
         if (!enabled)
         {
-            foreach (var button in content.Controls.OfType<Button>().Where(button => button.Enabled))
+            foreach (var button in PageControls().OfType<Button>().Where(button => button.Enabled))
             {
                 temporarilyDisabled.Add(button);
                 button.Enabled = false;
@@ -235,6 +247,10 @@ public sealed partial class MainWindow : InputForm
             temporarilyDisabled.Clear();
         }
     }
+
+    private IEnumerable<Control> PageControls() => Descendants(content);
+    private static IEnumerable<Control> Descendants(Control parent) => parent.Controls.Cast<Control>()
+        .SelectMany(control => new[] { control }.Concat(Descendants(control)));
 
     private void TryBringToFront()
     {

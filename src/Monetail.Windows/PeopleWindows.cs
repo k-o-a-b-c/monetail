@@ -16,26 +16,41 @@ public sealed partial class MainWindow
     private Task OpenPeopleAsync()
     {
         if (busy || openedLedger is null) return Task.CompletedTask;
-        Reset($"人物管理 — {openedLedger.Name}", null);
-        var error = PeopleNotice();
-        Button("再読み込み", OpenPeopleAsync);
-        AddButton("ホームへ戻る", () => ShowLedgerHome(openedLedger));
+        var page = PeoplePage("人物管理", backToHome: true);
+        var error = PageLayout.Notice();
+        page.AddSection(error);
+        var actions = PageLayout.Actions();
+        page.AddSection(actions);
+        Button("再読み込み", OpenPeopleAsync, actions);
+        page.AddSection(new Panel(), expand: true);
         return RunPeopleAsync(async () => ShowPeople(await PeopleClient().ListAsync(lifetime.Token)), error);
     }
 
     private void ShowPeople(PeopleInfo data, string? message = null)
     {
         openedLedger = openedLedger! with { Role = data.CurrentRole };
-        Reset($"人物管理 — {openedLedger.Name}", null);
+        var page = PeoplePage("人物管理", backToHome: true);
+        var toolbar = new TableLayoutPanel
+        {
+            AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2,
+            ColumnStyles = { new ColumnStyle(SizeType.Percent, 100), new ColumnStyle(SizeType.AutoSize) },
+            Margin = new Padding(0, 0, 0, 12), TabStop = false
+        };
+        var actions = PageLayout.Actions(); actions.Margin = Padding.Empty;
+        var secondary = PageLayout.Actions(); secondary.Margin = Padding.Empty;
+        toolbar.Controls.Add(actions, 0, 0); toolbar.Controls.Add(secondary, 1, 0);
+        page.AddSection(toolbar);
         var list = PeopleList(data.People.OrderByDescending(row => row.PersonId == data.MyPersonId)
             .ThenBy(row => row.DisplayOrder), data.MyPersonId);
-        if (data.People.Length == 0) PeopleText("人物は登録されていません。");
-        PeopleText("空欄は期間の制限なし");
-        var error = PeopleNotice(message);
+        page.AddSection(list, expand: true);
+        if (data.People.Length == 0) page.AddSection(PageLayout.TextLabel("人物は登録されていません。"));
+        page.AddSection(PageLayout.TextLabel("空欄は期間の制限なし"));
+        var error = PageLayout.Notice(message);
+        page.AddSection(error);
         var admin = data.CurrentRole == "Admin";
-        var add = AddButton("追加", () => { if (!busy) ShowPersonEditor(data, null); });
+        var add = AddButton("追加", () => { if (!busy) ShowPersonEditor(data, null); }, actions);
         add.Enabled = admin;
-        var edit = AddButton("編集", () => { if (!busy && SelectedPerson(list) is { } row) ShowPersonEditor(data, row); });
+        var edit = AddButton("編集", () => { if (!busy && SelectedPerson(list) is { } row) ShowPersonEditor(data, row); }, actions);
         var delete = Button("削除", async () =>
         {
             if (busy || SelectedPerson(list) is not { } row) return;
@@ -44,7 +59,7 @@ public sealed partial class MainWindow
                 MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) == DialogResult.OK;
             if (!confirmed) return;
             await RunPeopleAsync(async () => ShowPeople(await PeopleClient().DeleteAsync(row, lifetime.Token)), error);
-        });
+        }, actions);
         void SelectionChanged()
         {
             var selected = SelectedPerson(list);
@@ -53,30 +68,34 @@ public sealed partial class MainWindow
         }
         list.SelectedIndexChanged += (_, _) => { if (!busy) SelectionChanged(); };
         SelectionChanged();
-        var order = AddButton("並び順を変更", () => { if (!busy) ShowPeopleOrder(data); });
+        var order = AddButton("並び順を変更", () => { if (!busy) ShowPeopleOrder(data); }, secondary);
         order.Enabled = admin;
-        AddButton("ホームへ戻る", () => ShowLedgerHome(openedLedger));
     }
 
     private void ShowPersonEditor(PeopleInfo data, PersonInfo? person)
     {
         var admin = data.CurrentRole == "Admin";
-        Reset($"人物の{(person is null ? "追加" : "編集")} — {openedLedger!.Name}", null);
-        var name = PeopleInput("人物名", person?.Name ?? "");
-        var nameError = PeopleNotice();
-        var from = PeopleDateInput("有効開始日", person?.ValidFrom);
-        var fromError = PeopleNotice();
-        var to = PeopleDateInput("有効終了日", person?.ValidTo);
-        var toError = PeopleNotice();
+        var page = PeoplePage($"人物の{(person is null ? "追加" : "編集")}");
+        var fields = PageLayout.Fields();
+        page.AddSection(fields);
+        var name = new TextBox { Text = person?.Name ?? "" };
+        var nameError = PageLayout.AddField(fields, "人物名", name);
+        var from = new DateInput { Text = PersonDate(person?.ValidFrom), AllowEmpty = true };
+        var fromError = PageLayout.AddField(fields, "有効開始日", from);
+        var to = new DateInput { Text = PersonDate(person?.ValidTo), AllowEmpty = true };
+        var toError = PageLayout.AddField(fields, "有効終了日", to);
         from.ReadOnly = to.ReadOnly = !admin;
-        PeopleText("日付は年/月/日で入力してください。期間の空欄は制限なしです。");
-        var error = PeopleNotice();
-        var latestPanel = new FlowLayoutPanel
-        {
-            AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false,
-            MaximumSize = new Size(440, 0), AccessibleName = "最新の保存内容"
-        };
-        content.Controls.Add(latestPanel);
+        page.AddSection(PageLayout.TextLabel("日付は年/月/日で入力してください。期間の空欄は制限なしです。"));
+        var error = PageLayout.Notice();
+        page.AddSection(error);
+        var latestPanel = PageLayout.Stack();
+        latestPanel.Visible = false;
+        latestPanel.AccessibleName = "最新の保存内容";
+        page.AddSection(latestPanel);
+        var actions = PageLayout.Actions();
+        actions.Margin = new Padding(0, 8, 0, 0);
+        page.AddSection(actions);
+        page.AddSection(new Panel(), expand: true);
         PersonCreationDraft? draft = null;
         PersonInfo? latest = null;
         Button? save = null;
@@ -93,20 +112,20 @@ public sealed partial class MainWindow
         void ShowLatest(PersonInfo value)
         {
             latest = value;
-            latestPanel.Controls.Clear();
+            while (latestPanel.Controls.Count > 0) latestPanel.Controls[0].Dispose();
             foreach (var text in new[] { "ほかの操作で変更されています。最新の保存内容：", $"人物名：{value.Name}",
                 $"有効開始日：{PersonDate(value.ValidFrom)}", $"有効終了日：{PersonDate(value.ValidTo)}",
                 "切り替えると、今回の未保存入力は置き換わります。" })
-                latestPanel.Controls.Add(new Label { Text = text, AutoSize = true, MaximumSize = new Size(420, 0) });
-            var replace = new Button { Text = "最新内容に切り替える", AutoSize = true };
-            replace.Click += (_, _) =>
+                latestPanel.Controls.Add(PageLayout.TextLabel(text));
+            var replaceActions = PageLayout.Actions();
+            latestPanel.Controls.Add(replaceActions);
+            AddButton("最新内容に切り替える", () =>
             {
                 if (busy || latest is null) return;
                 person = latest;
                 name.Text = latest.Name; from.Text = PersonDate(latest.ValidFrom); to.Text = PersonDate(latest.ValidTo);
                 latest = null; latestPanel.Visible = false; save!.Enabled = true; ClearErrors();
-            };
-            latestPanel.Controls.Add(replace);
+            }, replaceActions);
             latestPanel.Visible = true;
             save!.Enabled = false;
             // RunAsyncの復元対象からも外し、最新内容へ切り替えるまで保存を止める。
@@ -130,21 +149,28 @@ public sealed partial class MainWindow
                 if (rejected.LatestPerson is { } value && value.PersonId == person?.PersonId) ShowLatest(value);
                 else FieldError(rejected.Field, PeopleError(rejected));
             });
-        });
+        }, actions);
         AcceptButton = save;
         SubmitButton = save;
         // 閉じた後の権限で一覧を取り直す。保存の成功経路は応答の一覧を使う。
-        Button("キャンセル", OpenPeopleAsync).CausesValidation = false;
+        Button("キャンセル", OpenPeopleAsync, actions).CausesValidation = false;
         name.Focus();
     }
 
     private void ShowPeopleOrder(PeopleInfo data, string? message = null)
     {
-        Reset($"並び順設定 — {openedLedger!.Name}", null);
-        PeopleText("全員で共有する並び順です。人物を選択して移動してください。");
+        var page = PeoplePage("並び順設定");
+        page.AddSection(PageLayout.TextLabel("全員で共有する並び順です。人物を選択して移動してください。"));
         var rows = data.People.OrderBy(row => row.DisplayOrder).ToList();
         var list = PeopleList(rows, null);
-        var error = PeopleNotice(message);
+        page.AddSection(list, expand: true);
+        var moveActions = PageLayout.Actions();
+        page.AddSection(moveActions);
+        var error = PageLayout.Notice(message);
+        page.AddSection(error);
+        var actions = PageLayout.Actions();
+        actions.Margin = new Padding(0, 4, 0, 0);
+        page.AddSection(actions);
         Button? up = null, down = null;
         void UpdateButtons()
         {
@@ -161,8 +187,8 @@ public sealed partial class MainWindow
             list.Items[target].Selected = true; list.Items[target].Focused = true; list.EndUpdate();
             UpdateButtons();
         }
-        up = AddButton("上へ", () => Move(-1));
-        down = AddButton("下へ", () => Move(1));
+        up = AddButton("上へ", () => Move(-1), moveActions);
+        down = AddButton("下へ", () => Move(1), moveActions);
         list.SelectedIndexChanged += (_, _) => { if (!busy) UpdateButtons(); };
         UpdateButtons();
         var save = Button("保存", () => RunPeopleAsync(async () =>
@@ -172,16 +198,16 @@ public sealed partial class MainWindow
                 if (rejected.LatestPeople is { } current)
                     ShowPeopleOrder(current, "ほかの操作で変更されています。最新の並び順を読み込みます。");
                 else { error.Text = PeopleError(rejected); error.Visible = true; }
-            }));
+            }), actions);
         AcceptButton = save;
         SubmitButton = save;
-        Button("キャンセル", OpenPeopleAsync).CausesValidation = false;
+        Button("キャンセル", OpenPeopleAsync, actions).CausesValidation = false;
     }
 
     private Task RunPeopleAsync(Func<Task> action, Label error, Action<PeopleRequestException>? rejected = null) =>
         RunAsync(async () =>
         {
-            var inputs = content.Controls.Cast<Control>().Where(control => control is TextBox or ListView && control.Enabled).ToArray();
+            var inputs = PageControls().Where(control => control is TextBox or ListView && control.Enabled).ToArray();
             foreach (var control in inputs) control.Enabled = false;
             error.Visible = false;
             try { await action(); }
@@ -213,37 +239,38 @@ public sealed partial class MainWindow
         }
     };
 
-    private Label PeopleText(string text)
+    private PageLayout PeoplePage(string title, bool backToHome = false)
     {
-        var label = new Label { Text = text, AutoSize = true, MaximumSize = new Size(440, 0) };
-        content.Controls.Add(label); return label;
-    }
-
-    private Label PeopleNotice(string? text = null)
-    {
-        var label = PeopleText(text ?? ""); label.ForeColor = Color.Firebrick; label.Visible = text is not null; return label;
-    }
-
-    private TextBox PeopleInput(string title, string text)
-    {
-        PeopleText(title);
-        var input = new TextBox { Text = text, Width = 440, AccessibleName = title };
-        content.Controls.Add(input); return input;
-    }
-
-    private DateInput PeopleDateInput(string title, DateOnly? value)
-    {
-        PeopleText(title);
-        var input = new DateInput { Text = PersonDate(value), AllowEmpty = true, Width = 440, AccessibleName = title };
-        content.Controls.Add(input); return input;
+        var page = new PageLayout(Font);
+        SetPage(page);
+        if (backToHome)
+        {
+            var navigation = PageLayout.Actions();
+            page.AddSection(navigation);
+            AddButton("← ホームへ戻る", () => ShowLedgerHome(openedLedger!), navigation);
+        }
+        page.AddHeading(title, openedLedger!.Name);
+        return page;
     }
 
     private ListView PeopleList(IEnumerable<PersonInfo> people, Guid? mine)
     {
-        var list = new ListView { Width = 440, Height = 160, View = View.Details, FullRowSelect = true,
-            MultiSelect = false, HideSelection = false, AccessibleName = "人物一覧" };
+        var list = new ListView { View = View.Details, FullRowSelect = true, GridLines = false,
+            MultiSelect = false, HideSelection = false, AccessibleName = "人物一覧",
+            MinimumSize = new Size(0, 120), Margin = new Padding(0, 0, 0, 12) };
         list.Columns.Add("人物名", 160); list.Columns.Add("有効開始日", 125); list.Columns.Add("有効終了日", 125);
-        AddPeopleRows(list, people, mine); content.Controls.Add(list); return list;
+        void FitColumns()
+        {
+            var dateWidth = Math.Max(TextRenderer.MeasureText("2026/12/31", list.Font).Width,
+                TextRenderer.MeasureText("有効開始日", list.Font).Width) + list.LogicalToDeviceUnits(20);
+            list.Columns[1].Width = list.Columns[2].Width = dateWidth;
+            list.Columns[0].Width = Math.Max(list.LogicalToDeviceUnits(100),
+                list.ClientSize.Width - dateWidth * 2 - list.LogicalToDeviceUnits(24));
+        }
+        list.SizeChanged += (_, _) => FitColumns();
+        list.FontChanged += (_, _) => FitColumns();
+        list.DpiChangedAfterParent += (_, _) => FitColumns();
+        AddPeopleRows(list, people, mine); return list;
     }
 
     private static void AddPeopleRows(ListView list, IEnumerable<PersonInfo> people, Guid? mine)

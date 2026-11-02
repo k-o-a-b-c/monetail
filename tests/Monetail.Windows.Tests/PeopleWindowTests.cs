@@ -132,7 +132,7 @@ public sealed class PeopleWindowTests
         Assert.Equal(before + 1, f.Api.Calls.Count);
         f.Click("キャンセル");
         Assert.DoesNotContain(All(f.Window), control => control is ListView);
-        Assert.Contains(All(f.Window).OfType<Button>(), button => button.Text == "ホームへ戻る");
+        Assert.Contains(All(f.Window).OfType<Button>(), button => button.Text == "← ホームへ戻る");
     });
 
     [Fact]
@@ -172,6 +172,55 @@ public sealed class PeopleWindowTests
         if (referenced) Assert.Contains(All(f.Window), control => control.Visible && control.Text.Contains("参照されているため削除できません"));
         Assert.Equal(before + 1, f.Api.Calls.Count);
     });
+
+    [Fact]
+    public Task ListResizesAndEditorKeepsActionsReachableWithLongConflict() => OnUiThread(() =>
+    {
+        using var f = new Fixture(); f.Open();
+        var initial = f.List.Size;
+        f.Window.ClientSize = new Size(900, 650); Application.DoEvents();
+        Assert.True(f.List.Width > initial.Width);
+        Assert.True(f.List.Height > initial.Height);
+        f.Window.Size = f.Window.MinimumSize; Application.DoEvents();
+        AssertActionsReachable(f.Window);
+        Assert.True(f.List.Columns.Cast<ColumnHeader>().Sum(column => column.Width) <= f.List.ClientSize.Width);
+        f.Select(0); f.Click("編集");
+        f.Api.ConflictName = new string('長', 100);
+        f.Api.ConflictEditOnce = true; f.Click("保存");
+        // 説明が増えたときは標準スクロールで確定・取消操作へ到達できる。
+        var save = f.Button("保存");
+        foreach (var panel in All(f.Window).OfType<ScrollableControl>().Where(panel => panel.AutoScroll && panel.Contains(save)))
+            panel.ScrollControlIntoView(save);
+        Application.DoEvents();
+        AssertActionsReachable(f.Window);
+        Assert.True(f.Button("最新内容に切り替える").Enabled);
+    });
+
+    [Fact]
+    public Task NestedInputsAndActionsStayDisabledWhileSavingThenRecover() => OnUiThread(() =>
+    {
+        using var f = new Fixture(); f.Open(); f.Select(0); f.Click("編集");
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Api.PendingEdit = pending;
+        try
+        {
+            f.Button("保存").PerformClick();
+            PumpUntil(() => f.Api.Calls.Any(call => call.Method == HttpMethod.Patch));
+            Assert.All(All(f.Window).OfType<Button>(), button => Assert.False(button.Enabled));
+            Assert.All(All(f.Window).OfType<TextBox>(), input => Assert.False(input.Enabled));
+        }
+        finally { pending.TrySetResult(); }
+        PumpUntil(() => All(f.Window).OfType<ListView>().Any());
+        Assert.True(f.Button("追加").Enabled);
+        f.Select(0); Assert.True(f.Button("編集").Enabled);
+    });
+
+    private static void AssertActionsReachable(MainWindow window)
+    {
+        var client = window.RectangleToScreen(window.ClientRectangle);
+        foreach (var button in All(window).OfType<Button>().Where(button => button.Visible))
+            Assert.True(client.Contains(button.RectangleToScreen(button.ClientRectangle)), $"操作が画面外です: {button.Text}");
+    }
 
     private static IEnumerable<Control> All(Control root) => root.Controls.Cast<Control>()
         .SelectMany(control => new[] { control }.Concat(All(control)));
@@ -248,6 +297,8 @@ public sealed class PeopleWindowTests
         public HttpStatusCode? Rejection;
         public Guid LastEditRevision, LastOrderRevision;
         public JsonElement LastEditBody;
+        public TaskCompletionSource? PendingEdit;
+        public string ConflictName = "最新の本人";
         private PeopleInfo Data() => new(People.OrderBy(row => row.DisplayOrder).ToArray(), People[1].PersonId, role, OrderRevision);
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {
@@ -269,13 +320,15 @@ public sealed class PeopleWindowTests
             }
             else if (request.Method == HttpMethod.Patch)
             {
+                if (PendingEdit is { } pending) await pending.Task.WaitAsync(token);
                 LastEditBody = body.Clone();
                 LastEditRevision = body.GetProperty("revision").GetGuid();
                 LastEditHasPeriod = body.TryGetProperty("validFrom", out _);
                 if (ConflictEditOnce)
                 {
                     ConflictEditOnce = false;
-                    People[1] = People[1] with { Name = "最新の本人", ValidFrom = new(2026, 4, 1), ValidTo = new(2026, 9, 30), Revision = Guid.NewGuid() };
+                    People[1] = People[1] with { Name = ConflictName,
+                        ValidFrom = new(2026, 4, 1), ValidTo = new(2026, 9, 30), Revision = Guid.NewGuid() };
                     return Json(new { code = "revision_conflict", latest = People[1] }, HttpStatusCode.Conflict);
                 }
                 People[1] = People[1] with { Name = body.GetProperty("name").GetString()! };
