@@ -12,17 +12,24 @@ namespace Monetail.WinUI.Input;
 internal sealed class FormKeyboard
 {
     private readonly FrameworkElement root;
-    private readonly Button? saveButton;
+    private readonly Func<bool> canSave;
     private readonly Func<Task>? save;
     private readonly HashSet<TextBox> composing = [];
     private bool completingWithEnter;
 
     public FormKeyboard(FrameworkElement root, Button? saveButton, Func<Task>? save, params TextBox[] inputs)
+        : this(root, () => saveButton is { IsEnabled: true, Visibility: Visibility.Visible }, save, inputs) { }
+
+    public static FormKeyboard ForDialog(ContentDialog dialog, Func<Task> save, params TextBox[] inputs) =>
+        new(dialog, () => dialog.IsPrimaryButtonEnabled, save, inputs);
+
+    private FormKeyboard(FrameworkElement root, Func<bool> canSave, Func<Task>? save, TextBox[] inputs)
     {
         this.root = root;
-        this.saveButton = saveButton;
+        this.canSave = canSave;
         this.save = save;
-        root.KeyDown += OnKeyDown;
+        if (root is ContentDialog) root.PreviewKeyDown += OnKeyDown;
+        else root.KeyDown += OnKeyDown;
         root.GotFocus += (_, _) =>
         {
             if (!Down(VirtualKey.Enter) && composing.Count == 0) completingWithEnter = false;
@@ -65,12 +72,12 @@ internal sealed class FormKeyboard
         if (input is { AcceptsReturn: true } || Ancestor<RichEditBox>(focused) is not null || Ancestor<ListViewBase>(focused) is not null ||
             combo is { IsDropDownOpen: true }) return null;
         if (control)
-            return saveButton is { IsEnabled: true, Visibility: Visibility.Visible } && save is not null ? save() : null;
+            return canSave() && save is not null ? save() : null;
         // ボタンや一覧上のEnterは、各コントロールの標準操作に任せる。
         if (input is null && combo is null) return null;
         // WinUI 3では対象WindowのXamlRootを明示し、画面全体の標準Tab順を使う。
         FocusManager.TryMoveFocus(shift ? FocusNavigationDirection.Previous : FocusNavigationDirection.Next,
-            new FindNextElementOptions { SearchRoot = root.XamlRoot.Content });
+            new FindNextElementOptions { SearchRoot = root is ContentDialog ? root : root.XamlRoot.Content });
         return Task.CompletedTask;
     }
 

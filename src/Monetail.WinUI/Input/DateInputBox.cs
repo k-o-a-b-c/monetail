@@ -18,6 +18,7 @@ public sealed class DateInputBox : TextBox
     }
 
     public DependencyObject? CancellationTarget { get; set; }
+    public Func<DependencyObject?, bool>? IsCancellationTarget { get; set; }
     public bool SuppressCompletion { get; set; }
 
     public DateInputBox()
@@ -25,7 +26,8 @@ public sealed class DateInputBox : TextBox
         LostFocus += (_, _) =>
         {
             if (SuppressCompletion || IsReadOnly || !IsEnabled || XamlRoot is null ||
-                ReferenceEquals(FocusManager.GetFocusedElement(XamlRoot), CancellationTarget)) return;
+                ReferenceEquals(FocusManager.GetFocusedElement(XamlRoot), CancellationTarget) ||
+                IsCancellationTarget?.Invoke(FocusManager.GetFocusedElement(XamlRoot) as DependencyObject) == true) return;
             Complete();
         };
     }

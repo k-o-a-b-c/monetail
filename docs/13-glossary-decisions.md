@@ -188,3 +188,5 @@
 関連: [現行機能](01-features.md) / [DB仕様](02-database.md) / [計算契約](12-calculation-contract.md) / [店舗端数・オーケー要件](08-requested-enhancements.md) / [課題](05-issues.md)
 
 初期管理者・コード再発行は[45](45-initial-admin-enrollment.md)、パスキー登録は[46](46-passkey-enrollment.md)、ログイン・セッション・本人情報・ログアウトは[47](47-passkey-login-sessions.md)、同じ本人・セッションのパスキー再確認と直近5分の判定は[48](48-passkey-reauthentication.md)まで実装した。全失効・管理コマンドによる復旧は[49](49-authentication-revocation-recovery.md)まで実装した。本人のパスキー一覧・追加／削除は[50](50-self-service-passkeys.md)まで実装した。Web管理画面・追加管理者の管理は後続とする。
+
+| DEC-108 | **利用者確認済み（2026-11-02）** | 人物の追加・編集はContentDialogを使う | 一覧を背後に残す同じWindow内の標準ダイアログとし、登録／保存・キャンセルを置く。背後の画面移動を止め、既存の入力保持・競合表示・認証後の復元を維持する。[58](58-ledger-foundation-design.md#人物管理画面同じウィンドウ内で切替)が正本。 |

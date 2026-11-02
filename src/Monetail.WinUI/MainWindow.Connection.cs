@@ -234,6 +234,9 @@ public sealed partial class MainWindow
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
+        PersonEditorContent.IsEnabled = enabled;
+        PersonDialog.IsCloseButtonEnabled = enabled;
+        UpdatePeopleActions();
         var showProgress = !enabled && StartupPage.Visibility != Visibility.Visible;
         BusyProgress.IsActive = showProgress;
         BusyProgress.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;
@@ -250,6 +253,11 @@ public sealed partial class MainWindow
 
     private void ShowError(string message)
     {
+        if (personDialogOpen && !personDialogClosing && !forcePersonDialogClose)
+        {
+            ShowPersonError(null, message);
+            return;
+        }
         ErrorNotice.Message = message;
         ErrorNotice.Visibility = Visibility.Visible;
         ErrorNotice.IsOpen = true;
@@ -270,6 +278,7 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
+        DiscardPersonEditor();
         lifetime.Cancel();
         browserCancellation?.Cancel();
         connection.Dispose();

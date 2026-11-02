@@ -80,6 +80,36 @@ public partial class App
             Check(navigation.HandleEnter(false, false) is null && navigation.HandleEnter(true, false) is null && saves == 1,
                 "候補を開いている間のEnterはコンボボックスを優先する");
             combo.IsDropDownOpen = false;
+
+            var dialogName = new TextBox { Header = "人物名" };
+            var dialogDate = new DateInputBox { Header = "有効終了日" };
+            var dialogBody = new StackPanel { Spacing = 12 };
+            dialogBody.Children.Add(dialogName);
+            dialogBody.Children.Add(dialogDate);
+            var dialog = new ContentDialog { Title = "人物の追加", Content = dialogBody,
+                PrimaryButtonText = "登録", CloseButtonText = "キャンセル", DefaultButton = ContentDialogButton.None,
+                XamlRoot = panel.XamlRoot };
+            var dialogSaves = 0;
+            var dialogKeyboard = FormKeyboard.ForDialog(dialog, () => { dialogSaves++; return Task.CompletedTask; }, dialogName, dialogDate);
+            var showing = dialog.ShowAsync();
+            try
+            {
+                await Wait(() => dialog.IsLoaded && dialogDate.ActualWidth > 0);
+                var primary = All(dialog).OfType<Button>().Single(button => Equals(button.Content, dialog.PrimaryButtonText));
+                dialogDate.Focus(FocusState.Keyboard);
+                dialogDate.Text = "20260401";
+                await dialogKeyboard.HandleEnter(false, false)!;
+                await Settle();
+                Check(ReferenceEquals(FocusManager.GetFocusedElement(panel.XamlRoot), primary) && dialogSaves == 0 &&
+                    dialogDate.Text == "2026/04/01", "ダイアログの最終欄のEnterも保存せず標準の登録ボタンへ移動");
+                dialogName.Focus(FocusState.Keyboard);
+                await dialogKeyboard.HandleEnter(true, false)!;
+                Check(dialogSaves == 1, "ダイアログ内でもCtrl+Enterの保存を1回だけ呼ぶ");
+                dialog.IsPrimaryButtonEnabled = false;
+                Check(dialogKeyboard.HandleEnter(true, false) is null && dialogSaves == 1,
+                    "ダイアログの保存不可状態はCtrl+Enterでも尊重する");
+            }
+            finally { dialog.Hide(); await showing; }
         }
         finally { inputWindow.Close(); }
     }

@@ -99,8 +99,19 @@ public partial class App : Application
         if (!condition) throw new InvalidOperationException(description);
         checks.Add(description);
     }
-    private static T Find<T>(FrameworkElement root, string name) where T : FrameworkElement =>
-        root.FindName(name) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+    private static T Find<T>(FrameworkElement root, string name) where T : FrameworkElement
+    {
+        if (name is "SavePersonButton" or "CancelPersonButton")
+        {
+            var dialog = (ContentDialog)root.FindName("PersonDialog");
+            var text = name == "SavePersonButton" ? dialog.PrimaryButtonText : dialog.CloseButtonText;
+            return All(dialog).OfType<T>().FirstOrDefault(element => element is Button button && Equals(button.Content, text))
+                ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
+        }
+        return root.FindName(name) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+    }
+    private static bool EditorClosed(FrameworkElement root) =>
+        Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Collapsed;
     private static IEnumerable<DependencyObject> All(DependencyObject root)
     {
         for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)

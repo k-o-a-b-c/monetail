@@ -19,7 +19,7 @@ public partial class App
             Find<DateInputBox>(root, "PersonValidFrom").Text = "20260401";
             fixture.RejectSession = true;
             Invoke(Find<Button>(root, "SavePersonButton"));
-            await Wait(() => Visible(root, "LoginPage"));
+            await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             Check(server.Writes.Count == 0 && fixture.Tokens.Current is null, "人物保存中のログイン失効は保存せずログインへ戻る");
             var rejectedBody = fixture.RejectedPeopleBodies.Single();
             await LoginAgain(fixture, root);
@@ -31,7 +31,7 @@ public partial class App
                 fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1 && server.Reads == 2,
                 "編集復帰は元の家計簿を直接開き、現在の人物と権限を確認");
             Invoke(Find<Button>(root, "SavePersonButton"));
-            await Wait(() => Find<Grid>(root, "PeopleContent").Visibility == Visibility.Visible);
+            await Wait(() => EditorClosed(root));
             Check(server.Writes.Single().Body == rejectedBody, "再ログイン後の明示的な登録も元の作成要求IDを維持");
         }
 
@@ -46,7 +46,7 @@ public partial class App
             Find<TextBox>(root, "PersonName").Text = "編集を継続する入力";
             fixture.RejectSession = true;
             Invoke(Find<Button>(root, "SavePersonButton"));
-            await Wait(() => Visible(root, "LoginPage"));
+            await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             server.ChangeOwnPerson();
             await LoginAgain(fixture, root);
             Invoke(Find<Button>(root, "SavePersonButton"));
@@ -64,7 +64,7 @@ public partial class App
             Find<TextBox>(root, "PersonName").Text = "別サーバーへ渡さない入力";
             fixture.RejectSession = true;
             Invoke(Find<Button>(root, "SavePersonButton"));
-            await Wait(() => Visible(root, "LoginPage"));
+            await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             fixture.RejectSession = false;
             fixture.Settings.Save(ApiEndpoint.Parse("https://other.example.test/"));
             // 別の起動が変更先でログイン済みの状態。IDが同じでも接続先を区別する。
@@ -84,7 +84,7 @@ public partial class App
             Find<TextBox>(root, "PersonName").Text = "別アカウントへ渡さない入力";
             fixture.RejectSession = true;
             Invoke(Find<Button>(root, "SavePersonButton"));
-            await Wait(() => Visible(root, "LoginPage"));
+            await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             fixture.AccountId = Guid.NewGuid();
             fixture.RejectSession = false;
             fixture.CompleteLogin = true;
@@ -108,7 +108,7 @@ public partial class App
             Find<TextBox>(root, "PersonName").Text = "権限が変わっても入力は残す";
             fixture.RejectSession = true;
             Invoke(Find<Button>(root, "SavePersonButton"));
-            await Wait(() => Visible(root, "LoginPage"));
+            await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             if (removed) fixture.CannotOpenLedger = true;
             else server.Role = "Viewer";
             await LoginAgain(fixture, root);

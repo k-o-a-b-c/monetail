@@ -24,41 +24,45 @@ public partial class App
             var list = Find<ListView>(root, "PeopleList");
             var add = Find<Button>(root, "AddPersonButton");
             var edit = Find<Button>(root, "EditPersonButton");
-            var save = Find<Button>(root, "SavePersonButton");
+            Button Save() => Find<Button>(root, "SavePersonButton");
             var name = Find<TextBox>(root, "PersonName");
             var from = Find<DateInputBox>(root, "PersonValidFrom");
             var to = Find<DateInputBox>(root, "PersonValidTo");
-            var cancel = Find<Button>(root, "CancelPersonButton");
+            Button Cancel() => Find<Button>(root, "CancelPersonButton");
             Check(add.IsEnabled && !edit.IsEnabled, "管理者は人物追加可能、未選択なら編集不可");
             var reads = server.Reads;
             Invoke(add);
-            await Wait(() => Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Visible);
+            await Wait(() => Find<ContentDialog>(root, "PersonDialog").IsLoaded && !EditorClosed(root));
             await Wait(() => FitsHorizontally(name, Find<ScrollViewer>(root, "PersonEditorContent")));
-            Check(FitsHorizontally(to, Find<ScrollViewer>(root, "PersonEditorContent")), "人物の入力欄が右側の表示領域に収まる");
+            Check(FitsHorizontally(to, Find<ScrollViewer>(root, "PersonEditorContent")), "人物の入力欄がダイアログの表示領域に収まる");
             Check(name.Text == "" && from.Text == "" && to.Text == "" && server.Reads == reads,
                 "人物追加は全欄空欄で開き、追加取得しない");
+            Check(Find<Grid>(root, "PeopleContent").Visibility == Visibility.Visible &&
+                Find<ContentDialog>(root, "PersonDialog").DefaultButton == ContentDialogButton.None,
+                "一覧を背後に残すContentDialogで、入力欄のEnterを既定の保存にしない");
+            from.Focus(Microsoft.UI.Xaml.FocusState.Keyboard);
             from.Text = "not-a-date";
-            Invoke(cancel);
+            Invoke(Cancel());
             await Settle();
             Check(from.Text == "not-a-date" && server.Writes.Count == 0, "キャンセル時に日付補完・保存を行わない");
 
             Invoke(add);
             await Settle();
             name.Text = new string('あ', 101);
-            Invoke(save);
+            Invoke(Save());
             await Wait(() => Find<TextBlock>(root, "PersonNameError").Visibility == Visibility.Visible);
             Check(name.Text.Length == 101 && server.Writes.Count == 0, "人物名100文字超のエラーは欄の近くへ表示し入力保持");
             name.Text = "  新しい人物  ";
             from.Text = "261001";
             to.Text = "260930";
-            Invoke(save);
+            Invoke(Save());
             await Wait(() => Find<TextBlock>(root, "PersonPeriodError").Visibility == Visibility.Visible);
             Check(from.Text == "2026/10/01" && to.Text == "2026/09/30" && server.Writes.Count == 0,
                 "期間の前後関係は保存前に確認し入力保持");
             from.Text = "２０２６０４０１";
             to.Text = "不正";
-            Invoke(save);
-            await Wait(() => list.Items.Count == 3 && Find<Grid>(root, "PeopleContent").Visibility == Visibility.Visible);
+            Invoke(Save());
+            await Wait(() => list.Items.Count == 3 && EditorClosed(root));
             using (var body = JsonDocument.Parse(server.Writes[^1].Body))
             {
                 Check(body.RootElement.GetProperty("name").GetString() == "新しい人物" &&
@@ -71,13 +75,13 @@ public partial class App
             await Settle();
             name.Text = "再試行の人物";
             server.FailNextSave = true;
-            Invoke(save);
-            await Wait(() => Find<InfoBar>(root, "ErrorNotice").IsOpen);
+            Invoke(Save());
+            await Wait(() => Find<TextBlock>(root, "PersonSaveError").Visibility == Visibility.Visible);
             Check(name.Text == "再試行の人物" && Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Visible,
                 "人物追加の通信失敗で入力と編集画面を保持");
             var failed = server.Writes[^1].Body;
-            Invoke(save);
-            await Wait(() => list.Items.Count == 4);
+            Invoke(Save());
+            await Wait(() => list.Items.Count == 4 && EditorClosed(root));
             Check(failed == server.Writes[^1].Body && server.Reads == reads, "人物追加の再送は同じ要求IDと内容を再利用");
 
             list.SelectedIndex = 0;
@@ -86,20 +90,20 @@ public partial class App
             Check(name.Text == "父" && server.Reads == reads, "人物編集は一覧の名前・期間・版を使い追加取得しない");
             name.Text = "父・編集中";
             server.ConflictNextSave = true;
-            Invoke(save);
+            Invoke(Save());
             await Wait(() => Find<Border>(root, "PersonConflict").Visibility == Visibility.Visible);
-            Check(name.Text == "父・編集中" && !save.IsEnabled &&
+            Check(name.Text == "父・編集中" && !Save().IsEnabled &&
                 Find<TextBlock>(root, "LatestPersonName").Text == "父・最新" &&
                 Find<TextBlock>(root, "LatestPersonFrom").Text == "2020/01/01" &&
                 Find<TextBlock>(root, "LatestPersonTo").Text == "2030/12/31" && server.Reads == reads,
                 "競合は入力と古い版を残し、全最新項目を追加GETなしで表示");
-            if (capture) { await Settle(); await Capture(root, output, "10-person-conflict"); }
+            if (capture) { await Settle(); await Capture(Find<ContentDialog>(root, "PersonDialog"), output, "10-person-conflict"); }
             Invoke(Find<Button>(root, "UseLatestPersonButton"));
             await Settle();
-            Check(name.Text == "父・最新" && from.Text == "2020/01/01" && save.IsEnabled, "明示的な切り替えだけが入力と版を置き換える");
+            Check(name.Text == "父・最新" && from.Text == "2020/01/01" && Save().IsEnabled, "明示的な切り替えだけが入力と版を置き換える");
             name.Text = "父・保存後";
-            Invoke(save);
-            await Wait(() => Find<Grid>(root, "PeopleContent").Visibility == Visibility.Visible);
+            Invoke(Save());
+            await Wait(() => EditorClosed(root));
             Check(((PersonRow)list.Items[0]).Name == "父・保存後（本人）" && server.Reads == reads,
                 "人物編集は新しい版で保存し、成功応答の一覧を表示");
 
@@ -108,18 +112,18 @@ public partial class App
             await Settle();
             name.Text = "重複する名前";
             server.DuplicateNextSave = true;
-            Invoke(save);
+            Invoke(Save());
             await Wait(() => Find<TextBlock>(root, "PersonNameError").Visibility == Visibility.Visible);
             Check(name.Text == "重複する名前" && Find<Border>(root, "PersonConflict").Visibility == Visibility.Collapsed && server.Reads == reads,
                 "同名エラーは競合と分けて表示し、入力と通信回数を維持");
 
             server.Role = "Viewer";
             name.Text = "降格後の未保存入力";
-            Invoke(save);
+            Invoke(Save());
             await Wait(() => Find<TextBlock>(root, "PersonSaveError").Visibility == Visibility.Visible);
-            Check(name.Text == "降格後の未保存入力" && !save.IsEnabled && server.Reads == reads,
+            Check(name.Text == "降格後の未保存入力" && !Save().IsEnabled && server.Reads == reads,
                 "権限喪失は同じ画面に入力を残し、再取得も自動遷移もしない");
-            Invoke(cancel);
+            Invoke(Cancel());
             await Settle();
             Check(!add.IsEnabled, "権限エラーの応答だけで閉じた後の追加を禁止");
             list.SelectedIndex = 1;
@@ -128,11 +132,11 @@ public partial class App
             list.SelectedIndex = 0;
             Invoke(edit);
             await Settle();
-            Check(from.IsReadOnly && to.IsReadOnly && !from.IsTabStop && save.IsEnabled,
+            Check(from.IsReadOnly && to.IsReadOnly && !from.IsTabStop && Save().IsEnabled,
                 "降格後も本人の名前は編集可能で期間は読み取り専用");
             name.Text = "本人の名前変更";
-            Invoke(save);
-            await Wait(() => Find<Grid>(root, "PeopleContent").Visibility == Visibility.Visible);
+            Invoke(Save());
+            await Wait(() => EditorClosed(root));
             using (var body = JsonDocument.Parse(server.Writes[^1].Body))
                 Check(!body.RootElement.TryGetProperty("validFrom", out _) && !body.RootElement.TryGetProperty("validTo", out _),
                     "本人の名前変更は有効期間の項目を送信しない");
@@ -142,10 +146,10 @@ public partial class App
             await Settle();
             name.Text = "除外後の入力";
             server.Joined = false;
-            Invoke(save);
+            Invoke(Save());
             await Wait(() => Find<TextBlock>(root, "PersonSaveError").Visibility == Visibility.Visible);
             Check(name.Text == "除外後の入力" && server.Reads == reads, "除外の404でも入力を保持し、一覧を再取得しない");
-            Invoke(cancel);
+            Invoke(Cancel());
             await Settle();
             Invoke(Find<Button>(root, "SettingsButton"));
             await Settle();
@@ -167,18 +171,26 @@ public partial class App
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "破棄する編集";
             var navigation = Find<NavigationView>(root, "ManagementNavigation");
+            Invoke(Find<Button>(root, "ReturnButton"));
+            await Settle();
+            Check(!EditorClosed(root) && Find<TextBox>(root, "PersonName").Text == "破棄する編集" &&
+                Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible && server.Reads == 1,
+                "人物ダイアログを開いている間は背後の移動で入力を破棄しない");
+            Invoke(Find<Button>(root, "CancelPersonButton"));
+            await Wait(() => EditorClosed(root));
             navigation.SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
             await Settle();
             navigation.SelectedItem = Find<NavigationViewItem>(root, "PeopleNavigation");
-            await Wait(() => Find<Grid>(root, "PeopleContent").Visibility == Visibility.Visible && server.Reads == 2);
+            await Wait(() => server.Reads == 2);
             Invoke(Find<Button>(root, "AddPersonButton"));
             await Settle();
-            Check(Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0, "別機能への移動は未保存編集を破棄し、人物管理は一覧から再開");
+            Check(Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0,
+                "キャンセル後は通常の画面移動ができ、人物追加は空欄から再開");
             if (capture)
             {
                 await Wait(() => FitsHorizontally(Find<TextBox>(root, "PersonName"), Find<ScrollViewer>(root, "PersonEditorContent")));
                 await Settle();
-                await Capture(root, output, "11-person-editor");
+                await Capture(Find<ContentDialog>(root, "PersonDialog"), output, "11-person-editor");
             }
         }
     }

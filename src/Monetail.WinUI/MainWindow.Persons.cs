@@ -20,6 +20,10 @@ public sealed partial class MainWindow
     private bool editorDenied;
     private FormKeyboard personKeyboard = null!;
     private PersonEditSnapshot? pendingPersonEdit;
+    private Task personDialogTask = Task.CompletedTask;
+    private bool personDialogOpen;
+    private bool personDialogClosing;
+    private bool forcePersonDialogClose;
 
     private sealed record PersonEditSnapshot(Guid AccountId, string ApiOrigin, LedgerInfo Ledger, PeopleInfo People,
         PersonInfo? Person, PersonCreationDraft? Creation, bool IncludedPeriod, string Name, string From, string To);
@@ -31,8 +35,9 @@ public sealed partial class MainWindow
 
     private void InitializeInput()
     {
-        PersonValidFrom.CancellationTarget = PersonValidTo.CancellationTarget = CancelPersonButton;
-        personKeyboard = new(PersonEditorContent, SavePersonButton, SavePersonAsync, PersonName, PersonValidFrom, PersonValidTo);
+        PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget =
+            focused => focused is Button button && Equals(button.Content, PersonDialog.CloseButtonText);
+        personKeyboard = FormKeyboard.ForDialog(PersonDialog, SavePersonAsync, PersonName, PersonValidFrom, PersonValidTo);
         _ = new FormKeyboard(ConnectionPage, null, null, ServerUrl);
         _ = new FormKeyboard(ConnectionSettingsContent, null, null, SettingsServerUrl);
         _ = new FormKeyboard(LedgerCreatePage, CreateLedgerButton, CreateLedgerAsync, NewLedgerName);
@@ -54,7 +59,7 @@ public sealed partial class MainWindow
     {
         AddPersonButton.IsEnabled = account is not null && IsPeopleAdmin;
         EditPersonButton.IsEnabled = PeopleList.SelectedItem is PersonRow row && CanEditPerson(row.Person);
-        SavePersonButton.IsEnabled = PersonEditorContent.Visibility == Visibility.Visible && !editorDenied && latestPerson is null && account is not null &&
+        PersonDialog.IsPrimaryButtonEnabled = !busy && PersonEditorContent.Visibility == Visibility.Visible && !editorDenied && latestPerson is null && account is not null &&
             (editingPerson is null ? IsPeopleAdmin : CanEditPerson(editingPerson) && (!editingPeriod || IsPeopleAdmin));
         if (PersonEditorContent.Visibility != Visibility.Visible) PeopleNavigation.IsEnabled = CanViewPeople;
     }
@@ -75,13 +80,14 @@ public sealed partial class MainWindow
 
     private void OpenPersonEditor(PersonInfo? person)
     {
+        if (personDialogOpen) return;
         editingPerson = person;
         editingPeriod = IsPeopleAdmin;
         latestPerson = null;
         personDraft = null;
         editorDenied = false;
-        PersonEditorTitle.Text = person is null ? "人物の追加" : "人物の編集";
-        SavePersonButton.Content = person is null ? "登録" : "保存";
+        PersonDialog.Title = person is null ? "人物の追加" : "人物の編集";
+        PersonDialog.PrimaryButtonText = person is null ? "登録" : "保存";
         PersonName.Text = person?.Name ?? "";
         PersonValidFrom.Text = DateTimeInput.FormatDate(person?.ValidFrom);
         PersonValidTo.Text = DateTimeInput.FormatDate(person?.ValidTo);
@@ -92,17 +98,57 @@ public sealed partial class MainWindow
         PersonConflict.Visibility = Visibility.Collapsed;
         PersonRestoredNotice.Visibility = Visibility.Collapsed;
         ClearPersonErrors();
-        PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
+        ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
+        PeopleContent.Visibility = Visibility.Visible;
         PersonEditorContent.Visibility = Visibility.Visible;
         UpdatePeopleActions();
-        FocusPersonField(PersonName);
+        personDialogTask = ShowPersonDialogAsync();
     }
 
-    private async void SavePerson(object sender, RoutedEventArgs args) => await SavePersonAsync();
+    private async Task ShowPersonDialogAsync()
+    {
+        personDialogOpen = true;
+        personDialogClosing = forcePersonDialogClose = false;
+        PersonDialog.XamlRoot = WorkspaceRoot.XamlRoot;
+        try { await PersonDialog.ShowAsync(); }
+        finally
+        {
+            personDialogOpen = false;
+            personDialogClosing = false;
+            if (!closed)
+            {
+                ClearPersonEditor();
+                if (!forcePersonDialogClose && !CanViewPeople) ShowPage(HomePage);
+            }
+        }
+    }
+
+    private void PersonDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args) => FocusPersonField(PersonName);
+
+    private void PersonDialogClosing(ContentDialog sender, ContentDialogClosingEventArgs args)
+    {
+        if (busy && !forcePersonDialogClose && !closed) { args.Cancel = true; return; }
+        personDialogClosing = true;
+        PersonValidFrom.SuppressCompletion = PersonValidTo.SuppressCompletion = true;
+    }
+
+    private async void SavePerson(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+    {
+        args.Cancel = true;
+        var deferral = args.GetDeferral();
+        try { args.Cancel = !await TrySavePersonAsync(); }
+        finally { deferral.Complete(); }
+    }
 
     private async Task SavePersonAsync()
     {
-        if (busy || personKeyboard.IsComposing || !SavePersonButton.IsEnabled) return;
+        if (await TrySavePersonAsync()) PersonDialog.Hide();
+    }
+
+    private async Task<bool> TrySavePersonAsync()
+    {
+        if (busy || personKeyboard.IsComposing || !PersonDialog.IsPrimaryButtonEnabled) return false;
+        var saved = false;
         ClearPersonErrors();
         PersonInput input;
         try
@@ -111,7 +157,7 @@ public sealed partial class MainWindow
             var to = editingPeriod ? PersonValidTo.Complete() : editingPerson?.ValidTo;
             input = new PersonInput(PersonName.Text, from, to);
         }
-        catch (PersonInputException error) { ShowPersonError(error.Field, error.Message); return; }
+        catch (PersonInputException error) { ShowPersonError(error.Field, error.Message); return false; }
         if (editingPerson is null && personDraft?.Input != input) personDraft = new(input);
         await RunAsync(async () =>
         {
@@ -122,12 +168,11 @@ public sealed partial class MainWindow
                     ? await workspace.CreateAsync(personDraft!, lifetime.Token)
                     : await workspace.UpdateAsync(editingPerson, input, editingPeriod, lifetime.Token);
                 DisplayPeople(result);
-                DiscardPersonEditor();
-                PeopleContent.Visibility = Visibility.Visible;
-                UpdatePeopleActions();
+                saved = true;
             }
             catch (PeopleRequestException error) { HandlePersonFailure(error); }
         }, SavePersonAsync);
+        return saved;
     }
 
     private void HandlePersonFailure(PeopleRequestException error)
@@ -188,17 +233,14 @@ public sealed partial class MainWindow
         FocusPersonField(PersonName);
     }
 
-    private void CancelPerson(object sender, RoutedEventArgs args)
+    private void DiscardPersonEditor()
     {
-        if (busy) return;
-        DropPendingPersonEdit();
-        DiscardPersonEditor();
-        if (!CanViewPeople) { ShowPage(HomePage); return; }
-        PeopleContent.Visibility = Visibility.Visible;
-        UpdatePeopleActions();
+        forcePersonDialogClose = true;
+        if (personDialogOpen) PersonDialog.Hide();
+        ClearPersonEditor();
     }
 
-    private void DiscardPersonEditor()
+    private void ClearPersonEditor()
     {
         PersonValidFrom.SuppressCompletion = PersonValidTo.SuppressCompletion = true;
         PersonEditorContent.Visibility = Visibility.Collapsed;
@@ -234,6 +276,7 @@ public sealed partial class MainWindow
             DropPendingPersonEdit();
             return false;
         }
+        await personDialogTask;
         LedgerInfo opened;
         try { opened = await connection.Ledgers.OpenAsync(draft.Ledger.LedgerId, token); }
         catch (LedgerRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)

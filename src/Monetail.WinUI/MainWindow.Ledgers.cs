@@ -126,7 +126,7 @@ public sealed partial class MainWindow
 
     private async void SelectManagement(object sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (args.SelectedItem is not NavigationViewItem item || busy) return;
+        if (args.SelectedItem is not NavigationViewItem item || busy || personDialogOpen) return;
         DropPendingPersonEdit();
         DiscardPersonEditor();
         PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
