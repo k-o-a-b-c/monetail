@@ -44,6 +44,8 @@ APIは合成アカウント・実HTTP・隔離SQLiteで、現在の参加、他�
 
 ## 実行方法（リポジトリ直下）
 
+ホームのアプリ名削除はソース`47f4054f037efb8f9ddc93442347a2d9e64fc454`を[WinUI CI 41418236183](https://github.com/k-o-a-b-c/monetail/actions/runs/41418236183)で確認し、製品・スモークのビルドが警告・エラー0、製品起動と既存の画面スモークが成功。[単発撮影CI 41418289696](https://github.com/k-o-a-b-c/monetail/actions/runs/41418289696)でも、ホームのアプリ名がなく家計簿名を表示した状態を確認した。業務処理・Client・キー操作の変更はない。
+
 WinUI 3はWindows上で`dotnet build src/Monetail.WinUI/Monetail.WinUI.csproj --configuration Release --runtime win-x64 -p:Platform=x64`でビルドする。製品の起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。スモークは製品EXEの起動を確認した後、実画面と同じXAML・コードへ合成データを渡し、ナビゲーション・本人先頭・日付表示・家計簿名・リサイズ・テーマ切替・同じウィンドウでの復帰を検証する。通常CIで画像は取らず、`preview/winui-*`ブランチでのみ単発撮影する。保存済みの接続先・トークン・実データは使用しない。x64・CIの96DPI以外のARM64／物理端末の高DPI・モニター間移動・IME・キー入力は未検証。
 
 ```sh
