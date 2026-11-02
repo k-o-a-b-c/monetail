@@ -29,7 +29,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <InfoBar x:Name="ErrorNotice" IsOpen="False" Severity="Error" IsClosable="True" Margin="24,16,24,0"
+        <InfoBar x:Name="ErrorNotice" IsOpen="False" Visibility="Collapsed" Closed="CloseError" Severity="Error" IsClosable="True" Margin="24,16,24,0"
                  AutomationProperties.LiveSetting="Polite" />
         <Grid Grid.Row="1">
         <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
@@ -251,7 +251,7 @@
                         <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" />
                         <TextBlock Text="接続先を変更すると、変更先でのログインが必要です。" Style="{StaticResource Description}" />
                         <TextBox x:Name="SettingsServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url" MinWidth="280" />
-                        <Button Content="接続" Click="ConnectSettings" Style="{ThemeResource AccentButtonStyle}" />
+                        <Button x:Name="SettingsConnectButton" Content="接続" Click="ConnectSettings" Style="{ThemeResource AccentButtonStyle}" />
                     </StackPanel>
                     <StackPanel x:Name="AccountContent" Visibility="Collapsed" Spacing="24">
                         <TextBlock Text="ログイン情報" Style="{ThemeResource TitleTextBlockStyle}" />

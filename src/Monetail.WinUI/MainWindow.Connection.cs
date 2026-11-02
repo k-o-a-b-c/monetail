@@ -115,7 +115,12 @@ public sealed partial class MainWindow
         if (browserLogin is null) return;
         try
         {
-            if (await connection.OpenBrowser(browserLogin.AuthorizationUri)) return;
+            if (await connection.OpenBrowser(browserLogin.AuthorizationUri))
+            {
+                ErrorNotice.IsOpen = false;
+                ErrorNotice.Visibility = Visibility.Collapsed;
+                return;
+            }
         }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException
             or System.Runtime.InteropServices.COMException) { }
@@ -136,6 +141,7 @@ public sealed partial class MainWindow
         if (busy || closed) return;
         busy = true;
         ErrorNotice.IsOpen = false;
+        ErrorNotice.Visibility = Visibility.Collapsed;
         SetOperationsEnabled(false);
         try { await action(); }
         catch (OperationCanceledException) when (closed) { }
@@ -191,12 +197,19 @@ public sealed partial class MainWindow
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
         ErrorNotice.IsOpen = false;
+        ErrorNotice.Visibility = Visibility.Collapsed;
     }
 
     private void ShowError(string message)
     {
         ErrorNotice.Message = message;
+        ErrorNotice.Visibility = Visibility.Visible;
         ErrorNotice.IsOpen = true;
+    }
+
+    private void CloseError(InfoBar sender, InfoBarClosedEventArgs args)
+    {
+        if (!sender.IsOpen) sender.Visibility = Visibility.Collapsed;
     }
 
     private async void RetryConnection(object sender, RoutedEventArgs args)

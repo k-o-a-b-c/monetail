@@ -31,8 +31,15 @@ public partial class App
                 fixture.Settings.Load()!.Equals(SyntheticConnection.Endpoint), "メタデータ1回で接続を確認して設定を保存");
             if (capture) await Capture(root, output, "06-login");
 
+            fixture.FailBrowser = true;
             Invoke(Find<Button>(root, "LoginButton"));
-            await Wait(() => Visible(root, "BrowserPage") && fixture.AuthorizationUri is not null);
+            await Wait(() => Visible(root, "BrowserPage") && Find<InfoBar>(root, "ErrorNotice").IsOpen);
+            var waitingUri = fixture.AuthorizationUri;
+            fixture.FailBrowser = false;
+            Invoke(Find<Button>(root, "ReopenBrowserButton"));
+            await Settle();
+            Check(fixture.AuthorizationUri == waitingUri && fixture.BrowserOpens == 2,
+                "ブラウザー起動失敗でも同じ認証要求で開き直せる");
             if (capture) await Capture(root, output, "07-browser-wait");
             Invoke(Find<Button>(root, "CancelLoginButton"));
             await Wait(() => Visible(root, "LoginPage"));
@@ -121,6 +128,32 @@ public partial class App
             await Wait(() => Visible(root, "HomePage"));
             Check(Find<TextBlock>(root, "LedgerName").Text == "もう一つの家計簿", "選択した家計簿を1回で開く");
         }
+
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            fixture.RejectAuthentication = true;
+            var root = await OpenSyntheticWindow(fixture);
+            await window!.StartAsync();
+            Check(Visible(root, "LoginPage") && fixture.Tokens.Current is null && fixture.Settings.Load() is not null,
+                "失効した保存ログインは認証だけを破棄し接続設定を残す");
+        }
+
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            fixture.HasPreviousLedger = true;
+            var root = await OpenSyntheticWindow(fixture);
+            await window!.StartAsync();
+            Invoke(Find<Button>(root, "SettingsButton"));
+            await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
+            Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
+            await Settle();
+            Find<TextBox>(root, "SettingsServerUrl").Text = "https://other.example.test/";
+            Invoke(Find<Button>(root, "SettingsConnectButton"));
+            await Wait(() => Visible(root, "LoginPage"));
+            Check(fixture.Tokens.Current is null && fixture.Settings.Load()!.Value == "https://other.example.test/" &&
+                fixture.OtherServerRequests.SequenceEqual(["/.well-known/openid-configuration"]),
+                "接続先変更はメタデータ確認後に保存し、元の認証を変更先へ送らない");
+        }
     }
 
     private async Task<FrameworkElement> OpenSyntheticWindow(SyntheticConnection fixture)
@@ -155,10 +188,11 @@ public partial class App
         internal readonly MemoryTokens Tokens = new();
         internal readonly List<string> Requests = [];
         internal readonly List<string> Creations = [];
+        internal readonly List<string> OtherServerRequests = [];
         internal Uri? AuthorizationUri;
         internal Task? CallbackTask;
-        internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger;
-        internal int ChoiceCount;
+        internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
+        internal int ChoiceCount, BrowserOpens;
 
         internal SyntheticConnection(bool saved = false)
         {
@@ -171,6 +205,8 @@ public partial class App
         internal ClientConnection CreateConnection() => new(Settings, Tokens, new HttpClient(this), async uri =>
         {
             AuthorizationUri = uri;
+            BrowserOpens++;
+            if (FailBrowser) return false;
             if (CompleteLogin)
             {
                 var query = uri.Query.TrimStart('?').Split('&').Select(part => part.Split('=', 2))
@@ -197,18 +233,21 @@ public partial class App
         {
             var path = request.RequestUri!.AbsolutePath;
             Requests.Add(path);
+            var origin = ApiEndpoint.Parse(request.RequestUri.GetLeftPart(UriPartial.Authority));
+            if (!origin.Equals(Endpoint)) OtherServerRequests.Add(path);
             if (path == "/.well-known/openid-configuration") return FailConnection ? new(HttpStatusCode.ServiceUnavailable) : Json(new
             {
-                issuer = Endpoint.Value, authorization_endpoint = Endpoint.Resolve("connect/authorize"),
-                token_endpoint = Endpoint.Resolve("connect/token"), response_types_supported = new[] { "code" },
+                issuer = origin.Value, authorization_endpoint = origin.Resolve("connect/authorize"),
+                token_endpoint = origin.Resolve("connect/token"), response_types_supported = new[] { "code" },
                 code_challenge_methods_supported = new[] { "S256" }
             });
-            if (path == "/connect/token") return Json(new
+            if (path == "/connect/token") return RejectAuthentication ?
+                new(HttpStatusCode.BadRequest) { Content = JsonContent.Create(new { error = "invalid_grant" }) } : Json(new
             {
                 access_token = "synthetic-access", refresh_token = "synthetic-refresh", token_type = "Bearer", expires_in = 900
             });
             if (request.Headers.Authorization?.Parameter != "synthetic-access") throw new InvalidOperationException("合成Bearerが必要です。");
-            if (path == "/auth/me") return Json(new
+            if (path == "/auth/me") return RejectAuthentication ? new(HttpStatusCode.Unauthorized) : Json(new
             {
                 authUserId = Guid.Parse("493d9035-2de5-4235-921f-f79b799d828b"), displayName = "テスト利用者",
                 expiresAtUtc = DateTimeOffset.UtcNow.AddDays(2), verifiedAtUtc = DateTimeOffset.UtcNow
