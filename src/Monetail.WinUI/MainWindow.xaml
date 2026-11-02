@@ -25,7 +25,70 @@
             </Style>
         </Grid.Resources>
 
-        <Grid x:Name="HomePage" Padding="32" RowSpacing="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <InfoBar x:Name="ErrorNotice" IsOpen="False" Visibility="Collapsed" Closed="CloseError" Severity="Error" IsClosable="True" Margin="24,16,24,0"
+                 AutomationProperties.LiveSetting="Polite" />
+        <Grid Grid.Row="1">
+        <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <Grid>
+        <Grid x:Name="ConnectionPage" Visibility="Collapsed" Padding="32">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
+                    <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" />
+                    <TextBlock Text="サーバーのURLを入力してください。" Style="{StaticResource Description}" />
+                    <TextBox x:Name="ServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="ConnectButton" Content="接続" Click="Connect" Style="{ThemeResource AccentButtonStyle}" />
+                        <Button x:Name="ConnectionCancel" Content="キャンセル" Click="CancelConnection" Visibility="Collapsed" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <Grid x:Name="LoginPage" Visibility="Collapsed" Padding="32">
+            <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+                <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
+                <Button x:Name="LoginButton" Content="ログイン" Click="Login" Style="{ThemeResource AccentButtonStyle}" />
+                <HyperlinkButton Content="接続先の変更" Click="ShowConnection" />
+            </StackPanel>
+        </Grid>
+        <Grid x:Name="FailurePage" Visibility="Collapsed" Padding="32">
+            <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+                <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
+                <TextBlock x:Name="FailureMessage" Style="{StaticResource Description}" AutomationProperties.LiveSetting="Polite" />
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="RetryButton" Content="再試行" Click="RetryConnection" Style="{ThemeResource AccentButtonStyle}" />
+                    <Button Content="接続先の変更" Click="ShowConnection" />
+                    <Button Content="終了" Click="Exit" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+        <Grid x:Name="LedgerChoicePage" Visibility="Collapsed" Padding="32">
+            <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
+                <TextBlock Text="家計簿を選択" Style="{ThemeResource TitleTextBlockStyle}" />
+                <ListView x:Name="LedgerChoices" DisplayMemberPath="Name" SelectionMode="Single" MaxHeight="320"
+                          SelectionChanged="ChooseLedger" AutomationProperties.Name="参加している家計簿" />
+                <Button x:Name="OpenLedgerButton" Content="開く" IsEnabled="False" Click="OpenSelectedLedger"
+                        Style="{ThemeResource AccentButtonStyle}" />
+            </StackPanel>
+        </Grid>
+        <Grid x:Name="LedgerCreatePage" Visibility="Collapsed" Padding="32">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
+                    <TextBlock Text="家計簿の作成" Style="{ThemeResource TitleTextBlockStyle}" />
+                    <TextBlock x:Name="NoLedgersNotice" Text="参加している家計簿はありません。&#x0a;参加する場合は、管理者から招待リンクを受け取ってください。"
+                               Style="{StaticResource Description}" />
+                    <TextBox x:Name="NewLedgerName" Header="家計簿名" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="CreateLedgerButton" Content="作成" Click="CreateLedger" Style="{ThemeResource AccentButtonStyle}" />
+                        <Button x:Name="CancelLedgerCreation" Content="キャンセル" Click="CancelCreation" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+        <Grid x:Name="HomePage" Visibility="Collapsed" Padding="32" RowSpacing="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="1" />
@@ -38,7 +101,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Button x:Name="LedgerSelector" IsEnabled="False" Style="{StaticResource HeaderButton}"
+                <Button x:Name="LedgerSelector" Click="ShowLedgerMenu" IsEnabled="False" Style="{StaticResource HeaderButton}"
                         HorizontalAlignment="Left" HorizontalContentAlignment="Stretch" MaxWidth="320" MinWidth="0"
                         AutomationProperties.Name="家計簿の切替">
                     <Grid ColumnSpacing="8">
@@ -160,7 +223,8 @@
             </StackPanel>
             <NavigationView x:Name="ManagementNavigation" Grid.Row="2" PaneDisplayMode="Left"
                             IsPaneOpen="True" OpenPaneLength="240" IsPaneToggleButtonVisible="False"
-                            IsBackButtonVisible="Collapsed" IsSettingsVisible="False" IsTitleBarAutoPaddingEnabled="False">
+                            IsBackButtonVisible="Collapsed" IsSettingsVisible="False" IsTitleBarAutoPaddingEnabled="False"
+                            SelectionChanged="SelectManagement">
                 <NavigationView.MenuItems>
                     <NavigationViewItemHeader Content="マスタ管理" />
                     <NavigationViewItem x:Name="PeopleNavigation" Content="人物管理" Icon="Contact" />
@@ -168,13 +232,32 @@
                     <NavigationViewItem Content="口座管理" IsEnabled="False" />
                     <NavigationViewItem Content="店舗管理" IsEnabled="False" />
                     <NavigationViewItemHeader Content="アプリ設定" />
+                    <NavigationViewItem x:Name="ConnectionNavigation" Content="接続先の設定" />
                     <NavigationViewItem Content="表示設定" IsEnabled="False" />
                     <NavigationViewItem Content="入力時の初期値" IsEnabled="False" />
                     <NavigationViewItemHeader Content="アカウント" />
-                    <NavigationViewItem Content="ログイン情報" IsEnabled="False" />
-                    <NavigationViewItem Content="ログアウト" IsEnabled="False" />
+                    <NavigationViewItem x:Name="AccountNavigation" Content="ログイン情報" IsEnabled="False" />
+                    <NavigationViewItem x:Name="LogoutNavigation" Content="ログアウト" IsEnabled="False" />
                 </NavigationView.MenuItems>
                 <Border Style="{StaticResource Card}" Margin="16,0,0,0">
+                    <Grid>
+                    <StackPanel x:Name="ConnectionSettingsContent" Visibility="Collapsed" Spacing="24" MaxWidth="520" HorizontalAlignment="Left">
+                        <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock Text="接続先を変更すると、変更先でのログインが必要です。" Style="{StaticResource Description}" />
+                        <TextBox x:Name="SettingsServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url" MinWidth="280" />
+                        <Button x:Name="SettingsConnectButton" Content="接続" Click="ConnectSettings" Style="{ThemeResource AccentButtonStyle}" />
+                    </StackPanel>
+                    <StackPanel x:Name="AccountContent" Visibility="Collapsed" Spacing="24">
+                        <TextBlock Text="ログイン情報" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="表示名" Style="{StaticResource Description}" />
+                            <TextBlock x:Name="AccountName" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="接続先" Style="{StaticResource Description}" />
+                            <TextBlock x:Name="AccountServer" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </StackPanel>
                     <Grid x:Name="PeopleContent" RowSpacing="20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -245,8 +328,32 @@
                         </Grid>
                         <TextBlock Grid.Row="5" Text="空欄は期間の制限なし" Style="{StaticResource Description}" />
                     </Grid>
+                    </Grid>
                 </Border>
             </NavigationView>
         </Grid>
+        </Grid>
+        </ContentControl>
+        <Grid x:Name="StartupPage">
+            <StackPanel x:Name="StartupNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <ProgressRing x:Name="StartupProgress" IsActive="False" Width="32" Height="32"
+                              AutomationProperties.Name="接続中" />
+                <TextBlock Text="接続中…" Style="{ThemeResource BodyTextBlockStyle}" />
+            </StackPanel>
+        </Grid>
+        <Grid x:Name="BrowserPage" Visibility="Collapsed" Padding="32">
+            <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+                <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
+                <TextBlock Text="ブラウザーでログインしてください。" Style="{StaticResource Description}" />
+                <StackPanel x:Name="BrowserActions" Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="ReopenBrowserButton" Content="ブラウザーを開く" Click="ReopenBrowser" />
+                    <Button x:Name="CancelLoginButton" Content="キャンセル" Click="CancelLogin" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+        </Grid>
+        <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False"
+                      Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top"
+                      IsHitTestVisible="False" AutomationProperties.Name="処理中" />
     </Grid>
 </Window>

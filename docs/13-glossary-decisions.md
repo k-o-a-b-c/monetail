@@ -152,6 +152,7 @@
 | DEC-101 | **利用者確認済み（2026-11-01）** | 新Windows版の共通UIルールをUI_DESIGN.mdへ集約する | 添付ガイドラインと確認した補足を基に、共通配置・フォント・操作部品・高DPIの基準を作成する。人物管理から適用し、業務仕様・保存・権限は各機能の正本を維持する。[UI_DESIGN.md](../UI_DESIGN.md)。 |
 | DEC-102 | **利用者確認済み（2026-11-02）** | 新Windows版のUIはWinUI 3とする | API通信・認証・保存・補完ロジックをClientへ分け、画面とキー操作・IME連携をWinUI 3で実装する。[04](04-architecture.md#新版windows版の構成)。管理・設定は1つのウィンドウ内で左メニューと右の人物一覧を同時表示する。[58](58-ledger-foundation-design.md#人物管理画面同じウィンドウ内で切替)。 |
 | DEC-103 | **利用者確認済み（2026-11-02）** | 新Windows版の対応OSはWindows 11のみ | WinUI 3の最小対応バージョンをWindows 11初版とし、Windows 10向けの対応を追加しない。[04](04-architecture.md#新版windows版の構成)。 |
+| DEC-104 | **利用者確認済み（2026-11-02）** | 起動時の接続待ちも同じウィンドウ内にまとめる | 別の起動用小窓を作らず、待機時はProgressRingと「接続中…」を表示する。表示・遷移・タイムアウトの契約は[58](58-ledger-foundation-design.md#windows版の起動表示接続失敗時の操作)を正本とする。 |
 
 税率の初期選択は利用箇所である`RegisterForm.SetGroupTaxRate`内で行い、従来の日付・軽減対象のルールを保って税率値でマスタを選ぶ。独立クラスへの切り出しは行わない。期間による税率マスタ選択は未実装。[38 仕様](38-tax-default-selection.md)。
 
