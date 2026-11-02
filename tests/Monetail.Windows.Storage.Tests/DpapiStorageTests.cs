@@ -3,7 +3,7 @@ using System.Text;
 using Monetail.Windows.Client;
 using Xunit;
 
-namespace Monetail.Windows.Tests;
+namespace Monetail.Windows.Storage.Tests;
 
 public sealed class DpapiStorageTests : IDisposable
 {

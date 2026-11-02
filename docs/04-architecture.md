@@ -1,6 +1,6 @@
 # 04 アーキテクチャ・開発環境
 
-更新日: 2026-10-30 / 現行Windows版・APIの構成と、新版Windows版の実装範囲を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
+更新日: 2026-11-01 / 現行Windows版・APIの構成と、新版Windows版の実装範囲を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
 
 ## 構成
 
@@ -25,15 +25,21 @@ Windows デスクトップアプリ
 
 ### 新版Windows版の構成
 
-新版は**.NET 10 LTS・C#・WinForms**の独立プロジェクト`src/Monetail.Windows/Monetail.Windows.csproj`とし、ターゲットは`net10.0-windows`。画面はこのプロジェクト、API通信・認証・保存は配下の`Client/Monetail.Windows.Client.csproj`（`net10.0`）へ分ける。現在のVB.NET／.NET Framework 4.8のプロジェクトは残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。接続・認証と家計簿の選択・作成・切替までを実装し、レシート等の業務画面とインストーラーは後続とする。
+新版は**Windows 11のみ・.NET 10 LTS・C#・WinUI 3（Windows App SDK）**のアプリとする。プロジェクトは`src/Monetail.WinUI/Monetail.WinUI.csproj`。ターゲットは`net10.0-windows10.0.26100.0`、最小対応バージョンはWindows 11初版の`10.0.22000.0`。Windows App SDKは安定版1.8系列を使用する。初期ビルドと起動の検証はx64で行い、ARM64は未検証とする。
 
-画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、フォームへSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
+現在は起動・ホーム・左メニューを残した右側の人物一覧の表示まで。接続・ログイン・家計簿選択・人物の保存操作の画面は未実装。通常起動ではサンプルデータを表示せず、Clientの型を受け取る表示処理を備える。
+
+開発・CIでは非パッケージの自己完結した配置を使い、Windows App SDKと.NETランタイムを出力先に含めて起動を確認する。これは検証用の設定で、製品インストーラーの方式・更新方法・配布対象CPUを決定したものではない。WinUI 3のビルド・製品起動・同じXAMLによるスモークテストは専用の`.github/workflows/winui.yml`で行う。画像の取得は`preview/winui-*`ブランチでの単発実行に限定する。
+
+API通信・認証・保存・日付と時刻の補完は`src/Monetail.Windows.Client/Monetail.Windows.Client.csproj`（`net10.0`）に分ける。画面はClientを参照し、入力欄・フォーカス・IMEは[59の入力仕様](59-input-controls-design.md)に従ってWinUI 3で実装する。API・認証契約・保存形式・通信単位を表示上の都合で変えない。旧VB.NET／.NET Framework 4.8は独立したアプリとして残し、新版から旧版の実行ファイル・プロジェクトを参照しない。レシート等の業務画面とインストーラーは後続とする。
+
+画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、画面へSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
 
 通信回数をなるべく減らす。1つの操作で必要な処理と応答データをAPI側でまとめ、IDを取得してから同じ対象を再要求する往復を避ける。現在の認証・権限確認はAPI内部で維持し、振る舞いを変える統合は利用者の確認後に行う。
 
 API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settings.json`に保存する。通常設定と認証情報は分け、JSONにトークンを含めない。認証情報は[43のDPAPI保存方針](43-passkey-authentication-design.md#windows版の認証情報保存)、初回入力と変更は[58の接続先設定](58-ledger-foundation-design.md#windows版の接続先設定)に従う。
 
-新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定、インストーラーの作成方式、対応Windowsバージョンは実装前に具体化する。
+新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定とインストーラーの作成方式は実装前に具体化する。
 
 ### 新版Windows版の配布・削除（未実装）
 
@@ -56,9 +62,10 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
-| `src/Monetail.Windows/` | 新版WinFormsの起動・接続設定・ログイン待ち・家計簿画面 |
-| `src/Monetail.Windows/Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定 |
-| `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
+| `src/Monetail.WinUI/` | Windows 11向けアプリ。WinUI 3の起動・ホーム・左ナビゲーションと右側の人物一覧の土台 |
+| `tests/Monetail.WinUI.Smoke/` | 製品の起動と、同じXAML・コードを使った合成データの画面スモーク。単発画像の取得も担当 |
+| `src/Monetail.Windows.Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定・人物管理の通信・画面に依存しない日付／時刻の補完 |
+| `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Storage.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
 | `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル |
 | `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |
 | `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |

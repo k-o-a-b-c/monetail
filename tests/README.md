@@ -1,81 +1,78 @@
 # テストの構成・実行と結果
 
-件数・実行方法・最新の採用結果の正本。過去の詳細は[検証履歴](history.md)へ保存し、通常の改修では読み直さない。実データ・利用者環境への適用を自動検証済みとは扱わない。
+件数・実行方法・採用結果の正本。旧VB.NET版の検証と、新版WinUI 3・Clientの検証を区別する。過去の検証履歴は[履歴](history.md)と各コミット・CIの記録を参照し、実装のない画面を検証済みとは扱わない。
 
 | 対象 | 件数 |
 | --- | ---: |
-| 計算 | 35 |
+| 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
-| Windowsの実SQLite・画面・起動設定 | 98 |
+| 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 430 |
-| 新版Windowsクライアント（接続・認証・保存・家計簿） | 116 |
-| Windowsの実DPAPI・新版画面 | 11 |
-| CIの実行対象選択 | 18 |
-| 合計 | 718 |
+| Windows Client（接続・認証・保存・家計簿・人物・補完） | 218 |
+| Windowsの実DPAPI・保存 | 3 |
+| WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
+| CIの実行対象選択 | 20 |
+| 合計 | 815 |
 
-変更前の採用結果は[CI 40853317101](https://github.com/k-o-a-b-c/monetail/actions/runs/40853317101)（ソース`821683bd1ef3de610a9428d68c8ba717d349a8a0`）。旧Windows・計算・Python移行・性能のソースは今回変更せず、この成功結果を再利用する。
+## 検証する範囲
 
-変更前のAPI・クライアント・Windows・CI選択の成功結果は[CI 41017009467](https://github.com/k-o-a-b-c/monetail/actions/runs/41017009467)（製品ソース`38c7fbcd405efe2be3e0c8cd44e61d2a97a867c3`）。
+- Clientは合成HTTPと一時保存先を使う。接続確認、OAuth/ループバック、セッション復元、更新と失効、別プロセスの認証変更、設定/トークン保存、家計簿の起動先・作成・切替、人物のCRUD/順保存/競合/再送を確認する。日付・時刻は補完期間・世紀選択・空欄・不正入力・全角・区切り・地域設定を検証する。
+- StorageはWindowsのCurrentUser DPAPIを実際に使い、暗号化保存と新しいStoreでの復元、破損時の認証破棄と接続設定保持、平文の拒否を確認する。UIへの依存はない。
+- WinUI 3は製品EXEを起動し、同じMainWindow.xaml/csとPersonRow.csを使う別のスモークAppで合成データを検証する。ホーム、管理・設定、左メニューと右人物一覧、本人先頭、日付、家計簿名、メニューバーなし、リサイズ、標準ダークテーマ、同じWindowでの復帰を1シナリオとして確認する。実データや保存済みの接続先/トークンは使用しない。
+- APIは実HTTP・合成アカウント・隔離SQLiteを使い、認証・現在の参加/役割・保存失敗の巻き戻し・同時操作・FK・再送・競合・招待の状態と消費・共有回数枠を検証する。CookieとWindows Bearerを区別する。
+- 旧VB.NET版の計算・DB・画面・移行・性能は既存のテスト構成を維持する。実データ・利用者環境への適用を自動検証済みとは扱わない。
 
-変更前の採用結果は[CI 41059932687](https://github.com/k-o-a-b-c/monetail/actions/runs/41059932687)（製品ソース`fd5a9fd6205c629896417bced0ead4b4d100940d`）。API383件・クライアント116件・Windowsの実DPAPI3件＋画面8件・CI選択18件の計528件が成功し、実行テストの失敗・スキップは0。新版WindowsのReleaseビルドは警告・エラー0、Dockerのビルド・非root起動・タイムゾーン・DB未作成も成功した。変更対象外の143件は上記の変更前CIを再利用し、省略したジョブを新たな検証成功として数えない。今回変更していないWindowsクライアント・画面の成功結果は、このCIを再利用する。
+## 採用結果
 
-今回の採用結果は製品ソース`d807304132fe3a256ed4c603bfd25b471af45780`のローカル検証（2026-11-01）。API430件が失敗・スキップ0で成功した。競合の最新情報を取得中に認証期限が切れる3経路と、自分に対応する人物の期間保存中に管理者権限を失う場合を追加し、最新情報の非公開と全巻き戻しを確認した。変更前の[CI 41248905943](https://github.com/k-o-a-b-c/monetail/actions/runs/41248905943)（`f02e36b9c744a81298dc1d0ac6c9b00e6717735d`）はAPI426件、CI対象選択18件、Dockerのビルド・非root起動・health・UTC／America/New_York・DB未作成が成功。修正後のGitHub Actionsの結果は[PR #83のChecks](https://github.com/k-o-a-b-c/monetail/pull/83/checks)を参照する。変更対象外のクライアント116件・Windows11件・旧Windows等143件は上記の成功CIを再利用し、全件を今回新たに実行したとは扱わない。
+構成整理前のWinUI 3は[CI 41418236183](https://github.com/k-o-a-b-c/monetail/actions/runs/41418236183)（表示ソース47f4054）で製品・スモークのビルドが警告・エラー0、製品起動と画面スモークが成功。[単発撮影CI 41418289696](https://github.com/k-o-a-b-c/monetail/actions/runs/41418289696)ではアプリ名を置かず家計簿名を表示したホーム、左メニューと右の人物一覧、コンパクト表示、標準ダークテーマを96DPIで確認した。撮影時だけNoto Sans CJK JPを使い、通常起動へサンプルや撮影引数を入れていない。
 
-人物・参加者・招待は、名前とUTF-16文字数・日付・完全一致の同名、同一要求の再送と別操作／家計簿／操作者の混同拒否、削除後の再送、現在の参加・役割と自己降格／自己除外の拒否、人物対応の一意性・同一家計簿FK・参照による削除拒否、名前と共通順の更新版の分離、競合応答の最新情報、保存中の認証・役割喪失による全巻き戻しを実HTTPと隔離SQLiteで検証する。招待は平文トークンの再コピー・既存参加者による未消費・期限切れ／取消／使用済み拒否・参加と最終選択の同時保存・各保存箇所の失敗と再試行・同時参加・除外後の新規招待による再参加を検証した。CookieとWindows Bearer、PATCH／PUTを含む共通HTTP境界、共有20回／120回も確認した。管理画面とブラウザーのトークン受け渡しは未実装で、業務取引の日付に基づく人物期間の検証や実DBの移行も今回の結果に含めない。
+現在の採用結果は対象ソース`8592ed02b4423ac47aeb3afc93f65fb150f013a7`。[通常CI 41424095869](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095869)でClient218件・実DPAPI3件・API430件・旧版の計算35件／SQLite移行10件／画面・永続化98件・CI選択20件が失敗・スキップ0で成功し、Dockerの起動確認・性能計測・旧ソリューションのビルドも成功した。[WinUI CI 41424095689](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095689)では製品・スモークのReleaseビルドが警告・エラー0、製品EXEの起動と画面スモーク1シナリオが成功。今回は構成合計815件を実行した。Client21ファイルの内容・保存形式・API契約と旧VB.NET版のソースは変更せず、配置・参照・検証構成を整理した。
 
-APIは合成アカウント・実HTTP・隔離SQLiteで、現在の参加、他アカウントへの非公開、失効・参加喪失時の巻き戻し、保存失敗時の前回選択保持、同時に開く操作、Bearer・Cookieの境界と回数制限を検証する。クライアントは合成HTTPで起動先・作成の再送・認証更新を確認する。最後の家計簿、作成して開く操作、接続確認は要求数も検証し、参照と開く操作は同じアカウントで120回を共有することを確認する。Windowsでは実DPAPIに加え、所属0／1／複数の表示、同名家計簿のID選択、作成の通信再試行、別ウィンドウによるアカウント／接続先の変更時に操作を止めて新しい認証を保持することを検証する。
+ホーム上部の1行化はソース`3b610796769c0de2bdb8e961239871c80d7d4670`を[WinUI CI 41433846188](https://github.com/k-o-a-b-c/monetail/actions/runs/41433846188)で確認し、製品・スモークのビルドが警告・エラー0、製品起動と既存の画面スモークが成功。[単発撮影CI 41433992670](https://github.com/k-o-a-b-c/monetail/actions/runs/41433992670)でも、家計簿名が左端にある1行ヘッダーを目視確認した。Client・Storage・API・旧版等は変更がなく、上記の成功結果を再利用する。
 
-物理端末のパスキー、実ブラウザーを含む手動操作、本番配備、一度きりのSQL移行は未確認。過去の採用結果は[履歴](history.md)を参照する。
+ホームの文字色・選択表示・設定ボタン・登録表記の調整はソース`21d3925fb4fc19389cf8c3a1b51b6ac6b036a29e`を[WinUI CI 41513466165](https://github.com/k-o-a-b-c/monetail/actions/runs/41513466165)で確認し、製品・スモークのビルドが警告・エラー0、製品起動と既存スモークが成功。[単発撮影CI 41513601351](https://github.com/k-o-a-b-c/monetail/actions/runs/41513601351)ではライト・ダーク両方のホームを目視確認し、通常色の家計簿名、記録の選択線、枠なしの管理・設定、3種類とも「＋ 登録」を確認した。ダークのホーム画像取得は撮影用ブランチだけに追加。操作可否・Client・保存仕様・旧版は変更せず、その他の検証は上記の成功結果を再利用する。
 
 ## 実行方法（リポジトリ直下）
 
 ```sh
-# .NET 10
+# .NET 10 / LinuxまたはWindows
 dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
 dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj --configuration Release
-# Windows / .NET 10
-dotnet build src/Monetail.Windows/Monetail.Windows.csproj --configuration Release
-dotnet test tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj --configuration Release
-dotnet run --project src/Monetail.Windows/Monetail.Windows.csproj
-# .NET 8
+# .NET 10 / Windows
+dotnet test tests/Monetail.Windows.Storage.Tests/Monetail.Windows.Storage.Tests.csproj --configuration Release
+dotnet build src/Monetail.WinUI/Monetail.WinUI.csproj --configuration Release --runtime win-x64 -p:Platform=x64
+# 旧版の.NET 8検証
 dotnet run --project tests/CalculationTests/CalculationTests.vbproj
 python3 -m unittest discover -s tests -p 'test_*migration.py' -v
-# CI選択（Python標準ライブラリ）
+# CI選択
 python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 ```
 
-Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj`で画面・実SQLiteを確認する。製品変更時は既存WindowsソリューションのNuGet復元・ビルドもCIで行う。性能計測は同コマンドへ`--measure-receipt-reads CSVのパス`を付け、通常テストと区別する（[測定条件](../docs/34-receipt-read-performance.md)）。APIのDocker確認は[起動・運用](../docs/42-api-foundation.md)を参照する。
+WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIで画像は取らず、`preview/winui-*`ブランチでのみ単発撮影する。
+
+旧Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj`で画面・実SQLiteを確認する。性能計測は同コマンドに`--measure-receipt-reads CSVのパス`を渡し、通常テストと区別する（[測定条件](../docs/34-receipt-read-performance.md)）。APIのDocker確認は[起動・運用](../docs/42-api-foundation.md)を参照する。
 
 ## 必要なCIだけを実行する
 
-[select_tests.py](../.github/scripts/select_tests.py)がGit差分とプロジェクトの入力依存から選ぶ。PRは分岐点以降、pushは更新前後を対象とし、改名・削除も確認する。未分類の変更は失敗させ、推測で全実行しない。
+[select_tests.py](../.github/scripts/select_tests.py)が差分と参照プロジェクトから実行対象を選ぶ。PRは分岐点以降、pushは更新前後を対象にする。改名・削除も扱い、未分類の変更は失敗させる。
 
 | 変更 | 確認対象 |
 | --- | --- |
-| 文書だけ | CI選択処理。API・Docker・Windows等は省略 |
-| APIソース | APIテスト・Dockerビルドと起動 |
-| APIテストだけ／Docker確認スクリプトだけ | 各対象だけ |
-| 新版WindowsのClient／WinForms画面 | クライアントテスト＋新版Windowsビルド・DPAPI／画面テスト。WinForms画面だけなら新版Windowsビルド・DPAPI／画面テストだけ |
-| 新版Windowsの各テストだけ | 対応するテスト。API・旧Windowsは起動しない |
-| Dockerfile等／Compose | Docker確認／Compose設定 |
-| Windows・計算・SQL等 | 依存するテスト、製品ビルド、必要なら性能計測 |
-| CI・共通SDK／ビルド設定 | 全対象 |
+| 文書だけ | CI選択。API・Docker・Windows等は省略 |
+| APIソース／テスト | API、製品ソースではDockerも確認 |
+| Clientソース | ClientとWindowsの実DPAPI。専用ワークフローでWinUI 3のビルド・起動も確認 |
+| Clientテストだけ | Client |
+| Storageテストだけ | Windowsの実DPAPI |
+| WinUI 3／スモーク | 専用ワークフローのビルド・製品起動・画面スモーク |
+| Dockerfile等／Compose | Docker／Compose |
+| 旧Windows・計算・SQL等 | 依存するテスト、ビルド、必要なら性能計測 |
+| 共通CI・SDK／ビルド設定 | 全対象 |
 
-同じ製品ソースの成功CIは再利用し、新しい変更・失敗・懸念があるときだけ再実行する。省略を検証成功として数えない。[Actions](https://github.com/k-o-a-b-c/monetail/actions/workflows/tests.yml)ではコミットと選択された対象を確認する。
+同じ製品ソースの成功CIは再利用し、新しい変更・失敗・未解決の懸念がある場合だけ再実行する。省略を検証成功として数えない。
 
 ## 新版Windowsの手動確認（未実施）
 
-テスト用Windowsユーザーと、[42の準備](../docs/42-api-foundation.md)を済ませたHTTPSのテストAPI・合成アカウントを使う。旧Windows版のDB・設定は使わない。家計簿履歴表は未リリースAPIの初回定義へ追加したため、以前の開発DBを更新する互換処理はない。新定義の隔離DBを準備する。
-
-1. 新版を上記コマンドで起動する。初回はURL入力、不正URLは保存しないこと、接続確認成功後だけログインへ進むことを確認する。
-2. ログインから外部ブラウザーを開き、パスキー認証後にアプリの枠へ進む。ブラウザーがログイン済みなら再認証を挟まないこと、タブ終了とアプリ前面復帰が制限されても操作できることを確認する。
-3. ブラウザーを閉じて「ブラウザーを開く」で再表示する。「キャンセル」はログインへ戻り、再試行できることを確認する。
-4. 再起動時は保存済み認証でログインを省略する。同一URLの正規化表記を保存し直しても認証を維持し、別のテストAPIへ変更した場合はログインが必要になることを確認する。
-5. API停止時の起動・再試行では認証ファイルを失わず、復旧後に復元する。接続確認が遅い場合の1秒後の小窓、10秒での接続エラーと3つの操作を確認する。
-6. テストセッションの失効・トークン期限切れと更新、破損した認証ファイルでは、URLを残してログインへ戻ることを確認する。ログアウトはWindowsセッションだけを終了し、ブラウザーのセッションは維持する。
-7. `%LOCALAPPDATA%\Monetail\settings.json`にトークンがなく、`authentication.dat`と残存する一時ファイルに平文トークンがないことを確認する。トークン値は記録・共有しない。
-
-家計簿は、所属0件の作成、履歴なし1件の自動表示、複数件の選択、別端末の最終選択の復元を確認する。家計簿名のメニューで切替・追加し、名前不正・作成失敗後の再試行、参加喪失、開く処理の保存失敗時に前回選択が残ることも確認する。レシート等の業務データはまだ表示しない。
+現在の画面はホームと人物一覧の表示基盤。接続・ログイン・家計簿選択・人物の保存・入力欄/キー操作/IMEは未実装。実装後は[43](../docs/43-passkey-authentication-design.md)・[58](../docs/58-ledger-foundation-design.md)・[59](../docs/59-input-controls-design.md)の契約に沿って確認する。ARM64、100／125／150／200%の物理端末、モニター間移動・ハイコントラスト・日本語IME・実キー入力、実ブラウザーのパスキー、本番配備・実DB移行は未検証。
 
 ## 旧Windowsで画面を手動確認する手順（利用者環境では未実施）
 

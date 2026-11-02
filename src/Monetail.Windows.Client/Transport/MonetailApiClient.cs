@@ -84,7 +84,8 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
     }
 
     private async Task<byte[]> SendAsync(HttpMethod method, string path, string? bearer,
-        Dictionary<string, string>? form, bool tokenExchange, CancellationToken cancellationToken, HttpContent? body = null)
+        Dictionary<string, string>? form, bool tokenExchange, CancellationToken cancellationToken, HttpContent? body = null,
+        Func<HttpStatusCode, byte[], Exception>? failure = null)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ConnectionTimeout);
@@ -99,6 +100,9 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
             // 方向転換先へ認証情報を持ち出さない。生成用HttpClientでは自動転送も無効にする。
             if ((int)response.StatusCode is >= 300 and < 400) throw new ApiConnectionException();
             var bytes = await ReadBoundedAsync(response.Content, timeout.Token);
+            if (failure is not null && response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden or
+                HttpStatusCode.NotFound or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests)
+                throw failure(response.StatusCode, bytes);
             if (path.StartsWith("ledgers", StringComparison.Ordinal) && response.StatusCode is
                 HttpStatusCode.BadRequest or HttpStatusCode.NotFound or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests)
                 throw new LedgerRequestException(response.StatusCode);

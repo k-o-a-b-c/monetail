@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../src/Monetail.WinUI/WinUI.props" />
+  <PropertyGroup>
+    <ApplicationManifest>../../src/Monetail.WinUI/app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 実画面と同じXAML・コードを検証し、製品Appに検証用の起動引数を追加しない。 -->
+    <Page Include="../../src/Monetail.WinUI/MainWindow.xaml" Link="MainWindow.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />
+    <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
+    <ProjectReference Include="../../src/Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
+    <Content Update="Assets/PreviewFont.otf" Condition="Exists('Assets/PreviewFont.otf')" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

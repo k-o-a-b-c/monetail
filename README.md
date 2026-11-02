@@ -2,7 +2,8 @@
 
 明細・分類・対象者を細かく記録するWindows向け家計簿と、Web化に向けたAPIのリポジトリです。
 
-- Windows版: VB.NET / WinForms / .NET Framework 4.8 / SQLite
+- 旧Windows版: VB.NET / WinForms / .NET Framework 4.8 / SQLite
+- 新Windows版: Windows 11 / C# / .NET 10 / WinUI 3。構成と実装範囲は[04](docs/04-architecture.md#新版windows版の構成)を参照
 - API: C# / ASP.NET Core / .NET 10。実装範囲は[認証契約](docs/43-passkey-authentication-design.md)と[家計簿設計](docs/58-ledger-foundation-design.md)を参照
 
 ## まず読むもの
@@ -20,7 +21,7 @@
 
 ## 開発・起動
 
-Windows版は[ソリューション](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)をVisual Studioで開き、NuGet復元後にビルドします。DBは含みません。[接続設定](docs/19-database-startup-settings.md)に従ってバックアップしたコピーを指定し、新規セットアップにはマスタの準備も必要です。
+旧Windows版は[ソリューション](HouseholdAccountsBeta/HouseholdAccountsBeta.sln)をVisual Studioで開き、NuGet復元後にビルドします。DBは含みません。[接続設定](docs/19-database-startup-settings.md)に従ってバックアップしたコピーを指定し、新規セットアップにはマスタの準備も必要です。
 
 APIは.NET 10、Docker Composeで起動できます。起動前に必要な認証設定・永続化領域の準備と、稼働確認・復旧の操作は[運用手順](docs/42-api-foundation.md)を参照してください。
 
