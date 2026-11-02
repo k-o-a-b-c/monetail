@@ -91,6 +91,8 @@ internal static class Program
         window.DrawToBitmap(bitmap, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
         bitmap.Save(Path.Combine(output, name + ".png"), ImageFormat.Png);
         Console.WriteLine($"Captured {name}: {bitmap.Width}x{bitmap.Height}, DPI={window.DeviceDpi}");
+        foreach (var panel in Controls(window).OfType<TableLayoutPanel>())
+            Console.WriteLine($"  Layout: {panel.Bounds}, rows={string.Join(',', panel.GetRowHeights())}");
     }
 
     private sealed class PreviewApi : HttpMessageHandler
