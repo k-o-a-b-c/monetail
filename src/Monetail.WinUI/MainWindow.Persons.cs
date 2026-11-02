@@ -137,13 +137,7 @@ public sealed partial class MainWindow
         }
         else
         {
-            if (error.Permissions is { } permission)
-            {
-                peoplePermissions = permission;
-                RenderPeopleRows();
-                if (error.StatusCode == HttpStatusCode.NotFound && permission.CurrentRole is not null && editingPerson is not null)
-                    missingPeople.Add(editingPerson.PersonId);
-            }
+            ApplyPeopleFailureContext(error);
             if (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound) editorDenied = true;
             var message = error.StatusCode switch
             {
@@ -162,6 +156,16 @@ public sealed partial class MainWindow
             };
             ShowPersonError(error.Field, message);
         }
+        UpdatePeopleActions();
+    }
+
+    private void ApplyPeopleFailureContext(PeopleRequestException error)
+    {
+        if (error.Permissions is not { } permission) return;
+        peoplePermissions = permission;
+        RenderPeopleRows();
+        if (error.StatusCode == HttpStatusCode.NotFound && permission.CurrentRole is not null && editingPerson is not null)
+            missingPeople.Add(editingPerson.PersonId);
         UpdatePeopleActions();
     }
 

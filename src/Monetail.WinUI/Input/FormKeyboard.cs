@@ -23,6 +23,10 @@ internal sealed class FormKeyboard
         this.saveButton = saveButton;
         this.save = save;
         root.KeyDown += OnKeyDown;
+        root.GotFocus += (_, _) =>
+        {
+            if (!Down(VirtualKey.Enter) && composing.Count == 0) completingWithEnter = false;
+        };
         root.AddHandler(UIElement.KeyUpEvent, new KeyEventHandler((_, args) =>
         {
             if (args.Key == VirtualKey.Enter) completingWithEnter = false;
@@ -64,7 +68,9 @@ internal sealed class FormKeyboard
             return saveButton is { IsEnabled: true, Visibility: Visibility.Visible } && save is not null ? save() : null;
         // ボタンや一覧上のEnterは、各コントロールの標準操作に任せる。
         if (input is null && combo is null) return null;
-        FocusManager.TryMoveFocus(shift ? FocusNavigationDirection.Previous : FocusNavigationDirection.Next);
+        // WinUI 3では対象WindowのXamlRootを明示し、画面全体の標準Tab順を使う。
+        FocusManager.TryMoveFocus(shift ? FocusNavigationDirection.Previous : FocusNavigationDirection.Next,
+            new FindNextElementOptions { SearchRoot = root.XamlRoot.Content });
         return Task.CompletedTask;
     }
 

@@ -195,8 +195,9 @@ public sealed partial class MainWindow
             };
             ReportFailure(message, repeat, connectionFailure);
         }
-        catch (PeopleRequestException)
+        catch (PeopleRequestException error)
         {
+            ApplyPeopleFailureContext(error);
             ShowError("人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。");
         }
         catch (Exception error) when (error is ApiConnectionException or HttpRequestException or OperationCanceledException
