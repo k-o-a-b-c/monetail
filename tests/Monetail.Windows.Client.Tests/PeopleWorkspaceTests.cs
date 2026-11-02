@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Monetail.Windows.Client;
 using Monetail.Windows.Client.Authentication;
@@ -176,6 +177,41 @@ public sealed class PeopleWorkspaceTests
         var error = Assert.Throws<PersonInputException>(() => new PersonInput(kind == "long" ? new string('あ', 101) : kind,
             kind == "period" ? new(2026, 10, 1) : null, kind == "period" ? new(2026, 9, 30) : null));
         Assert.Equal(field, error.Field);
+    }
+
+    [Theory]
+    [InlineData(403, "Viewer", true)]
+    [InlineData(403, "Editor", false)]
+    [InlineData(404, "Admin", false)]
+    [InlineData(404, null, false)]
+    public async Task PermissionErrorsCarryCurrentRoleAndOwnPersonWithoutAnotherRequest(int status, string? role, bool mine)
+    {
+        using var fixture = new Fixture(_ => Json(new
+        {
+            code = "forbidden", permissions = new { currentRole = role, myPersonId = mine ? Person.PersonId : (Guid?)null }
+        }, (HttpStatusCode)status));
+        var error = await Assert.ThrowsAsync<PeopleRequestException>(() => fixture.Workspace.ListAsync());
+        Assert.Equal(role, error.Permissions!.CurrentRole);
+        Assert.Equal(mine ? Person.PersonId : (Guid?)null, error.Permissions.MyPersonId);
+        Assert.Null(error.LatestPerson);
+        Assert.Null(error.LatestPeople);
+        Assert.Single(fixture.Paths);
+        Assert.NotNull(fixture.Store.Current);
+    }
+
+    [Theory]
+    [InlineData("{\"currentRole\":\"Owner\",\"myPersonId\":null}")]
+    [InlineData("{\"currentRole\":null,\"myPersonId\":\"7c46bcc2-bd09-4a35-a458-7e83848c35d0\"}")]
+    [InlineData("{\"currentRole\":\"Admin\"}")]
+    [InlineData("{\"currentRole\":\"Viewer\",\"myPersonId\":\"invalid\"}")]
+    public async Task MalformedPermissionContextDoesNotBecomeUsablePermissions(string permission)
+    {
+        using var fixture = new Fixture(_ => new(HttpStatusCode.Forbidden)
+        {
+            Content = new StringContent("{\"permissions\":" + permission + "}", Encoding.UTF8, "application/json")
+        });
+        await Assert.ThrowsAsync<ApiConnectionException>(() => fixture.Workspace.ListAsync());
+        Assert.NotNull(fixture.Store.Current);
     }
 
     private static HttpResponseMessage Json(object value, HttpStatusCode status = HttpStatusCode.OK) => new(status) { Content = JsonContent.Create(value) };

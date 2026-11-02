@@ -7,16 +7,19 @@ namespace Monetail.Windows.Client.Transport;
 
 public sealed record PersonInfo(Guid PersonId, string Name, DateOnly? ValidFrom, DateOnly? ValidTo, int DisplayOrder, Guid Revision);
 public sealed record PeopleInfo(PersonInfo[] People, Guid? MyPersonId, string CurrentRole, Guid OrderRevision);
+public sealed record PeoplePermissions(string? CurrentRole, Guid? MyPersonId);
 
 /// <summary>人物管理の業務エラー。最新情報だけを型付きで受け取り、表示文はクライアントで選ぶ。</summary>
 public sealed class PeopleRequestException(HttpStatusCode statusCode, string? code, string? field,
-    PersonInfo? latestPerson = null, PeopleInfo? latestPeople = null) : Exception("人物の操作を完了できませんでした。")
+    PersonInfo? latestPerson = null, PeopleInfo? latestPeople = null, PeoplePermissions? permissions = null)
+    : Exception("人物の操作を完了できませんでした。")
 {
     public HttpStatusCode StatusCode { get; } = statusCode;
     public string? Code { get; } = code;
     public string? Field { get; } = field;
     public PersonInfo? LatestPerson { get; } = latestPerson;
     public PeopleInfo? LatestPeople { get; } = latestPeople;
+    public PeoplePermissions? Permissions { get; } = permissions;
 }
 
 public sealed partial class MonetailApiClient
@@ -58,8 +61,23 @@ public sealed partial class MonetailApiClient
     private static PeopleRequestException ReadPeopleFailure(HttpStatusCode status, byte[] bytes, bool personConflict)
     {
         // 回数制限や共通の権限拒否は、業務エラー本文がなくても区別する。
-        if (status is HttpStatusCode.TooManyRequests or HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
-            return new(status, null, null);
+        if (status == HttpStatusCode.TooManyRequests) return new(status, null, null);
+        if (status is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        {
+            if (bytes.Length == 0) return new(status, null, null);
+            using var failure = Parse(bytes);
+            var context = failure.RootElement;
+            if (!context.TryGetProperty("permissions", out var permission) || permission.ValueKind == JsonValueKind.Null)
+                return new(status, String(context, "code"), String(context, "field"));
+            if (permission.ValueKind != JsonValueKind.Object || !permission.TryGetProperty("currentRole", out var role) ||
+                role.ValueKind != JsonValueKind.Null && (role.ValueKind != JsonValueKind.String ||
+                    role.GetString() is not ("Viewer" or "Editor" or "Admin")) ||
+                !permission.TryGetProperty("myPersonId", out var mine)) throw new ApiConnectionException();
+            var currentRole = role.ValueKind == JsonValueKind.Null ? null : role.GetString();
+            Guid? myId = mine.ValueKind == JsonValueKind.Null ? null : ReadUuid(mine);
+            if (currentRole is null && myId is not null) throw new ApiConnectionException();
+            return new(status, String(context, "code"), String(context, "field"), permissions: new(currentRole, myId));
+        }
         using var document = Parse(bytes);
         var json = document.RootElement;
         var code = String(json, "code");

@@ -577,6 +577,64 @@ public sealed class LedgerManagementTests
         }
     }
 
+    [Theory]
+    [InlineData("Viewer")]
+    [InlineData("Editor")]
+    public async Task PermissionFailureReturnsCurrentMembershipWithoutLatestPrivateData(string role)
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var owner = await LoginAsync(app);
+        var id = await LedgerAsync(owner);
+        var person = await PersonAsync(owner, id, "本人");
+        var account = await app.AddAccountAsync();
+        var personId = person.GetProperty("personId").GetString();
+        AddMember(app, id, account.UserId, "Admin", personId);
+        using var member = await LoginAsync(app, account);
+        await Call(member, "GET", $"/ledgers/{id}/people");
+        app.Database.Execute($"UPDATE ledger_members SET role='{role}' WHERE ledger_id='{id}' AND auth_user_id='{account.UserId}'");
+
+        var refused = await Call(member, "PATCH", $"/ledgers/{id}/people/{personId}",
+            new { revision = Revision(person), name = "未保存", validFrom = (string?)null }, HttpStatusCode.Forbidden);
+
+        var permission = refused.GetProperty("permissions");
+        Assert.Equal(role, permission.GetProperty("currentRole").GetString());
+        Assert.Equal(personId, permission.GetProperty("myPersonId").GetString());
+        Assert.Equal(JsonValueKind.Null, refused.GetProperty("latest").ValueKind);
+        Assert.False(refused.TryGetProperty("people", out _));
+        Assert.False(refused.TryGetProperty("members", out _));
+        // 降格後も、許可されている本人の名前変更は妨げない。
+        await Call(member, "PATCH", $"/ledgers/{id}/people/{personId}", new { revision = Revision(person), name = "本人の名前変更" });
+    }
+
+    [Fact]
+    public async Task MissingPersonAndLostMembershipHaveDistinctPermissionsWithoutDisclosingOtherLedgers()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var owner = await LoginAsync(app);
+        var id = await LedgerAsync(owner);
+        var missingPerson = await Call(owner, "PATCH", $"/ledgers/{id}/people/{Guid.NewGuid():N}",
+            new { revision = Guid.NewGuid(), name = "存在しない人物" }, HttpStatusCode.NotFound);
+        Assert.Equal("Admin", missingPerson.GetProperty("permissions").GetProperty("currentRole").GetString());
+
+        var account = await app.AddAccountAsync();
+        AddMember(app, id, account.UserId);
+        using var member = await LoginAsync(app, account);
+        await Call(member, "GET", $"/ledgers/{id}/people");
+        app.Database.Execute($"DELETE FROM ledger_members WHERE ledger_id='{id}' AND auth_user_id='{account.UserId}'");
+        foreach (var ledgerId in new[] { id, Guid.NewGuid().ToString("N") })
+        {
+            var refused = await Call(member, "GET", $"/ledgers/{ledgerId}/people", expected: HttpStatusCode.NotFound);
+            var permission = refused.GetProperty("permissions");
+            Assert.Equal(JsonValueKind.Null, permission.GetProperty("currentRole").ValueKind);
+            Assert.Equal(JsonValueKind.Null, permission.GetProperty("myPersonId").ValueKind);
+            Assert.Equal(JsonValueKind.Null, refused.GetProperty("latest").ValueKind);
+        }
+        using var anonymous = app.Client();
+        using var response = await anonymous.GetAsync($"/ledgers/{id}/people");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.DoesNotContain("permissions", await response.Content.ReadAsStringAsync());
+    }
+
     private static string Code(JsonElement value) => value.GetProperty("code").GetString()!;
     private static string Revision(JsonElement value) => value.GetProperty("revision").GetString()!;
     private static JsonElement Member(JsonElement value, string id) => value.GetProperty("members").EnumerateArray().Single(row => row.GetProperty("accountId").GetString() == id);
