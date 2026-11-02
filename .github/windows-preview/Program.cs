@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using Monetail.Windows;
 using Monetail.Windows.Client;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Controls;
 
 internal static class Program
 {
@@ -45,6 +46,12 @@ internal static class Program
             var list = Controls(window).OfType<ListView>().Single();
             list.Items[0].Selected = true; Application.DoEvents(); Click(window, "編集");
             Capture(window, output, "03-people-edit");
+            var from = Controls(window).OfType<DateInput>().Single(input => input.AccessibleName == "有効開始日");
+            var to = Controls(window).OfType<DateInput>().Single(input => input.AccessibleName == "有効終了日");
+            from.TimeProvider = new PreviewClock();
+            from.Focus(); from.Text = "1011"; to.Focus(); Application.DoEvents();
+            if (from.Text != "2026/10/11") throw new InvalidOperationException("日付の補完結果が想定と異なります。");
+            Capture(window, output, "06-date-completion");
             Controls(window).OfType<TextBox>().Single(input => input.AccessibleName == "人物名").Text = "変更途中の名前";
             api.Conflict = true; Click(window, "保存");
             Capture(window, output, "04-people-conflict");
@@ -108,5 +115,12 @@ internal static class Program
             else throw new InvalidOperationException("撮影用APIの対象外です。");
             return Task.FromResult(new HttpResponseMessage(status) { Content = JsonContent.Create(body) });
         }
+    }
+
+    // 撮影日の違いで省略入力の補完結果が変わらないようにする。
+    private sealed class PreviewClock : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 }
