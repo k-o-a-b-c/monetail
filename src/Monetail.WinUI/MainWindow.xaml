@@ -47,18 +47,24 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="LedgerName" Text="家計簿を選択" TextTrimming="CharacterEllipsis"
-                                   TextWrapping="NoWrap" />
+                                   TextWrapping="NoWrap" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                         <FontIcon Grid.Column="1" Glyph="&#xE70D;" FontSize="12" />
                     </Grid>
                 </Button>
-                <Button Grid.Column="1" Content="記録" Style="{StaticResource HeaderButton}"
-                        Background="{ThemeResource ControlFillColorSecondaryBrush}" Click="ShowRecord" />
+                <Grid Grid.Column="1">
+                    <Button Content="記録" Style="{StaticResource HeaderButton}" FontWeight="SemiBold"
+                            AutomationProperties.ItemStatus="選択中" Click="ShowRecord" />
+                    <Border Height="3" Width="32" CornerRadius="2" HorizontalAlignment="Center"
+                            VerticalAlignment="Bottom" IsHitTestVisible="False"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}" />
+                </Grid>
                 <Button Grid.Column="2" Content="集計・分析" IsEnabled="False"
                         Style="{StaticResource HeaderButton}" HorizontalAlignment="Left" />
-                <Button x:Name="SettingsButton" Grid.Column="3" Click="ShowManagement" Padding="18,12">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <FontIcon Glyph="&#xE713;" />
-                        <TextBlock Text="管理・設定" FontSize="18" />
+                <Button x:Name="SettingsButton" Grid.Column="3" Click="ShowManagement"
+                        Style="{StaticResource HeaderButton}" Padding="12,12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE713;" FontSize="16" />
+                        <TextBlock Text="管理・設定" FontSize="16" />
                     </StackPanel>
                 </Button>
             </Grid>
@@ -99,9 +105,13 @@
                             <RowDefinition Height="1" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <Grid>
-                            <TextBlock Text="資金移動" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                            <Button Content="＋" IsEnabled="False" HorizontalAlignment="Right"
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="資金移動" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                            <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
                                     AutomationProperties.Name="資金移動の登録" />
                         </Grid>
                         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
@@ -115,9 +125,13 @@
                             <RowDefinition Height="1" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <Grid>
-                            <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                            <Button Content="＋" IsEnabled="False" HorizontalAlignment="Right"
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                            <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
                                     AutomationProperties.Name="残高の登録" />
                         </Grid>
                         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
