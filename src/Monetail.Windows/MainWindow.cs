@@ -5,11 +5,12 @@ using System.Security.Cryptography;
 using Monetail.Windows.Client;
 using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Controls;
 
 namespace Monetail.Windows;
 
 /// <summary>接続・ログインの画面だけを受け持ち、認証情報の処理はClientへ委譲する。</summary>
-public sealed partial class MainWindow : Form
+public sealed partial class MainWindow : InputForm
 {
     private readonly ClientSettingsStore settings;
     private readonly ITokenStore tokens;
@@ -196,6 +197,7 @@ public sealed partial class MainWindow : Form
     {
         peopleMenu.Visible = false;
         AcceptButton = null;
+        SubmitButton = null;
         CancelButton = null;
         while (content.Controls.Count > 0) content.Controls[0].Dispose();
         content.Controls.Add(new Label { Text = heading, AutoSize = true, Font = new Font(Font.FontFamily, 16), Margin = new Padding(0, 0, 0, 18) });

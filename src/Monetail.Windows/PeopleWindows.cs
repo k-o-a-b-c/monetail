@@ -1,7 +1,8 @@
-using System.Globalization;
 using System.Net;
+using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Controls;
 
 namespace Monetail.Windows;
 
@@ -63,9 +64,9 @@ public sealed partial class MainWindow
         Reset($"人物の{(person is null ? "追加" : "編集")} — {openedLedger!.Name}", null);
         var name = PeopleInput("人物名", person?.Name ?? "");
         var nameError = PeopleNotice();
-        var from = PeopleInput("有効開始日", PersonDate(person?.ValidFrom));
+        var from = PeopleDateInput("有効開始日", person?.ValidFrom);
         var fromError = PeopleNotice();
-        var to = PeopleInput("有効終了日", PersonDate(person?.ValidTo));
+        var to = PeopleDateInput("有効終了日", person?.ValidTo);
         var toError = PeopleNotice();
         from.ReadOnly = to.ReadOnly = !admin;
         PeopleText("日付は年/月/日で入力してください。期間の空欄は制限なしです。");
@@ -116,7 +117,7 @@ public sealed partial class MainWindow
             if (busy || latest is not null) return;
             ClearErrors();
             PersonInput input;
-            try { input = new(name.Text, ParsePersonDate(from.Text, "validFrom"), ParsePersonDate(to.Text, "validTo")); }
+            try { input = new(name.Text, from.Commit(), to.Commit()); }
             catch (PersonInputException invalid) { FieldError(invalid.Field, invalid.Message); return; }
             if (person is null && draft?.Input != input) draft = new(input);
             await RunPeopleAsync(async () =>
@@ -131,8 +132,9 @@ public sealed partial class MainWindow
             });
         });
         AcceptButton = save;
+        SubmitButton = save;
         // 閉じた後の権限で一覧を取り直す。保存の成功経路は応答の一覧を使う。
-        Button("キャンセル", OpenPeopleAsync);
+        Button("キャンセル", OpenPeopleAsync).CausesValidation = false;
         name.Focus();
     }
 
@@ -172,7 +174,8 @@ public sealed partial class MainWindow
                 else { error.Text = PeopleError(rejected); error.Visible = true; }
             }));
         AcceptButton = save;
-        Button("キャンセル", OpenPeopleAsync);
+        SubmitButton = save;
+        Button("キャンセル", OpenPeopleAsync).CausesValidation = false;
     }
 
     private Task RunPeopleAsync(Func<Task> action, Label error, Action<PeopleRequestException>? rejected = null) =>
@@ -228,6 +231,13 @@ public sealed partial class MainWindow
         content.Controls.Add(input); return input;
     }
 
+    private DateInput PeopleDateInput(string title, DateOnly? value)
+    {
+        PeopleText(title);
+        var input = new DateInput { Text = PersonDate(value), AllowEmpty = true, Width = 440, AccessibleName = title };
+        content.Controls.Add(input); return input;
+    }
+
     private ListView PeopleList(IEnumerable<PersonInfo> people, Guid? mine)
     {
         var list = new ListView { Width = 440, Height = 160, View = View.Details, FullRowSelect = true,
@@ -246,12 +256,5 @@ public sealed partial class MainWindow
     }
 
     private static PersonInfo? SelectedPerson(ListView list) => list.SelectedItems.Count == 1 ? list.SelectedItems[0].Tag as PersonInfo : null;
-    private static string PersonDate(DateOnly? value) => value?.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) ?? "";
-    private static DateOnly? ParsePersonDate(string text, string field)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        if (DateOnly.TryParseExact(text.Trim(), ["yyyy/MM/dd", "yyyy/M/d", "yyyy-MM-dd"], CultureInfo.InvariantCulture,
-            DateTimeStyles.None, out var value)) return value;
-        throw new PersonInputException(field, "日付を年/月/日の形式で入力してください。");
-    }
+    private static string PersonDate(DateOnly? value) => DateTimeInput.FormatDate(value);
 }
