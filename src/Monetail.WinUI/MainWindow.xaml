@@ -36,7 +36,8 @@
         <Grid>
         <Grid x:Name="StartupPage">
             <StackPanel x:Name="StartupNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-                <ProgressRing IsActive="True" Width="32" Height="32" />
+                <ProgressRing x:Name="StartupProgress" IsActive="False" Width="32" Height="32"
+                              AutomationProperties.Name="接続中" />
                 <TextBlock Text="接続中…" Style="{ThemeResource BodyTextBlockStyle}" />
             </StackPanel>
         </Grid>

@@ -17,6 +17,10 @@ public partial class App
             var root = await OpenSyntheticWindow(fixture);
             await window!.StartAsync();
             Check(Visible(root, "ConnectionPage"), "未設定なら同じWindowで接続先を入力");
+            await Task.Delay(TimeSpan.FromMilliseconds(1100));
+            Check(Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed &&
+                !Find<ProgressRing>(root, "StartupProgress").IsActive && Visible(root, "ConnectionPage"),
+                "速い起動は待機表示を出さず、完了後に遅れて表示しない");
             if (capture) await Capture(root, output, "05-connection");
             Find<TextBox>(root, "ServerUrl").Text = "http://invalid.example.test/";
             Invoke(Find<Button>(root, "ConnectButton"));
@@ -154,6 +158,49 @@ public partial class App
                 fixture.OtherServerRequests.SequenceEqual(["/.well-known/openid-configuration"]),
                 "接続先変更はメタデータ確認後に保存し、元の認証を変更先へ送らない");
         }
+
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            fixture.HasPreviousLedger = true;
+            fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            var root = await OpenSyntheticWindow(fixture);
+            var startup = window!.StartAsync();
+            Check(Visible(root, "StartupPage") && Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed &&
+                !Find<ProgressRing>(root, "StartupProgress").IsActive, "接続待ちの最初の1秒は待機表示を出さない");
+            await Wait(() => Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Visible);
+            Check(Find<ProgressRing>(root, "StartupProgress").IsActive && ReferenceEquals(window.Content, root),
+                "1秒以上かかったら同じWindowでProgressRingと接続中を表示");
+            if (capture) await Capture(root, output, "09-startup-wait");
+            fixture.ConnectionGate.SetResult(true);
+            await startup;
+            Check(Visible(root, "HomePage") && !Find<ProgressRing>(root, "StartupProgress").IsActive &&
+                Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed,
+                "接続完了後は待機表示を止めて同じWindowのホームへ進む");
+        }
+
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            var root = await OpenSyntheticWindow(fixture);
+            await window!.StartAsync();
+            Check(fixture.ConnectionCancelled && Visible(root, "FailurePage") && fixture.Tokens.Current is not null &&
+                !Find<ProgressRing>(root, "StartupProgress").IsActive,
+                "起動接続が10秒でタイムアウトしたら認証を残してエラー表示へ進む");
+        }
+
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            fixture.HasPreviousLedger = true;
+            fixture.RateLimitOpening = true;
+            var root = await OpenSyntheticWindow(fixture);
+            await window!.StartAsync();
+            Check(Visible(root, "FailurePage") && Find<TextBlock>(root, "FailureMessage").Text.Contains("操作回数"),
+                "起動先を開けない場合も待機画面に取り残さず再試行を表示");
+            fixture.RateLimitOpening = false;
+            Invoke(Find<Button>(root, "RetryButton"));
+            await Wait(() => Visible(root, "HomePage"));
+            Check(fixture.Tokens.Current is not null, "起動先の失敗から本人の再試行で復帰");
+        }
     }
 
     private async Task<FrameworkElement> OpenSyntheticWindow(SyntheticConnection fixture)
@@ -191,6 +238,8 @@ public partial class App
         internal readonly List<string> OtherServerRequests = [];
         internal Uri? AuthorizationUri;
         internal Task? CallbackTask;
+        internal TaskCompletionSource<bool>? ConnectionGate;
+        internal bool ConnectionCancelled, RateLimitOpening;
         internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
         internal int ChoiceCount, BrowserOpens;
 
@@ -235,6 +284,11 @@ public partial class App
             Requests.Add(path);
             var origin = ApiEndpoint.Parse(request.RequestUri.GetLeftPart(UriPartial.Authority));
             if (!origin.Equals(Endpoint)) OtherServerRequests.Add(path);
+            if (path == "/.well-known/openid-configuration" && ConnectionGate is not null)
+            {
+                try { await ConnectionGate.Task.WaitAsync(token); }
+                catch (OperationCanceledException) { ConnectionCancelled = true; throw; }
+            }
             if (path == "/.well-known/openid-configuration") return FailConnection ? new(HttpStatusCode.ServiceUnavailable) : Json(new
             {
                 issuer = origin.Value, authorization_endpoint = origin.Resolve("connect/authorize"),
@@ -253,7 +307,8 @@ public partial class App
                 expiresAtUtc = DateTimeOffset.UtcNow.AddDays(2), verifiedAtUtc = DateTimeOffset.UtcNow
             });
             if (path == "/auth/logout") return new(FailLogout ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.NoContent);
-            if (path == "/ledgers/open-last") return Json(new { ledger = HasPreviousLedger ? first : null });
+            if (path == "/ledgers/open-last") return RateLimitOpening ? new(HttpStatusCode.TooManyRequests) :
+                Json(new { ledger = HasPreviousLedger ? first : null });
             if (path == "/ledgers" && request.Method == HttpMethod.Get) return Json(new[] { first, second }.Take(ChoiceCount));
             if (path == "/ledgers" && request.Method == HttpMethod.Post)
             {

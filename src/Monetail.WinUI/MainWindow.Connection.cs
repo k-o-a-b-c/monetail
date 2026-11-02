@@ -20,13 +20,48 @@ public sealed partial class MainWindow
     private bool busy;
     private bool closed;
 
-    internal Task StartAsync() => RunAsync(async () =>
+    internal Task StartAsync()
     {
-        if (!connection.LoadSettings()) { ShowConnection(); return; }
-        using var timeout = ConnectionTimeout();
-        await connection.Api.CheckConnectionAsync(timeout.Token);
-        await RestoreAndOpenAsync(timeout.Token);
-    }, StartAsync, true);
+        if (busy || closed) return Task.CompletedTask;
+        ShowPage(StartupPage);
+        return RunAsync(async () =>
+        {
+            using var waiting = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+            var notice = ShowStartupNoticeAsync(waiting.Token);
+            try
+            {
+                if (!connection.LoadSettings()) { ShowConnection(); return; }
+                using var timeout = ConnectionTimeout();
+                await connection.Api.CheckConnectionAsync(timeout.Token);
+                await RestoreAndOpenAsync(timeout.Token);
+            }
+            finally
+            {
+                // 完了・失敗・終了の後に、遅れて待機表示を出さない。
+                waiting.Cancel();
+                await notice;
+                if (!closed)
+                {
+                    StartupNotice.Visibility = Visibility.Collapsed;
+                    StartupProgress.IsActive = false;
+                }
+            }
+        }, StartAsync, true);
+    }
+
+    private async Task ShowStartupNoticeAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), token);
+            if (!closed && StartupPage.Visibility == Visibility.Visible)
+            {
+                StartupNotice.Visibility = Visibility.Visible;
+                StartupProgress.IsActive = true;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
 
     private CancellationTokenSource ConnectionTimeout()
     {
@@ -151,13 +186,14 @@ public sealed partial class MainWindow
         catch (AuthenticationContextChangedException error) { ShowLogin(error.Message); }
         catch (LedgerRequestException error)
         {
-            ShowError(error.StatusCode switch
+            var message = error.StatusCode switch
             {
                 HttpStatusCode.NotFound => "この家計簿は開けません。参加状態を確認してください。",
                 HttpStatusCode.Forbidden => "この操作を行う権限がありません。",
                 HttpStatusCode.TooManyRequests => "操作回数の上限に達しました。しばらく待って再試行してください。",
                 _ => "家計簿の操作を完了できませんでした。内容を確認して再試行してください。"
-            });
+            };
+            ReportFailure(message, repeat, connectionFailure);
         }
         catch (PeopleRequestException)
         {
@@ -169,19 +205,21 @@ public sealed partial class MainWindow
             var message = error is IOException or UnauthorizedAccessException or CryptographicException
                 ? "設定・認証情報を読み書きできませんでした。保存先へのアクセスを確認してください。"
                 : "サーバーに接続できませんでした。接続先と通信状態を確認してください。";
-            if (connectionFailure)
-            {
-                ShowPage(FailurePage);
-                FailureMessage.Text = message;
-                retry = repeat;
-            }
-            else ShowError(message);
+            ReportFailure(message, repeat, connectionFailure);
         }
         finally
         {
             busy = false;
             if (!closed) SetOperationsEnabled(true);
         }
+    }
+
+    private void ReportFailure(string message, Func<Task> repeat, bool connectionFailure)
+    {
+        if (!connectionFailure) { ShowError(message); return; }
+        ShowPage(FailurePage);
+        FailureMessage.Text = message;
+        retry = repeat;
     }
 
     private void SetOperationsEnabled(bool enabled)

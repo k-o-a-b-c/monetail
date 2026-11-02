@@ -16,8 +16,7 @@ public sealed partial class MainWindow : Window
         Title = "Monetail";
         AppWindow.Resize(new SizeInt32(1100, 780));
         Closed += CloseConnection;
-        // 製品起動との接続までは、既存のホーム表示を維持する。
-        ShowPage(HomePage);
+        ShowPage(StartupPage);
     }
 
     /// <summary>APIから受け取った表示用データを反映する。サンプルを通常起動へ埋め込まない。</summary>
