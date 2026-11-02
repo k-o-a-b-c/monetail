@@ -33,6 +33,8 @@ public partial class App
             var reads = server.Reads;
             Invoke(add);
             await Wait(() => Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Visible);
+            await Wait(() => FitsHorizontally(name, Find<ScrollViewer>(root, "PersonEditorContent")));
+            Check(FitsHorizontally(to, Find<ScrollViewer>(root, "PersonEditorContent")), "人物の入力欄が右側の表示領域に収まる");
             Check(name.Text == "" && from.Text == "" && to.Text == "" && server.Reads == reads,
                 "人物追加は全欄空欄で開き、追加取得しない");
             from.Text = "not-a-date";
@@ -172,8 +174,19 @@ public partial class App
             Invoke(Find<Button>(root, "AddPersonButton"));
             await Settle();
             Check(Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0, "別機能への移動は未保存編集を破棄し、人物管理は一覧から再開");
-            if (capture) await Capture(root, output, "11-person-editor");
+            if (capture)
+            {
+                await Wait(() => FitsHorizontally(Find<TextBox>(root, "PersonName"), Find<ScrollViewer>(root, "PersonEditorContent")));
+                await Settle();
+                await Capture(root, output, "11-person-editor");
+            }
         }
+    }
+
+    private static bool FitsHorizontally(FrameworkElement element, FrameworkElement viewport)
+    {
+        var position = element.TransformToVisual(viewport).TransformPoint(new(0, 0));
+        return element.ActualWidth > 0 && position.X >= -0.5 && position.X + element.ActualWidth <= viewport.ActualWidth + 0.5;
     }
 
     private sealed class PeopleServer
