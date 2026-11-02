@@ -75,9 +75,9 @@ internal sealed class FormKeyboard
             return canSave() && save is not null ? save() : null;
         // ボタンや一覧上のEnterは、各コントロールの標準操作に任せる。
         if (input is null && combo is null) return null;
-        // WinUI 3では対象WindowのXamlRootを明示し、通常画面またはダイアログ内の標準Tab順を使う。
+        // WinUI 3のNext/PreviousではWindowのContentを指定する。モーダルの移動範囲は標準のTabスコープに従う。
         FocusManager.TryMoveFocus(shift ? FocusNavigationDirection.Previous : FocusNavigationDirection.Next,
-            new FindNextElementOptions { SearchRoot = root is ContentDialog ? root : root.XamlRoot.Content });
+            new FindNextElementOptions { SearchRoot = root.XamlRoot.Content });
         return Task.CompletedTask;
     }
 
