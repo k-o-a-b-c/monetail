@@ -26,7 +26,7 @@
 
 構成整理前のWinUI 3は[CI 41418236183](https://github.com/k-o-a-b-c/monetail/actions/runs/41418236183)（表示ソース47f4054）で製品・スモークのビルドが警告・エラー0、製品起動と画面スモークが成功。[単発撮影CI 41418289696](https://github.com/k-o-a-b-c/monetail/actions/runs/41418289696)ではアプリ名を置かず家計簿名を表示したホーム、左メニューと右の人物一覧、コンパクト表示、標準ダークテーマを96DPIで確認した。撮影時だけNoto Sans CJK JPを使い、通常起動へサンプルや撮影引数を入れていない。
 
-Clientの独立配置後はローカルで218件、CI選択20件が失敗・スキップ0で成功。実DPAPI3件とWinUI 3の起動・スモークはWindows CIで確認する。Clientのコードと保存形式・API契約は変更せず、参照先だけを整理した。API430件の既存成功結果は[CI 41254944809](https://github.com/k-o-a-b-c/monetail/actions/runs/41254944809)、旧VB.NET等143件は[CI 40853317101](https://github.com/k-o-a-b-c/monetail/actions/runs/40853317101)を基点とする。今回のCIで再実行した対象と、省略して再利用した対象を区別する。
+現在の採用結果は対象ソース`8592ed02b4423ac47aeb3afc93f65fb150f013a7`。[通常CI 41424095869](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095869)でClient218件・実DPAPI3件・API430件・旧版の計算35件／SQLite移行10件／画面・永続化98件・CI選択20件が失敗・スキップ0で成功し、Dockerの起動確認・性能計測・旧ソリューションのビルドも成功した。[WinUI CI 41424095689](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095689)では製品・スモークのReleaseビルドが警告・エラー0、製品EXEの起動と画面スモーク1シナリオが成功。今回は構成合計815件を実行した。Client21ファイルの内容・保存形式・API契約と旧VB.NET版のソースは変更せず、配置・参照・検証構成を整理した。
 
 ## 実行方法（リポジトリ直下）
 

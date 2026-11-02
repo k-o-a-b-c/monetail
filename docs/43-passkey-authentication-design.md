@@ -85,7 +85,7 @@ discoverable credential（ResidentKey=Required）とUserVerification=Requiredを
 
 ## Windows版のOAuth認証（DEC-051）
 
-OpenIddict 7.7.2のサーバー・検証機能を使い、外部ブラウザーでのパスキー認証後に認可コード＋PKCEでWindows版へAPI利用権限を渡す。新版WindowsにはPKCE S256・ランダムstate・実行時ポートのループバック受付・コード交換を実装した。ID tokenやopenidスコープには依存しない。公開条件・証明書の準備は[42](42-api-foundation.md#windows版向けoauthの有効化)、実ブラウザーを含む検証範囲は[tests/README](../tests/README.md)を参照する。
+OpenIddict 7.7.2のサーバー・検証機能を使い、外部ブラウザーでのパスキー認証後に認可コード＋PKCEでWindows版へAPI利用権限を渡す。新版のClientにはPKCE S256・ランダムstate・実行時ポートのループバック受付・コード交換を実装した。ID tokenやopenidスコープには依存しない。公開条件・証明書の準備は[42](42-api-foundation.md#windows版向けoauthの有効化)、実ブラウザーを含む検証範囲は[tests/README](../tests/README.md)を参照する。
 
 | 経路 | 契約 |
 | --- | --- |
