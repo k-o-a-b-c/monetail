@@ -1,6 +1,15 @@
 # Monetail UI設計・実装ガイドライン
 
-対象: 新Windows版 / C# / .NET 10 / Windows Forms
+対象: 新Windows版 / C# / .NET 10 / WinUI 3へ移行（現在の実装はWindows Forms）
+
+## WinUI 3への移行
+
+利用者の決定により、今後のUIはWinUI 3（Windows App SDK）で作る。現在のWinForms画面が移行・検証済みという意味ではない。移行の境界と対応Windows・配布方式の未決定事項は[04](docs/04-architecture.md#新版windows版の構成)を参照する。
+
+- 1つのWindow内で表示を切り替える。ホームの上部ナビと「管理・設定」を設け、管理・設定では左側メニューを残して右側に人物一覧等を表示する。メニューバーは作らない。
+- WinUI 3標準のNavigationView、Grid、StackPanel、ListView等とXAMLのスタイル・ThemeResourceを優先する。色・フォント・余白・角丸は標準テーマとの整合性を保ち、WinFormsの描画処理やP/Invokeで見た目を再現しない。
+- API・認証・保存・補完ロジックはClientを再利用する。Enter移動とIME等は[59](docs/59-input-controls-design.md)の確定仕様をWinUI 3で検証し直す。
+- 以下の共通配置・意味・操作性の方針は維持する。WinForms固有のクラス名・プロパティ・DPI設定・実装済みという記述は移行元の参照であり、WinUI 3へそのまま適用したり、移行完了の根拠にしたりしない。
 
 新Windows版の共通レイアウト・表示・操作部品の基準を定める。最初の適用対象は人物管理とし、他の画面も新規作成・改修時にそろえる。本書の追加だけで、既存画面への反映や高DPIでの検証が完了したとは扱わない。
 

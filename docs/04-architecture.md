@@ -25,9 +25,11 @@ Windows デスクトップアプリ
 
 ### 新版Windows版の構成
 
-新版は**.NET 10 LTS・C#・WinForms**の独立プロジェクト`src/Monetail.Windows/Monetail.Windows.csproj`とし、ターゲットは`net10.0-windows`。画面はこのプロジェクト、API通信・認証・保存は配下の`Client/Monetail.Windows.Client.csproj`（`net10.0`）へ分ける。現在のVB.NET／.NET Framework 4.8のプロジェクトは残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。接続・認証と家計簿の選択・作成・切替と人物管理の画面、人物管理のClient通信を実装し、レシート等の業務画面とインストーラーは後続とする。
+新版のUIは**.NET 10 LTS・C#・WinUI 3（Windows App SDK）へ切り替える**ことを利用者が決定した。現時点で実装・検証済みのUIはWinFormsの`src/Monetail.Windows/Monetail.Windows.csproj`（`net10.0-windows`）であり、WinUI 3への移行は未着手。移行先のプロジェクト作成前に対応Windowsを確定し、起動・ビルドと左メニュー／右コンテンツの最小構成から検証する。移行中の比較と確認に使うため、現行WinFormsをただちに削除しない。
 
-画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、フォームへSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
+API通信・認証・保存・日付と時刻の補完は`src/Monetail.Windows/Client/Monetail.Windows.Client.csproj`（`net10.0`）に分離済みで、WinUI 3から再利用する。WinFormsの画面・入力コントロール・Enter移動・IME連携・画面テストはそのまま移植せず、[59の入力仕様](59-input-controls-design.md)を基にWinUI 3で作り直して検証する。API・認証契約・保存形式・通信単位をUI移行の都合で変えない。現在のVB.NET／.NET Framework 4.8のプロジェクトも残し、新版から旧版の実行ファイル・プロジェクトを直接参照しない。レシート等の業務画面とインストーラーは後続とする。
+
+画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、画面へSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
 
 通信回数をなるべく減らす。1つの操作で必要な処理と応答データをAPI側でまとめ、IDを取得してから同じ対象を再要求する往復を避ける。現在の認証・権限確認はAPI内部で維持し、振る舞いを変える統合は利用者の確認後に行う。
 
