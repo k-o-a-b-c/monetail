@@ -78,9 +78,10 @@ public sealed class InputControlTests
         var next = new TextBox(); form.Add(combo, next, form.Save); form.Show(); combo.Focus();
         combo.DroppedDown = true; combo.SelectedIndex = 1;
         Assert.False(form.Press(Keys.Enter));
-        // メッセージループの標準処理へ返したキーを、実際の編集用HWNDへ送る。
+        // 標準メッセージループと同じく、KeyDownとTranslateMessage相当のWM_CHARを送る。
         var edit = GetWindow(combo.Handle, 5);
         SendMessage(edit, 0x0100, (IntPtr)Keys.Enter, IntPtr.Zero);
+        SendMessage(edit, 0x0102, (IntPtr)Keys.Enter, IntPtr.Zero);
         Application.DoEvents();
         Assert.False(combo.DroppedDown); Assert.Equal("母", combo.Text);
         Assert.True(combo.ContainsFocus); Assert.Equal(0, form.Saves);
