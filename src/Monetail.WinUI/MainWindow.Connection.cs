@@ -99,7 +99,7 @@ public sealed partial class MainWindow
             // 利用者の認証待ちには接続確認用の10秒制限をかけない。
             var acquired = await login.CompleteAsync(cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            BrowserActions.IsEnabled = false;
+            ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = false;
             account = await connection.Session.AcceptLoginAsync(acquired, cancellation.Token);
             if (account is null) ShowLogin("ログインを続けられませんでした。もう一度ログインしてください。");
             else await OpenDestinationAsync(cancellation.Token);
@@ -107,7 +107,7 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !closed) { ShowLogin(); }
         catch (AuthenticationRejectedException) { ShowLogin("ログインできませんでした。もう一度ログインしてください。"); }
-        finally { browserLogin = null; browserCancellation = null; BrowserActions.IsEnabled = true; }
+        finally { browserLogin = null; browserCancellation = null; ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = true; }
     }, StartAsync, true);
 
     private async Task OpenBrowserAsync()
@@ -179,8 +179,7 @@ public sealed partial class MainWindow
 
     private void SetOperationsEnabled(bool enabled)
     {
-        HomePage.IsEnabled = ManagementPage.IsEnabled = ConnectionPage.IsEnabled = LoginPage.IsEnabled =
-            LedgerChoicePage.IsEnabled = LedgerCreatePage.IsEnabled = FailurePage.IsEnabled = enabled;
+        Operations.IsEnabled = enabled;
         var showProgress = !enabled && StartupPage.Visibility != Visibility.Visible;
         BusyProgress.IsActive = showProgress;
         BusyProgress.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;

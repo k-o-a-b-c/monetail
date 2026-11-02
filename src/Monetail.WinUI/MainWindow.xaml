@@ -32,6 +32,8 @@
         <InfoBar x:Name="ErrorNotice" IsOpen="False" Severity="Error" IsClosable="True" Margin="24,16,24,0"
                  AutomationProperties.LiveSetting="Polite" />
         <Grid Grid.Row="1">
+        <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <Grid>
         <Grid x:Name="StartupPage">
             <StackPanel x:Name="StartupNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
                 <ProgressRing IsActive="True" Width="32" Height="32" />
@@ -56,16 +58,6 @@
                 <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
                 <Button x:Name="LoginButton" Content="ログイン" Click="Login" Style="{ThemeResource AccentButtonStyle}" />
                 <HyperlinkButton Content="接続先の変更" Click="ShowConnection" />
-            </StackPanel>
-        </Grid>
-        <Grid x:Name="BrowserPage" Visibility="Collapsed" Padding="32">
-            <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-                <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
-                <TextBlock Text="ブラウザーでログインしてください。" Style="{StaticResource Description}" />
-                <StackPanel x:Name="BrowserActions" Orientation="Horizontal" Spacing="12">
-                    <Button Content="ブラウザーを開く" Click="ReopenBrowser" />
-                    <Button x:Name="CancelLoginButton" Content="キャンセル" Click="CancelLogin" />
-                </StackPanel>
             </StackPanel>
         </Grid>
         <Grid x:Name="FailurePage" Visibility="Collapsed" Padding="32">
@@ -345,6 +337,18 @@
                     </Grid>
                 </Border>
             </NavigationView>
+        </Grid>
+        </Grid>
+        </ContentControl>
+        <Grid x:Name="BrowserPage" Visibility="Collapsed" Padding="32">
+            <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+                <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
+                <TextBlock Text="ブラウザーでログインしてください。" Style="{StaticResource Description}" />
+                <StackPanel x:Name="BrowserActions" Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="ReopenBrowserButton" Content="ブラウザーを開く" Click="ReopenBrowser" />
+                    <Button x:Name="CancelLoginButton" Content="キャンセル" Click="CancelLogin" />
+                </StackPanel>
+            </StackPanel>
         </Grid>
         </Grid>
         <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False"
