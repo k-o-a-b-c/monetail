@@ -28,14 +28,16 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["tests/Monetail.Api.Tests/docker-smoke.sh"], "docker")
 
     def test_new_windows_client_source_validates_portable_and_desktop_without_legacy(self):
-        self.assert_flags(["src/Monetail.Windows/Client/Authentication/BrowserOAuthLogin.cs"],
-                          "windows_client", "windows_client_build")
-        self.assert_flags(["src/Monetail.Windows/Client/Monetail.Windows.Client.csproj"],
-                          "windows_client", "windows_client_build")
+        self.assert_flags(["src/Monetail.Windows.Client/Authentication/BrowserOAuthLogin.cs"],
+                          "windows_client", "windows_storage")
+        self.assert_flags(["src/Monetail.Windows.Client/Monetail.Windows.Client.csproj"],
+                          "windows_client", "windows_storage")
 
-    def test_new_windows_form_only_validates_desktop(self):
-        self.assert_flags(["src/Monetail.Windows/ConnectionForm.cs"], "windows_client_build")
-        self.assert_flags(["src/Monetail.Windows/Monetail.Windows.csproj"], "windows_client_build")
+    def test_removed_projects_can_be_deleted_but_not_reintroduced(self):
+        self.assert_flags(["src/Monetail.Windows/Monetail.Windows.csproj", "tests/Monetail.Windows.Tests/Example.cs"])
+        with patch("select_tests.Path.is_file", return_value=True):
+            with self.assertRaisesRegex(ValueError, "廃止済み"):
+                select(["src/Monetail.Windows/Example.cs"])
 
     def test_winui_source_and_smoke_are_handled_by_the_dedicated_workflow(self):
         self.assert_flags(["src/Monetail.WinUI/Monetail.WinUI.csproj", "src/Monetail.WinUI/MainWindow.xaml",
@@ -48,7 +50,7 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["tests/Monetail.Windows.Client.Tests/OAuthTests.cs"], "windows_client")
         self.assert_flags(["tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj"],
                           "windows_client")
-        self.assert_flags(["tests/Monetail.Windows.Tests/DpapiTests.cs"], "windows_client_build")
+        self.assert_flags(["tests/Monetail.Windows.Storage.Tests/DpapiStorageTests.cs"], "windows_storage")
 
     def test_container_configuration_does_not_start_windows_or_api_tests(self):
         self.assert_flags(["Dockerfile", ".dockerignore"], "docker")
@@ -98,7 +100,7 @@ class SelectionTests(unittest.TestCase):
                     ("tests/PersistenceTests/PersistenceTests.vbproj", "windows_tests"),
                     ("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj", "api"),
                     ("tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj", "windows_client"),
-                    ("tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj", "windows_client_build")]
+                    ("tests/Monetail.Windows.Storage.Tests/Monetail.Windows.Storage.Tests.csproj", "windows_storage")]
         for project, flag in projects:
             if not (ROOT / project).exists():
                 continue

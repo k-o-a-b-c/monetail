@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 FLAGS = ("api", "docker", "compose", "calculations", "migrations",
-         "windows_tests", "windows_build", "performance", "windows_client", "windows_client_build")
+         "windows_tests", "windows_build", "performance", "windows_client", "windows_storage")
 PRODUCT = "HouseholdAccountsBeta/HouseholdAccountsBeta/"
 
 
@@ -51,8 +51,8 @@ def select(paths):
     api_inputs = project_inputs("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj")
     client_project = "tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj"
     client_inputs = project_inputs(client_project) if (ROOT / client_project).exists() else set()
-    desktop_project = "tests/Monetail.Windows.Tests/Monetail.Windows.Tests.csproj"
-    desktop_inputs = project_inputs(desktop_project) if (ROOT / desktop_project).exists() else set()
+    storage_project = "tests/Monetail.Windows.Storage.Tests/Monetail.Windows.Storage.Tests.csproj"
+    storage_inputs = project_inputs(storage_project) if (ROOT / storage_project).exists() else set()
     performance_helpers = {
         "Program.vb", "ReceiptReadMeasurements.vb", "DatabaseFixture.vb",
         "BalanceBoundaryTests.vb", "ConcurrencyTests.vb", "PaymentReceiptReadTests.vb",
@@ -72,6 +72,11 @@ def select(paths):
             continue  # 選択処理自身はchangesジョブで必ず検証する。
         if path == ".github/workflows/winui.yml" or path.startswith(("src/Monetail.WinUI/", "tests/Monetail.WinUI.Smoke/")):
             continue  # Windows固有のWinUIビルド・起動は専用ワークフローで検証する。
+        if path.startswith(("src/Monetail.Windows/", "tests/Monetail.Windows.Tests/")):
+            # 削除済みプロジェクトの差分は対象外にし、同じパスへの再追加は検出する。
+            if (ROOT / path).is_file():
+                raise ValueError("廃止済みのプロジェクトへファイルを追加できません: " + path)
+            continue
         known = False
 
         def enable(*flags):
@@ -88,16 +93,16 @@ def select(paths):
             enable("api")
         if any(matches(path, pattern) for pattern in api_inputs):
             enable("api")
-        if path.startswith("src/Monetail.Windows/"):
-            enable("windows_client_build")
-        if path.startswith(("src/Monetail.Windows/Client/", "tests/Monetail.Windows.Client.Tests/")):
+        if path.startswith("src/Monetail.Windows.Client/"):
+            enable("windows_client", "windows_storage")
+        if path.startswith("tests/Monetail.Windows.Client.Tests/"):
             enable("windows_client")
-        if path.startswith("tests/Monetail.Windows.Tests/"):
-            enable("windows_client_build")
+        if path.startswith("tests/Monetail.Windows.Storage.Tests/"):
+            enable("windows_storage")
         if any(matches(path, pattern) for pattern in client_inputs):
             enable("windows_client")
-        if any(matches(path, pattern) for pattern in desktop_inputs):
-            enable("windows_client_build")
+        if any(matches(path, pattern) for pattern in storage_inputs):
+            enable("windows_storage")
         if path in {"Dockerfile", ".dockerignore"}:
             enable("docker")
         if path == "compose.yaml":

@@ -4,6 +4,6 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../Monetail.Windows/Client/Monetail.Windows.Client.csproj" />
+    <ProjectReference Include="../Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
   </ItemGroup>
 </Project>
