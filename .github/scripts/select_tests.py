@@ -53,6 +53,11 @@ def select(paths):
     client_inputs = project_inputs(client_project) if (ROOT / client_project).exists() else set()
     storage_project = "tests/Monetail.Windows.Storage.Tests/Monetail.Windows.Storage.Tests.csproj"
     storage_inputs = project_inputs(storage_project) if (ROOT / storage_project).exists() else set()
+    removed_project_roots = {
+        posixpath.dirname(path) + "/" for path in paths
+        if path.endswith((".csproj", ".vbproj")) and not (ROOT / path).is_file()
+        and not any((ROOT / posixpath.dirname(path)).glob("*.*proj"))
+    }
     performance_helpers = {
         "Program.vb", "ReceiptReadMeasurements.vb", "DatabaseFixture.vb",
         "BalanceBoundaryTests.vb", "ConcurrencyTests.vb", "PaymentReceiptReadTests.vb",
@@ -72,11 +77,6 @@ def select(paths):
             continue  # 選択処理自身はchangesジョブで必ず検証する。
         if path == ".github/workflows/winui.yml" or path.startswith(("src/Monetail.WinUI/", "tests/Monetail.WinUI.Smoke/")):
             continue  # Windows固有のWinUIビルド・起動は専用ワークフローで検証する。
-        if path.startswith(("src/Monetail.Windows/", "tests/Monetail.Windows.Tests/")):
-            # 削除済みプロジェクトの差分は対象外にし、同じパスへの再追加は検出する。
-            if (ROOT / path).is_file():
-                raise ValueError("廃止済みのプロジェクトへファイルを追加できません: " + path)
-            continue
         known = False
 
         def enable(*flags):
@@ -126,6 +126,10 @@ def select(paths):
                 path.startswith("tests/PersistenceTests/") and path.rsplit("/", 1)[-1] in performance_helpers or
                 path.endswith(".sql") and any(matches(path, pattern) for pattern in windows_inputs)):
             enable("performance")
+        # 残存する参照先の検証を優先し、未参照になったプロジェクトの削除だけ省略する。
+        if (not known and not (ROOT / path).is_file()
+                and any(path.startswith(root) for root in removed_project_roots)):
+            known = True
         if not known:
             unknown.append(path)
     if unknown:

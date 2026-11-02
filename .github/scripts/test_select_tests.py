@@ -34,10 +34,13 @@ class SelectionTests(unittest.TestCase):
                           "windows_client", "windows_storage")
 
     def test_removed_projects_can_be_deleted_but_not_reintroduced(self):
-        self.assert_flags(["src/Monetail.Windows/Monetail.Windows.csproj", "tests/Monetail.Windows.Tests/Example.cs"])
-        with patch("select_tests.Path.is_file", return_value=True):
-            with self.assertRaisesRegex(ValueError, "廃止済み"):
-                select(["src/Monetail.Windows/Example.cs"])
+        paths = ["src/Removed/Removed.csproj", "src/Removed/Example.cs"]
+        self.assert_flags(paths)
+        with self.assertRaisesRegex(ValueError, "未分類"):
+            select(["src/Removed/Example.cs"])
+        # 削除したソースを別のテストが参照している場合は、その検証を省略しない。
+        with patch("select_tests.project_inputs", return_value={"src/Removed/Example.cs"}):
+            self.assertTrue(select(paths)["windows_client"])
 
     def test_winui_source_and_smoke_are_handled_by_the_dedicated_workflow(self):
         self.assert_flags(["src/Monetail.WinUI/Monetail.WinUI.csproj", "src/Monetail.WinUI/MainWindow.xaml",
