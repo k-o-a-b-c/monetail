@@ -9,6 +9,6 @@
     <Compile Include="../../src/Monetail.WinUI/MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
     <ProjectReference Include="../../src/Monetail.Windows/Client/Monetail.Windows.Client.csproj" />
-    <Content Include="Assets/PreviewFont.otf" Condition="Exists('Assets/PreviewFont.otf')" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="Assets/PreviewFont.otf" Condition="Exists('Assets/PreviewFont.otf')" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

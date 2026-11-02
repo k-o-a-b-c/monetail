@@ -62,7 +62,9 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
-| `src/Monetail.Windows/` | 新版WinFormsの起動・接続設定・ログイン待ち・家計簿画面・人物管理画面 |
+| `src/Monetail.WinUI/` | Windows 11向けの移行先。WinUI 3の起動・ホーム・左ナビゲーションと右側の人物一覧の土台 |
+| `tests/Monetail.WinUI.Smoke/` | 製品の起動と、同じXAML・コードを使った合成データの画面スモーク。単発画像の取得も担当 |
+| `src/Monetail.Windows/` | 移行元WinFormsの起動・接続設定・ログイン待ち・家計簿画面・人物管理画面 |
 | `src/Monetail.Windows/Controls/` | 日付／時刻の入力欄、Enter移動を共用するForm、標準コンテナーによるPageLayout。IME状態を監視し、変換確定のEnterを移動・保存へ流さない |
 | `src/Monetail.Windows/Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定・人物管理の通信・画面に依存しない日付／時刻の補完 |
 | `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
