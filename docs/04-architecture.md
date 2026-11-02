@@ -27,7 +27,7 @@ Windows デスクトップアプリ
 
 新版は**Windows 11のみ・.NET 10 LTS・C#・WinUI 3（Windows App SDK）**のアプリとする。プロジェクトは`src/Monetail.WinUI/Monetail.WinUI.csproj`。ターゲットは`net10.0-windows10.0.26100.0`、最小対応バージョンはWindows 11初版の`10.0.22000.0`。Windows App SDKは安定版1.8系列を使用する。初期ビルドと起動の検証はx64で行い、ARM64は未検証とする。
 
-現在は起動・ホーム・左メニューを残した右側の人物一覧の表示まで。接続・ログイン・家計簿選択・人物の保存操作の画面は未実装。通常起動ではサンプルデータを表示せず、Clientの型を受け取る表示処理を備える。
+現在は起動・ホーム・左メニューを残した右側の人物一覧に加え、既存Clientを呼ぶ接続設定・ブラウザーログイン・家計簿選択／作成／切替・ログイン情報・ログアウトの画面を実装中。起動時の表示方法は利用者へ確認中で、製品Appからの自動復元開始はまだ接続していない。通常起動のホームにサンプルデータは表示しない。人物の追加・編集・保存操作は未実装。
 
 開発・CIでは非パッケージの自己完結した配置を使い、Windows App SDKと.NETランタイムを出力先に含めて起動を確認する。これは検証用の設定で、製品インストーラーの方式・更新方法・配布対象CPUを決定したものではない。WinUI 3のビルド・製品起動・同じXAMLによるスモークテストは専用の`.github/workflows/winui.yml`で行う。画像の取得は`preview/winui-*`ブランチでの単発実行に限定する。
 
@@ -62,7 +62,7 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
-| `src/Monetail.WinUI/` | Windows 11向けアプリ。WinUI 3の起動・ホーム・左ナビゲーションと右側の人物一覧の土台 |
+| `src/Monetail.WinUI/` | Windows 11向けアプリ。ホーム・左ナビゲーションと右側の人物一覧。ClientConnectionで既存Clientを構成し、MainWindowの接続・認証・家計簿操作を分担する |
 | `tests/Monetail.WinUI.Smoke/` | 製品の起動と、同じXAML・コードを使った合成データの画面スモーク。単発画像の取得も担当 |
 | `src/Monetail.Windows.Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定・人物管理の通信・画面に依存しない日付／時刻の補完 |
 | `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Storage.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |

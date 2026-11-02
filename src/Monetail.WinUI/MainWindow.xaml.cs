@@ -41,6 +41,7 @@ public sealed partial class MainWindow : Window
         Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(LedgerSelector, ledger.Name);
         LedgerContext.Text = ledger.Name;
         LedgerSelector.IsEnabled = account is not null;
+        AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = account is not null;
         ShowPage(HomePage);
     }
 

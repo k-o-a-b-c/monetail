@@ -242,8 +242,8 @@
                     <NavigationViewItem Content="表示設定" IsEnabled="False" />
                     <NavigationViewItem Content="入力時の初期値" IsEnabled="False" />
                     <NavigationViewItemHeader Content="アカウント" />
-                    <NavigationViewItem x:Name="AccountNavigation" Content="ログイン情報" />
-                    <NavigationViewItem x:Name="LogoutNavigation" Content="ログアウト" />
+                    <NavigationViewItem x:Name="AccountNavigation" Content="ログイン情報" IsEnabled="False" />
+                    <NavigationViewItem x:Name="LogoutNavigation" Content="ログアウト" IsEnabled="False" />
                 </NavigationView.MenuItems>
                 <Border Style="{StaticResource Card}" Margin="16,0,0,0">
                     <Grid>

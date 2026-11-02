@@ -79,6 +79,7 @@ public sealed partial class MainWindow
     private void ShowLogin(string? message = null)
     {
         account = null;
+        AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = false;
         ClearLedger();
         ShowPage(LoginPage);
         if (message is not null) ShowError(message);
