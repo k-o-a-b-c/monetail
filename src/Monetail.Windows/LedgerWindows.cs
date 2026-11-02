@@ -38,7 +38,7 @@ public sealed partial class MainWindow
 
     private void AddAccountActions()
     {
-        content.Controls.Add(new Label { AutoSize = true, Text = $"{currentAccount!.DisplayName} さん", Margin = new Padding(0, 16, 0, 4) });
+        body.Controls.Add(new Label { AutoSize = true, Text = $"{currentAccount!.DisplayName} さん", Margin = new Padding(0, 16, 0, 4) });
         Button("ログアウト", () => RunAsync(async () =>
         {
             await session!.LogoutAsync(lifetime.Token);
@@ -51,7 +51,7 @@ public sealed partial class MainWindow
         Reset("家計簿の選択", "開く家計簿を選んでください。");
         var list = new ListBox { Width = 440, Height = 120, DisplayMember = nameof(LedgerInfo.Name), AccessibleName = "参加している家計簿" };
         foreach (var ledger in choices) list.Items.Add(ledger);
-        content.Controls.Add(list);
+        body.Controls.Add(list);
         Task OpenSelectionAsync() => list.SelectedItem is LedgerInfo ledger ? OpenLedgerAsync(ledger.LedgerId) : Task.CompletedTask;
         var open = Button("開く", OpenSelectionAsync);
         open.Enabled = false;
@@ -68,9 +68,9 @@ public sealed partial class MainWindow
         Reset("家計簿の作成", message ?? (noMembership
             ? "参加している家計簿はありません。\n参加する場合は、管理者から招待リンクを受け取ってください。"
             : "新しい家計簿の名前を入力してください。"));
-        content.Controls.Add(new Label { AutoSize = true, Text = "家計簿名" });
+        body.Controls.Add(new Label { AutoSize = true, Text = "家計簿名" });
         var name = new TextBox { Width = 440, Text = creationDraft?.Name ?? "", AccessibleName = "家計簿名" };
-        content.Controls.Add(name);
+        body.Controls.Add(name);
         var create = Button("作成", () => CreateLedgerAsync(name.Text, noMembership));
         AcceptButton = create;
         SubmitButton = create;
@@ -132,8 +132,8 @@ public sealed partial class MainWindow
             menu.Closed += (_, _) => BeginInvoke((Action)menu.Dispose);
             menu.Show(selector, new Point(0, selector.Height));
         }, () => OpenLedgerAsync(ledger.LedgerId));
-        content.Controls.Add(new Label { AutoSize = true, Text = "レシート一覧", Margin = new Padding(0, 16, 0, 8) });
-        content.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(440, 0), Text = "レシートの一覧・入力機能は今後追加します。" });
+        body.Controls.Add(new Label { AutoSize = true, Text = "レシート一覧", Margin = new Padding(0, 16, 0, 8) });
+        body.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(440, 0), Text = "レシートの一覧・入力機能は今後追加します。" });
         AddAccountActions();
     }
 
