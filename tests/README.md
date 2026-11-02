@@ -28,6 +28,8 @@
 
 現在の採用結果は対象ソース`8592ed02b4423ac47aeb3afc93f65fb150f013a7`。[通常CI 41424095869](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095869)でClient218件・実DPAPI3件・API430件・旧版の計算35件／SQLite移行10件／画面・永続化98件・CI選択20件が失敗・スキップ0で成功し、Dockerの起動確認・性能計測・旧ソリューションのビルドも成功した。[WinUI CI 41424095689](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095689)では製品・スモークのReleaseビルドが警告・エラー0、製品EXEの起動と画面スモーク1シナリオが成功。今回は構成合計815件を実行した。Client21ファイルの内容・保存形式・API契約と旧VB.NET版のソースは変更せず、配置・参照・検証構成を整理した。
 
+ホーム上部の1行化はソース`3b610796769c0de2bdb8e961239871c80d7d4670`を[WinUI CI 41433846188](https://github.com/k-o-a-b-c/monetail/actions/runs/41433846188)で確認し、製品・スモークのビルドが警告・エラー0、製品起動と既存の画面スモークが成功。[単発撮影CI 41433992670](https://github.com/k-o-a-b-c/monetail/actions/runs/41433992670)でも、家計簿名が左端にある1行ヘッダーを目視確認した。Client・Storage・API・旧版等は変更がなく、上記の成功結果を再利用する。
+
 ## 実行方法（リポジトリ直下）
 
 ```sh
