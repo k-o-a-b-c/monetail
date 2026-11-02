@@ -34,13 +34,6 @@
         <Grid Grid.Row="1">
         <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
         <Grid>
-        <Grid x:Name="StartupPage">
-            <StackPanel x:Name="StartupNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-                <ProgressRing x:Name="StartupProgress" IsActive="False" Width="32" Height="32"
-                              AutomationProperties.Name="接続中" />
-                <TextBlock Text="接続中…" Style="{ThemeResource BodyTextBlockStyle}" />
-            </StackPanel>
-        </Grid>
         <Grid x:Name="ConnectionPage" Visibility="Collapsed" Padding="32">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
@@ -341,6 +334,13 @@
         </Grid>
         </Grid>
         </ContentControl>
+        <Grid x:Name="StartupPage">
+            <StackPanel x:Name="StartupNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <ProgressRing x:Name="StartupProgress" IsActive="False" Width="32" Height="32"
+                              AutomationProperties.Name="接続中" />
+                <TextBlock Text="接続中…" Style="{ThemeResource BodyTextBlockStyle}" />
+            </StackPanel>
+        </Grid>
         <Grid x:Name="BrowserPage" Visibility="Collapsed" Padding="32">
             <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
                 <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />

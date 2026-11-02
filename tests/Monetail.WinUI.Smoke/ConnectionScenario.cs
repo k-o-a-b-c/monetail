@@ -168,7 +168,8 @@ public partial class App
             Check(Visible(root, "StartupPage") && Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed &&
                 !Find<ProgressRing>(root, "StartupProgress").IsActive, "接続待ちの最初の1秒は待機表示を出さない");
             await Wait(() => Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Visible);
-            Check(Find<ProgressRing>(root, "StartupProgress").IsActive && ReferenceEquals(window.Content, root),
+            Check(Find<ProgressRing>(root, "StartupProgress").IsActive &&
+                Find<ProgressRing>(root, "StartupProgress").IsEnabled && ReferenceEquals(window.Content, root),
                 "1秒以上かかったら同じWindowでProgressRingと接続中を表示");
             if (capture) await Capture(root, output, "09-startup-wait");
             fixture.ConnectionGate.SetResult(true);
