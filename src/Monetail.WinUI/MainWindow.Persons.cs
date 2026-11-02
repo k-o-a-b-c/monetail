@@ -35,6 +35,8 @@ public sealed partial class MainWindow
 
     private void InitializeInput()
     {
+        // 本体ごと標準Popupへ配置し、本文と標準ボタンを同じTab・キー処理範囲にする。
+        WorkspaceRoot.Children.Remove(PersonDialog);
         PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget =
             focused => focused is Button button && Equals(button.Content, PersonDialog.CloseButtonText);
         personKeyboard = FormKeyboard.ForDialog(PersonDialog, SavePersonAsync, PersonName, PersonValidFrom, PersonValidTo);

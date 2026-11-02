@@ -42,8 +42,11 @@ public partial class App
                 "一覧を背後に残すContentDialogで、入力欄のEnterを既定の保存にしない");
             from.Focus(Microsoft.UI.Xaml.FocusState.Keyboard);
             from.Text = "not-a-date";
-            Invoke(Cancel());
+            Cancel().Focus(Microsoft.UI.Xaml.FocusState.Keyboard);
             await Settle();
+            Check(from.Text == "not-a-date", "標準キャンセルボタンへの移動では日付を補完しない");
+            Invoke(Cancel());
+            await Wait(() => EditorClosed(root));
             Check(from.Text == "not-a-date" && server.Writes.Count == 0, "キャンセル時に日付補完・保存を行わない");
 
             Invoke(add);
