@@ -24,9 +24,11 @@
 
 ## 採用結果
 
-NuGetキャッシュと作業手順の整理はソース`c44a148d4967fa289f15f5a5053f09395c30b183`で確認。[CI 41586922999の初回](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/attempts/1)で構成847件、Docker/Compose・旧ソリューションビルド・性能計測が成功した。LinuxのClientとWindowsのDPAPI・WinUIでパッケージ保存を確認。[WinUIだけの再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/job/125757935468)では同じNuGetキーの復元がヒットし、製品/スモークのReleaseビルドが警告・エラー0、製品起動と画面スモークが成功した。他の製品ジョブは初回の実行時刻を保持し、再実行していない。NuGet復元とテストを省略せずにキャッシュを使えることを確認した結果であり、総所要時間の短縮率を保証するものではない。ローカルの判定41件・actionlint v1.7.12も成功。作業ルールはAGENTS.md、運用は下記「必要なCIだけを実行する」を参照する。
+人物削除のWindows接続はソース`1e320297c39d7585a9267dfad3cc66d84d373364`を[CI 41593840818](https://github.com/k-o-a-b-c/monetail/actions/runs/41593840818)で確認。判定41件と拡張したWinUI画面スモーク1シナリオが成功し、製品/スモークのReleaseビルドは警告・エラー0、製品起動も成功した。人物名の確認とキャンセル既定、参照拒否、更新版競合と明示切替、通信再試行/応答喪失、降格/除外、認証失効後の非自動再送、成功応答の一覧反映と追加GETなしを確認した。NuGetキャッシュもヒット。API・Client・Storage・旧版等は変更がなく既存の成功を再利用し、今回の実行件数に含めない。構成合計847件は変わらない。実IME・物理キー・実端末DPI・実ブラウザーのパスキーは未検証。
 
 ### 過去の確認
+
+NuGetキャッシュと作業手順の整理はソース`c44a148d4967fa289f15f5a5053f09395c30b183`で確認。[CI 41586922999の初回](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/attempts/1)で構成847件、Docker/Compose・旧ソリューションビルド・性能計測が成功した。LinuxのClientとWindowsのDPAPI・WinUIでパッケージ保存を確認。[WinUIだけの再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/job/125757935468)では同じNuGetキーの復元がヒットし、製品/スモークのReleaseビルドが警告・エラー0、製品起動と画面スモークが成功した。他の製品ジョブは初回の実行時刻を保持し、再実行していない。NuGet復元とテストを省略せずにキャッシュを使えることを確認した結果であり、総所要時間の短縮率を保証するものではない。ローカルの判定41件・actionlint v1.7.12も成功。作業ルールはAGENTS.md、運用は下記「必要なCIだけを実行する」を参照する。
 
 構成整理前のWinUI 3は[CI 41418236183](https://github.com/k-o-a-b-c/monetail/actions/runs/41418236183)（表示ソース47f4054）で製品・スモークのビルドが警告・エラー0、製品起動と画面スモークが成功。[単発撮影CI 41418289696](https://github.com/k-o-a-b-c/monetail/actions/runs/41418289696)ではアプリ名を置かず家計簿名を表示したホーム、左メニューと右の人物一覧、コンパクト表示、標準ダークテーマを96DPIで確認した。撮影時だけNoto Sans CJK JPを使い、通常起動へサンプルや撮影引数を入れていない。
 
