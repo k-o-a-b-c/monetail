@@ -13,7 +13,7 @@
 | `auth_enrollment_codes` | ハッシュと登録用途・認証ID・UTC期限・消費／取消状態。生コードなし |
 | Data Protectionキー | コンテナ外の永続フォルダへ保存し、アプリ識別子を固定する。非rootアプリのアクセス権を整える |
 
-認証ストアは人物テーブル・旧人物リンク・人物コードへのFKを持たない。新規DBの準備・再実行は[42](42-api-foundation.md#db移行登録復旧コマンド)、既存DBの一度きりのSQL移行と保存値保持は[58](ledger-foundation-core.md#新規利用と既存dbの境界)を参照する。
+認証ストアは人物テーブル・旧人物リンク・人物コードへのFKを持たない。新規DBの準備・再実行は[42](42-api-foundation.md#db移行登録復旧コマンド)、既存DBの一度きりのSQL移行と保存値保持は[58](ledger-core-transition.md#新規利用と既存dbの境界)を参照する。
 
 ## セッションとHTTPの境界
 
