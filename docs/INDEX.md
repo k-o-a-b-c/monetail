@@ -5,7 +5,11 @@
 | 内容 | 正本・更新先 |
 | --- | --- |
 | 次の優先順位・残る作業 | [07 ロードマップ](07-roadmap.md) |
-| 認証・全体アカウント管理の現行契約 | [43 認証](43-passkey-authentication-design.md) |
+| 認証設計の入口・旧見出し | [43 認証](43-passkey-authentication-design.md) |
+| アカウント・パスキー・登録・全失効と復旧 | [認証・パスキー](auth-passkeys.md) |
+| セッション期限・Cookie・CSRF | [セッション保護](auth-session-security.md) |
+| WindowsのOAuth・DPAPI・トークン保存 | [Windows認証](auth-windows-oauth.md) |
+| 認証・管理APIの入出力と再送 | [認証API](auth-api-contract.md) |
 | 家計簿設計の入口・旧リンク | [58 家計簿設計](58-ledger-foundation-design.md) |
 | 家計簿共通仕様・DB・API・移行・未決定事項 | [共通仕様](ledger-foundation-core.md) |
 | 人物仕様・人物画面 | [人物管理](ledger-persons.md) |
