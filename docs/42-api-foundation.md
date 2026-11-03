@@ -73,8 +73,11 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 | `Passkeys:RpId` | Originと同じDNSホスト名 |
 | `Passkeys:DataProtectionKeysPath` | 永続化するキー保存先の絶対パス |
 | `Passkeys:TrustedProxies` | 信頼するプロキシIPの配列。未指定なら転送ヘッダーを信用しない |
+| `Registration:Mode` | 任意。`InvitationOnly`（既定）または`Public`。空文字・未知の値は通常API起動を拒否。`Public`は設定のみ対応済みで、匿名自己登録は未実装 |
 | `ConnectionStrings:Monetail` | 永続SQLiteファイル。通常接続はReadWrite・FK有効、新規作成はinitialize-dbだけ |
 | `TZ` | Dockerの既定はEtc/UTC。Composeで変更し、.NETが解決した地域を起動ログで確認 |
+
+Docker Composeでは`environment:`に`Registration__Mode: "InvitationOnly"`を設定する。将来の一般公開への切替時は`Public`へ変更してAPIコンテナを再作成する。ただし現時点で`Public`を指定しても自己登録API・画面は動作しない。設定の詳細は[認証・パスキー](auth-passkeys.md#登録モードの設定dec-111設定読込と検証は実装)を参照する。
 
 固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開用で、認証設定・DBマウント・HTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
 
