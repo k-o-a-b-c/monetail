@@ -25,6 +25,25 @@
 <a id="自己登録apidec-110112仕様確定未実装"></a>
 <a id="自己登録apidec-110未実装の設計案"></a>
 
+## 招待リンクAPI・CLIの目標契約（DEC-113・未実装）
+
+既存の`POST /auth/enrollment/options`は現行では`code`を受け付けるが、**次の実装で`{"token":"...","displayName":"..."}`へ置き換え、旧`code`入力は受け付けない**。`/auth/enrollment/verify`のWebAuthn資格情報はそのまま利用する。登録用のトークンは43文字のbase64url（乱数32バイト）で、リンク`<固定HTTPS Origin>/auth/enroll#token=<token>`を受け取ったブラウザーからだけPOST本文へ渡す。DBにはハッシュのみ保存し、生トークンを保存・ログ出力しない。画面からのコード入力も廃止する。
+
+| 経路・操作 | 実装後の応答・制約 |
+| --- | --- |
+| `POST /admin/accounts` | 初回201だけ`authUserId`・`enrollmentUrl`・`expiresAtUtc`。再送200は同じIDだがURL/期限はnull。従来の`code`応答は廃止 |
+| `POST /admin/accounts/{id}/enrollment-invitation` | Admin＋直近本人確認＋CSRFで未利用・鍵なしの既存アカウントへリンクを再発行。旧`/enrollment-code`は廃止し、旧リンクは失効 |
+| `DELETE /admin/accounts/{id}/enrollment-invitation` | Admin＋直近本人確認＋CSRFで未使用リンクを取消。未使用の有効な招待がなくても204を返し、利用者アカウントは削除しない |
+| `POST /auth/enrollment/options` | `{"token":"...","displayName":"..."}` を受け付ける。招待が有効・未消費・未取消であることを検証。旧`code` DTOは廃止 |
+| `POST /auth/enrollment/verify` | 既存の資格情報検証。成功時だけ招待の使用済み化と鍵・有効化を原子的に確定 |
+| `GET /auth/enroll` | 招待トークンをフラグメントからメモリへ取り込み、すぐにURLから削除。入力欄は表示名のみ |
+| `GET /auth/register` | 公開モードのみ提供する招待なし登録画面。`InvitationOnly`では表示・利用不可 |
+| `GET /auth/login` | 招待制では新規登録リンクなし、公開モードのみ新規登録リンクを表示 |
+
+通常の新規一般ユーザー招待の有効期限は**7日**、`initialize-admin`による初期管理者招待は**30分**とする。既存管理者・停止アカウントの復旧用再発行の本人確認／期限は別の復旧仕様で決定する。初期管理者CLIや`issue-enrollment-code`相当の管理コマンドは、**固定`Passkeys:Origin`を用いて招待URLだけを標準出力**し、Origin未設定時は生コードによる代替を禁止する（CLIコマンド名の整理は実装で行う）。APIもCLIも互換用`code`は返さない。
+
+旧コード受付・10分固定を残す移行期は設けない。ユーザーによるリンク開封は消費に含めず、登録成功時の1回だけ消費する。取消・再発行・期限切れ、管理者の権限失効、並行登録、フラグメント除去、誤ったOrigin、通常のログイン／OAuth回帰をテストする。**この節は仕様であり、現行APIの稼働状況を示すものではない。** 招待リンクの正本は[DEC-113](auth-passkeys.md#招待リンクの詳細契約dec-113利用者確認済み未実装)。
+
 ## 自己登録API（DEC-110・112・実装済み）
 
 以下の匿名APIを実装した。`Registration:Mode=Public`への変更とAPI再起動で利用可能になる。既定の`InvitationOnly`は維持し、両APIを403で拒否する。登録画面・CAPTCHA・退会・全パスキー喪失時の自己復旧は含まない。
