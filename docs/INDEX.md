@@ -5,11 +5,34 @@
 | 内容 | 正本・更新先 |
 | --- | --- |
 | 次の優先順位・残る作業 | [07 ロードマップ](07-roadmap.md) |
-| 認証・全体アカウント管理の現行契約 | [43 認証](43-passkey-authentication-design.md) |
-| 家計簿・新規導入の仕様、技術案、未決定 | [58 家計簿設計](58-ledger-foundation-design.md) |
+| 認証設計の入口・旧見出し | [43 認証](43-passkey-authentication-design.md) |
+| アカウント・パスキー・登録・全失効と復旧 | [認証・パスキー](auth-passkeys.md) |
+| セッション期限・Cookie・CSRF | [セッション保護](auth-session-security.md) |
+| WindowsのOAuth・DPAPI・トークン保存 | [Windows認証](auth-windows-oauth.md) |
+| 認証・管理APIの入出力と再送 | [認証API](auth-api-contract.md) |
+| 家計簿設計の入口・旧リンク | [58 家計簿設計](58-ledger-foundation-design.md) |
+| 家計簿共通設計の入口・旧見出し | [共通仕様](ledger-foundation-core.md) |
+| 家計簿の前提・確定済みの基本ルール | [共通前提](ledger-core-principles.md) |
+| 業務モデル・家計簿DBの構成 | [DB・モデル](ledger-core-schema.md) |
+| 家計簿の作成・参照・回数制限 | [家計簿API](ledger-core-api.md) |
+| 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
+| 人物仕様・人物画面 | [人物管理](ledger-persons.md) |
+| 参加者・人物対応 | [参加者管理](ledger-participants.md) |
+| 人物管理API・DBの入口・旧リンク | [人物API](ledger-person-api.md) |
+| 人物・参加者のAPIとJSON契約 | [API契約](ledger-person-api-contract.md) |
+| 人物・参加者のテーブルと更新版 | [人物DB](ledger-person-db.md) |
+| 作成要求の再送と保持条件 | [共通再送](ledger-operation-retries.md) |
+| 人物・参加者の競合・権限喪失・後続画面 | [競合と後続](ledger-person-conflicts.md) |
+| 登録・ログイン・家計簿ホーム | [新規利用](ledger-onboarding.md) |
+| 家計簿への招待・参加 | [招待](ledger-invitations.md) |
+| Windows版の接続・画面遷移 | [Windows接続](ledger-windows.md) |
 | API起動・設定・移行・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
 | Docker対応NASへの配備・Tailscale Serve・運用手順 | [NASセットアップ](deployment-docker-nas.md) |
-| コードの責務・配置 | [04 構成](04-architecture.md) |
+| 構成の入口・旧見出しリンク | [04 構成](04-architecture.md) |
+| 旧VB.NET・Windows Forms・SQLite・旧版の処理 | [旧Windows版](architecture-legacy.md) |
+| 新Windows版の構成・WinUI 3・Client | [新Windows版](architecture-winui.md) |
+| APIの責務・依存・後続分離案 | [API構成](architecture-api.md) |
+| リポジトリ配置・CI・関連資料 | [配置とCI](architecture-repository.md) |
 | 新Windows版の共通UI・配置・フォント・高DPI基準 | [UI_DESIGN.md](../UI_DESIGN.md) |
 | 新Windows版のキー操作・日付と時刻の入力形式・補完 | [59 入力コントロール設計](59-input-controls-design.md) |
 | 検証件数・実行方法・採用する結果 | [tests/README](../tests/README.md) |

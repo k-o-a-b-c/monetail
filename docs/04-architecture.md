@@ -2,172 +2,39 @@
 
 更新日: 2026-11-01 / 現行Windows版・APIの構成と、新版Windows版の実装範囲を区別する。検証状況は[tests/README.md](../tests/README.md)を参照する。
 
-## 構成
+## 分野別の参照先
 
-```text
-Windows デスクトップアプリ
-  ViewForm / Register*Form / DetailViewForm（Windows Forms UI）
-       ├── Receipt・Balance・Transfer・Master（VB.NETデータクラス）
-       │      └── Receiptの計算プロパティ + Calculation（税・割引・残高）
-       └── DataAccess + DataAccessList（System.Data.SQLite、SQL直書き）
-                  └── ローカル SQLite ファイル
-```
+必要な対象の文書だけを参照してください。実装済み・未実装・未了承の区別は分割先を正本とし、この入口に重複して記載しません。
 
-- 言語: **VB.NET**、UI: **Windows Forms**、ターゲット: **.NET Framework 4.8**
-- ソリューション: `HouseholdAccountsBeta/HouseholdAccountsBeta.sln`
-- プロジェクト: `HouseholdAccountsBeta` と `OriginalControls`
-- DBライブラリ: `System.Data.SQLite.Core 1.0.113.1`（`packages.config`）、参照は `System.Data.SQLite 1.0.113.0` として記載。
-- チャート: `System.Windows.Forms.DataVisualization.Charting`
-- 起動フォーム: `ViewForm`（`My Project/Application.Designer.vb`）
-- 現行データ操作: WindowsクライアントからSQLiteへ直接SQL発行。APIへの接続切替やクラウド同期は行っていない。
-
-同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。Windows版のプロジェクト・モデルは参照しない。API専用SQLiteの初期化と初期管理者・登録コード発行を専用コマンドで行い、通常起動ではDBを自動作成・移行しない。既存Windows版DBの一度きりのSQL引継ぎと、Windows版を先にAPIへ接続する方針は[58](58-ledger-foundation-design.md)を参照する。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。認証の現行契約は[43](43-passkey-authentication-design.md)、起動・DB準備は[42](42-api-foundation.md)を正本とする。
-
-### 新版Windows版の構成
-
-新版は**Windows 11のみ・.NET 10 LTS・C#・WinUI 3（Windows App SDK）**のアプリとする。プロジェクトは`src/Monetail.WinUI/Monetail.WinUI.csproj`。ターゲットは`net10.0-windows10.0.26100.0`、最小対応バージョンはWindows 11初版の`10.0.22000.0`。Windows App SDKは安定版1.8系列を使用する。初期ビルドと起動の検証はx64で行い、ARM64は未検証とする。
-
-起動時の接続設定・ブラウザーログイン・保存ログインの復元・家計簿選択／作成／切替・ログイン情報・ログアウトを既存Clientへ接続済み。ホームと、左メニューを残した右側の人物一覧を表示する。起動中の待機表示も同じWindow内で扱い、具体的な表示・遷移は[58](58-ledger-foundation-design.md#windows版の起動表示接続失敗時の操作)に従う。通常起動にサンプルデータは表示しない。人物の追加・編集・保存、日付/Enter入力、競合表示と同一アカウントでの再ログイン後の編集復帰を実装済み。人物削除の確認とAPI接続も実装済み。共通順設定と認証失効後の未保存順の復元も接続済み。
-
-開発・CIでは非パッケージの自己完結した配置を使い、Windows App SDKと.NETランタイムを出力先に含めて起動を確認する。これは検証用の設定で、製品インストーラーの方式・更新方法・配布対象CPUを決定したものではない。WinUI 3のビルド・製品起動・同じXAMLによるスモークテストは専用の`.github/workflows/winui.yml`で行う。画像の取得は`preview/winui-*`ブランチでの単発実行に限定する。
-
-API通信・認証・保存・日付と時刻の補完は`src/Monetail.Windows.Client/Monetail.Windows.Client.csproj`（`net10.0`）に分ける。画面はClientを参照し、入力欄・フォーカス・IMEは[59の入力仕様](59-input-controls-design.md)に従ってWinUI 3で実装する。API・認証契約・保存形式・通信単位を表示上の都合で変えない。旧VB.NET／.NET Framework 4.8は独立したアプリとして残し、新版から旧版の実行ファイル・プロジェクトを参照しない。レシート等の業務画面とインストーラーは後続とする。
-
-画面、API通信、認証情報の保持を分ける。新版はAPI経由で読み書きし、画面へSQLやSQLite接続を持ち込まない。認証契約は[43](43-passkey-authentication-design.md#windows版のoauth認証dec-051)、起動時の遷移と段階移行は[58](58-ledger-foundation-design.md#windows版のapi対応を先行する実装中)を正本とする。
-
-通信回数をなるべく減らす。1つの操作で必要な処理と応答データをAPI側でまとめ、IDを取得してから同じ対象を再要求する往復を避ける。現在の認証・権限確認はAPI内部で維持し、振る舞いを変える統合は利用者の確認後に行う。
-
-API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settings.json`に保存する。通常設定と認証情報は分け、JSONにトークンを含めない。認証情報は[43のDPAPI保存方針](43-passkey-authentication-design.md#windows版の認証情報保存)、初回入力と変更は[58の接続先設定](58-ledger-foundation-design.md#windows版の接続先設定)に従う。
-
-新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](58-ledger-foundation-design.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定とインストーラーの作成方式は実装前に具体化する。
-
-### 新版Windows版の配布・削除（未実装）
-
-新版はインストーラー形式で配布する方針とする。アンインストール時に、そのWindowsユーザーの設定・認証情報も削除するか選べるようにする。対象はこのPCに保存した新版のデータで、サーバー上のアカウントや家計簿データは削除しない。アプリ内の専用データ削除操作は保留にし、初期実装の必須機能にはしない。
-
-インストーラーの作成ツール、インストール範囲と更新方法、削除選択の初期値などは後続で設計する。インストーラーとアンインストール処理はまだ実装していない。
-
-## ディレクトリ
-
-| パス | 責務 |
+| 対象 | 正本 |
 | --- | --- |
-| `HouseholdAccountsBeta/HouseholdAccountsBeta/Control/` | 画面、イベント、操作、集計表示 |
-| `.../Data/Data/` | レシート・振替・残高などの取引オブジェクト |
-| `.../Data/Master/` | 人・分類・支払方法・店舗・税率・ポイントマスタ |
-| `.../Data/Statistics/` | 集計用DTO |
-| `.../DataAccess/` | SQLite接続、SELECT/INSERT/UPDATE/DELETE、履歴取得 |
-| `.../Logic/Calculation.vb` | 税・分類／明細参考額・残高の計算 |
-| `.../Logic/IntegerExpression.vb` | 単価・値引額の整数式評価。乗算優先・入力不正や桁あふれは0 |
-| `.../Logic/ReceiptAmountValidation.vb` | 既存計算を使う金額範囲の確認。反映候補と選択税設定で確認し、元モデルを変更しない |
-| `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
-| `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
-| `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
-| `src/Monetail.WinUI/` | Windows 11向けアプリ。ホーム・左ナビゲーションと右側の人物一覧。ClientConnectionで既存Clientを構成し、MainWindowの接続・認証・家計簿操作を分担する |
-| `tests/Monetail.WinUI.Smoke/` | 製品の起動と、同じXAML・コードを使った合成データの画面スモーク。単発画像の取得も担当 |
-| `src/Monetail.Windows.Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定・人物管理の通信・画面に依存しない日付／時刻の補完 |
-| `tests/Monetail.Windows.Client.Tests/` / `tests/Monetail.Windows.Storage.Tests/` | クライアントの合成HTTP・ループバック・保存テストと、Windows上の実DPAPI検証 |
-| `src/Monetail.Api/Authentication/` | 人物に依存しない認証処理と認証情報・発行履歴の保存モデル |
-| `src/Monetail.Api/Features/Accounts/` | 家計簿から独立した全体管理者向けアカウント一覧・初回発行・再発行API。登録・起動はProgram.csで構成 |
-| `tests/Monetail.Api.Tests/` | APIのHTTP統合テストとDocker起動確認 |
-| `Dockerfile` / `compose.yaml` | APIだけのビルド・非root起動とループバックへのポート公開 |
-| `tests/` | 実製品ソースを使う計算・Windows永続化／画面テスト、SQLite移行テスト |
-| `.github/workflows/tests.yml` | Linux／Windowsのテストと既存ソリューションのWindowsビルド |
-| `.github/scripts/` | Git差分・テストの依存先からCI実行対象を選ぶ処理と回帰テスト |
+| 旧VB.NET / WinForms・SQLite・処理フロー・起動・検証詳細 | [旧Windows版](architecture-legacy.md) |
+| 新Windows版・WinUI 3・Client・配布の方針 | [新Windows版](architecture-winui.md) |
+| ASP.NET Core API・機能間の依存・将来の責務分離案 | [API責務](architecture-api.md) |
+| リポジトリ内の配置・CI・関連資料 | [配置とCI](architecture-repository.md) |
 
-残高推算の期間判定・加減算は`Calculation.AutoBalance`の内部3引数オーバーロードに集約する。従来の公開2引数版は共有`Calculation.DataAccess`、`DataAccess.GetAutoBalance`は自身のインスタンスを渡す。SQL読込は渡されたDataAccessが担い、インスタンス側の推算で共有接続を切り替えない。
+## 旧見出しリンクの互換案内
 
-## 代表的な処理フロー
+既存の `04-architecture.md#...` はここから分割先へ辿れます。新規参照は上表の正本へ直接リンクしてください。
 
-1. 起動: `ViewForm.New`で画面を構築し、`ViewForm_Load` → `DatabaseStartup.TryOpenConfiguredDatabase` → `DataAccess`で設定・既存ファイル・必要なDB構造を確認する。成功後に一覧を読み込み、設定・DBの問題では案内して終了する。[19 接続設定](19-database-startup-settings.md)参照。
-2. マスタ: 人／支払方法／店舗／税率等をSELECTして画面の選択肢を生成。マスタの一部は初回読込後に保持。
-3. レシート編集: グループ・明細は既存どおり `Receipt` の子リストを編集する。店名等と内税／外税・端数方式はコントロールに保持し、合計表示は `Receipt.GetTotal(taxType, taxRoundingMode)` で `Receipt` の税設定を変えずに計算する。必要な登録確認後にヘッダーへ転記 → `DataAccess.RegisterReceipt / UpdateReceipt`。レシート全体のディープコピーは導入していない。
-4. レシート参照: `GetReceipts`と`GetPaymentReceipts`はLEFT JOINの1 SELECTと共通の`ReadReceiptHierarchy`でモデルへ組み立てる。一覧の日時降順と支払方法別のSeq昇順、各入口の期間条件を維持する（[35](35-batch-receipt-reads.md)、[36](36-batch-payment-receipt-reads.md)）。`LoadReceiptChildData`は従来の子SQLを一時領域へ読み、成功時だけ元のGroupsへ反映する（[37 途中失敗の保持](37-receipt-child-reload-state.md)）。内部は`LoadReceiptGroupData` → `LoadReceiptDetailData` → `LoadReceiptDetailUsersData`を維持する。SQL数と読込時間はWindowsの一時DBで[計測する](34-receipt-read-performance.md)。
-5. 集計: 画面内で年次データを取得し、`Receipt` の計算プロパティと `Calculation` で集約。
-6. 振替／残高: 専用フォームから `DataAccess` の各登録メソッドを呼ぶ。
-7. 支払メモ: `RegisterPaymentMemoForm`から全行を`RegisterPaymentMemo`へ渡す。既存のUPSERTループ全体を1つのトランザクションで処理し、全件成功時にCommit、例外時にRollback・再送出し、Finallyで破棄する。空リストはトランザクション開始前に戻る。
+<a id="構成"></a> [構成](architecture-legacy.md#構成)
 
-税端数はレシートの `TaxRoundingMode`（`floor` / `half_up`）が正本で、同税率の明細を合算してから処理する。新規画面の初期選択だけを、同店・現在のWindows利用者が所有する支払方法の直近レシートから取得する。店舗マスタの端数値は参照せず、マスタメンテナンス画面も追加していない。流用は従来どおり確認直後の新規保存・画面終了で、画面上の税設定を保存する。
+<a id="新版windows版の構成"></a> [新版Windows版の構成](architecture-winui.md#新版windows版の構成)
 
-更新・削除では、対象者割当→明細→グループ→（削除時のみ）レシート親の順で削除し、既存トランザクションでDB変更を確定・巻き戻す。外部キーON/OFFをテスト用接続で検証しているが、製品の外部キー設定は変更していない。
+<a id="新版windows版の配布削除未実装"></a> [新版Windows版の配布・削除（未実装）](architecture-winui.md#新版windows版の配布削除未実装)
 
-残高削除は`DataAccess.DeleteBalance`で`t_balance_groups`→`t_balances`の順に行う。既存トランザクション・DDL・画面操作を維持し、FK ON/OFFで成功と親削除失敗時の巻き戻し・同じDataAccessでの再削除を検証する（LEG-027）。
+<a id="ディレクトリ"></a> [ディレクトリ](architecture-repository.md#ディレクトリ)
 
-所在地とレシート／グループ／明細タグのNULLは読込時だけ `String.Empty` に変換する。一覧・残高の両ヘッダー読込と子の読込が対象で、読込・取消はDBのNULLを保存し直さない。後から明示的に保存した場合は、従来の保存SQLで空文字を書き込む。
+<a id="代表的な処理フロー"></a> [代表的な処理フロー](architecture-legacy.md#代表的な処理フロー)
 
-残高・支払方法別残高・振替のタグ3列も6箇所でNULLだけを`String.Empty`へ変換し、非NULL文字列・日時・金額・評価額・支払方法と保存済みNULLを維持する（LEG-028）。
+<a id="起動開発上の注意"></a> [起動・開発上の注意](architecture-legacy.md#起動開発上の注意)
 
-明細の割引率は共通読込・子再読込でGetDecimalによりDecimalモデルへ取得する。SQLiteのINTEGER宣言でも小数はREALとして保存される。旧GetInt32の例外をGetDoubleで修正した後、整数境界の誤差を防ぐため入力・モデル・明細計算をDecimalへ統一した。DB定義・保存SQL・操作は維持する。[41 明細のDecimal計算](41-decimal-discount-calculation.md)。
+<a id="自動検証"></a> [自動検証](architecture-repository.md#自動検証)
 
-`ViewForm_Statistics.vb`は分類・収支集計の表示処理を共用する。範囲超過時は途中の行を消してエラー行を表示し、表示設定はFinallyで戻す。集計式・DataAccessは変更しない。[26 仕様](26-statistics-amount-overflow.md)。
+<a id="apiの責務と依存"></a> [APIの責務と依存](architecture-api.md#apiの責務と依存)
 
-`BalanceDisplay.vb`は登録・支払メモの推算表示でOverflowExceptionだけを表示文字列へ変換する。残高集計は共通の`UpdateStatistics`を使い、表とグラフの途中結果を消す。モデル・計算・DataAccessは維持する。[27 仕様](27-balance-amount-overflow.md)。
+<a id="後続の責務分離案未了承未実装"></a> [後続の責務分離案（未了承・未実装）](architecture-api.md#後続の責務分離案未了承未実装)
 
-振替の`TryGetTransferInput`はボタン状態と保存処理の入口で共用する。確認前に入力と整数変換を検証し、流用のSeq変更後にParseで失敗する経路をなくす。[28 仕様](28-transfer-input-validation.md)。
+<a id="関連する詳細資料"></a> [関連する詳細資料](architecture-repository.md#関連する詳細資料)
 
-残高登録は画面から`pendingGroups`を作り、全行の検証と確認が済んでからBalanceへ転記する。エラーで途中のリストを親一覧のモデルへ残さない。[29 仕様](29-balance-input-state.md)。
-
-## 起動・開発上の注意
-
-1. WindowsとVisual Studio（.NET Framework 4.8用の開発機能）が必要。
-2. `.sln` を開きNuGetパッケージを復元してビルドする。GitHub Actionsでは `nuget restore` と `msbuild`（Debug / Any CPU）による既存ソリューションのビルドを確認済み。
-3. `My.Settings.ConnectionString`の既定値は`App.config`・`Settings.settings`・生成コードでEドライブへ統一。配布先はexe横のXMLを編集する。相対パスはexe基準。不在時は自動作成せず、構造・移行不足でも起動を中止する。利用するDBの指定は必要。[設定手順](19-database-startup-settings.md)参照。
-4. SQLiteの実データファイルはレポジトリにない。ユーザー提供の実DDLを [docs/schema/monetail_schema.sql](schema/monetail_schema.sql) に保存済み。これは移行前の16テーブル・90列・17外部キーの定義であり、現行アプリには[税端数の移行SQL](migrations/20261017_01_shop_tax_rounding.sql)による2列追加（合計92列）が必要。バックアップしたDBのコピーへ一度だけ適用して確認し、新旧アプリで同じDBを共有しない。新規環境で必要な**マスタ初期データ**は別途用意する。
-5. 実データはGitHubにコミットしない。設定の汎用化・サンプルDBの匿名化が必要。
-6. Windowsログイン名 `Environment.UserName` で個人識別を一部行う。アプリ認証・家計ごとの権限チェックとは異なる。
-7. 利用者の実DBへのマイグレーション適用状況は未確認。CI成功は、既存データ全件の整合性や運用環境での画面表示を検証したことを意味しない。
-
-## 自動検証
-
-[Testsワークフロー](../.github/workflows/tests.yml)は変更ファイルとテストの参照先に応じて、Linuxの計算・移行、Windowsの実SQLite／画面・既存ビルド、レシート読込性能、API・Dockerの検証を選んで実行する。Markdownだけの変更では重い検証を省略し、未分類の変更は選択処理で停止する。選択規則・自動テストの構成・件数・最新CI結果は[tests/README.md](../tests/README.md)を参照する。
-
-Windowsテストは製品と同じSQLiteプロバイダー、実際の `DataAccess`・`RegisterForm`・独自コントロールを使い、一時DBだけで動作する。税端数の保存・履歴・プレビュー・即時流用、外部キーON/OFFのレシート更新／削除と失敗時DB復元、残高削除の成功・巻き戻しと再削除、レシートのNULL読込・画面取消、小数割引率の新規・更新と3読込経路、支払メモ一括保存の成功・末尾INSERT／UPDATE失敗時の全件復元と同接続での再保存・空リストを検証する。残高・振替のNULLタグ読込と両AutoBalanceの3チェックも成功した。テストの実行方法と手動確認手順は [tests/README.md](../tests/README.md) を参照。
-
-競合の3チェックは、同じ一時ファイルへの2接続で採番の直列化・書込ロック失敗と再試行・古い編集内容の拒否を検証する。親3表の更新版を読込・保存し、競合時は警告と再読込フラグを返す。[保存契約](18-stale-edit-protection.md)参照。
-
-## APIの責務と依存
-
-| 配置 | 責務 |
-| --- | --- |
-| `Authentication` | パスキー・Cookie／OAuth・セッション・失効と認証用保存モデル。家計簿の機能フォルダを参照しない |
-| `Features/Accounts` | 全体のアカウント一覧・初回発行・再発行。認証基盤を使う |
-| `Features/Monetail/Ledgers` | 家計簿の作成・参照・開く、人物・参加者・人物対応・招待のAPIと保存モデル・制約。業務取引と各管理画面は後続 |
-| `Features/Monetail/Operations` | 家計簿・人物・招待の成功した作成要求を、共通6列で照合・保存する。結果IDへの削除制限FKを持たない |
-| `Persistence` | API全体のDbContext・EF移行・明示初期化と構造検証。認証・家計簿のモデルを構成し、同じ初回定義で管理 |
-| `Program.cs` | 認証と各機能の登録・起動・管理コマンドの受付。家計簿の保護経路を認証のHTTP境界へ指定する |
-
-別アプリは独立したアカウントを持ち、流用するのは認証コードとする。アカウント・鍵・セッション・権限の共有やSSOは採用しない。認証ライブラリの別プロジェクト化は必要時に検討する。
-
-現行API契約は[43](43-passkey-authentication-design.md)、起動・運用は[42](42-api-foundation.md)、家計簿のAPIと後続設計は[58](58-ledger-foundation-design.md)。優先順位は[07](07-roadmap.md)だけに記載する。
-
-### 後続の責務分離案（未了承・未実装）
-
-アカウント・家計簿内の業務・両者を結ぶ処理を、コードの責務として明示的に分ける案。現行の配置は上表のとおり。今回はLedgers内に各操作のファイル、Operationsに共通要求記録を追加した。以下の案による既存クラスの全面的な移動・プロジェクト分割は実施していない。
-
-| 責務の区分案 | 主な内容 |
-| --- | --- |
-| 認証・アカウント | アカウントの登録・表示名・パスキー・ログイン・セッション・利用停止。家計簿や人物を参照しなくても成立する |
-| 家計簿内の業務 | 人物・支払方法・分類・レシート・振替・残高・集計。家計簿に属する記録と業務ルールを管理する |
-| アカウントと家計簿を結ぶ処理 | 参加・招待・家計簿内の役割・操作権限・人物との任意の対応・最終家計簿の選択。検証済みアカウントIDを使い、対象家計簿での操作を判断する |
-
-認証基盤から家計簿へ依存させない方針は維持する。家計簿側は認証済みのアカウント情報を受け取り、参加・権限を確認して操作する。人物情報は人物編集、人物との対応は家計簿内の参加者編集で保存する。各画面の保存要求に対応する処理の中で、必要な検証・変更を同じトランザクションで完了する案とする。
-
-この責務分離はDBの表数やHTTP要求の分割とは別に設計する。参加者表に人物IDを持つ採用方針と、編集を一括保存する契約は[58](58-ledger-foundation-design.md#人物の管理dec-055未実装)を正本とし、コード上の責務を分けるためだけに対応表や追加のHTTP要求を作らない。具体的な配置・呼出し方向は、相互依存や中身の曖昧な共通処理を増やさない形で提案してから確定する。
-
-## 関連する詳細資料
-
-- [09 操作ガイド](09-user-guide.md) — 画面の入出力・利用者の操作
-- [10 DBリレーション・データフロー](10-data-flow.md) — ER図、SQL読込・保存・更新・削除
-- [11 DB検査・バックアップ](11-db-audit.md) — 調査用SQLと安全な確認手順
-- [42 APIの土台](42-api-foundation.md) — API単独の起動・Docker・CIと未実装の境界
-
-## 根拠
-
-[ソリューション](../HouseholdAccountsBeta/HouseholdAccountsBeta.sln)、[プロジェクト](../HouseholdAccountsBeta/HouseholdAccountsBeta/HouseholdAccountsBeta.vbproj)、[設定](../HouseholdAccountsBeta/HouseholdAccountsBeta/App.config)、[依存パッケージ](../HouseholdAccountsBeta/HouseholdAccountsBeta/packages.config)
-
-レシートの`HasRequiredReceiptInput`は両ボタンの状態と`RegisterReceipt`の入口で共用する。店名のTextChangedも状態を更新し、不備のある入力で確認・Seq変更・ヘッダー転記へ進まない。[30 仕様](30-receipt-input-validation.md)。
-
-`DetailViewForm.ShowGroupStatistics`はOverflowExceptionだけを表内表示へ変換し、前回／途中の行を消す。読込・計算をTryで囲み、Finallyで行高・列幅・見出しの自動調整と品名の幅上限を復元する。金額以外の例外は伝播する。[31 仕様](31-detail-view-amount-overflow.md)。
-
-`ViewForm_List.vb`の非公開ReceiptListRowは元Receiptを参照し、TotalのOverflowExceptionだけを表示文字列へ変換する。その他の列と編集先は同じReceiptを参照し、金額を固定コピーしない。Designerのバインド名と正常なN0書式を維持する。[32 仕様](32-receipt-list-amount-overflow.md)。
-
-明細の値引後金額はReceiptDetail.CalculateDiscountedFeeで計算する。Receiptの合計・人別参考額とCalculationの分類／明細参考額は、このDecimalの共通処理を呼び出してから従来の税処理・集計・人数按分を行う。計算結果を明細へ保存・キャッシュしない。
+<a id="根拠"></a> [根拠](architecture-legacy.md#根拠)
