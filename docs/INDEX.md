@@ -19,7 +19,11 @@
 | 家計簿への招待・参加 | [招待](ledger-invitations.md) |
 | Windows版の接続・画面遷移 | [Windows接続](ledger-windows.md) |
 | API起動・設定・移行・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
-| コードの責務・配置 | [04 構成](04-architecture.md) |
+| 構成の入口・旧見出しリンク | [04 構成](04-architecture.md) |
+| 旧VB.NET・Windows Forms・SQLite・旧版の処理 | [旧Windows版](architecture-legacy.md) |
+| 新Windows版の構成・WinUI 3・Client | [新Windows版](architecture-winui.md) |
+| APIの責務・依存・後続分離案 | [API構成](architecture-api.md) |
+| リポジトリ配置・CI・関連資料 | [配置とCI](architecture-repository.md) |
 | 新Windows版の共通UI・配置・フォント・高DPI基準 | [UI_DESIGN.md](../UI_DESIGN.md) |
 | 新Windows版のキー操作・日付と時刻の入力形式・補完 | [59 入力コントロール設計](59-input-controls-design.md) |
 | 検証件数・実行方法・採用する結果 | [tests/README](../tests/README.md) |
