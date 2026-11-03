@@ -252,6 +252,11 @@ public sealed partial class MainWindow
 
     private void ShowError(string message)
     {
+        if (IsOrderingPeople)
+        {
+            ShowPersonOrderNotice(message);
+            return;
+        }
         if (personDialogOpen && !personDialogClosing && !forcePersonDialogClose)
         {
             ShowPersonError(null, message);

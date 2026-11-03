@@ -62,15 +62,17 @@ public sealed partial class MainWindow : Window
 
     private void ShowRecord(object sender, RoutedEventArgs e)
     {
-        if (personDialogOpen) return;
+        if (busy || personDialogOpen) return;
         DropPendingPersonEdit();
         DiscardPersonEditor();
+        DiscardPersonOrder();
         ShowPage(HomePage);
     }
 
     private async void ShowManagement(object sender, RoutedEventArgs e)
     {
-        if (personDialogOpen) return;
+        if (busy || personDialogOpen) return;
+        DiscardPersonOrder();
         ShowPage(ManagementPage);
         if (!CanViewPeople)
         {

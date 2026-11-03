@@ -259,6 +259,44 @@
                             <TextBlock x:Name="AccountServer" TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>
+                    <Grid x:Name="PersonOrderContent" Visibility="Collapsed" RowSpacing="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="人物の並び順" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock Grid.Row="1" Text="全員で使う並び順を設定します。この画面では本人を先頭に移しません。"
+                                   Style="{StaticResource Description}" />
+                        <TextBlock x:Name="PersonOrderRestoredNotice" Grid.Row="2" Visibility="Collapsed"
+                                   Text="未保存の並び順を復元しました。内容を確認してください。" Style="{StaticResource Description}" />
+                        <InfoBar x:Name="PersonOrderNotice" Grid.Row="3" Visibility="Collapsed" IsOpen="False"
+                                 IsClosable="True" Closed="CloseError" />
+                        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="MovePersonUpButton" Content="上へ" IsEnabled="False" Click="MovePersonUp" />
+                            <Button x:Name="MovePersonDownButton" Content="下へ" IsEnabled="False" Click="MovePersonDown" />
+                        </StackPanel>
+                        <Grid Grid.Row="5">
+                            <ListView x:Name="PersonOrderList" SelectionMode="Single" SelectionChanged="SelectPersonOrder"
+                                      AutomationProperties.Name="共通の人物順">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:PersonRow">
+                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12" />
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock x:Name="EmptyPersonOrder" Text="人物は登録されていません。" Visibility="Collapsed"
+                                       Style="{StaticResource Description}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Grid>
+                        <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="SavePersonOrderButton" Content="保存" Click="SavePersonOrder" Style="{ThemeResource AccentButtonStyle}" />
+                            <Button x:Name="CancelPersonOrderButton" Content="キャンセル" Click="CancelPersonOrder" />
+                        </StackPanel>
+                    </Grid>
                     <Grid x:Name="PeopleContent" RowSpacing="20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -281,7 +319,7 @@
                             <Button x:Name="AddPersonButton" Content="追加" IsEnabled="False" Click="AddPerson" />
                             <Button x:Name="EditPersonButton" Grid.Column="1" Content="編集" IsEnabled="False" Click="EditPerson" />
                             <Button x:Name="DeletePersonButton" Grid.Column="2" Content="削除" IsEnabled="False" HorizontalAlignment="Left" Click="DeletePerson" />
-                            <Button Grid.Column="3" Content="並び順変更" IsEnabled="False" />
+                            <Button x:Name="PersonOrderButton" Grid.Column="3" Content="並び順変更" IsEnabled="False" Click="OpenPersonOrder" />
                         </Grid>
                         <Border Grid.Row="3" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                                 BorderThickness="0,0,0,1" Padding="12,8,12,16">

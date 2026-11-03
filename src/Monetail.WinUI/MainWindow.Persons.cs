@@ -27,7 +27,8 @@ public sealed partial class MainWindow
     private bool forcePersonDialogClose;
 
     private sealed record PersonEditSnapshot(Guid AccountId, string ApiOrigin, LedgerInfo Ledger, PeopleInfo People,
-        PersonInfo? Person, PersonCreationDraft? Creation, bool IncludedPeriod, string Name, string From, string To);
+        PersonInfo? Person, PersonCreationDraft? Creation, bool IncludedPeriod, string Name, string From, string To,
+        PersonOrderDraft? Order = null);
 
     private bool IsPeopleAdmin => peoplePermissions?.CurrentRole == "Admin";
     private bool CanViewPeople => peoplePermissions is null || peoplePermissions.CurrentRole is not null;
@@ -43,6 +44,7 @@ public sealed partial class MainWindow
         PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget =
             focused => focused is Button button && Equals(button.Content, PersonDialog.CloseButtonText);
         personKeyboard = FormKeyboard.ForDialog(PersonDialog, SavePersonAsync, PersonName, PersonValidFrom, PersonValidTo);
+        _ = new FormKeyboard(PersonOrderContent, SavePersonOrderButton, SavePersonOrderAsync);
         _ = new FormKeyboard(ConnectionPage, null, null, ServerUrl);
         _ = new FormKeyboard(ConnectionSettingsContent, null, null, SettingsServerUrl);
         _ = new FormKeyboard(LedgerCreatePage, CreateLedgerButton, CreateLedgerAsync, NewLedgerName);
@@ -51,6 +53,7 @@ public sealed partial class MainWindow
     private void ResetPeople()
     {
         DiscardPersonEditor();
+        DiscardPersonOrder();
         peopleInfo = null;
         peoplePermissions = null;
         missingPeople.Clear();
@@ -63,6 +66,8 @@ public sealed partial class MainWindow
     private void UpdatePeopleActions()
     {
         AddPersonButton.IsEnabled = account is not null && IsPeopleAdmin;
+        PersonOrderButton.IsEnabled = account is not null && IsPeopleAdmin && peopleInfo is not null;
+        UpdatePersonOrderActions();
         EditPersonButton.IsEnabled = PeopleList.SelectedItem is PersonRow row && CanEditPerson(row.Person);
         DeletePersonButton.IsEnabled = PeopleList.SelectedItem is PersonRow selected && CanDeletePerson(selected.Person);
         PersonDialog.IsPrimaryButtonEnabled = !busy && PersonEditorContent.Visibility == Visibility.Visible && !editorDenied && latestPerson is null && account is not null &&
@@ -93,7 +98,7 @@ public sealed partial class MainWindow
 
     private void OpenPersonEditor(PersonInfo? person, bool deletion = false)
     {
-        if (personDialogOpen) return;
+        if (personDialogOpen || IsOrderingPeople) return;
         editingPerson = person;
         isDeletingPerson = deletion;
         editingPeriod = !deletion && IsPeopleAdmin;
@@ -305,10 +310,13 @@ public sealed partial class MainWindow
 
     private void RememberPersonEdit()
     {
-        if (isDeletingPerson || PersonEditorContent.Visibility != Visibility.Visible || account is null || currentLedger is null || peopleInfo is null)
-            return;
-        pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo, editingPerson,
-            personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text);
+        if (account is null || currentLedger is null || peopleInfo is null) return;
+        if (orderedPeople is not null)
+            pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo,
+                null, null, false, "", "", "", new(personOrderRevision, orderedPeople.ToArray()));
+        else if (!isDeletingPerson && PersonEditorContent.Visibility == Visibility.Visible)
+            pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo, editingPerson,
+                personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text);
     }
 
     private void DropPendingPersonEdit()
@@ -357,18 +365,22 @@ public sealed partial class MainWindow
         ShowPage(ManagementPage);
         ManagementNavigation.SelectedItem = PeopleNavigation;
         if (permission is not null) peoplePermissions = permission;
-        OpenPersonEditor(draft.Person);
-        PersonName.Text = draft.Name;
-        PersonValidFrom.Text = draft.From;
-        PersonValidTo.Text = draft.To;
-        personDraft = draft.Creation;
-        if (draft.Person is not null && !people.People.Any(person => person.PersonId == draft.Person.PersonId))
-            missingPeople.Add(draft.Person.PersonId);
-        // 古い版と作成要求IDを維持し、再ログインを理由に上書き・重複作成しない。
-        editorDenied = failure is not null || draft.IncludedPeriod && !IsPeopleAdmin ||
-            (draft.Person is null ? !IsPeopleAdmin : !CanEditPerson(draft.Person));
-        PersonRestoredNotice.Visibility = Visibility.Visible;
-        if (editorDenied) ShowPersonError(null, failure ?? "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
+        if (draft.Order is { } order) RestorePersonOrder(order, people, failure);
+        else
+        {
+            OpenPersonEditor(draft.Person);
+            PersonName.Text = draft.Name;
+            PersonValidFrom.Text = draft.From;
+            PersonValidTo.Text = draft.To;
+            personDraft = draft.Creation;
+            if (draft.Person is not null && !people.People.Any(person => person.PersonId == draft.Person.PersonId))
+                missingPeople.Add(draft.Person.PersonId);
+            // 古い版と作成要求IDを維持し、再ログインを理由に上書き・重複作成しない。
+            editorDenied = failure is not null || draft.IncludedPeriod && !IsPeopleAdmin ||
+                (draft.Person is null ? !IsPeopleAdmin : !CanEditPerson(draft.Person));
+            PersonRestoredNotice.Visibility = Visibility.Visible;
+            if (editorDenied) ShowPersonError(null, failure ?? "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
+        }
         pendingPersonEdit = null;
         RenderPeopleRows();
         UpdatePeopleActions();

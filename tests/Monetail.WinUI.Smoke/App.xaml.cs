@@ -78,6 +78,8 @@ public partial class App : Application
             await CheckConnectionFlow(output, capture);
             await CheckPeopleFlow(output, capture);
             await CheckPersonDeletion();
+            await CheckPersonOrder();
+            await CheckPersonOrderReauthentication();
             await CheckPersonReauthentication();
             await CheckInputControls();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
