@@ -17,7 +17,7 @@ Windows／将来のスマートフォン（Tailscale接続＋monetailのパス�
 必要なもの:
 
 - Docker Compose **2.24.4以降**（検証スクリプトの`!override`にも対応）、Bash、OpenSSL、Git、curl、sudo等によるファイル所有権の変更手段。
-- NASのCPUに対応する.NET 10／Tailscaleの公式イメージ。32bit環境は対象にせず、実機のアーキテクチャ対応を事前確認する。
+- NASのCPUに対応する.NET 10 SDK／ASP.NETランタイムとTailscaleの公式イメージ。両方のイメージに実機のアーキテクチャ用manifestがあることを事前確認する。
 - NASのローカル永続領域。SQLiteのロックが保証されないSMB/NFS共有をDB保存先にしない。
 - Tailscaleのアカウントと接続済みクライアント。MagicDNS・HTTPSを有効にし、端末承認とtailnetポリシーで利用者からこのノードのTCP 443への接続を許可する。初期の全許可ポリシーをそのまま安全なアクセス制限とはみなさない。
 
@@ -235,7 +235,7 @@ dc up -d --force-recreate api tailscale
 | NAS本体のTailscale | NASの`http://127.0.0.1:8080`（既存Composeのpublish） | DockerのNAT／userland proxy経由でAPIが実際に受ける送信元IP。通常はbridge gateway等。環境ごとに確認 |
 | 別bridgeのTailscaleコンテナ | そのコンテナのlocalhostはAPIを指さない。共通ネットワーク上の`api:8080`等が必要 | その構成で固定したプロキシIP。標準ファイルのままでは対応しない |
 
-NAS本体で動かす場合も同じComposeを使い、**`dc up -d --no-deps api`でAPIだけ**を起動する。sidecarは起動しない。初期化・秘密設定・永続化は同じ。Tailscale state・認証キーは本体側の保管・バックアップ手順に従う。
+NAS本体で動かす場合も同じComposeを使い、**`dc up -d --no-deps api`でAPIだけ**を起動する。sidecarは起動しない。APIの初期化・OAuth秘密設定・永続化は同じ。コンテナ用のTailscale認証キー入力は省略し、Tailscale state・認証キーは本体側の保管・バックアップ手順に従う。
 
 ```bash
 # NAS本体のTailscaleが接続・HTTPS設定済みであること。
