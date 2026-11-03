@@ -73,11 +73,11 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 | `Passkeys:RpId` | Originと同じDNSホスト名 |
 | `Passkeys:DataProtectionKeysPath` | 永続化するキー保存先の絶対パス |
 | `Passkeys:TrustedProxies` | 信頼するプロキシIPの配列。未指定なら転送ヘッダーを信用しない |
-| `Registration:Mode` | 任意。`InvitationOnly`（既定）または`Public`。空文字・未知の値は通常API起動を拒否。`Public`は設定のみ対応済みで、匿名自己登録は未実装 |
+| `Registration:Mode` | 任意。`InvitationOnly`（既定）または`Public`。空文字・未知の値は通常API起動を拒否。`Public`は匿名自己登録APIを有効にする |
 | `ConnectionStrings:Monetail` | 永続SQLiteファイル。通常接続はReadWrite・FK有効、新規作成はinitialize-dbだけ |
 | `TZ` | Dockerの既定はEtc/UTC。Composeで変更し、.NETが解決した地域を起動ログで確認 |
 
-Docker Composeでは`environment:`に`Registration__Mode: "InvitationOnly"`を設定する。将来の一般公開への切替時は`Public`へ変更してAPIコンテナを再作成する。ただし現時点で`Public`を指定しても自己登録API・画面は動作しない。設定の詳細は[認証・パスキー](auth-passkeys.md#登録モードの設定dec-111設定読込と検証は実装)を参照する。
+Docker Composeの`Registration__Mode: "InvitationOnly"`は維持する。`Public`へ変更してAPIコンテナを再作成すると、匿名自己登録APIが直ちに有効になる。停止時は`InvitationOnly`へ戻して再作成し、未完了チャレンジを破棄する。設定を変更できる権限は運営者に限定する。登録画面・CAPTCHA・退会・全パスキー喪失時の自己復旧は未実装であり、不特定多数への本番一般公開を開始しない。設定と単一APIプロセスの運用条件は[認証・パスキー](auth-passkeys.md#登録モードの設定dec-111設定読込と検証は実装)を参照する。
 
 固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開用で、認証設定・DBマウント・HTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
 
@@ -98,7 +98,7 @@ DB・Data Protectionキーと併せて、この2つのPFXもバックアップ�
 
 ## DB移行・登録・復旧コマンド
 
-APIは未リリース。現在のEF移行1件は空DBに最初のテーブルを作る定義であり、公開済みの旧APIから更新する処理ではない。初回適用もEFの移行履歴へ記録し、今後の定義追加と二重適用の防止に利用する。未リリースの開発用DBで定義が一致しない場合も自動変換しない。新しい別ファイルへ初期化して確認する。
+APIは未リリース。EF移行は初期定義と`AddSelfRegistrationCompletions`（自己登録成功日時テーブル・索引の追加）の2件。初期定義を適用済みのAPI用DBは、停止・バックアップ後に`initialize-db`で追加移行する。既存ユーザー・パスキー・家計簿行は変更せず、通常API起動では移行しない。未知または定義不一致のDBを自動修復しない。旧Windows版DBの移行は別工程のままとする。
 
 新規導入は空または未存在のSQLiteファイルを指定する。親ディレクトリを事前に用意し、APIを停止して実行する。既存Windows版DBへの適用は拒否する。一度きりのSQL移行の方針は[58](ledger-core-transition.md#新規利用と既存dbの境界)を参照し、作業コピーとバックアップを用意する。
 

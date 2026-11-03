@@ -7,12 +7,12 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 446 |
+| ASP.NET Core API | 484 |
 | Windows Client（接続・認証・保存・家計簿・人物・補完） | 226 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用 | 42 |
-| 合計 | 861 |
+| 合計 | 899 |
 
 ## 検証する範囲
 
@@ -20,14 +20,17 @@
 - StorageはWindowsのCurrentUser DPAPIを実際に使い、暗号化保存と新しいStoreでの復元、破損時の認証破棄と接続設定保持、平文の拒否を確認する。UIへの依存はない。
 - WinUI 3は製品EXEを起動し、同じMainWindowのXAML・各partial・ClientConnection・PersonRowを使う別のスモークAppで合成データを検証する。ホーム、左右の人物管理、リサイズとテーマに加え、接続設定・ブラウザー起動の失敗と再開・認証キャンセル・実ループバックからの合成認可応答・保存ログインの確認と失効・家計簿作成の再送と選択・接続先変更・ログアウト成功／失敗を1シナリオとして確認する。製品Appから起動時の接続・復元を開始し、遅い接続での同じWindow内の待機表示・完了後の停止・タイムアウトも確認する。実データや保存済みの接続先/トークンは使用しない。 人物の削除確認では参照拒否・競合・通信失敗/応答喪失・降格/除外・認証失効を確認する。人物編集では保存・再送・競合・権限喪失・ContentDialogの保存／取消と背後の移動抑止、同一アカウントの再ログイン後の入力/版/要求IDの復元、別アカウント・別APIへの非引継ぎも検証する。入力部品は同じハンドラーと実コントロールのフォーカスで確認し、物理キー注入や実IME変換の検証とは区別する。
 - APIは実HTTP・合成アカウント・隔離SQLiteを使い、認証・現在の参加/役割・保存失敗の巻き戻し・同時操作・FK・再送・競合・招待の状態と消費・共有回数枠を検証する。CookieとWindows Bearerを区別する。
+- 匿名自己登録は実IdentityのWebAuthn検証、保存各段階とコミットの巻き戻し、同時登録・重複鍵、移動窓・容量・信頼済みIP、再起動／認証リセット、既存DBからのデータ保持移行を確認する。登録後の通常ログイン、Bearerでも自己登録のOrigin・CSRFが必要なこと、招待登録を成功数へ含めないことも対象とする。
 - Dockerは既存の起動確認に加え、NAS用Composeの秘密ファイル読込・非root起動・PFX再生成拒否・DB/管理者/PFXの保持・転送HTTPSとHost境界を隔離環境で確認する。実tailnetへは接続しない。
 - 旧VB.NET版の計算・DB・画面・移行・性能は既存のテスト構成を維持する。実データ・利用者環境への適用を自動検証済みとは扱わない。
 
 ## 登録モード設定の追加検証
 
-`RegistrationSettingsTests` に13ケースを追加した。既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。PR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。PR #100のNAS対応を取り込んだ後の統合CIは別途確認する。上表の861件は両PRの追加件数を合算した構成数である。
+`RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+DEC-112自己登録はソース`e64a7164acccccc1a791eddd4ea77315530f76b1`の[CI 41731192843](https://github.com/k-o-a-b-c/monetail/actions/runs/41731192843)でAPI484件・判定42件が成功した。新規38ケースに加え、既存の招待登録・管理CLI・ログイン・Windows OAuth・家計簿APIを回帰確認した。製品APIは先行ソース`46ad9b6`と同一で、Dockerビルド・既存/NASスモークは[CI 41730305252](https://github.com/k-o-a-b-c/monetail/actions/runs/41730305252)の成功を再利用した。ローカルは新規37件、全API483件、その後追加したBearer境界と既存テストの補強を含む重点15件が成功。APIのReleaseビルド、文書リンクと差分検査も成功した。旧版・Client・Storage・WinUI等は変更がなく再実行していない。899件は構成合計であり今回の実行件数とは区別する。実ブラウザー・実パスキーデバイス・実配備は未検証。登録画面・CAPTCHA・退会・全パスキー喪失時の自己復旧は未実装のまま。
 
 Docker NAS配備はソース`3f5bd7d249d70580e5d2de7464b3dcbe7c364a81`の[CI 41643374059](https://github.com/k-o-a-b-c/monetail/actions/runs/41643374059)で、構成848件、Compose設定、APIのDockerビルドと既存/NASスモーク、旧版ビルド・性能計測が成功した。今回は共通CIと判定処理の変更に伴い全対象を実行した。ローカルでもAPI433件・判定42件・Compose・actionlint・Bash構文と両Dockerスモークが成功。ローカルのDockerビルドには作業環境の公開プロキシCAをBuildKit secretでビルド段階だけへ渡したが、配布用Dockerfileは変更せず、CIではそのまま成功した。Tailscale公式イメージv1.104.4の取得とCLIも確認した。実NAS、実tailnet/Serveの証明書取得更新、実パスキー/Windows接続、実バックアップ復元は未検証。[NAS手順](../docs/deployment-docker-nas.md)の実機確認を行う。
 

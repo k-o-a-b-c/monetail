@@ -328,6 +328,22 @@ namespace Monetail.Api.Persistence.Migrations
                     b.ToTable("auth_enrollment_codes", (string)null);
                 });
 
+            modelBuilder.Entity("Monetail.Api.Authentication.SelfRegistrationCompletion", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompletedAtUtc");
+
+                    b.ToTable("auth_self_registration_completions", (string)null);
+                });
+
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.Ledger", b =>
                 {
                     b.Property<string>("Id")
