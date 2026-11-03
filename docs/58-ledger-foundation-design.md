@@ -6,7 +6,7 @@
 
 | 内容 | 参照先 |
 | --- | --- |
-| 共通前提・業務モデル・DB・API・回数制限・旧DB移行・未決定事項 | [ledger-foundation-core.md](./ledger-foundation-core.md) |
+| 共通前提・DB・API・移行の分野別案内 | [ledger-foundation-core.md](./ledger-foundation-core.md) |
 | 人物の仕様・一覧・追加／編集・削除・並び順 | [ledger-persons.md](./ledger-persons.md) |
 | 参加者・権限・アカウントと人物の対応 | [ledger-participants.md](./ledger-participants.md) |
 | 人物管理API・DB・作成要求の再送・整合性 | [ledger-person-api.md](./ledger-person-api.md) |
@@ -22,9 +22,9 @@
 
 <a id="58-家計簿のdbapiと後続設計"></a> [58 家計簿のDB・APIと後続設計](./ledger-foundation-core.md#58-家計簿のdbapiと後続設計)
 
-<a id="確定済みの前提"></a> [確定済みの前提](./ledger-foundation-core.md#確定済みの前提)
+<a id="確定済みの前提"></a> [確定済みの前提](./ledger-core-principles.md#確定済みの前提)
 
-<a id="確定した仕様dec-046048"></a> [確定した仕様（DEC-046・048）](./ledger-foundation-core.md#確定した仕様dec-046048)
+<a id="確定した仕様dec-046048"></a> [確定した仕様（DEC-046・048）](./ledger-core-principles.md#確定した仕様dec-046048)
 
 <a id="人物の管理dec-055apiとwindows画面実装"></a> [人物の管理（DEC-055・APIとWindows画面実装）](./ledger-persons.md#人物の管理dec-055apiとwindows画面実装)
 
@@ -34,15 +34,15 @@
 
 <a id="人物管理apidb実装済み"></a> [人物管理API・DB（実装済み）](./ledger-person-api.md#人物管理apidb実装済み)
 
-<a id="新版の業務モデルdb設計方針未実装"></a> [新版の業務モデル・DB設計方針（未実装）](./ledger-foundation-core.md#新版の業務モデルdb設計方針未実装)
+<a id="新版の業務モデルdb設計方針未実装"></a> [新版の業務モデル・DB設計方針（未実装）](./ledger-core-schema.md#新版の業務モデルdb設計方針未実装)
 
-<a id="保存構成apiの初回定義へ実装済み"></a> [保存構成（APIの初回定義へ実装済み）](./ledger-foundation-core.md#保存構成apiの初回定義へ実装済み)
+<a id="保存構成apiの初回定義へ実装済み"></a> [保存構成（APIの初回定義へ実装済み）](./ledger-core-schema.md#保存構成apiの初回定義へ実装済み)
 
-<a id="家計簿作成と再送"></a> [家計簿作成と再送](./ledger-foundation-core.md#家計簿作成と再送)
+<a id="家計簿作成と再送"></a> [家計簿作成と再送](./ledger-core-api.md#家計簿作成と再送)
 
-<a id="作成参照apiと後続案"></a> [作成・参照APIと後続案](./ledger-foundation-core.md#作成参照apiと後続案)
+<a id="作成参照apiと後続案"></a> [作成・参照APIと後続案](./ledger-core-api.md#作成参照apiと後続案)
 
-<a id="アカウント単位の回数制限dec-049"></a> [アカウント単位の回数制限（DEC-049）](./ledger-foundation-core.md#アカウント単位の回数制限dec-049)
+<a id="アカウント単位の回数制限dec-049"></a> [アカウント単位の回数制限（DEC-049）](./ledger-core-api.md#アカウント単位の回数制限dec-049)
 
 <a id="新規利用の方針dec-037046"></a> [新規利用の方針（DEC-037〜046）](./ledger-onboarding.md#新規利用の方針dec-037046)
 
@@ -62,7 +62,7 @@
 
 <a id="アカウント操作の入口未実装"></a> [アカウント操作の入口（未実装）](./ledger-onboarding.md#アカウント操作の入口未実装)
 
-<a id="新規利用と既存dbの境界"></a> [新規利用と既存DBの境界](./ledger-foundation-core.md#新規利用と既存dbの境界)
+<a id="新規利用と既存dbの境界"></a> [新規利用と既存DBの境界](./ledger-core-transition.md#新規利用と既存dbの境界)
 
 <a id="windows版のapi対応を先行する実装中"></a> [Windows版のAPI対応を先行する（実装中）](./ledger-windows.md#windows版のapi対応を先行する実装中)
 
@@ -72,9 +72,9 @@
 
 <a id="windows版のログイン認証待ちブラウザー完了表示"></a> [Windows版のログイン・認証待ち・ブラウザー完了表示](./ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)
 
-<a id="次の実装と確認"></a> [次の実装と確認](./ledger-foundation-core.md#次の実装と確認)
+<a id="次の実装と確認"></a> [次の実装と確認](./ledger-core-transition.md#次の実装と確認)
 
-<a id="後続で確定すること"></a> [後続で確定すること](./ledger-foundation-core.md#後続で確定すること)
+<a id="後続で確定すること"></a> [後続で確定すること](./ledger-core-transition.md#後続で確定すること)
 
 <a id="人物の管理dec-055未実装"></a> [人物の管理（DEC-055・APIとWindows画面実装）](./ledger-persons.md#人物の管理dec-055未実装)
 

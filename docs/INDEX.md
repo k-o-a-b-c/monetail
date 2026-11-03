@@ -11,7 +11,11 @@
 | WindowsのOAuth・DPAPI・トークン保存 | [Windows認証](auth-windows-oauth.md) |
 | 認証・管理APIの入出力と再送 | [認証API](auth-api-contract.md) |
 | 家計簿設計の入口・旧リンク | [58 家計簿設計](58-ledger-foundation-design.md) |
-| 家計簿共通仕様・DB・API・移行・未決定事項 | [共通仕様](ledger-foundation-core.md) |
+| 家計簿共通設計の入口・旧見出し | [共通仕様](ledger-foundation-core.md) |
+| 家計簿の前提・確定済みの基本ルール | [共通前提](ledger-core-principles.md) |
+| 業務モデル・家計簿DBの構成 | [DB・モデル](ledger-core-schema.md) |
+| 家計簿の作成・参照・回数制限 | [家計簿API](ledger-core-api.md) |
+| 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
 | 人物仕様・人物画面 | [人物管理](ledger-persons.md) |
 | 参加者・人物対応 | [参加者管理](ledger-participants.md) |
 | 人物管理API・DBの入口・旧リンク | [人物API](ledger-person-api.md) |
