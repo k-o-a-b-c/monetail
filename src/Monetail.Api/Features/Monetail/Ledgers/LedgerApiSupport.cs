@@ -9,13 +9,23 @@ using Monetail.Api.Persistence;
 namespace Monetail.Api.Features.Monetail.Ledgers;
 
 /// <summary>利用者へ公開できる業務エラーだけをHTTP境界へ渡す。</summary>
-public sealed class LedgerApiFault(int status, string code, string message, string? fieldName = null, object? latest = null)
+public sealed class LedgerApiFault(int status, string code, string message, string? fieldName = null, object? latest = null,
+    LedgerPermissions? permissions = null)
     : Exception(message)
 {
     public int Status { get; } = status;
     public bool HasLatest => latest is not null;
-    public object Body => new { code, message = Message, field = fieldName, latest };
+    public LedgerPermissions? Permissions { get; private set; } = permissions;
+    public object Body => new { code, message = Message, field = fieldName, latest, permissions = Permissions };
+    public LedgerApiFault WithPermissions(LedgerPermissions current)
+    {
+        Permissions = current;
+        return this;
+    }
 }
+
+/// <summary>操作者自身の現在の参加・役割・人物対応だけを返す。未参加は両方null。</summary>
+public sealed record LedgerPermissions(string? CurrentRole, string? MyPersonId);
 
 /// <summary>業務エラーと保存障害を分け、DBの詳細や招待トークンを公開しない。</summary>
 public sealed class LedgerApiFilter(ILogger<LedgerApiFilter> logger) : IEndpointFilter
@@ -95,8 +105,9 @@ public sealed partial class LedgerManagementService(ApiDbContext context, Ledger
     {
         await RequireLoginAsync(actor, token);
         var member = await context.Set<LedgerMember>().AsNoTracking().SingleOrDefaultAsync(
-            row => row.LedgerId == ledgerId && row.AuthUserId == actor.Session.AuthUserId, token) ?? throw Missing();
-        if (!permission(member)) throw Forbidden();
+            row => row.LedgerId == ledgerId && row.AuthUserId == actor.Session.AuthUserId, token)
+            ?? throw Missing().WithPermissions(new(null, null));
+        if (!permission(member)) throw Forbidden().WithPermissions(new(member.Role, member.PersonId));
         return member;
     }
 
@@ -112,10 +123,12 @@ public sealed partial class LedgerManagementService(ApiDbContext context, Ledger
         var member = await RequireMemberAsync(ledgerId, actor, permission, token);
         object result;
         try { result = await action(member); }
-        catch (LedgerApiFault error) when (error.HasLatest)
+        catch (LedgerApiFault error)
         {
             // 競合による早期応答でも、最新情報を読み込んだ後の本人・権限を確認する。
-            await RequireMemberAsync(ledgerId, actor, permission, token);
+            if (error.HasLatest) await RequireMemberAsync(ledgerId, actor, permission, token);
+            if (error.Status is 403 or 404 && error.Permissions is null)
+                error.WithPermissions(new(member.Role, member.PersonId));
             throw;
         }
         await RequireMemberAsync(ledgerId, actor, permission, token);

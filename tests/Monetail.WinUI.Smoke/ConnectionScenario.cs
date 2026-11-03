@@ -237,10 +237,13 @@ public partial class App
         internal readonly List<string> Requests = [];
         internal readonly List<string> Creations = [];
         internal readonly List<string> OtherServerRequests = [];
+        internal readonly List<string> RejectedPeopleBodies = [];
+        internal Guid AccountId = Guid.Parse("493d9035-2de5-4235-921f-f79b799d828b");
         internal Uri? AuthorizationUri;
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
-        internal bool ConnectionCancelled, RateLimitOpening;
+        internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PeopleHandler;
+        internal bool ConnectionCancelled, RateLimitOpening, RejectSession, CannotOpenLedger;
         internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
         internal int ChoiceCount, BrowserOpens;
 
@@ -296,15 +299,21 @@ public partial class App
                 token_endpoint = origin.Resolve("connect/token"), response_types_supported = new[] { "code" },
                 code_challenge_methods_supported = new[] { "S256" }
             });
-            if (path == "/connect/token") return RejectAuthentication ?
+            if (path == "/connect/token") return RejectAuthentication || RejectSession ?
                 new(HttpStatusCode.BadRequest) { Content = JsonContent.Create(new { error = "invalid_grant" }) } : Json(new
             {
                 access_token = "synthetic-access", refresh_token = "synthetic-refresh", token_type = "Bearer", expires_in = 900
             });
             if (request.Headers.Authorization?.Parameter != "synthetic-access") throw new InvalidOperationException("合成Bearerが必要です。");
+            if (RejectSession)
+            {
+                if (path.Contains("/people", StringComparison.Ordinal) && request.Content is not null)
+                    RejectedPeopleBodies.Add(await request.Content.ReadAsStringAsync(token));
+                return new(HttpStatusCode.Unauthorized);
+            }
             if (path == "/auth/me") return RejectAuthentication ? new(HttpStatusCode.Unauthorized) : Json(new
             {
-                authUserId = Guid.Parse("493d9035-2de5-4235-921f-f79b799d828b"), displayName = "テスト利用者",
+                authUserId = AccountId, displayName = "テスト利用者",
                 expiresAtUtc = DateTimeOffset.UtcNow.AddDays(2), verifiedAtUtc = DateTimeOffset.UtcNow
             });
             if (path == "/auth/logout") return new(FailLogout ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.NoContent);
@@ -317,7 +326,9 @@ public partial class App
                 return FailCreation ? new(HttpStatusCode.ServiceUnavailable) : Json(first);
             }
             if (path == $"/ledgers/{second.LedgerId:N}/open") return Json(second);
-            if (path == $"/ledgers/{first.LedgerId:N}/open") return Json(first);
+            if (path == $"/ledgers/{first.LedgerId:N}/open") return CannotOpenLedger ? new(HttpStatusCode.NotFound) : Json(first);
+            if (PeopleHandler is not null && path.Contains("/people", StringComparison.Ordinal))
+                return await PeopleHandler(request, token);
             if (path == $"/ledgers/{first.LedgerId:N}/people") return Json(new PeopleInfo(
                 [new(person, "父", null, null, 0, Guid.NewGuid())], person, "Admin", Guid.NewGuid()));
             throw new InvalidOperationException("想定しない合成API要求: " + path);
