@@ -14,7 +14,11 @@
 | 家計簿共通仕様・DB・API・移行・未決定事項 | [共通仕様](ledger-foundation-core.md) |
 | 人物仕様・人物画面 | [人物管理](ledger-persons.md) |
 | 参加者・人物対応 | [参加者管理](ledger-participants.md) |
-| 人物管理API・DB・再送 | [人物API](ledger-person-api.md) |
+| 人物管理API・DBの入口・旧リンク | [人物API](ledger-person-api.md) |
+| 人物・参加者のAPIとJSON契約 | [API契約](ledger-person-api-contract.md) |
+| 人物・参加者のテーブルと更新版 | [人物DB](ledger-person-db.md) |
+| 作成要求の再送と保持条件 | [共通再送](ledger-operation-retries.md) |
+| 人物・参加者の競合・権限喪失・後続画面 | [競合と後続](ledger-person-conflicts.md) |
 | 登録・ログイン・家計簿ホーム | [新規利用](ledger-onboarding.md) |
 | 家計簿への招待・参加 | [招待](ledger-invitations.md) |
 | Windows版の接続・画面遷移 | [Windows接続](ledger-windows.md) |
