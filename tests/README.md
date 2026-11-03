@@ -11,8 +11,8 @@
 | Windows Client（接続・認証・保存・家計簿・人物・補完） | 226 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
-| CIの実行対象選択 | 20 |
-| 合計 | 826 |
+| CIの実行対象選択・成功結果の再利用 | 41 |
+| 合計 | 847 |
 
 ## 検証する範囲
 
@@ -60,27 +60,35 @@ python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 ```
 
-WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIで画像は取らず、`preview/winui-*`ブランチでのみ単発撮影する。
+WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIでは画像を取らない。撮影はActionsの「WinUI 3 foundation」を手動実行し、対象ブランチと`capture=true`を指定する。撮影専用ブランチへのpushは不要。
 
 旧Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj`で画面・実SQLiteを確認する。性能計測は同コマンドに`--measure-receipt-reads CSVのパス`を渡し、通常テストと区別する（[測定条件](../docs/34-receipt-read-performance.md)）。APIのDocker確認は[起動・運用](../docs/42-api-foundation.md)を参照する。
 
 ## 必要なCIだけを実行する
 
-[select_tests.py](../.github/scripts/select_tests.py)が差分と参照プロジェクトから実行対象を選ぶ。PRは分岐点以降、pushは更新前後を対象にする。改名・削除も扱い、未分類の変更は失敗させる。
+自動起動はPRの作成・更新と`main`へのpushだけとする。作業ブランチのpushとPRで同じ検証を二重起動しない。WinUI 3の通常検証も[Tests](../.github/workflows/tests.yml)から[再利用ワークフロー](../.github/workflows/winui.yml)を呼び出し、独立したpush/PR起動は行わない。PR更新時は同じPRの古い実行を中止する。
 
-| 変更 | 確認対象 |
+[select_tests.py](../.github/scripts/select_tests.py)が変更と参照プロジェクトから検証対象を選び、[ci_plan.py](../.github/scripts/ci_plan.py)が同じ入力の成功記録を確認する。PRは分岐点以降の全差分を対象にし、最後のコミットが文書だけでも、PR内の未検証・失敗した変更を取り落とさない。改名・削除も扱い、未分類の変更は失敗させる。
+
+| 変更 | 確認対象（同じ入力の成功記録があれば再利用） |
 | --- | --- |
-| 文書だけ | CI選択。API・Docker・Windows等は省略 |
+| 文書だけ | 軽量なCI判定。PR内に未検証・失敗した変更が残る場合は、その検証を実行 |
 | APIソース／テスト | API、製品ソースではDockerも確認 |
-| Clientソース | ClientとWindowsの実DPAPI。専用ワークフローでWinUI 3のビルド・起動も確認 |
+| Clientソース | Client・Windowsの実DPAPI・WinUI 3 |
 | Clientテストだけ | Client |
 | Storageテストだけ | Windowsの実DPAPI |
-| WinUI 3／スモーク | 専用ワークフローのビルド・製品起動・画面スモーク |
+| WinUI 3／スモーク | WinUI 3のビルド・製品起動・画面スモーク |
 | Dockerfile等／Compose | Docker／Compose |
 | 旧Windows・計算・SQL等 | 依存するテスト、ビルド、必要なら性能計測 |
-| 共通CI・SDK／ビルド設定 | 全対象 |
+| 共通CI・判定処理・SDK／ビルド設定 | 全対象。WinUI専用ワークフローの変更はWinUIのみ |
 
-同じ製品ソースの成功CIは再利用し、新しい変更・失敗・未解決の懸念がある場合だけ再実行する。省略を検証成功として数えない。
+再利用には、各検証に影響するファイルのパス・Gitオブジェクト・実行属性から求めた指紋を使う。製品だけでなくテスト、参照先、CI定義、共通ビルド設定を含め、チェックアウトしたPRのマージ後ツリーで照合する。入力が変われば別の記録となる。既存の未分類ファイルは指紋から黙って落とさず、保守的に全検証へ含める。
+
+[成功記録用アクション](../.github/actions/ci-proof/action.yml)は、各検証が成功した後にだけ、指紋と元のCIへのリンクをActions cacheへ保存する。中断・失敗を成功として保存しない。復元は完全一致だけとし、記録なし・不一致・破損・キャッシュ障害は再実行する。Windowsで保存した記録もLinuxの判定ジョブで照合する。キャッシュは最適化であり、GitHub側で消去されたら検証し直す。再利用の有無と元の成功CIは実行概要へ表示し、再実行していないものを今回の検証件数へ加算しない。
+
+`main`では現在の全対象の成功記録を確認し、以前のpushが未検証でも次のpushで取り落とさない。PR専用キャッシュを`main`の成功記録として流用せず、GitHubのキャッシュ公開範囲に従う。main取り込み後の確認はPRとの二重起動とは区別する。
+
+撮影は必要時の手動実行だけで行い、撮影結果を通常検証の成功記録として登録しない。全検証をやり直したい場合はActionsの「Tests」を`force=true`で手動実行する。成功済みの入力でも再実行できる。
 
 ## 新版Windowsの手動確認（未実施）
 

@@ -1,18 +1,25 @@
 name: WinUI 3 foundation
 
+# 通常検証はTestsから呼び出す。画像取得はActionsの手動実行だけで行う。
 on:
-  push:
-    paths:
-      - 'src/Monetail.WinUI/**'
-      - 'src/Monetail.Windows.Client/**'
-      - 'tests/Monetail.WinUI.Smoke/**'
-      - '.github/workflows/winui.yml'
-  pull_request:
-    paths:
-      - 'src/Monetail.WinUI/**'
-      - 'src/Monetail.Windows.Client/**'
-      - 'tests/Monetail.WinUI.Smoke/**'
-      - '.github/workflows/winui.yml'
+  workflow_call:
+    inputs:
+      fingerprint:
+        required: true
+        type: string
+      capture:
+        default: false
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      capture:
+        description: 合成データの画面を撮影する
+        default: true
+        type: boolean
+
+concurrency:
+  group: winui-${{ github.event.pull_request.number || github.ref }}-${{ inputs.capture }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -21,7 +28,7 @@ jobs:
   winui-build-and-startup:
     runs-on: windows-latest
     env:
-      WINUI_CAPTURE: ${{ startsWith(github.ref, 'refs/heads/preview/winui-') }}
+      WINUI_CAPTURE: ${{ inputs.capture }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -48,3 +55,10 @@ jobs:
           name: winui-smoke-results
           path: ${{ runner.temp }}/winui-results/*
           if-no-files-found: ignore
+
+      - uses: ./.github/actions/ci-proof
+        if: inputs.fingerprint != '' && !inputs.capture
+        with:
+          mode: save
+          check: winui
+          fingerprint: ${{ inputs.fingerprint }}
