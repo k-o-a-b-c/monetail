@@ -87,7 +87,7 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["tests/Shared/Assertions.vb"], "calculations", "windows_tests", "performance")
 
     def test_workflow_and_shared_build_settings_validate_all_jobs(self):
-        for path in [".github/workflows/tests.yml", "Directory.Build.props", "global.json"]:
+        for path in [".github/workflows/tests.yml", ".github/actions/nuget-cache/action.yml", "Directory.Build.props", "global.json"]:
             with self.subTest(path=path):
                 self.assert_flags([path], *FLAGS)
         self.assert_flags([".github/scripts/select_tests.py"], *FLAGS)

@@ -67,7 +67,7 @@ def selected_inputs(paths, *, strict=True):
     for path in paths:
         if path.endswith(".md") or path in {".gitignore", ".gitattributes"}:
             continue
-        if path == ".github/workflows/tests.yml" or path.startswith((".github/scripts/", ".github/actions/ci-proof/")) or path in {
+        if path == ".github/workflows/tests.yml" or path.startswith((".github/scripts/", ".github/actions/ci-proof/", ".github/actions/nuget-cache/")) or path in {
             "global.json", "NuGet.config", "nuget.config", "Directory.Build.props",
             "Directory.Build.targets", "Directory.Packages.props",
         }:

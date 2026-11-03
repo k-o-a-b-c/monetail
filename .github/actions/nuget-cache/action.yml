@@ -1,0 +1,24 @@
+name: Cache NuGet packages
+description: パッケージだけを再利用し、依存関係の復元と検証は毎回行う。
+inputs:
+  scope:
+    description: 同時実行するジョブ間で不完全なキャッシュを共有しないための識別名
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: sdk
+      shell: bash
+      run: |
+        echo "NUGET_PACKAGES=$RUNNER_TEMP/nuget-packages" >> "$GITHUB_ENV"
+        echo "version=$(dotnet --version)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v4
+      continue-on-error: true
+      with:
+        path: |
+          ${{ runner.temp }}/nuget-packages
+          HouseholdAccountsBeta/packages
+        key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.scope }}-${{ steps.sdk.outputs.version }}-${{ hashFiles('**/*.*proj', '**/*.sln', '**/packages.config', '**/packages.lock.json', '**/*.props', '**/*.targets', '**/NuGet.Config', '**/NuGet.config', '**/nuget.config', 'global.json', '.github/actions/nuget-cache/action.yml') }}
+        restore-keys: |
+          nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.scope }}-${{ steps.sdk.outputs.version }}-
+          nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.scope }}-

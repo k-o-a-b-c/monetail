@@ -144,6 +144,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: client
       - run: dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj --configuration Release
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.windows_client == 'true'
@@ -161,6 +164,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: storage
       - run: dotnet test tests/Monetail.Windows.Storage.Tests/Monetail.Windows.Storage.Tests.csproj --configuration Release
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.windows_storage == 'true'
@@ -179,6 +185,10 @@ jobs:
         if: needs.changes.outputs.api == 'true'
         with:
           dotnet-version: 10.0.x
+      - uses: ./.github/actions/nuget-cache
+        if: needs.changes.outputs.api == 'true'
+        with:
+          scope: api
       - run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
         if: needs.changes.outputs.api == 'true'
       - uses: ./.github/actions/ci-proof
@@ -215,6 +225,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: performance
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --measure-receipt-reads "$env:RUNNER_TEMP/receipt-read-performance.csv"
       - uses: actions/upload-artifact@v4
         with:
@@ -238,6 +251,10 @@ jobs:
         if: needs.changes.outputs.calculations == 'true'
         with:
           dotnet-version: 8.0.x
+      - uses: ./.github/actions/nuget-cache
+        if: needs.changes.outputs.calculations == 'true'
+        with:
+          scope: calculations
       - run: dotnet run --project tests/CalculationTests/CalculationTests.vbproj
         if: needs.changes.outputs.calculations == 'true'
       - uses: ./.github/actions/ci-proof
@@ -265,6 +282,9 @@ jobs:
         if: needs.changes.outputs.windows_tests == 'true'
         with:
           dotnet-version: 8.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: legacy
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
         if: needs.changes.outputs.windows_tests == 'true'
       - uses: ./.github/actions/ci-proof

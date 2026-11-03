@@ -34,6 +34,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: winui
       - name: Get font for one-off screenshots
         if: env.WINUI_CAPTURE == 'true'
         shell: pwsh
