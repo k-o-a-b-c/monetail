@@ -108,7 +108,7 @@ NuGetパッケージは[共通アクション](../.github/actions/nuget-cache/ac
 
 ## 新版Windowsの手動確認（未実施）
 
-製品起動から接続・ログイン復元・家計簿の行き先へ進む処理を画面へ接続した。人物追加・編集・削除確認・日付入力と共通Enter操作は接続済み。共通順の操作と時刻入力のUIは未接続。実装後は[43](../docs/43-passkey-authentication-design.md)・[58](../docs/58-ledger-foundation-design.md)・[59](../docs/59-input-controls-design.md)の契約に沿って確認する。ARM64、100／125／150／200%の物理端末、モニター間移動・ハイコントラスト・日本語IME・実キー入力、実ブラウザーのパスキー、本番配備・実DB移行は未検証。
+製品起動から接続・ログイン復元・家計簿の行き先へ進む処理を画面へ接続した。人物追加・編集・削除確認・日付入力と共通Enter操作は接続済み。共通順の設定と同一アカウントでの認証後復元も接続済み。時刻入力のUIは未接続。実装後は[43](../docs/43-passkey-authentication-design.md)・[58](../docs/58-ledger-foundation-design.md)・[59](../docs/59-input-controls-design.md)の契約に沿って確認する。ARM64、100／125／150／200%の物理端末、モニター間移動・ハイコントラスト・日本語IME・実キー入力、実ブラウザーのパスキー、本番配備・実DB移行は未検証。
 
 ## 旧Windowsで画面を手動確認する手順（利用者環境では未実施）
 

@@ -231,6 +231,14 @@ public partial class App
             people[position] = people[position] with { Name = "父・認証待ち中の変更", Revision = Guid.NewGuid() };
         }
 
+        internal void ChangePeopleAndOrder()
+        {
+            people.RemoveAll(person => person.PersonId != mine);
+            people[0] = people[0] with { DisplayOrder = 1 };
+            people.Add(new(Guid.NewGuid(), "子供", null, null, 0, Guid.NewGuid()));
+            orderRevision = Guid.NewGuid();
+        }
+
         internal async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken token)
         {
             if (request.Method == HttpMethod.Get) { Reads++; return Json(Result()); }
@@ -269,10 +277,7 @@ public partial class App
                 if (ConflictNextOrder)
                 {
                     ConflictNextOrder = false;
-                    people.RemoveAll(person => person.PersonId != mine);
-                    people[0] = people[0] with { DisplayOrder = 1 };
-                    people.Add(new(Guid.NewGuid(), "子供", null, null, 0, Guid.NewGuid()));
-                    orderRevision = Guid.NewGuid();
+                    ChangePeopleAndOrder();
                 }
                 if (input.GetProperty("revision").GetGuid() != orderRevision)
                     return Json(new { code = "revision_conflict", latest = Result() }, HttpStatusCode.Conflict);

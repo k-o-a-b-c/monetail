@@ -12,6 +12,17 @@ public sealed partial class MainWindow
     private Guid personOrderRevision;
     private bool orderDenied;
     private bool IsOrderingPeople => orderedPeople is not null;
+    private sealed record PersonOrderDraft(Guid Revision, PersonInfo[] People);
+
+    private void RestorePersonOrder(PersonOrderDraft draft, PeopleInfo current, string? failure)
+    {
+        // 表示名は取得済みの最新情報を使い、未保存のID順と元の全体版は変えない。
+        var latest = current.People.ToDictionary(person => person.PersonId);
+        BeginPersonOrder(draft.People.Select(person => latest.GetValueOrDefault(person.PersonId) ?? person), draft.Revision);
+        orderDenied = failure is not null || !IsPeopleAdmin;
+        PersonOrderRestoredNotice.Visibility = Visibility.Visible;
+        if (orderDenied) ShowPersonOrderNotice(failure ?? "現在の権限では並び順を保存できません。未保存の並び順は残しています。");
+    }
 
     private void OpenPersonOrder(object sender, RoutedEventArgs args)
     {

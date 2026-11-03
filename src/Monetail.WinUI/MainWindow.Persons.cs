@@ -27,7 +27,8 @@ public sealed partial class MainWindow
     private bool forcePersonDialogClose;
 
     private sealed record PersonEditSnapshot(Guid AccountId, string ApiOrigin, LedgerInfo Ledger, PeopleInfo People,
-        PersonInfo? Person, PersonCreationDraft? Creation, bool IncludedPeriod, string Name, string From, string To);
+        PersonInfo? Person, PersonCreationDraft? Creation, bool IncludedPeriod, string Name, string From, string To,
+        PersonOrderDraft? Order = null);
 
     private bool IsPeopleAdmin => peoplePermissions?.CurrentRole == "Admin";
     private bool CanViewPeople => peoplePermissions is null || peoplePermissions.CurrentRole is not null;
@@ -309,10 +310,13 @@ public sealed partial class MainWindow
 
     private void RememberPersonEdit()
     {
-        if (isDeletingPerson || PersonEditorContent.Visibility != Visibility.Visible || account is null || currentLedger is null || peopleInfo is null)
-            return;
-        pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo, editingPerson,
-            personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text);
+        if (account is null || currentLedger is null || peopleInfo is null) return;
+        if (orderedPeople is not null)
+            pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo,
+                null, null, false, "", "", "", new(personOrderRevision, orderedPeople.ToArray()));
+        else if (!isDeletingPerson && PersonEditorContent.Visibility == Visibility.Visible)
+            pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo, editingPerson,
+                personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text);
     }
 
     private void DropPendingPersonEdit()
@@ -361,18 +365,22 @@ public sealed partial class MainWindow
         ShowPage(ManagementPage);
         ManagementNavigation.SelectedItem = PeopleNavigation;
         if (permission is not null) peoplePermissions = permission;
-        OpenPersonEditor(draft.Person);
-        PersonName.Text = draft.Name;
-        PersonValidFrom.Text = draft.From;
-        PersonValidTo.Text = draft.To;
-        personDraft = draft.Creation;
-        if (draft.Person is not null && !people.People.Any(person => person.PersonId == draft.Person.PersonId))
-            missingPeople.Add(draft.Person.PersonId);
-        // 古い版と作成要求IDを維持し、再ログインを理由に上書き・重複作成しない。
-        editorDenied = failure is not null || draft.IncludedPeriod && !IsPeopleAdmin ||
-            (draft.Person is null ? !IsPeopleAdmin : !CanEditPerson(draft.Person));
-        PersonRestoredNotice.Visibility = Visibility.Visible;
-        if (editorDenied) ShowPersonError(null, failure ?? "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
+        if (draft.Order is { } order) RestorePersonOrder(order, people, failure);
+        else
+        {
+            OpenPersonEditor(draft.Person);
+            PersonName.Text = draft.Name;
+            PersonValidFrom.Text = draft.From;
+            PersonValidTo.Text = draft.To;
+            personDraft = draft.Creation;
+            if (draft.Person is not null && !people.People.Any(person => person.PersonId == draft.Person.PersonId))
+                missingPeople.Add(draft.Person.PersonId);
+            // 古い版と作成要求IDを維持し、再ログインを理由に上書き・重複作成しない。
+            editorDenied = failure is not null || draft.IncludedPeriod && !IsPeopleAdmin ||
+                (draft.Person is null ? !IsPeopleAdmin : !CanEditPerson(draft.Person));
+            PersonRestoredNotice.Visibility = Visibility.Visible;
+            if (editorDenied) ShowPersonError(null, failure ?? "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
+        }
         pendingPersonEdit = null;
         RenderPeopleRows();
         UpdatePeopleActions();
