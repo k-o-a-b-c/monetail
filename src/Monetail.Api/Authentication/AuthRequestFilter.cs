@@ -14,7 +14,8 @@ public sealed class AuthRequestFilter(IAntiforgery csrf, ApiDbContext database, 
         try
         {
             var method = context.HttpContext.Request.Method;
-            if (context.HttpContext.User.Identity?.AuthenticationType != DesktopTokenHandler.SchemeName &&
+            if ((SelfRegistrationEndpoints.IsEndpoint(context.HttpContext) ||
+                context.HttpContext.User.Identity?.AuthenticationType != DesktopTokenHandler.SchemeName) &&
                 !HttpMethods.IsGet(method) && !HttpMethods.IsHead(method) && !HttpMethods.IsOptions(method) && !HttpMethods.IsTrace(method))
                 await csrf.ValidateRequestAsync(context.HttpContext);
             await DatabaseInitializer.EnsureReadyAsync(database, context.HttpContext.RequestAborted);

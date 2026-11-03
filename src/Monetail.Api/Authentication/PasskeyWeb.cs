@@ -20,6 +20,9 @@ public static class PasskeyWeb
         services.AddSingleton(settings);
         services.AddSingleton<EnrollmentChallenges>();
         services.AddScoped<PasskeyEnrollmentService>();
+        services.AddSingleton<SelfRegistrationChallenges>();
+        services.AddSingleton<SelfRegistrationAttemptLimiter>();
+        services.AddScoped<SelfRegistrationService>();
         services.AddSingleton<LoginChallenges>();
         services.AddScoped<PasskeyLoginService>();
         services.AddSingleton<ReauthenticationChallenges>();
@@ -133,6 +136,7 @@ public static class PasskeyWeb
         });
         app.UseRouting();
         app.Use((http, next) => http.RequestServices.GetRequiredService<AuthenticationAttemptLimiter>().InvokeAsync(http, next));
+        app.Use(SelfRegistrationEndpoints.Boundary);
         // OAuth標準処理が早期終了する要求も、認証API共通のIP枠と保存先の検証を通す。
         app.UseWhen(http => DesktopOAuth.IsPath(http.Request.Path), branch =>
         {
@@ -170,6 +174,7 @@ public static class PasskeyWeb
         app.MapGet("/auth/csrf", (HttpContext http, IAntiforgery csrf) =>
             Results.Ok(new { token = csrf.GetAndStoreTokens(http).RequestToken })).AllowAnonymous();
         app.MapPasskeyEnrollment();
+        app.MapSelfRegistration();
         app.MapPasskeyLogin();
         app.MapPasskeyReauthentication();
         app.MapPasskeyManagement();

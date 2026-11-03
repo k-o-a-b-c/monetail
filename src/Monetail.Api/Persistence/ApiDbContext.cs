@@ -18,6 +18,7 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
 
     public DbSet<EnrollmentCode> EnrollmentCodes => Set<EnrollmentCode>();
     public DbSet<AuthSession> Sessions => Set<AuthSession>();
+    public DbSet<SelfRegistrationCompletion> SelfRegistrationCompletions => Set<SelfRegistrationCompletion>();
 
     /// <summary>認証の保存先と制約を設定する。</summary>
     protected override void OnModelCreating(ModelBuilder builder)
@@ -25,6 +26,12 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
         base.OnModelCreating(builder);
         DesktopOAuthModel.Configure(builder);
         LedgerModel.Configure(builder);
+        builder.Entity<SelfRegistrationCompletion>(completion =>
+        {
+            completion.ToTable("auth_self_registration_completions");
+            completion.HasKey(row => row.Id);
+            completion.HasIndex(row => row.CompletedAtUtc);
+        });
         builder.Entity<AuthUser>().Property(user => user.IsEnabled).HasDefaultValue(false);
         builder.Entity<AuthUser>().Property(user => user.DisplayName).HasMaxLength(AuthUser.DisplayNameMaxLength);
         builder.Entity<EnrollmentCode>(code =>

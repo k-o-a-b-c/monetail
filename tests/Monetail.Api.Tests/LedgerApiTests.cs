@@ -296,7 +296,8 @@ public class LedgerApiTests
             "UPDATE operation_requests SET actor_auth_user_id='missing'"
         }) Assert.Equal(19, Assert.Throws<SqliteException>(() => AuthDatabaseFixture.Execute(connection, sql)).SqliteErrorCode);
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        Assert.Single(scope.ServiceProvider.GetRequiredService<ApiDbContext>().Database.GetMigrations());
+        var database = scope.ServiceProvider.GetRequiredService<ApiDbContext>().Database;
+        Assert.Equal(database.GetMigrations(), await database.GetAppliedMigrationsAsync());
     }
 
     /// <summary>指定したアカウントでログインし、その状態のCSRFトークンを取得する。</summary>
