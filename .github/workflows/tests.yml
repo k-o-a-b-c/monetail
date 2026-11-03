@@ -197,7 +197,10 @@ jobs:
           mode: save
           check: api
           fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).api }}
-      - run: docker compose config --quiet
+      - run: |
+          docker compose config --quiet
+          docker compose --env-file deploy/nas/nas.env.example -f compose.yaml -f deploy/nas/compose.nas.yaml config --quiet
+          bash -n deploy/nas/create-oauth-certificates.sh tests/Monetail.Api.Tests/nas-smoke.sh
         if: needs.changes.outputs.compose == 'true'
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.compose == 'true'
@@ -208,6 +211,8 @@ jobs:
       - run: docker build --tag monetail-api:ci .
         if: needs.changes.outputs.docker == 'true'
       - run: bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
+        if: needs.changes.outputs.docker == 'true'
+      - run: bash tests/Monetail.Api.Tests/nas-smoke.sh monetail-api:ci
         if: needs.changes.outputs.docker == 'true'
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.docker == 'true'

@@ -89,6 +89,8 @@ def selected_inputs(paths, *, strict=True):
             enable("api", "docker")
         if path == "tests/Monetail.Api.Tests/docker-smoke.sh":
             enable("docker")
+        elif path == "tests/Monetail.Api.Tests/nas-smoke.sh" or path.startswith("deploy/nas/"):
+            enable("docker", "compose")
         elif path.startswith("tests/Monetail.Api.Tests/"):
             enable("api")
         if any(matches(path, pattern) for pattern in api_inputs):
@@ -106,7 +108,7 @@ def selected_inputs(paths, *, strict=True):
         if path in {"Dockerfile", ".dockerignore"}:
             enable("docker")
         if path == "compose.yaml":
-            enable("compose")
+            enable("docker", "compose")
         if path.startswith("HouseholdAccountsBeta/"):
             enable("windows_build")
         if any(matches(path, pattern) for pattern in calculation_inputs):

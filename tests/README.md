@@ -11,8 +11,8 @@
 | Windows Client（接続・認証・保存・家計簿・人物・補完） | 226 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
-| CIの実行対象選択・成功結果の再利用 | 41 |
-| 合計 | 847 |
+| CIの実行対象選択・成功結果の再利用 | 42 |
+| 合計 | 848 |
 
 ## 検証する範囲
 
@@ -20,9 +20,12 @@
 - StorageはWindowsのCurrentUser DPAPIを実際に使い、暗号化保存と新しいStoreでの復元、破損時の認証破棄と接続設定保持、平文の拒否を確認する。UIへの依存はない。
 - WinUI 3は製品EXEを起動し、同じMainWindowのXAML・各partial・ClientConnection・PersonRowを使う別のスモークAppで合成データを検証する。ホーム、左右の人物管理、リサイズとテーマに加え、接続設定・ブラウザー起動の失敗と再開・認証キャンセル・実ループバックからの合成認可応答・保存ログインの確認と失効・家計簿作成の再送と選択・接続先変更・ログアウト成功／失敗を1シナリオとして確認する。製品Appから起動時の接続・復元を開始し、遅い接続での同じWindow内の待機表示・完了後の停止・タイムアウトも確認する。実データや保存済みの接続先/トークンは使用しない。 人物の削除確認では参照拒否・競合・通信失敗/応答喪失・降格/除外・認証失効を確認する。人物編集では保存・再送・競合・権限喪失・ContentDialogの保存／取消と背後の移動抑止、同一アカウントの再ログイン後の入力/版/要求IDの復元、別アカウント・別APIへの非引継ぎも検証する。入力部品は同じハンドラーと実コントロールのフォーカスで確認し、物理キー注入や実IME変換の検証とは区別する。
 - APIは実HTTP・合成アカウント・隔離SQLiteを使い、認証・現在の参加/役割・保存失敗の巻き戻し・同時操作・FK・再送・競合・招待の状態と消費・共有回数枠を検証する。CookieとWindows Bearerを区別する。
+- Dockerは既存の起動確認に加え、NAS用Composeの秘密ファイル読込・非root起動・PFX再生成拒否・DB/管理者/PFXの保持・転送HTTPSとHost境界を隔離環境で確認する。実tailnetへは接続しない。
 - 旧VB.NET版の計算・DB・画面・移行・性能は既存のテスト構成を維持する。実データ・利用者環境への適用を自動検証済みとは扱わない。
 
 ## 採用結果
+
+Docker NAS配備はソース`3f5bd7d249d70580e5d2de7464b3dcbe7c364a81`の[CI 41643374059](https://github.com/k-o-a-b-c/monetail/actions/runs/41643374059)で、構成848件、Compose設定、APIのDockerビルドと既存/NASスモーク、旧版ビルド・性能計測が成功した。今回は共通CIと判定処理の変更に伴い全対象を実行した。ローカルでもAPI433件・判定42件・Compose・actionlint・Bash構文と両Dockerスモークが成功。ローカルのDockerビルドには作業環境の公開プロキシCAをBuildKit secretでビルド段階だけへ渡したが、配布用Dockerfileは変更せず、CIではそのまま成功した。Tailscale公式イメージv1.104.4の取得とCLIも確認した。実NAS、実tailnet/Serveの証明書取得更新、実パスキー/Windows接続、実バックアップ復元は未検証。[NAS手順](../docs/deployment-docker-nas.md)の実機確認を行う。
 
 人物の共通順設定と認証後の復元はソース`de2e0aebec793c5d8f5d60e90c69295bedf217e2`を[CI 41605779743](https://github.com/k-o-a-b-c/monetail/actions/runs/41605779743)で確認。判定41件とWinUIスモーク1シナリオが成功し、製品/スモークのReleaseビルドは警告・エラー0。共通順と通常の本人先頭表示、移動と取消の通信なし、全IDの一括保存、競合時の最新一覧への直接置換、通信失敗/応答喪失、権限変更を検証した。さらに同じ本人での再ログイン後の未保存順・元の全体版の維持と非自動保存、認証待ち中の人物増減、降格/除外後の保存禁止、未参加時のGET抑止、別アカウント/接続先への非引き継ぎも成功。API・Client・Storage・旧版等は変更がなく再実行していない。構成合計847件は変わらず、スモーク内の確認項目を個別のテスト件数に加算しない。実キー・IME・実端末DPI・実ブラウザーのパスキーは未検証。
 
@@ -69,6 +72,8 @@ WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.git
 
 旧Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj`で画面・実SQLiteを確認する。性能計測は同コマンドに`--measure-receipt-reads CSVのパス`を渡し、通常テストと区別する（[測定条件](../docs/34-receipt-read-performance.md)）。APIのDocker確認は[起動・運用](../docs/42-api-foundation.md)を参照する。
 
+NAS構成の確認はLinux上のDocker・Bash・OpenSSL・Python 3・curlを使い、APIイメージをビルドしてから`bash tests/Monetail.Api.Tests/nas-smoke.sh monetail-api:ci`を実行する。隔離したDB・秘密ファイルとComposeプロジェクトは終了時に削除し、実Tailscaleサービスは起動しない。
+
 ## 必要なCIだけを実行する
 
 自動起動はPRの作成・更新と`main`へのpushだけとする。作業ブランチのpushとPRで同じ検証を二重起動しない。WinUI 3の通常検証も[Tests](../.github/workflows/tests.yml)から[再利用ワークフロー](../.github/workflows/winui.yml)を呼び出し、独立したpush/PR起動は行わない。PR更新時は同じPRの古い実行を中止する。
@@ -83,7 +88,7 @@ WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.git
 | Clientテストだけ | Client |
 | Storageテストだけ | Windowsの実DPAPI |
 | WinUI 3／スモーク | WinUI 3のビルド・製品起動・画面スモーク |
-| Dockerfile等／Compose | Docker／Compose |
+| Dockerfile等／Compose／NAS配備 | Dockerfile等はDocker、Compose・NAS配備はDocker＋Compose |
 | 旧Windows・計算・SQL等 | 依存するテスト、ビルド、必要なら性能計測 |
 | 共通CI・判定処理・SDK／ビルド設定 | 全対象。WinUI専用ワークフローの変更はWinUIのみ |
 
