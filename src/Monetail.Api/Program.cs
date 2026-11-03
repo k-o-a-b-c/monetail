@@ -65,10 +65,12 @@ try
         builder.Services.AddAuthDatabase(connectionString);
     if (!isAuthCommand)
     {
+        var registrationSettings = RegistrationSettings.Read(builder.Configuration);
         var passkeySettings = PasskeySettings.Read(builder.Configuration);
         var desktopOAuth = DesktopOAuthSettings.Read(builder.Configuration);
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("パスキー登録にはConnectionStrings:Monetailを指定してください。");
+        builder.Services.AddSingleton(registrationSettings);
         builder.Services.AddPasskeyWeb(passkeySettings);
         builder.Services.AddDesktopOAuth(desktopOAuth, passkeySettings);
         builder.Services.AddScoped<AdminAccountService>();
