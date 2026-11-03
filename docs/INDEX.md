@@ -8,6 +8,7 @@
 | 認証・全体アカウント管理の現行契約 | [43 認証](43-passkey-authentication-design.md) |
 | 家計簿・新規導入の仕様、技術案、未決定 | [58 家計簿設計](58-ledger-foundation-design.md) |
 | API起動・設定・移行・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
+| Docker対応NASへの配備・Tailscale Serve・運用手順 | [NASセットアップ](deployment-docker-nas.md) |
 | コードの責務・配置 | [04 構成](04-architecture.md) |
 | 新Windows版の共通UI・配置・フォント・高DPI基準 | [UI_DESIGN.md](../UI_DESIGN.md) |
 | 新Windows版のキー操作・日付と時刻の入力形式・補完 | [59 入力コントロール設計](59-input-controls-design.md) |
