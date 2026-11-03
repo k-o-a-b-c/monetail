@@ -31,21 +31,21 @@ public class AdminEnrollmentCodeReissueTests
         Assert.False(issued.Headers.Contains("Set-Cookie"));
         Assert.Equal("no-store", issued.Headers.CacheControl!.ToString());
         var body = await issued.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(new[] { "authUserId", "code", "expiresAtUtc" }, body.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        Assert.Equal(new[] { "authUserId", "enrollmentUrl", "expiresAtUtc" }, body.EnumerateObject().Select(property => property.Name).Order().ToArray());
         Assert.Equal(target.Id, body.GetProperty("authUserId").GetString());
-        var code = body.GetProperty("code").GetString()!;
+        var code = body.GetProperty("enrollmentUrl").GetString()!.EnrollmentToken();
         Assert.Equal(43, code.Length);
         Assert.NotEqual(target.Code, code);
-        Assert.Equal(app.Time.GetUtcNow().AddMinutes(10), body.GetProperty("expiresAtUtc").GetDateTimeOffset());
+        Assert.Equal(app.Time.GetUtcNow().AddDays(7), body.GetProperty("expiresAtUtc").GetDateTimeOffset());
         Assert.Equal(1L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'{Hash(target.Code)}' AND RevokedAtUtc IS NOT NULL"));
         Assert.Equal(1L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'{Hash(code)}' AND AuthUserId='{target.Id}' AND RevokedAtUtc IS NULL"));
         Assert.DoesNotContain(code, app.Database.Snapshot(app.Database.Tables()));
         Assert.Equal(before, app.Database.Snapshot(tables));
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var rejected = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
+        using var rejected = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { token = target.Code, displayName = "新しいアカウント名" });
         Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code, displayName = "新しいアカウント名" });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { token = code, displayName = "新しいアカウント名" });
         Assert.Equal(HttpStatusCode.OK, begin.StatusCode);
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         using var complete = await enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, RandomNumberGenerator.GetBytes(32)) });
@@ -58,7 +58,7 @@ public class AdminEnrollmentCodeReissueTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task FullyRevokedAccountCanReceiveANewCodeWithoutRevivingItsOldSessions(bool targetIsAdmin)
+    public async Task WebRefusesRegisteredStoppedAccountAndExplicitCliRecoveryPreservesIdentity(bool targetIsAdmin)
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
@@ -71,7 +71,7 @@ public class AdminEnrollmentCodeReissueTests
         }
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { token = target.Code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var key = RandomNumberGenerator.GetBytes(32);
         using var completed = await enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, key) });
@@ -83,17 +83,21 @@ public class AdminEnrollmentCodeReissueTests
             await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(target.Id);
         var tables = app.Database.Tables().Except(new[] { "auth_enrollment_codes" }).ToArray();
         var before = app.Database.Snapshot(tables);
-        using var issued = await ReissueAsync(admin, target.Id);
-        Assert.Equal(HttpStatusCode.OK, issued.StatusCode);
+        using var refused = await ReissueAsync(admin, target.Id);
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
         Assert.Equal(before, app.Database.Snapshot(tables));
+        string code;
+        await using (var scope = app.Factory.Services.CreateAsyncScope())
+        {
+            var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueRecoveryLinkAsync(target.Id);
+            Assert.Equal(app.Time.GetUtcNow().AddMinutes(10).UtcDateTime, issued.ExpiresAtUtc);
+            code = issued.Token();
+        }
         using var stillRejected = await enrollee.GetAsync("/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, stillRejected.StatusCode);
-        Assert.Equal(0L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{target.Id}'"));
-        Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM AspNetUserPasskeys WHERE UserId='{target.Id}'"));
-        var code = (await issued.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString()!;
         using var recovered = app.Client();
         await LoginTestApp.CsrfAsync(recovered);
-        using var recoveryBegin = await recovered.PostAsJsonAsync("/auth/enrollment/options", new { code, displayName = "新しいアカウント名" });
+        using var recoveryBegin = await recovered.PostAsJsonAsync("/auth/enrollment/options", new { token = code, displayName = "新しいアカウント名" });
         Assert.Equal(HttpStatusCode.OK, recoveryBegin.StatusCode);
         options = await recoveryBegin.Content.ReadFromJsonAsync<JsonElement>();
         var newKey = RandomNumberGenerator.GetBytes(32);
@@ -117,7 +121,7 @@ public class AdminEnrollmentCodeReissueTests
         using var admin = app.Client();
         var target = await PrepareAsync(app, admin);
         app.Database.Execute($"UPDATE auth_enrollment_codes SET ExpiresAtUtc=CreatedAtUtc WHERE AuthUserId='{target.Id}'");
-        app.Database.Execute($"INSERT INTO auth_enrollment_codes VALUES(X'01','{target.Id}','passkey-enrollment','2020-01-01','2020-01-02','2020-01-01',NULL)");
+        app.Database.Execute($"INSERT INTO auth_enrollment_codes VALUES(X'01','{app.UserId}','passkey-enrollment','2020-01-01','2020-01-02','2020-01-01',NULL)");
         app.Database.Execute($"INSERT INTO auth_enrollment_codes VALUES(X'02','{target.Id}','passkey-enrollment','2020-01-01','2020-01-02',NULL,'2020-01-01')");
         using var result = await ReissueAsync(admin, target.Id);
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
@@ -137,7 +141,7 @@ public class AdminEnrollmentCodeReissueTests
         {
             Assert.All(responses, response => Assert.Equal(HttpStatusCode.OK, response.StatusCode));
             var bodies = await Task.WhenAll(responses.Select(response => response.Content.ReadFromJsonAsync<JsonElement>()));
-            var codes = bodies.Select(body => body.GetProperty("code").GetString()!).ToArray();
+            var codes = bodies.Select(body => body.GetProperty("enrollmentUrl").GetString()!.EnrollmentToken()).ToArray();
             Assert.Equal(2, codes.Distinct().Count());
             Assert.Single(codes, code => (long)app.Database.Scalar($"SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'{Hash(code)}' AND RevokedAtUtc IS NULL")! == 1);
             Assert.Equal(1L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_enrollment_codes WHERE AuthUserId='{target.Id}' AND RevokedAtUtc IS NULL AND ConsumedAtUtc IS NULL"));
@@ -153,7 +157,7 @@ public class AdminEnrollmentCodeReissueTests
         var target = await PrepareAsync(app, admin);
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { token = target.Code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         using var reissued = await ReissueAsync(admin, target.Id);
         Assert.Equal(HttpStatusCode.OK, reissued.StatusCode);
@@ -171,7 +175,7 @@ public class AdminEnrollmentCodeReissueTests
         var target = await PrepareAsync(app, admin);
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code = target.Code, displayName = "新しいアカウント名" });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { token = target.Code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var enrollment = enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, RandomNumberGenerator.GetBytes(32)) });
         var reissue = ReissueAsync(admin, target.Id);
@@ -347,14 +351,14 @@ public class AdminEnrollmentCodeReissueTests
         using var created = await admin.PostAsJsonAsync("/admin/accounts", new { requestId = Guid.NewGuid() });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var body = await created.Content.ReadFromJsonAsync<JsonElement>();
-        return (body.GetProperty("authUserId").GetString()!, body.GetProperty("code").GetString()!);
+        return (body.GetProperty("authUserId").GetString()!, body.GetProperty("enrollmentUrl").GetString()!.EnrollmentToken());
     }
 
     /// <summary>URLに固定したアカウントへ、登録コード再発行を要求する。</summary>
     private static Task<HttpResponseMessage> ReissueAsync(HttpClient client, string id) => client.PostAsJsonAsync(Path(id), new { });
 
     /// <summary>認証IDをURLの単一要素として符号化する。</summary>
-    private static string Path(string id) => "/admin/accounts/" + Uri.EscapeDataString(id) + "/enrollment-code";
+    private static string Path(string id) => "/admin/accounts/" + Uri.EscapeDataString(id) + "/enrollment-invitation";
 
     /// <summary>生コードをDB照合用のSHA-256ハッシュへ変換する。</summary>
     private static string Hash(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));

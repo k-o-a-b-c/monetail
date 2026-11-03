@@ -21,5 +21,6 @@
     <EmbeddedResource Include="Pages/Enrollment.js" />
     <EmbeddedResource Include="Pages/Login.html" />
     <EmbeddedResource Include="Pages/Login.js" />
+    <EmbeddedResource Include="Pages/PasskeyClient.js" />
   </ItemGroup>
 </Project>

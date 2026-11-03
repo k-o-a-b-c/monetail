@@ -1,5 +1,11 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Monetail.Api.Authentication;
 using Xunit;
 
 namespace Monetail.Api.Tests;
@@ -18,7 +24,10 @@ public class AuthenticationCommandTests
         Assert.DoesNotContain("Now listening", initialized.Output);
         var first = await RunAsync(fixture.ConnectionString, ["initialize-admin"]);
         Assert.Equal(0, first.ExitCode);
-        var id = first.Output.Split('\n').Single(line => line.StartsWith("アカウントID:")).Split(':', 2)[1].Trim();
+        using var connection = fixture.OpenForeignKeyConnection();
+        using var query = connection.CreateCommand();
+        query.CommandText = "SELECT Id FROM AspNetUsers";
+        var id = (string)query.ExecuteScalar()!;
         var repeated = await RunAsync(fixture.ConnectionString, ["initialize-admin"]);
         Assert.Equal(0, repeated.ExitCode);
         Assert.Contains(id, repeated.Output);
@@ -27,11 +36,13 @@ public class AuthenticationCommandTests
         Assert.Equal(0, initializedAgain.ExitCode);
     }
 
-    [Fact]
-    public async Task UnknownCommandFailsWithoutStartingWebOrCreatingDatabase()
+    [Theory]
+    [InlineData("unknown-command")]
+    [InlineData("issue-enrollment-code")]
+    public async Task UnknownCommandFailsWithoutStartingWebOrCreatingDatabase(string command)
     {
         using var fixture = new AuthDatabaseFixture(createFile: false);
-        var result = await RunAsync(fixture.ConnectionString, ["unknown-command"]);
+        var result = await RunAsync(fixture.ConnectionString, [command]);
         Assert.Equal(1, result.ExitCode);
         Assert.False(File.Exists(fixture.DatabasePath));
         Assert.DoesNotContain("Now listening", result.Output);
@@ -89,8 +100,8 @@ public class AuthenticationCommandTests
         var before = fixture.Snapshot(tables);
         var created = await RunAsync(fixture.ConnectionString, ["initialize-admin"]);
         Assert.Equal(0, created.ExitCode);
-        Assert.Contains("アカウントID:", created.Output);
-        Assert.Equal(1, created.Output.Split('\n').Count(line => line.StartsWith("登録コード:", StringComparison.Ordinal)));
+        Assert.StartsWith(LoginTestApp.Origin + "/auth/enroll#token=", created.StandardOutput);
+        Assert.Equal(1, created.Output.Split('\n').Count(line => line.StartsWith(LoginTestApp.Origin + "/auth/enroll#token=", StringComparison.Ordinal)));
         Assert.DoesNotContain("Now listening", created.Output);
         Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM AspNetUsers WHERE IsEnabled=0 AND DisplayName IS NULL"));
         Assert.Equal(before, fixture.Snapshot(tables));
@@ -122,12 +133,38 @@ public class AuthenticationCommandTests
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
         using var me = await client.GetAsync("/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
-        var issued = await RunAsync(app.Database.ConnectionString, ["issue-enrollment-code", "--account-id", app.UserId]);
+        var issued = await RunAsync(app.Database.ConnectionString, ["issue-recovery-link", "--account-id", app.UserId]);
         Assert.Equal(0, issued.ExitCode);
-        Assert.Equal(1, issued.Output.Split('\n').Count(line => line.StartsWith("登録コード:", StringComparison.Ordinal)));
+        Assert.Equal(1, issued.Output.Split('\n').Count(line => line.StartsWith(LoginTestApp.Origin + "/auth/enroll#token=", StringComparison.Ordinal)));
         Assert.DoesNotContain("Now listening", issued.Output);
         Assert.Equal(0L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserRoles"));
+        var url = issued.StandardOutput.Trim();
+        Assert.StartsWith(LoginTestApp.Origin + "/auth/enroll#token=", url);
+        var token = url.EnrollmentToken();
+        Assert.Equal(32, Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(token).Length);
+        Assert.DoesNotContain(token, issued.StandardError);
+        Assert.Single(issued.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        await using (var scope = app.Factory.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<Monetail.Api.Persistence.ApiDbContext>();
+            var link = await database.EnrollmentCodes.AsNoTracking().SingleAsync(row => row.Purpose == EnrollmentCode.RecoveryPurpose);
+            Assert.Equal(TimeSpan.FromMinutes(10), link.ExpiresAtUtc - link.CreatedAtUtc);
+        }
+        using var recovered = app.Client();
+        await LoginTestApp.CsrfAsync(recovered);
+        using var optionsResponse = await recovered.PostAsJsonAsync("/auth/enrollment/options", new { token, displayName = "改名を要求" });
+        Assert.Equal(HttpStatusCode.OK, optionsResponse.StatusCode);
+        var options = await optionsResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var key = RandomNumberGenerator.GetBytes(32);
+        using var registered = await recovered.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, key) });
+        Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
+        Assert.Equal("同じ名前", app.Database.Scalar("SELECT DisplayName FROM AspNetUsers"));
+        using var notSignedIn = await recovered.GetAsync("/auth/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, notSignedIn.StatusCode);
+        options = await app.BeginAsync(recovered);
+        using var signedIn = await app.VerifyAsync(recovered, app.AssertionFor(options, app.UserId, key));
+        Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
     }
 
     [Fact]
@@ -183,8 +220,28 @@ public class AuthenticationCommandTests
         Assert.False(File.Exists(fixture.DatabasePath));
     }
 
-    /// <summary>Web設定が不正でも、実際のAPIエントリーポイントを管理コマンドとして起動する。</summary>
-    private static async Task<(int ExitCode, string Output)> RunAsync(string connectionString, string[] arguments)
+    [Theory]
+    [InlineData(null)]
+    [InlineData("http://monetail.example.test")]
+    [InlineData("https://monetail.example.test/path")]
+    [InlineData("https://monetail.example.test#synthetic-secret")]
+    public async Task LinkCommandsRequireFixedOriginAndNeverFallBackToCodes(string? origin)
+    {
+        using var fixture = new AuthDatabaseFixture();
+        await fixture.MigrateAsync();
+        var before = fixture.Snapshot(fixture.Tables());
+        foreach (var args in new[] { new[] { "initialize-admin" }, ["issue-recovery-link", "--account-id", "unknown"] })
+        {
+            var result = await RunAsync(fixture.ConnectionString, args, origin);
+            Assert.Equal(1, result.ExitCode);
+            Assert.Equal("", result.StandardOutput);
+            Assert.DoesNotContain("synthetic-secret", result.Output);
+            Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
+        }
+    }
+
+    /// <summary>発行だけは固定Originを与え、他のWeb設定なしで管理コマンドを起動する。</summary>
+    private static async Task<(int ExitCode, string Output, string StandardOutput, string StandardError)> RunAsync(string connectionString, string[] arguments, string? origin = LoginTestApp.Origin)
     {
         var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") ?? "dotnet")
         {
@@ -194,7 +251,8 @@ public class AuthenticationCommandTests
             "--depsfile", Path.Combine(AppContext.BaseDirectory, "Monetail.Api.Tests.deps.json"), typeof(Program).Assembly.Location }.Concat(arguments))
             start.ArgumentList.Add(argument);
         start.Environment["ConnectionStrings__Monetail"] = connectionString;
-        start.Environment["Passkeys__Origin"] = "invalid-web-setting";
+        if (origin is not null) start.Environment["Passkeys__Origin"] = origin;
+        else start.Environment.Remove("Passkeys__Origin");
         start.Environment["DesktopOAuth__SigningCertificatePath"] = "invalid-oauth-setting";
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
@@ -202,6 +260,8 @@ public class AuthenticationCommandTests
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         try { await process.WaitForExitAsync(timeout.Token); }
         catch { if (!process.HasExited) process.Kill(entireProcessTree: true); throw; }
-        return (process.ExitCode, await output + await error);
+        var stdout = await output;
+        var stderr = await error;
+        return (process.ExitCode, stdout + stderr, stdout, stderr);
     }
 }

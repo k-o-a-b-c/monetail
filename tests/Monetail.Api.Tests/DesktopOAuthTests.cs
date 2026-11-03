@@ -19,6 +19,28 @@ public class DesktopOAuthTests
     private const string Callback = "http://127.0.0.1:49152/callback/";
 
     [Fact]
+    public async Task InvitationEnrollmentStillRequiresOriginAndCsrfWithBearer()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var browser = app.Client();
+        await app.LoginAsync(browser);
+        using var native = Native(app);
+        await IssueAsync(app, browser, native);
+        using var noOrigin = await native.PostAsJsonAsync("/auth/enrollment/options", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, noOrigin.StatusCode);
+        native.DefaultRequestHeaders.Add("Origin", LoginTestApp.Origin);
+        using var noCsrf = await native.PostAsJsonAsync("/auth/enrollment/options", new { });
+        Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
+        await LoginTestApp.CsrfAsync(browser);
+        using var issued = await browser.PostAsJsonAsync("/admin/accounts", new { requestId = Guid.NewGuid() });
+        var token = (await issued.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("enrollmentUrl").GetString()!.EnrollmentToken();
+        browser.DefaultRequestHeaders.Authorization = native.DefaultRequestHeaders.Authorization;
+        await LoginTestApp.CsrfAsync(browser);
+        using var valid = await browser.PostAsJsonAsync("/auth/enrollment/options", new { token, displayName = "name" });
+        Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
+    }
+
+    [Fact]
     public async Task PublicSelfRegistrationStillRequiresOriginAndCsrfWithAValidBearer()
     {
         await using var app = await LoginTestApp.CreateAsync();

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
@@ -17,7 +18,7 @@ public class AdminProvisioningTests
     private static readonly DateTimeOffset Now = new(2026, 10, 24, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task BootstrapStoresOnlyHashWithTenMinuteExpiry()
+    public async Task BootstrapStoresOnlyHashWithThirtyMinuteExpiry()
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
@@ -26,16 +27,16 @@ public class AdminProvisioningTests
         var logs = new CapturedLogs();
         await using var services = Services(fixture, logs);
         await using var scope = services.CreateAsyncScope();
-        var issued = Assert.IsType<IssuedEnrollmentCode>(await scope.ServiceProvider
+        var issued = Assert.IsType<IssuedEnrollmentInvitation>(await scope.ServiceProvider
             .GetRequiredService<AdminProvisioningService>().InitializeAdminAsync());
         var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
         var stored = await context.EnrollmentCodes.AsNoTracking().SingleAsync();
-        Assert.Equal(32, Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(issued.Code).Length);
-        Assert.Equal(SHA256.HashData(Encoding.UTF8.GetBytes(issued.Code)), stored.CodeHash);
+        Assert.Equal(32, Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(issued.Token()).Length);
+        Assert.Equal(SHA256.HashData(Encoding.UTF8.GetBytes(issued.Token())), stored.CodeHash);
         Assert.Equal(Now.UtcDateTime, stored.CreatedAtUtc);
-        Assert.Equal(Now.UtcDateTime.AddMinutes(10), stored.ExpiresAtUtc);
+        Assert.Equal(Now.UtcDateTime.AddMinutes(30), stored.ExpiresAtUtc);
         Assert.Equal(stored.ExpiresAtUtc, issued.ExpiresAtUtc);
-        Assert.Equal("passkey-enrollment", stored.Purpose);
+        Assert.Equal(EnrollmentCode.InitialAdminPurpose, stored.Purpose);
         Assert.Null(stored.ConsumedAtUtc);
         Assert.Null(stored.RevokedAtUtc);
         var user = await context.Users.SingleAsync();
@@ -45,9 +46,9 @@ public class AdminProvisioningTests
         Assert.True(await scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>().IsInRoleAsync(user, "Admin"));
         Assert.Null(user.DisplayName);
         Assert.Equal(before, fixture.Snapshot(tables));
-        Assert.DoesNotContain(issued.Code, fixture.Snapshot(fixture.Tables()));
-        Assert.DoesNotContain(issued.Code, string.Join("\n", logs.Messages));
-        Assert.DoesNotContain(issued.Code, issued.ToString());
+        Assert.DoesNotContain(issued.Token(), fixture.Snapshot(fixture.Tables()));
+        Assert.DoesNotContain(issued.Token(), string.Join("\n", logs.Messages));
+        Assert.DoesNotContain(issued.Token(), issued.ToString());
         Assert.Contains(logs.Messages, line => line.Contains("初期管理者を作成"));
     }
 
@@ -67,19 +68,19 @@ public class AdminProvisioningTests
     {
         using var fixture = new AuthDatabaseFixture();
         await fixture.MigrateAsync();
-        var old = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture));
+        var old = Assert.IsType<IssuedEnrollmentInvitation>(await Bootstrap(fixture));
         var protectedTables = fixture.Tables().Where(table => table != "auth_enrollment_codes").ToArray();
         var before = fixture.Snapshot(protectedTables);
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
-        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!);
+        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentInvitationAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!);
         Assert.Equal(old.AuthUserId, issued.AuthUserId);
-        Assert.NotEqual(old.Code, issued.Code);
+        Assert.NotEqual(old.Token(), issued.Token());
         var codes = await scope.ServiceProvider.GetRequiredService<ApiDbContext>().EnrollmentCodes.AsNoTracking().ToListAsync();
         Assert.Equal(2, codes.Count);
         Assert.Single(codes, code => code.RevokedAtUtc == null && code.ConsumedAtUtc == null);
         Assert.Equal(Now.UtcDateTime, codes.Single(code => code.CodeHash.SequenceEqual(
-            SHA256.HashData(Encoding.UTF8.GetBytes(old.Code)))).RevokedAtUtc);
+            SHA256.HashData(Encoding.UTF8.GetBytes(old.Token())))).RevokedAtUtc);
         Assert.Equal(before, fixture.Snapshot(protectedTables));
     }
 
@@ -107,7 +108,7 @@ public class AdminProvisioningTests
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
         await Assert.ThrowsAsync<DbUpdateException>(() => scope.ServiceProvider
-            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!));
+            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentInvitationAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
     }
 
@@ -138,7 +139,7 @@ public class AdminProvisioningTests
         var before = fixture.Snapshot(fixture.Tables());
         await using var scope = services.CreateAsyncScope();
         await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider
-            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!));
+            .GetRequiredService<AdminProvisioningService>().IssueEnrollmentInvitationAsync((string)fixture.Scalar("SELECT Id FROM AspNetUsers")!));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
     }
 
@@ -154,10 +155,10 @@ public class AdminProvisioningTests
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<AdminProvisioningService>();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.IssueEnrollmentCodeAsync("missing"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.IssueEnrollmentInvitationAsync("missing"));
         Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
-        var issued = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture));
-        Assert.Equal(issued.AuthUserId, (await service.IssueEnrollmentCodeAsync(issued.AuthUserId)).AuthUserId);
+        var issued = Assert.IsType<IssuedEnrollmentInvitation>(await Bootstrap(fixture));
+        Assert.Equal(issued.AuthUserId, (await service.IssueEnrollmentInvitationAsync(issued.AuthUserId)).AuthUserId);
     }
 
     [Fact]
@@ -170,7 +171,7 @@ public class AdminProvisioningTests
         await using var scope = services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
         Assert.True((await users.CreateAsync(general)).Succeeded);
-        var issued = Assert.IsType<IssuedEnrollmentCode>(await Bootstrap(fixture));
+        var issued = Assert.IsType<IssuedEnrollmentInvitation>(await Bootstrap(fixture));
         Assert.NotEqual(general.Id, issued.AuthUserId);
         Assert.Empty(await users.GetRolesAsync(general));
         Assert.False((await users.FindByIdAsync(general.Id))!.IsEnabled);
@@ -191,6 +192,8 @@ public class AdminProvisioningTests
     private static ServiceProvider Services(AuthDatabaseFixture fixture, CapturedLogs? logs = null)
     {
         var services = new ServiceCollection();
+        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Passkeys:Origin"] = LoginTestApp.Origin }).Build());
         services.AddAuthDatabase(fixture.ConnectionString);
         services.AddSingleton<TimeProvider>(new FixedTime());
         if (logs != null) services.AddLogging(builder => builder.AddProvider(logs));
@@ -198,7 +201,7 @@ public class AdminProvisioningTests
     }
 
     /// <summary>CLIと同様に独立したスコープで初期作成する。</summary>
-    private static async Task<IssuedEnrollmentCode?> Bootstrap(AuthDatabaseFixture fixture)
+    private static async Task<IssuedEnrollmentInvitation?> Bootstrap(AuthDatabaseFixture fixture)
     {
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();

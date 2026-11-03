@@ -34,12 +34,12 @@ public class AdminAccountCreationTests
         Assert.False(created.Headers.Contains("Set-Cookie"));
         Assert.Equal("no-store", created.Headers.CacheControl!.ToString());
         var body = await created.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(new[] { "authUserId", "code", "expiresAtUtc" }, body.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        Assert.Equal(new[] { "authUserId", "enrollmentUrl", "expiresAtUtc" }, body.EnumerateObject().Select(property => property.Name).Order().ToArray());
         var id = body.GetProperty("authUserId").GetString()!;
-        var code = body.GetProperty("code").GetString()!;
+        var code = body.GetProperty("enrollmentUrl").GetString()!.EnrollmentToken();
         Assert.False(body.TryGetProperty("userCode", out _));
         Assert.Equal(43, code.Length);
-        Assert.Equal(app.Time.GetUtcNow().AddMinutes(10), body.GetProperty("expiresAtUtc").GetDateTimeOffset());
+        Assert.Equal(app.Time.GetUtcNow().AddDays(7), body.GetProperty("expiresAtUtc").GetDateTimeOffset());
         Assert.Equal(0L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{id}'"));
         Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM AspNetUserRoles WHERE UserId='{id}'"));
         Assert.Equal(0L, app.Database.Scalar($"SELECT COUNT(*) FROM AspNetUsers WHERE Id='{id}' AND (PasswordHash IS NOT NULL OR Email IS NOT NULL)"));
@@ -50,7 +50,7 @@ public class AdminAccountCreationTests
         Assert.Equal(before, app.Database.Snapshot(tables));
         using var enrollee = app.Client();
         await LoginTestApp.CsrfAsync(enrollee);
-        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { code, displayName = "新しいアカウント名" });
+        using var begin = await enrollee.PostAsJsonAsync("/auth/enrollment/options", new { token = code, displayName = "新しいアカウント名" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var key = RandomNumberGenerator.GetBytes(32);
         using var enrolled = await enrollee.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, key) });
@@ -88,7 +88,7 @@ public class AdminAccountCreationTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(id, body.GetProperty("authUserId").GetString());
-        Assert.Equal(JsonValueKind.Null, body.GetProperty("code").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("enrollmentUrl").ValueKind);
         Assert.Equal(JsonValueKind.Null, body.GetProperty("expiresAtUtc").ValueKind);
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
@@ -108,7 +108,7 @@ public class AdminAccountCreationTests
             Assert.Equal(sameRequest ? 1 : 2, responses.Count(response => response.StatusCode == HttpStatusCode.Created));
             if (sameRequest) Assert.Single(responses, response => response.StatusCode == HttpStatusCode.OK);
             var bodies = await Task.WhenAll(responses.Select(response => response.Content.ReadAsStringAsync()));
-            Assert.Equal(sameRequest ? 1 : 2, bodies.Count(body => JsonDocument.Parse(body).RootElement.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.String));
+            Assert.Equal(sameRequest ? 1 : 2, bodies.Count(body => JsonDocument.Parse(body).RootElement.TryGetProperty("enrollmentUrl", out var code) && code.ValueKind == JsonValueKind.String));
             Assert.Equal(sameRequest ? 1L : 2L, app.Database.Scalar("SELECT COUNT(*) FROM auth_account_creation_requests"));
         }
         finally { foreach (var response in responses) response.Dispose(); }
@@ -137,7 +137,7 @@ public class AdminAccountCreationTests
         var before = app.Database.Snapshot(app.Database.Tables());
         using var wrongAdmin = await CreateAsync(another, request);
         Assert.Equal(HttpStatusCode.Conflict, wrongAdmin.StatusCode);
-        Assert.False((await wrongAdmin.Content.ReadFromJsonAsync<JsonElement>()).TryGetProperty("code", out _));
+        Assert.False((await wrongAdmin.Content.ReadFromJsonAsync<JsonElement>()).TryGetProperty("enrollmentUrl", out _));
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 

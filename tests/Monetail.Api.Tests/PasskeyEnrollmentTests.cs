@@ -55,7 +55,7 @@ public class PasskeyEnrollmentTests
         await using var app = await EnrollmentApp.CreateAsync();
         switch (mode)
         {
-            case "expired": app.Time.Advance(TimeSpan.FromMinutes(10)); break;
+            case "expired": app.Time.Advance(TimeSpan.FromMinutes(30)); break;
             case "revoked": app.Database.Execute("UPDATE auth_enrollment_codes SET RevokedAtUtc=CreatedAtUtc"); break;
             case "consumed": app.Database.Execute("UPDATE auth_enrollment_codes SET ConsumedAtUtc=CreatedAtUtc"); break;
             case "purpose": app.Database.Execute("UPDATE auth_enrollment_codes SET Purpose='other'"); break;
@@ -63,8 +63,8 @@ public class PasskeyEnrollmentTests
         var before = app.Database.Snapshot(app.Database.Tables());
         using var client = app.Client();
         await app.CsrfAsync(client);
-        using var invalid = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = "invalid" });
-        using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = mode == "missing" ? new string('A', 43) : app.Code.Code });
+        using var invalid = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = "invalid" });
+        using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = mode == "missing" ? new string('A', 43) : app.Code.Token() });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(await invalid.Content.ReadAsStringAsync(), await response.Content.ReadAsStringAsync());
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
@@ -101,13 +101,13 @@ public class PasskeyEnrollmentTests
     {
         await using var app = await EnrollmentApp.CreateAsync();
         using var client = app.Client();
-        if (change == "expired") app.Time.Advance(TimeSpan.FromMinutes(9));
+        if (change == "expired") app.Time.Advance(TimeSpan.FromMinutes(29));
         var options = await app.BeginAsync(client);
         switch (change)
         {
             case "reissue":
                 await using (var scope = app.Factory.Services.CreateAsyncScope())
-                    await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(app.Code.AuthUserId);
+                    await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentInvitationAsync(app.Code.AuthUserId);
                 break;
             case "expired": app.Time.Advance(TimeSpan.FromMinutes(1)); break;
             case "challenge-expired": app.Time.Advance(TimeSpan.FromMinutes(5)); break;
@@ -208,7 +208,7 @@ public class PasskeyEnrollmentTests
         var credentialId = RandomNumberGenerator.GetBytes(32);
         using var registered = await app.VerifyAsync(first, Credential(options, id: credentialId));
         Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
-        IssuedEnrollmentCode secondCode;
+        IssuedEnrollmentInvitation secondCode;
         await using (var scope = app.Factory.Services.CreateAsyncScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
@@ -216,11 +216,11 @@ public class PasskeyEnrollmentTests
             Assert.True((await users.CreateAsync(user)).Succeeded);
             var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
             await context.SaveChangesAsync();
-            secondCode = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(user.Id);
+            secondCode = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentInvitationAsync(user.Id);
         }
         using var second = app.Client();
         await app.CsrfAsync(second);
-        using var begin = await second.PostAsJsonAsync("/auth/enrollment/options", new { code = secondCode.Code, displayName = "同じ名前" });
+        using var begin = await second.PostAsJsonAsync("/auth/enrollment/options", new { token = secondCode.Token(), displayName = "同じ名前" });
         Assert.Equal(HttpStatusCode.OK, begin.StatusCode);
         var secondOptions = await begin.Content.ReadFromJsonAsync<JsonElement>();
         var before = app.Database.Snapshot(app.Database.Tables());
@@ -234,12 +234,12 @@ public class PasskeyEnrollmentTests
     {
         await using var app = await EnrollmentApp.CreateAsync();
         using var client = app.Client();
-        using var noCsrf = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = app.Code.Code });
+        using var noCsrf = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = app.Code.Token() });
         Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
         await app.CsrfAsync(client);
         client.DefaultRequestHeaders.Remove("Origin");
         client.DefaultRequestHeaders.Add("Origin", "https://other.example.test");
-        using var origin = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = app.Code.Code });
+        using var origin = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = app.Code.Token() });
         Assert.Equal(HttpStatusCode.Forbidden, origin.StatusCode);
         using var http = app.Client("http://monetail.example.test");
         http.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https");
@@ -253,10 +253,10 @@ public class PasskeyEnrollmentTests
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, big.StatusCode);
         for (var index = 0; index < 19; index++)
         {
-            using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = "invalid" });
+            using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = "invalid" });
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
-        using var limited = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = app.Code.Code });
+        using var limited = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = app.Code.Token() });
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
         AssertUnregistered(app);
     }
@@ -345,7 +345,7 @@ public class PasskeyEnrollmentTests
         public AuthDatabaseFixture Database { get; } = new();
         public EnrollmentTime Time { get; } = new();
         public WebApplicationFactory<Program> Factory { get; private set; } = null!;
-        public IssuedEnrollmentCode Code { get; private set; } = null!;
+        public IssuedEnrollmentInvitation Code { get; private set; } = null!;
         public string ChallengeCookie { get; private set; } = "";
 
         public static async Task<EnrollmentApp> CreateAsync()
@@ -381,7 +381,7 @@ public class PasskeyEnrollmentTests
         public async Task<JsonElement> BeginAsync(HttpClient client)
         {
             await CsrfAsync(client);
-            using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = Code.Code, displayName = "同じ名前" });
+            using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = Code.Token(), displayName = "同じ名前" });
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             ChallengeCookie = response.Headers.GetValues("Set-Cookie").Single().Split(';')[0];
             return await response.Content.ReadFromJsonAsync<JsonElement>();
