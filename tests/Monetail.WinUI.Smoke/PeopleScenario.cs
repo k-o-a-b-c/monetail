@@ -210,11 +210,13 @@ public partial class App
         private readonly Guid mine = Guid.NewGuid();
         private readonly List<PersonInfo> people;
         private readonly Dictionary<Guid, Guid> requests = [];
+        private Guid orderRevision = Guid.NewGuid();
         internal readonly List<(HttpMethod Method, string Body)> Writes = [];
         internal int Reads;
         internal string Role = "Admin";
         internal bool Joined = true, FailNextSave, ConflictNextSave, DuplicateNextSave;
-        internal bool LoseDeleteResponse;
+        internal bool LoseDeleteResponse, ConflictNextOrder, LoseOrderResponse;
+        internal TaskCompletionSource? OrderStarted, ReleaseOrder;
         internal TaskCompletionSource? DeleteStarted, ReleaseDelete;
 
         internal PeopleServer() => people =
@@ -239,6 +241,11 @@ public partial class App
                 DeleteStarted?.TrySetResult();
                 if (ReleaseDelete is not null) await ReleaseDelete.Task.WaitAsync(token);
             }
+            if (request.Method == HttpMethod.Put)
+            {
+                OrderStarted?.TrySetResult();
+                if (ReleaseOrder is not null) await ReleaseOrder.Task.WaitAsync(token);
+            }
             if (!Joined) return Denied(HttpStatusCode.NotFound, null, null);
             if (FailNextSave) { FailNextSave = false; return new(HttpStatusCode.ServiceUnavailable); }
             using var document = JsonDocument.Parse(body);
@@ -251,8 +258,32 @@ public partial class App
                 {
                     var created = Guid.NewGuid();
                     requests.Add(id, created);
+                    orderRevision = Guid.NewGuid();
                     people.Add(new(created, input.GetProperty("name").GetString()!, Date(input, "validFrom"), Date(input, "validTo"), people.Count, Guid.NewGuid()));
                 }
+                return Json(Result());
+            }
+            if (request.Method == HttpMethod.Put)
+            {
+                if (Role != "Admin") return Denied(HttpStatusCode.Forbidden, Role, mine);
+                if (ConflictNextOrder)
+                {
+                    ConflictNextOrder = false;
+                    people.RemoveAll(person => person.PersonId != mine);
+                    people[0] = people[0] with { DisplayOrder = 1 };
+                    people.Add(new(Guid.NewGuid(), "子供", null, null, 0, Guid.NewGuid()));
+                    orderRevision = Guid.NewGuid();
+                }
+                if (input.GetProperty("revision").GetGuid() != orderRevision)
+                    return Json(new { code = "revision_conflict", latest = Result() }, HttpStatusCode.Conflict);
+                var ids = input.GetProperty("personIds").EnumerateArray().Select(value => value.GetGuid()).ToArray();
+                if (ids.Length != people.Count || ids.Distinct().Count() != ids.Length ||
+                    !ids.ToHashSet().SetEquals(people.Select(person => person.PersonId)))
+                    return Json(new { code = "invalid_input", field = "personIds" }, HttpStatusCode.BadRequest);
+                for (var index = 0; index < people.Count; index++)
+                    people[index] = people[index] with { DisplayOrder = Array.IndexOf(ids, people[index].PersonId) };
+                orderRevision = Guid.NewGuid();
+                if (LoseOrderResponse) { LoseOrderResponse = false; return new(HttpStatusCode.ServiceUnavailable); }
                 return Json(Result());
             }
             var target = Guid.Parse(request.RequestUri!.Segments[^1]);
@@ -271,6 +302,7 @@ public partial class App
             {
                 if (target == mine) return Json(new { code = "person_referenced" }, HttpStatusCode.Conflict);
                 people.RemoveAt(position);
+                orderRevision = Guid.NewGuid();
                 if (LoseDeleteResponse) { LoseDeleteResponse = false; return new(HttpStatusCode.ServiceUnavailable); }
                 return Json(Result());
             }
@@ -288,7 +320,7 @@ public partial class App
             return Json(Result());
         }
 
-        private PeopleInfo Result() => new(people.ToArray(), mine, Role, Guid.NewGuid());
+        private PeopleInfo Result() => new(people.ToArray(), mine, Role, orderRevision);
         private static DateOnly? Date(JsonElement input, string name) => input.GetProperty(name).ValueKind == JsonValueKind.Null ? null :
             DateOnly.ParseExact(input.GetProperty(name).GetString()!, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         private static HttpResponseMessage Denied(HttpStatusCode status, string? role, Guid? person) =>

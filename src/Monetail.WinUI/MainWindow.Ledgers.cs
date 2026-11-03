@@ -129,6 +129,7 @@ public sealed partial class MainWindow
         if (args.SelectedItem is not NavigationViewItem item || busy || personDialogOpen) return;
         DropPendingPersonEdit();
         DiscardPersonEditor();
+        DiscardPersonOrder();
         PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
         if (ReferenceEquals(item, PeopleNavigation))
         {

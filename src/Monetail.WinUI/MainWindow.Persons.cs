@@ -43,6 +43,7 @@ public sealed partial class MainWindow
         PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget =
             focused => focused is Button button && Equals(button.Content, PersonDialog.CloseButtonText);
         personKeyboard = FormKeyboard.ForDialog(PersonDialog, SavePersonAsync, PersonName, PersonValidFrom, PersonValidTo);
+        _ = new FormKeyboard(PersonOrderContent, SavePersonOrderButton, SavePersonOrderAsync);
         _ = new FormKeyboard(ConnectionPage, null, null, ServerUrl);
         _ = new FormKeyboard(ConnectionSettingsContent, null, null, SettingsServerUrl);
         _ = new FormKeyboard(LedgerCreatePage, CreateLedgerButton, CreateLedgerAsync, NewLedgerName);
@@ -51,6 +52,7 @@ public sealed partial class MainWindow
     private void ResetPeople()
     {
         DiscardPersonEditor();
+        DiscardPersonOrder();
         peopleInfo = null;
         peoplePermissions = null;
         missingPeople.Clear();
@@ -63,6 +65,8 @@ public sealed partial class MainWindow
     private void UpdatePeopleActions()
     {
         AddPersonButton.IsEnabled = account is not null && IsPeopleAdmin;
+        PersonOrderButton.IsEnabled = account is not null && IsPeopleAdmin && peopleInfo is not null;
+        UpdatePersonOrderActions();
         EditPersonButton.IsEnabled = PeopleList.SelectedItem is PersonRow row && CanEditPerson(row.Person);
         DeletePersonButton.IsEnabled = PeopleList.SelectedItem is PersonRow selected && CanDeletePerson(selected.Person);
         PersonDialog.IsPrimaryButtonEnabled = !busy && PersonEditorContent.Visibility == Visibility.Visible && !editorDenied && latestPerson is null && account is not null &&
@@ -93,7 +97,7 @@ public sealed partial class MainWindow
 
     private void OpenPersonEditor(PersonInfo? person, bool deletion = false)
     {
-        if (personDialogOpen) return;
+        if (personDialogOpen || IsOrderingPeople) return;
         editingPerson = person;
         isDeletingPerson = deletion;
         editingPeriod = !deletion && IsPeopleAdmin;

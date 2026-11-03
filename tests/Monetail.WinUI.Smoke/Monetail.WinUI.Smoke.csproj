@@ -11,6 +11,7 @@
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Ledgers.cs" Link="MainWindow.Ledgers.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Activation.cs" Link="MainWindow.Activation.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Persons.cs" Link="MainWindow.Persons.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.PersonOrder.cs" Link="MainWindow.PersonOrder.cs" />
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
