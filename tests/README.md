@@ -24,6 +24,10 @@
 
 ## 採用結果
 
+NuGetキャッシュと作業手順の整理はソース`c44a148d4967fa289f15f5a5053f09395c30b183`で確認。[CI 41586922999の初回](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/attempts/1)で構成847件、Docker/Compose・旧ソリューションビルド・性能計測が成功した。LinuxのClientとWindowsのDPAPI・WinUIでパッケージ保存を確認。[WinUIだけの再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/job/125757935468)では同じNuGetキーの復元がヒットし、製品/スモークのReleaseビルドが警告・エラー0、製品起動と画面スモークが成功した。他の製品ジョブは初回の実行時刻を保持し、再実行していない。NuGet復元とテストを省略せずにキャッシュを使えることを確認した結果であり、総所要時間の短縮率を保証するものではない。ローカルの判定41件・actionlint v1.7.12も成功。作業ルールはAGENTS.md、運用は下記「必要なCIだけを実行する」を参照する。
+
+### 過去の確認
+
 構成整理前のWinUI 3は[CI 41418236183](https://github.com/k-o-a-b-c/monetail/actions/runs/41418236183)（表示ソース47f4054）で製品・スモークのビルドが警告・エラー0、製品起動と画面スモークが成功。[単発撮影CI 41418289696](https://github.com/k-o-a-b-c/monetail/actions/runs/41418289696)ではアプリ名を置かず家計簿名を表示したホーム、左メニューと右の人物一覧、コンパクト表示、標準ダークテーマを96DPIで確認した。撮影時だけNoto Sans CJK JPを使い、通常起動へサンプルや撮影引数を入れていない。
 
 構成整理時の採用結果は対象ソース`8592ed02b4423ac47aeb3afc93f65fb150f013a7`。[通常CI 41424095869](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095869)でClient218件・実DPAPI3件・API430件・旧版の計算35件／SQLite移行10件／画面・永続化98件・CI選択20件が失敗・スキップ0で成功し、Dockerの起動確認・性能計測・旧ソリューションのビルドも成功した。[WinUI CI 41424095689](https://github.com/k-o-a-b-c/monetail/actions/runs/41424095689)では製品・スモークのReleaseビルドが警告・エラー0、製品EXEの起動と画面スモーク1シナリオが成功。今回は構成合計815件を実行した。Client21ファイルの内容・保存形式・API契約と旧VB.NET版のソースは変更せず、配置・参照・検証構成を整理した。
