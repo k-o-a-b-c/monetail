@@ -214,6 +214,8 @@ public partial class App
         internal int Reads;
         internal string Role = "Admin";
         internal bool Joined = true, FailNextSave, ConflictNextSave, DuplicateNextSave;
+        internal bool LoseDeleteResponse;
+        internal TaskCompletionSource? DeleteStarted, ReleaseDelete;
 
         internal PeopleServer() => people =
         [
@@ -232,6 +234,11 @@ public partial class App
             if (request.Method == HttpMethod.Get) { Reads++; return Json(Result()); }
             var body = await request.Content!.ReadAsStringAsync(token);
             Writes.Add((request.Method, body));
+            if (request.Method == HttpMethod.Delete)
+            {
+                DeleteStarted?.TrySetResult();
+                if (ReleaseDelete is not null) await ReleaseDelete.Task.WaitAsync(token);
+            }
             if (!Joined) return Denied(HttpStatusCode.NotFound, null, null);
             if (FailNextSave) { FailNextSave = false; return new(HttpStatusCode.ServiceUnavailable); }
             using var document = JsonDocument.Parse(body);
@@ -249,17 +256,24 @@ public partial class App
                 return Json(Result());
             }
             var target = Guid.Parse(request.RequestUri!.Segments[^1]);
-            if (Role != "Admin" && (target != mine || input.TryGetProperty("validFrom", out _) || input.TryGetProperty("validTo", out _)))
+            if (Role != "Admin" && (request.Method == HttpMethod.Delete || target != mine || input.TryGetProperty("validFrom", out _) || input.TryGetProperty("validTo", out _)))
                 return Denied(HttpStatusCode.Forbidden, Role, mine);
             var position = people.FindIndex(row => row.PersonId == target);
             if (position < 0) return Denied(HttpStatusCode.NotFound, Role, mine);
             if (ConflictNextSave)
             {
                 ConflictNextSave = false;
-                people[position] = people[position] with { Name = "父・最新", ValidFrom = new(2020, 1, 1), ValidTo = new(2030, 12, 31), Revision = Guid.NewGuid() };
+                people[position] = people[position] with { Name = people[position].Name + "・最新", ValidFrom = new(2020, 1, 1), ValidTo = new(2030, 12, 31), Revision = Guid.NewGuid() };
             }
             if (people[position].Revision != input.GetProperty("revision").GetGuid())
                 return Json(new { code = "revision_conflict", latest = people[position] }, HttpStatusCode.Conflict);
+            if (request.Method == HttpMethod.Delete)
+            {
+                if (target == mine) return Json(new { code = "person_referenced" }, HttpStatusCode.Conflict);
+                people.RemoveAt(position);
+                if (LoseDeleteResponse) { LoseDeleteResponse = false; return new(HttpStatusCode.ServiceUnavailable); }
+                return Json(Result());
+            }
             if (DuplicateNextSave)
             {
                 DuplicateNextSave = false;

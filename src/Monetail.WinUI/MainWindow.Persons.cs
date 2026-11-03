@@ -17,6 +17,7 @@ public sealed partial class MainWindow
     private PersonCreationDraft? personDraft;
     private readonly HashSet<Guid> missingPeople = [];
     private bool editingPeriod;
+    private bool isDeletingPerson;
     private bool editorDenied;
     private FormKeyboard personKeyboard = null!;
     private PersonEditSnapshot? pendingPersonEdit;
@@ -32,6 +33,8 @@ public sealed partial class MainWindow
     private bool CanViewPeople => peoplePermissions is null || peoplePermissions.CurrentRole is not null;
     private bool CanEditPerson(PersonInfo person) => account is not null && CanViewPeople &&
         !missingPeople.Contains(person.PersonId) && (IsPeopleAdmin || peoplePermissions?.MyPersonId == person.PersonId);
+
+    private bool CanDeletePerson(PersonInfo person) => IsPeopleAdmin && CanEditPerson(person);
 
     private void InitializeInput()
     {
@@ -61,8 +64,10 @@ public sealed partial class MainWindow
     {
         AddPersonButton.IsEnabled = account is not null && IsPeopleAdmin;
         EditPersonButton.IsEnabled = PeopleList.SelectedItem is PersonRow row && CanEditPerson(row.Person);
+        DeletePersonButton.IsEnabled = PeopleList.SelectedItem is PersonRow selected && CanDeletePerson(selected.Person);
         PersonDialog.IsPrimaryButtonEnabled = !busy && PersonEditorContent.Visibility == Visibility.Visible && !editorDenied && latestPerson is null && account is not null &&
-            (editingPerson is null ? IsPeopleAdmin : CanEditPerson(editingPerson) && (!editingPeriod || IsPeopleAdmin));
+            (isDeletingPerson ? editingPerson is not null && CanDeletePerson(editingPerson) :
+                editingPerson is null ? IsPeopleAdmin : CanEditPerson(editingPerson) && (!editingPeriod || IsPeopleAdmin));
         if (PersonEditorContent.Visibility != Visibility.Visible) PeopleNavigation.IsEnabled = CanViewPeople;
     }
 
@@ -80,16 +85,30 @@ public sealed partial class MainWindow
         OpenPersonEditor(row.Person);
     }
 
-    private void OpenPersonEditor(PersonInfo? person)
+    private void DeletePerson(object sender, RoutedEventArgs args)
+    {
+        if (busy || PeopleList.SelectedItem is not PersonRow row || !CanDeletePerson(row.Person)) return;
+        OpenPersonEditor(row.Person, deletion: true);
+    }
+
+    private void OpenPersonEditor(PersonInfo? person, bool deletion = false)
     {
         if (personDialogOpen) return;
         editingPerson = person;
-        editingPeriod = IsPeopleAdmin;
+        isDeletingPerson = deletion;
+        editingPeriod = !deletion && IsPeopleAdmin;
         latestPerson = null;
         personDraft = null;
         editorDenied = false;
-        PersonDialog.Title = person is null ? "人物の追加" : "人物の編集";
-        PersonDialog.PrimaryButtonText = person is null ? "登録" : "保存";
+        PersonDialog.Title = deletion ? "人物の削除" : person is null ? "人物の追加" : "人物の編集";
+        PersonDialog.PrimaryButtonText = deletion ? "削除" : person is null ? "登録" : "保存";
+        PersonDialog.DefaultButton = deletion ? ContentDialogButton.Close : ContentDialogButton.None;
+        PersonFields.Visibility = deletion ? Visibility.Collapsed : Visibility.Visible;
+        PersonDeleteNotice.Visibility = deletion ? Visibility.Visible : Visibility.Collapsed;
+        UpdatePersonDeleteNotice();
+        PersonConflictExplanation.Text = deletion
+            ? "切り替えると、削除対象の確認内容を最新内容に置き換えます。確認してから削除してください。"
+            : "切り替えると、現在の未保存の入力を最新内容に置き換えます。";
         PersonName.Text = person?.Name ?? "";
         PersonValidFrom.Text = DateTimeInput.FormatDate(person?.ValidFrom);
         PersonValidTo.Text = DateTimeInput.FormatDate(person?.ValidTo);
@@ -125,7 +144,13 @@ public sealed partial class MainWindow
         }
     }
 
-    private void PersonDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args) => FocusPersonField(PersonName);
+    private void PersonDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
+    {
+        if (!isDeletingPerson) FocusPersonField(PersonName);
+    }
+
+    private void UpdatePersonDeleteNotice() => PersonDeleteNotice.Text =
+        $"「{editingPerson?.Name}」を削除しますか。参照が残っている人物は削除できません。";
 
     private void PersonDialogClosing(ContentDialog sender, ContentDialogClosingEventArgs args)
     {
@@ -144,12 +169,14 @@ public sealed partial class MainWindow
 
     private async Task SavePersonAsync()
     {
-        if (await TrySavePersonAsync()) PersonDialog.Hide();
+        // Ctrl+Enterは登録・保存だけ。削除は確認ダイアログの明示操作で行う。
+        if (!isDeletingPerson && await TrySavePersonAsync()) PersonDialog.Hide();
     }
 
     private async Task<bool> TrySavePersonAsync()
     {
         if (busy || personKeyboard.IsComposing || !PersonDialog.IsPrimaryButtonEnabled) return false;
+        if (isDeletingPerson) return await TryDeletePersonAsync();
         var saved = false;
         ClearPersonErrors();
         PersonInput input;
@@ -177,6 +204,23 @@ public sealed partial class MainWindow
         return saved;
     }
 
+    private async Task<bool> TryDeletePersonAsync()
+    {
+        ClearPersonErrors();
+        var deleted = false;
+        await RunAsync(async () =>
+        {
+            try
+            {
+                var workspace = new PeopleWorkspace(connection.Api, connection.Session, currentLedger!.LedgerId);
+                DisplayPeople(await workspace.DeleteAsync(editingPerson!, lifetime.Token));
+                deleted = true;
+            }
+            catch (PeopleRequestException error) { HandlePersonFailure(error); }
+        }, () => Task.CompletedTask);
+        return deleted;
+    }
+
     private void HandlePersonFailure(PeopleRequestException error)
     {
         if (error.Code == "revision_conflict" && error.LatestPerson is { } latest)
@@ -193,17 +237,21 @@ public sealed partial class MainWindow
             if (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound) editorDenied = true;
             var message = error.StatusCode switch
             {
-                HttpStatusCode.Forbidden => "この操作を行う権限がありません。入力内容は保存されていません。",
-                HttpStatusCode.NotFound => "この人物を編集できないか、この家計簿に参加していません。入力内容は保存されていません。",
+                HttpStatusCode.Forbidden => isDeletingPerson ? "この人物を削除する権限がありません。" :
+                    "この操作を行う権限がありません。入力内容は保存されていません。",
+                HttpStatusCode.NotFound => isDeletingPerson ? "この人物は削除されているか、この家計簿に参加していません。" :
+                    "この人物を編集できないか、この家計簿に参加していません。入力内容は保存されていません。",
                 HttpStatusCode.TooManyRequests => "操作回数の上限に達しました。しばらく待って再試行してください。",
                 _ => error.Code switch
                 {
+                    "person_referenced" => "参照が残っているため削除できません。参加者との対応など、人物の使用箇所を確認してください。",
                     "duplicate_person_name" => "同じ名前の人物が登録されています。",
                     "created_result_deleted" => "作成した人物は削除されています。",
                     "request_conflict" => "この登録操作を続けられません。キャンセルして、追加し直してください。",
                     "invalid_input" when error.Field == "name" => "人物名を1〜100文字で入力してください。",
                     "invalid_input" when error.Field is "validFrom" or "validTo" => "有効開始日は有効終了日以前の日付にしてください。",
-                    _ => "人物を保存できませんでした。入力内容を確認してください。"
+                    _ => isDeletingPerson ? "人物を削除できませんでした。内容を確認してください。" :
+                        "人物を保存できませんでした。入力内容を確認してください。"
                 }
             };
             ShowPersonError(error.Field, message);
@@ -225,6 +273,7 @@ public sealed partial class MainWindow
     {
         if (busy || latestPerson is null) return;
         editingPerson = latestPerson;
+        if (isDeletingPerson) UpdatePersonDeleteNotice();
         PersonName.Text = latestPerson.Name;
         PersonValidFrom.Text = DateTimeInput.FormatDate(latestPerson.ValidFrom);
         PersonValidTo.Text = DateTimeInput.FormatDate(latestPerson.ValidTo);
@@ -249,13 +298,14 @@ public sealed partial class MainWindow
         editingPerson = latestPerson = null;
         personDraft = null;
         editorDenied = false;
+        isDeletingPerson = false;
         ClearPersonErrors();
         UpdatePeopleActions();
     }
 
     private void RememberPersonEdit()
     {
-        if (PersonEditorContent.Visibility != Visibility.Visible || account is null || currentLedger is null || peopleInfo is null)
+        if (isDeletingPerson || PersonEditorContent.Visibility != Visibility.Visible || account is null || currentLedger is null || peopleInfo is null)
             return;
         pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo, editingPerson,
             personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text);
@@ -340,6 +390,6 @@ public sealed partial class MainWindow
 
     private void FocusPersonField(Control control) => DispatcherQueue.TryEnqueue(() =>
     {
-        if (!closed && PersonEditorContent.Visibility == Visibility.Visible) control.Focus(FocusState.Programmatic);
+        if (!closed && !isDeletingPerson && PersonEditorContent.Visibility == Visibility.Visible) control.Focus(FocusState.Programmatic);
     });
 }

@@ -280,7 +280,7 @@
                             </Grid.ColumnDefinitions>
                             <Button x:Name="AddPersonButton" Content="追加" IsEnabled="False" Click="AddPerson" />
                             <Button x:Name="EditPersonButton" Grid.Column="1" Content="編集" IsEnabled="False" Click="EditPerson" />
-                            <Button Grid.Column="2" Content="削除" IsEnabled="False" HorizontalAlignment="Left" />
+                            <Button x:Name="DeletePersonButton" Grid.Column="2" Content="削除" IsEnabled="False" HorizontalAlignment="Left" Click="DeletePerson" />
                             <Button Grid.Column="3" Content="並び順変更" IsEnabled="False" />
                         </Grid>
                         <Border Grid.Row="3" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
@@ -362,15 +362,18 @@
                 <StackPanel HorizontalAlignment="Stretch" Spacing="16">
                     <TextBlock x:Name="PersonRestoredNotice" Visibility="Collapsed" Text="未保存の入力を復元しました。内容を確認してください。"
                                Style="{StaticResource Description}" />
-                    <TextBox x:Name="PersonName" Header="人物名" />
-                    <TextBlock x:Name="PersonNameError" Visibility="Collapsed" TextWrapping="Wrap"
-                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
-                    <input:DateInputBox x:Name="PersonValidFrom" Header="有効開始日" AllowEmpty="True" />
-                    <input:DateInputBox x:Name="PersonValidTo" Header="有効終了日" AllowEmpty="True" />
-                    <TextBlock x:Name="PersonPeriodError" Visibility="Collapsed" TextWrapping="Wrap"
-                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
-                    <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}" />
-                    <TextBlock x:Name="PersonPeriodPermission" Visibility="Collapsed" Text="有効期間は管理者のみ変更できます。" Style="{StaticResource Description}" />
+                    <TextBlock x:Name="PersonDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap" />
+                    <StackPanel x:Name="PersonFields" Spacing="16">
+                        <TextBox x:Name="PersonName" Header="人物名" />
+                        <TextBlock x:Name="PersonNameError" Visibility="Collapsed" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
+                        <input:DateInputBox x:Name="PersonValidFrom" Header="有効開始日" AllowEmpty="True" />
+                        <input:DateInputBox x:Name="PersonValidTo" Header="有効終了日" AllowEmpty="True" />
+                        <TextBlock x:Name="PersonPeriodError" Visibility="Collapsed" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}" />
+                        <TextBlock x:Name="PersonPeriodPermission" Visibility="Collapsed" Text="有効期間は管理者のみ変更できます。" Style="{StaticResource Description}" />
+                    </StackPanel>
                     <Border x:Name="PersonConflict" Visibility="Collapsed" Padding="16" CornerRadius="8"
                             BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
                         <StackPanel Spacing="12">
@@ -382,7 +385,7 @@
                             <TextBlock x:Name="LatestPersonFrom" />
                             <TextBlock Text="有効終了日" Style="{StaticResource Description}" />
                             <TextBlock x:Name="LatestPersonTo" />
-                            <TextBlock Text="切り替えると、現在の未保存の入力を最新内容に置き換えます。" TextWrapping="Wrap" />
+                            <TextBlock x:Name="PersonConflictExplanation" Text="切り替えると、現在の未保存の入力を最新内容に置き換えます。" TextWrapping="Wrap" />
                             <Button x:Name="UseLatestPersonButton" Content="最新内容に切り替える" Click="UseLatestPerson" />
                         </StackPanel>
                     </Border>
