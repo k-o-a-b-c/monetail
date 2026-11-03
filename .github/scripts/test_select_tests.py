@@ -57,7 +57,14 @@ class SelectionTests(unittest.TestCase):
 
     def test_container_configuration_does_not_start_windows_or_api_tests(self):
         self.assert_flags(["Dockerfile", ".dockerignore"], "docker")
-        self.assert_flags(["compose.yaml"], "compose")
+        self.assert_flags(["compose.yaml"], "docker", "compose")
+
+    def test_nas_deployment_validates_merged_configuration_and_real_container(self):
+        for path in ["deploy/nas/compose.nas.yaml", "deploy/nas/serve.json",
+                     "deploy/nas/nas.env.example", "deploy/nas/create-oauth-certificates.sh",
+                     "tests/Monetail.Api.Tests/nas-smoke.sh"]:
+            with self.subTest(path=path):
+                self.assert_flags([path], "docker", "compose")
 
     def test_windows_form_does_not_start_calculation_migration_or_performance(self):
         self.assert_flags([PRODUCT + "Control/RegisterForm.vb"], "windows_tests", "windows_build")

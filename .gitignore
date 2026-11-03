@@ -11,3 +11,12 @@ __pycache__/
 
 # CI success records (never contain build output or credentials)
 /.ci-proof/
+## 配備時の秘密ファイルはチェックアウト外に置く。誤配置にも備える。
+*.pfx
+*.p12
+*.key
+*.pem
+/deploy/nas/nas.env
+**/oauth/appsettings.Production.json
+**/tailscale/authkey
+**/tailscale/state/
