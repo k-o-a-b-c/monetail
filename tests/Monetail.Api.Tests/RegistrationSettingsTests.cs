@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -53,6 +54,9 @@ public sealed class RegistrationSettingsTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(RegistrationMode.InvitationOnly,
             factory.Services.GetRequiredService<RegistrationSettings>().Mode);
+        client.DefaultRequestHeaders.Add("Origin", LoginTestApp.Origin);
+        using var selfRegistration = await client.PostAsJsonAsync("/auth/self-registration/options", new { displayName = "new" });
+        Assert.Equal(HttpStatusCode.Forbidden, selfRegistration.StatusCode);
         Assert.False(File.Exists(database.DatabasePath));
     }
 

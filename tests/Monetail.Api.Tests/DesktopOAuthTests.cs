@@ -19,6 +19,28 @@ public class DesktopOAuthTests
     private const string Callback = "http://127.0.0.1:49152/callback/";
 
     [Fact]
+    public async Task PublicSelfRegistrationStillRequiresOriginAndCsrfWithAValidBearer()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        await using var factory = app.NewFactory().WithWebHostBuilder(builder => builder.UseSetting("Registration:Mode", "Public"));
+        using var browser = app.Client(factory);
+        await app.LoginAsync(browser);
+        using var native = Native(app, factory);
+        await IssueAsync(app, browser, native);
+        using var noOrigin = await native.PostAsJsonAsync("/auth/self-registration/options", new { displayName = "new" });
+        Assert.Equal(HttpStatusCode.Forbidden, noOrigin.StatusCode);
+        native.DefaultRequestHeaders.Add("Origin", LoginTestApp.Origin);
+        using var noCsrf = await native.PostAsJsonAsync("/auth/self-registration/options", new { displayName = "new" });
+        Assert.Equal(HttpStatusCode.BadRequest, noCsrf.StatusCode);
+        browser.DefaultRequestHeaders.Authorization = native.DefaultRequestHeaders.Authorization;
+        await LoginTestApp.CsrfAsync(browser);
+        using var both = await browser.PostAsJsonAsync("/auth/self-registration/options", new { displayName = "new" });
+        Assert.Equal(HttpStatusCode.OK, both.StatusCode);
+        Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUsers"));
+        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_self_registration_completions"));
+    }
+
+    [Fact]
     public async Task BearerCanManagePeopleAndInvitationsWithoutCookieOriginOrCsrf()
     {
         await using var app = await LoginTestApp.CreateAsync();

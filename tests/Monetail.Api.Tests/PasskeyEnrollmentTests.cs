@@ -36,6 +36,7 @@ public class PasskeyEnrollmentTests
         Assert.DoesNotContain(response.Headers.GetValues("Set-Cookie"), cookie => cookie.Contains("Identity.Application"));
         Assert.Equal(1L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserPasskeys"));
+        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_self_registration_completions"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE ConsumedAtUtc IS NOT NULL"));
         Assert.Equal("同じ名前", app.Database.Scalar("SELECT DisplayName FROM AspNetUsers"));
         Assert.Equal(before, app.Database.Snapshot(tables));
