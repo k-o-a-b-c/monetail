@@ -2,7 +2,21 @@ name: Tests
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 成功済みの結果を再利用せず全対象を検証する
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -18,13 +32,108 @@ jobs:
       performance: ${{ steps.select.outputs.performance }}
       windows_client: ${{ steps.select.outputs.windows_client }}
       windows_storage: ${{ steps.select.outputs.windows_storage }}
+      winui: ${{ steps.select.outputs.winui }}
+      fingerprints: ${{ steps.plan.outputs.fingerprints }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+      - id: plan
+        run: python3 .github/scripts/ci_plan.py plan
+      - uses: ./.github/actions/ci-proof
+        id: proof_api
+        with:
+          mode: restore
+          check: api
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).api }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.api }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_docker
+        with:
+          mode: restore
+          check: docker
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).docker }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.docker }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_compose
+        with:
+          mode: restore
+          check: compose
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).compose }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.compose }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_calculations
+        with:
+          mode: restore
+          check: calculations
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).calculations }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.calculations }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_migrations
+        with:
+          mode: restore
+          check: migrations
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).migrations }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.migrations }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_windows_tests
+        with:
+          mode: restore
+          check: windows_tests
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).windows_tests }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.windows_tests }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_windows_build
+        with:
+          mode: restore
+          check: windows_build
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).windows_build }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.windows_build }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_performance
+        with:
+          mode: restore
+          check: performance
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).performance }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.performance }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_windows_client
+        with:
+          mode: restore
+          check: windows_client
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).windows_client }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.windows_client }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_windows_storage
+        with:
+          mode: restore
+          check: windows_storage
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).windows_storage }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.windows_storage }}
+          force: ${{ inputs.force || false }}
+      - uses: ./.github/actions/ci-proof
+        id: proof_winui
+        with:
+          mode: restore
+          check: winui
+          fingerprint: ${{ fromJSON(steps.plan.outputs.fingerprints).winui }}
+          needed: ${{ fromJSON(steps.plan.outputs.plan).required.winui }}
+          force: ${{ inputs.force || false }}
       - id: select
-        run: python3 .github/scripts/select_tests.py
+        env:
+          CI_PLAN: ${{ steps.plan.outputs.plan }}
+          CI_REUSED: '{"api":"${{ steps.proof_api.outputs.reused }}","docker":"${{ steps.proof_docker.outputs.reused }}","compose":"${{ steps.proof_compose.outputs.reused }}","calculations":"${{ steps.proof_calculations.outputs.reused }}","migrations":"${{ steps.proof_migrations.outputs.reused }}","windows_tests":"${{ steps.proof_windows_tests.outputs.reused }}","windows_build":"${{ steps.proof_windows_build.outputs.reused }}","performance":"${{ steps.proof_performance.outputs.reused }}","windows_client":"${{ steps.proof_windows_client.outputs.reused }}","windows_storage":"${{ steps.proof_windows_storage.outputs.reused }}","winui":"${{ steps.proof_winui.outputs.reused }}"}'
+        run: python3 .github/scripts/ci_plan.py resolve
 
   windows-client-tests:
     needs: changes
@@ -35,7 +144,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: client
       - run: dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj --configuration Release
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.windows_client == 'true'
+        with:
+          mode: save
+          check: windows_client
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).windows_client }}
 
   windows-storage-tests:
     needs: changes
@@ -46,7 +164,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: storage
       - run: dotnet test tests/Monetail.Windows.Storage.Tests/Monetail.Windows.Storage.Tests.csproj --configuration Release
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.windows_storage == 'true'
+        with:
+          mode: save
+          check: windows_storage
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).windows_storage }}
 
   api-foundation:
     needs: changes
@@ -58,14 +185,36 @@ jobs:
         if: needs.changes.outputs.api == 'true'
         with:
           dotnet-version: 10.0.x
+      - uses: ./.github/actions/nuget-cache
+        if: needs.changes.outputs.api == 'true'
+        with:
+          scope: api
       - run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
         if: needs.changes.outputs.api == 'true'
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.api == 'true'
+        with:
+          mode: save
+          check: api
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).api }}
       - run: docker compose config --quiet
         if: needs.changes.outputs.compose == 'true'
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.compose == 'true'
+        with:
+          mode: save
+          check: compose
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).compose }}
       - run: docker build --tag monetail-api:ci .
         if: needs.changes.outputs.docker == 'true'
       - run: bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
         if: needs.changes.outputs.docker == 'true'
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.docker == 'true'
+        with:
+          mode: save
+          check: docker
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).docker }}
 
   receipt-read-performance:
     needs: changes
@@ -76,12 +225,21 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: performance
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj -- --measure-receipt-reads "$env:RUNNER_TEMP/receipt-read-performance.csv"
       - uses: actions/upload-artifact@v4
         with:
           name: receipt-read-performance
           path: ${{ runner.temp }}/receipt-read-performance.csv
           if-no-files-found: error
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.performance == 'true'
+        with:
+          mode: save
+          check: performance
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).performance }}
 
   calculations-and-migration:
     needs: changes
@@ -93,10 +251,26 @@ jobs:
         if: needs.changes.outputs.calculations == 'true'
         with:
           dotnet-version: 8.0.x
+      - uses: ./.github/actions/nuget-cache
+        if: needs.changes.outputs.calculations == 'true'
+        with:
+          scope: calculations
       - run: dotnet run --project tests/CalculationTests/CalculationTests.vbproj
         if: needs.changes.outputs.calculations == 'true'
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.calculations == 'true'
+        with:
+          mode: save
+          check: calculations
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).calculations }}
       - run: python3 -m unittest discover -s tests -p 'test_*migration.py' -v
         if: needs.changes.outputs.migrations == 'true'
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.migrations == 'true'
+        with:
+          mode: save
+          check: migrations
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).migrations }}
 
   windows-persistence-and-ui:
     needs: changes
@@ -108,8 +282,17 @@ jobs:
         if: needs.changes.outputs.windows_tests == 'true'
         with:
           dotnet-version: 8.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: legacy
       - run: dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj
         if: needs.changes.outputs.windows_tests == 'true'
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.windows_tests == 'true'
+        with:
+          mode: save
+          check: windows_tests
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).windows_tests }}
       - uses: NuGet/setup-nuget@v2
         if: needs.changes.outputs.windows_build == 'true'
       - uses: microsoft/setup-msbuild@v2
@@ -118,3 +301,17 @@ jobs:
         if: needs.changes.outputs.windows_build == 'true'
       - run: msbuild HouseholdAccountsBeta/HouseholdAccountsBeta.sln /p:Configuration=Debug /p:Platform="Any CPU" /verbosity:minimal
         if: needs.changes.outputs.windows_build == 'true'
+      - uses: ./.github/actions/ci-proof
+        if: needs.changes.outputs.windows_build == 'true'
+        with:
+          mode: save
+          check: windows_build
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).windows_build }}
+
+  winui-build-and-startup:
+    needs: changes
+    if: needs.changes.outputs.winui == 'true'
+    uses: ./.github/workflows/winui.yml
+    with:
+      fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).winui }}
+      capture: false

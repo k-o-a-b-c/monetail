@@ -8,3 +8,6 @@ __pycache__/
 
 # WinUI one-off preview font (downloaded in CI)
 /tests/Monetail.WinUI.Smoke/Assets/PreviewFont.otf
+
+# CI success records (never contain build output or credentials)
+/.ci-proof/

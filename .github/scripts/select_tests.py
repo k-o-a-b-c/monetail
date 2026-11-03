@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 FLAGS = ("api", "docker", "compose", "calculations", "migrations",
-         "windows_tests", "windows_build", "performance", "windows_client", "windows_storage")
+         "windows_tests", "windows_build", "performance", "windows_client", "windows_storage", "winui")
 PRODUCT = "HouseholdAccountsBeta/HouseholdAccountsBeta/"
 
 
@@ -43,9 +43,9 @@ def project_inputs(project, visited=None):
     return inputs
 
 
-def select(paths):
-    """変更の影響がある処理だけを有効にし、未分類の変更は報告する。"""
-    result = dict.fromkeys(FLAGS, False)
+def selected_inputs(paths, *, strict=True):
+    """各検証へ影響するファイルを集める。変更の未分類は既定で拒否する。"""
+    result = {flag: set() for flag in FLAGS}
     calculation_inputs = project_inputs("tests/CalculationTests/CalculationTests.vbproj")
     windows_inputs = project_inputs("tests/PersistenceTests/PersistenceTests.vbproj")
     api_inputs = project_inputs("tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj")
@@ -67,23 +67,23 @@ def select(paths):
     for path in paths:
         if path.endswith(".md") or path in {".gitignore", ".gitattributes"}:
             continue
-        if path == ".github/workflows/tests.yml" or path in {
+        if path == ".github/workflows/tests.yml" or path.startswith((".github/scripts/", ".github/actions/ci-proof/", ".github/actions/nuget-cache/")) or path in {
             "global.json", "NuGet.config", "nuget.config", "Directory.Build.props",
             "Directory.Build.targets", "Directory.Packages.props",
         }:
-            result = dict.fromkeys(FLAGS, True)
+            for inputs in result.values():
+                inputs.add(path)
             continue
-        if path in {".github/scripts/select_tests.py", ".github/scripts/test_select_tests.py"}:
-            continue  # 選択処理自身はchangesジョブで必ず検証する。
         if path == ".github/workflows/winui.yml" or path.startswith(("src/Monetail.WinUI/", "tests/Monetail.WinUI.Smoke/")):
-            continue  # Windows固有のWinUIビルド・起動は専用ワークフローで検証する。
+            result["winui"].add(path)
+            continue
         known = False
 
         def enable(*flags):
             nonlocal known
             known = True
             for flag in flags:
-                result[flag] = True
+                result[flag].add(path)
 
         if path.startswith("src/Monetail.Api/"):
             enable("api", "docker")
@@ -94,7 +94,7 @@ def select(paths):
         if any(matches(path, pattern) for pattern in api_inputs):
             enable("api")
         if path.startswith("src/Monetail.Windows.Client/"):
-            enable("windows_client", "windows_storage")
+            enable("windows_client", "windows_storage", "winui")
         if path.startswith("tests/Monetail.Windows.Client.Tests/"):
             enable("windows_client")
         if path.startswith("tests/Monetail.Windows.Storage.Tests/"):
@@ -132,9 +132,17 @@ def select(paths):
             known = True
         if not known:
             unknown.append(path)
-    if unknown:
+    if unknown and strict:
         raise ValueError("CI対象が未分類です。依存先を確認して選択条件を追加してください: " + ", ".join(unknown))
+    # 全入力の指紋では既存の未分類ファイルも全検証へ含め、黙って依存を落とさない。
+    for inputs in result.values():
+        inputs.update(unknown)
     return result
+
+
+def select(paths):
+    """変更の影響がある処理だけを有効にする。"""
+    return {flag: bool(inputs) for flag, inputs in selected_inputs(paths).items()}
 
 
 def git(*args):

@@ -11,8 +11,8 @@
 | Windows Client（接続・認証・保存・家計簿・人物・補完） | 226 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
-| CIの実行対象選択 | 20 |
-| 合計 | 826 |
+| CIの実行対象選択・成功結果の再利用 | 41 |
+| 合計 | 847 |
 
 ## 検証する範囲
 
@@ -23,6 +23,10 @@
 - 旧VB.NET版の計算・DB・画面・移行・性能は既存のテスト構成を維持する。実データ・利用者環境への適用を自動検証済みとは扱わない。
 
 ## 採用結果
+
+NuGetキャッシュと作業手順の整理はソース`c44a148d4967fa289f15f5a5053f09395c30b183`で確認。[CI 41586922999の初回](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/attempts/1)で構成847件、Docker/Compose・旧ソリューションビルド・性能計測が成功した。LinuxのClientとWindowsのDPAPI・WinUIでパッケージ保存を確認。[WinUIだけの再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/41586922999/job/125757935468)では同じNuGetキーの復元がヒットし、製品/スモークのReleaseビルドが警告・エラー0、製品起動と画面スモークが成功した。他の製品ジョブは初回の実行時刻を保持し、再実行していない。NuGet復元とテストを省略せずにキャッシュを使えることを確認した結果であり、総所要時間の短縮率を保証するものではない。ローカルの判定41件・actionlint v1.7.12も成功。作業ルールはAGENTS.md、運用は下記「必要なCIだけを実行する」を参照する。
+
+### 過去の確認
 
 構成整理前のWinUI 3は[CI 41418236183](https://github.com/k-o-a-b-c/monetail/actions/runs/41418236183)（表示ソース47f4054）で製品・スモークのビルドが警告・エラー0、製品起動と画面スモークが成功。[単発撮影CI 41418289696](https://github.com/k-o-a-b-c/monetail/actions/runs/41418289696)ではアプリ名を置かず家計簿名を表示したホーム、左メニューと右の人物一覧、コンパクト表示、標準ダークテーマを96DPIで確認した。撮影時だけNoto Sans CJK JPを使い、通常起動へサンプルや撮影引数を入れていない。
 
@@ -44,6 +48,12 @@
 
 同じソースの[単発撮影CI 41541866024](https://github.com/k-o-a-b-c/monetail/actions/runs/41541866024)も成功し、人物追加と競合時のContentDialogを96DPIの画像で目視確認した。ダイアログ自体をRenderTargetBitmapで撮影しており、背後の一覧はこの2画像には含まれない。背後の表示継続は操作スモークで確認している。スモーク内の92確認項目は独立の92テストとは数えない。実IME変換・物理キー・実端末DPI・実ブラウザーのパスキーは未検証。
 
+CIの起動・選択・成功結果の再利用はソース`8b82a4ae61c54db624ef94b066d52212faa75e00`で確認。[CI 41581065430](https://github.com/k-o-a-b-c/monetail/actions/runs/41581065430)はPR起動の1回だけで、判定41件・API433件・Client226件・実DPAPI3件・旧計算35件・SQLite移行10件・旧画面/永続化98件・WinUI 1シナリオの構成847件が成功。Docker/Compose、旧ソリューションのビルド、性能計測も成功し、各検証後の成功記録の保存を確認した。WinUIの製品・スモークのReleaseビルドは警告・エラー0。通常側で撮影が省略されることも確認した。
+
+同じソースの[手動撮影CI 41581145112](https://github.com/k-o-a-b-c/monetail/actions/runs/41581145112)も成功し、`workflow_dispatch`から合成データの画像と撮影済みの結果JSONが出力された。撮影側から通常検証の成功記録は保存していない。入力の変更・破損・失敗後の再試行・PR全差分の維持は判定テストでも確認し、actionlint v1.7.12による構文検証も成功した。
+
+検証記録だけを更新した`a8b256e852616586758ae6f7c5e073120e96a180`の[CI 41582333257](https://github.com/k-o-a-b-c/monetail/actions/runs/41582333257)では、11種類すべての成功記録を復元・照合し、判定ジョブだけが成功した。API・Docker/Compose・Client・実DPAPI・WinUI・旧計算/移行・旧画面/ビルド・性能計測は再実行していない。Windows由来の記録もLinuxで再利用できた。この更新で実行したテストは判定41件だけとし、初回の構成847件とは区別する。
+
 ## 実行方法（リポジトリ直下）
 
 ```sh
@@ -60,27 +70,37 @@ python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 ```
 
-WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIで画像は取らず、`preview/winui-*`ブランチでのみ単発撮影する。
+WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIでは画像を取らない。撮影はActionsの「WinUI 3 foundation」を手動実行し、対象ブランチと`capture=true`を指定する。撮影専用ブランチへのpushは不要。
 
 旧Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj`で画面・実SQLiteを確認する。性能計測は同コマンドに`--measure-receipt-reads CSVのパス`を渡し、通常テストと区別する（[測定条件](../docs/34-receipt-read-performance.md)）。APIのDocker確認は[起動・運用](../docs/42-api-foundation.md)を参照する。
 
 ## 必要なCIだけを実行する
 
-[select_tests.py](../.github/scripts/select_tests.py)が差分と参照プロジェクトから実行対象を選ぶ。PRは分岐点以降、pushは更新前後を対象にする。改名・削除も扱い、未分類の変更は失敗させる。
+自動起動はPRの作成・更新と`main`へのpushだけとする。作業ブランチのpushとPRで同じ検証を二重起動しない。WinUI 3の通常検証も[Tests](../.github/workflows/tests.yml)から[再利用ワークフロー](../.github/workflows/winui.yml)を呼び出し、独立したpush/PR起動は行わない。PR更新時は同じPRの古い実行を中止する。
 
-| 変更 | 確認対象 |
+[select_tests.py](../.github/scripts/select_tests.py)が変更と参照プロジェクトから検証対象を選び、[ci_plan.py](../.github/scripts/ci_plan.py)が同じ入力の成功記録を確認する。PRは分岐点以降の全差分を対象にし、最後のコミットが文書だけでも、PR内の未検証・失敗した変更を取り落とさない。改名・削除も扱い、未分類の変更は失敗させる。
+
+| 変更 | 確認対象（同じ入力の成功記録があれば再利用） |
 | --- | --- |
-| 文書だけ | CI選択。API・Docker・Windows等は省略 |
+| 文書だけ | 軽量なCI判定。PR内に未検証・失敗した変更が残る場合は、その検証を実行 |
 | APIソース／テスト | API、製品ソースではDockerも確認 |
-| Clientソース | ClientとWindowsの実DPAPI。専用ワークフローでWinUI 3のビルド・起動も確認 |
+| Clientソース | Client・Windowsの実DPAPI・WinUI 3 |
 | Clientテストだけ | Client |
 | Storageテストだけ | Windowsの実DPAPI |
-| WinUI 3／スモーク | 専用ワークフローのビルド・製品起動・画面スモーク |
+| WinUI 3／スモーク | WinUI 3のビルド・製品起動・画面スモーク |
 | Dockerfile等／Compose | Docker／Compose |
 | 旧Windows・計算・SQL等 | 依存するテスト、ビルド、必要なら性能計測 |
-| 共通CI・SDK／ビルド設定 | 全対象 |
+| 共通CI・判定処理・SDK／ビルド設定 | 全対象。WinUI専用ワークフローの変更はWinUIのみ |
 
-同じ製品ソースの成功CIは再利用し、新しい変更・失敗・未解決の懸念がある場合だけ再実行する。省略を検証成功として数えない。
+再利用には、各検証に影響するファイルのパス・Gitオブジェクト・実行属性から求めた指紋を使う。製品だけでなくテスト、参照先、CI定義、共通ビルド設定を含め、チェックアウトしたPRのマージ後ツリーで照合する。入力が変われば別の記録となる。既存の未分類ファイルは指紋から黙って落とさず、保守的に全検証へ含める。
+
+[成功記録用アクション](../.github/actions/ci-proof/action.yml)は、各検証が成功した後にだけ、指紋と元のCIへのリンクをActions cacheへ保存する。中断・失敗を成功として保存しない。復元は完全一致だけとし、記録なし・不一致・破損・キャッシュ障害は再実行する。Windowsで保存した記録もLinuxの判定ジョブで照合する。キャッシュは最適化であり、GitHub側で消去されたら検証し直す。再利用の有無と元の成功CIは実行概要へ表示し、再実行していないものを今回の検証件数へ加算しない。
+
+`main`では現在の全対象の成功記録を確認し、以前のpushが未検証でも次のpushで取り落とさない。PR専用キャッシュを`main`の成功記録として流用せず、GitHubのキャッシュ公開範囲に従う。main取り込み後の確認はPRとの二重起動とは区別する。
+
+NuGetパッケージは[共通アクション](../.github/actions/nuget-cache/action.yml)でキャッシュする。OS・アーキテクチャ・ジョブ・実SDK版・プロジェクト/依存設定でキーを分け、並列ジョブが部分的なパッケージ群を同じキーへ保存しないようにする。旧版の`packages.config`用フォルダーも含める。依存設定が変わった場合は既存パッケージを種として復元できるが、NuGetの依存解決とテスト/ビルドは省略しない。成功結果の再利用とは別の仕組みで、キャッシュ障害時も通常の復元へ戻る。
+
+撮影は必要時の手動実行だけで行い、撮影結果を通常検証の成功記録として登録しない。全検証をやり直したい場合はActionsの「Tests」を`force=true`で手動実行する。成功済みの入力でも再実行できる。
 
 ## 新版Windowsの手動確認（未実施）
 

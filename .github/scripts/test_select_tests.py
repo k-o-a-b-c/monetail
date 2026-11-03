@@ -29,9 +29,9 @@ class SelectionTests(unittest.TestCase):
 
     def test_new_windows_client_source_validates_portable_and_desktop_without_legacy(self):
         self.assert_flags(["src/Monetail.Windows.Client/Authentication/BrowserOAuthLogin.cs"],
-                          "windows_client", "windows_storage")
+                          "windows_client", "windows_storage", "winui")
         self.assert_flags(["src/Monetail.Windows.Client/Monetail.Windows.Client.csproj"],
-                          "windows_client", "windows_storage")
+                          "windows_client", "windows_storage", "winui")
 
     def test_removed_projects_can_be_deleted_but_not_reintroduced(self):
         paths = ["src/Removed/Removed.csproj", "src/Removed/Example.cs"]
@@ -42,12 +42,12 @@ class SelectionTests(unittest.TestCase):
         with patch("select_tests.project_inputs", return_value={"src/Removed/Example.cs"}):
             self.assertTrue(select(paths)["windows_client"])
 
-    def test_winui_source_and_smoke_are_handled_by_the_dedicated_workflow(self):
+    def test_winui_source_and_smoke_select_the_reusable_job(self):
         self.assert_flags(["src/Monetail.WinUI/Monetail.WinUI.csproj", "src/Monetail.WinUI/MainWindow.xaml",
-                           "src/Monetail.WinUI/MainWindow.xaml.cs", "tests/Monetail.WinUI.Smoke/run.ps1"])
+                           "src/Monetail.WinUI/MainWindow.xaml.cs", "tests/Monetail.WinUI.Smoke/run.ps1"], "winui")
 
     def test_winui_workflow_does_not_start_unrelated_api_or_legacy_jobs(self):
-        self.assert_flags([".github/workflows/winui.yml"])
+        self.assert_flags([".github/workflows/winui.yml"], "winui")
 
     def test_new_windows_tests_select_only_their_platform(self):
         self.assert_flags(["tests/Monetail.Windows.Client.Tests/OAuthTests.cs"], "windows_client")
@@ -87,10 +87,10 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["tests/Shared/Assertions.vb"], "calculations", "windows_tests", "performance")
 
     def test_workflow_and_shared_build_settings_validate_all_jobs(self):
-        for path in [".github/workflows/tests.yml", "Directory.Build.props", "global.json"]:
+        for path in [".github/workflows/tests.yml", ".github/actions/nuget-cache/action.yml", "Directory.Build.props", "global.json"]:
             with self.subTest(path=path):
                 self.assert_flags([path], *FLAGS)
-        self.assert_flags([".github/scripts/select_tests.py"])
+        self.assert_flags([".github/scripts/select_tests.py"], *FLAGS)
 
     def test_mixed_changes_use_union_and_unknown_changes_fail(self):
         self.assert_flags(["README.md", "src/Monetail.Api/Program.cs", PRODUCT + "Control/RegisterForm.vb"],

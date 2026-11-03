@@ -1,0 +1,50 @@
+name: Reuse a successful check with identical inputs
+description: 成功した検証だけを入力の指紋で再利用する。復元失敗・記録不一致なら再実行する。
+inputs:
+  mode:
+    description: restore or save
+    required: true
+  check:
+    description: 検証の識別名
+    required: true
+  fingerprint:
+    description: Gitツリーから求めた入力の指紋
+    required: true
+  needed:
+    description: 今回の実行対象か
+    default: 'true'
+  force:
+    description: 成功結果を再利用せず再実行するか
+    default: 'false'
+outputs:
+  reused:
+    description: 同じ入力の成功記録を復元できたか
+    value: ${{ steps.proof.outputs.reused }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache/restore@v4
+      id: restore
+      continue-on-error: true
+      if: inputs.mode == 'restore' && inputs.needed == 'true' && inputs.force != 'true'
+      with:
+        path: .ci-proof/${{ inputs.check }}
+        key: ci-success-v1-${{ inputs.check }}-${{ inputs.fingerprint }}
+        enableCrossOsArchive: true
+    - id: proof
+      shell: bash
+      env:
+        CI_PROOF_MODE: ${{ inputs.mode }}
+        CI_CHECK: ${{ inputs.check }}
+        CI_FINGERPRINT: ${{ inputs.fingerprint }}
+        CI_NEEDED: ${{ inputs.needed }}
+        CI_FORCE: ${{ inputs.force }}
+        CI_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+      run: python3 .github/scripts/ci_plan.py proof
+    - uses: actions/cache/save@v4
+      continue-on-error: true
+      if: inputs.mode == 'save' && inputs.needed == 'true'
+      with:
+        path: .ci-proof/${{ inputs.check }}
+        key: ci-success-v1-${{ inputs.check }}-${{ inputs.fingerprint }}
+        enableCrossOsArchive: true
