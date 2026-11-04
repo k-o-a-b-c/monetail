@@ -45,7 +45,7 @@ async function showPreview() {
         else { buttons("accept"); message(`「${result.ledgerName}」に参加しますか？`); }
     } catch (error) {
         if (error.status === 401) { loginAction(); message("ログインしてください。"); }
-        else if ([400, 404, 409].includes(error.status)) { clear(); buttons(); el("back").hidden = true; message(({ invitation_used: "この招待リンクは使用済みです。", invitation_expired: "この招待リンクは期限切れです。", invitation_revoked: "この招待リンクは取り消されています。" })[error.code] ?? "この招待リンクは無効のため利用できません。"); }
+        else if ([400, 404, 409].includes(error.status)) { clear(); buttons(); el("back").hidden = true; message(({ invitation_used: "この招待リンクは使用済みです。", invitation_expired: "招待の期限が切れています。", invitation_revoked: "無効な招待です。" })[error.code] ?? "無効な招待です。"); }
         else throw error;
     }
 }

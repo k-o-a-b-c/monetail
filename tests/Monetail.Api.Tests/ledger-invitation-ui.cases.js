@@ -41,6 +41,7 @@ for(const logged of [true,false])test('通常の戻るはログイン状態別�
 });
 for(const code of ['invalid_invitation','invitation_expired','invitation_used','invitation_revoked'])test('利用不可では戻るを含め操作を出さない:'+code,async()=>{
  const p=await page({preview:409,previewCode:code});
+ assert.equal(p.el('message').textContent,code==='invitation_expired'?'招待の期限が切れています。':code==='invitation_used'?'この招待リンクは使用済みです。':'無効な招待です。');
  for(const id of ['back','preview','accept','check','invitation-login'])assert.equal(p.el(id).hidden,true,id);
  await p.click('back');assert.equal(p.moves.length,0);assert.equal(p.storage.size,0);
 });
