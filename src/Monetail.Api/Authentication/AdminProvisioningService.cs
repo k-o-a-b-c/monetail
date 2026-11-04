@@ -54,8 +54,11 @@ public sealed class AdminProvisioningService(ApiDbContext context, UserManager<A
             ?? throw new InvalidOperationException("指定したアカウントを確認できません。");
         if (user.IsEnabled || (await users.GetPasskeysAsync(user)).Count > 0)
             throw new InvalidOperationException("利用中またはパスキーが残るアカウントです。先に全失効が必要です。");
-        if (!recovery && await WasRegisteredAsync(user, token))
+        var registered = await WasRegisteredAsync(user, token);
+        if (!recovery && registered)
             throw new InvalidOperationException("登録済みアカウントの復旧にはissue-recovery-linkを明示してください。");
+        if (recovery && !registered)
+            throw new InvalidOperationException("未登録アカウントにはissue-enrollment-invitationを使用してください。");
         var initialAdmin = !recovery && await users.IsInRoleAsync(user, "Admin");
         var issued = await AddInvitationAsync(user.Id, recovery ? TimeSpan.FromMinutes(10)
             : initialAdmin ? TimeSpan.FromMinutes(30) : TimeSpan.FromDays(7),

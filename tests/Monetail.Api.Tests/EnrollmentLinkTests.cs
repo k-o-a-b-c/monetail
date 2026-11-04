@@ -96,6 +96,45 @@ public sealed class EnrollmentLinkTests
     }
 
     [Theory]
+    [InlineData(EnrollmentCode.InvitationPurpose, true)]
+    [InlineData(EnrollmentCode.InitialAdminPurpose, true)]
+    [InlineData(EnrollmentCode.RecoveryPurpose, false)]
+    [InlineData("unknown-purpose", false)]
+    public async Task CancellationOnlyChangesNormalAndInitialAdminInvitations(string purpose, bool cancelled)
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var admin = app.Client();
+        await app.LoginAsync(admin);
+        var target = await app.AddAccountAsync();
+        IssuedEnrollmentInvitation issued;
+        await using (var scope = app.Factory.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(target.UserId);
+            issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueRecoveryLinkAsync(target.UserId);
+            var database = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
+            var link = await database.EnrollmentCodes.SingleAsync(row => row.AuthUserId == target.UserId);
+            link.Purpose = purpose;
+            await database.SaveChangesAsync();
+        }
+        var before = app.Database.Snapshot(app.Database.Tables());
+        await LoginTestApp.CsrfAsync(admin);
+        using var response = await admin.DeleteAsync($"/admin/accounts/{target.UserId}/enrollment-invitation");
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(cancelled ? 1L : 0L, app.Database.Scalar($"SELECT COUNT(*) FROM auth_enrollment_codes WHERE AuthUserId='{target.UserId}' AND RevokedAtUtc IS NOT NULL"));
+        if (!cancelled) Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
+        if (purpose == EnrollmentCode.RecoveryPurpose)
+        {
+            using var client = app.Client();
+            await LoginTestApp.CsrfAsync(client);
+            using var options = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = issued.Token(), displayName = "復旧" });
+            Assert.Equal(HttpStatusCode.OK, options.StatusCode);
+            using var verified = await client.PostAsJsonAsync("/auth/enrollment/verify", new
+                { credential = PasskeyEnrollmentTests.Credential(await options.Content.ReadFromJsonAsync<JsonElement>()) });
+            Assert.Equal(HttpStatusCode.OK, verified.StatusCode);
+        }
+    }
+
+    [Theory]
     [InlineData("session")]
     [InlineData("role")]
     public async Task CancellationRollsBackWhenAdministratorChangesDuringWrite(string change)
@@ -177,7 +216,8 @@ public sealed class EnrollmentLinkTests
     public async Task CliRecoveryPreservesDisplayNameIncludingLegacyNull(bool missingName)
     {
         await using var app = await LoginTestApp.CreateAsync();
-        if (missingName) app.Database.Execute("UPDATE AspNetUsers SET DisplayName=NULL");
+        // 旧表示名がNULLでも、実際に登録済みだった履歴は保持する。
+        if (missingName) app.Database.Execute("UPDATE AspNetUsers SET DisplayName=NULL; UPDATE auth_enrollment_codes SET ConsumedAtUtc=CreatedAtUtc");
         IssuedEnrollmentInvitation issued;
         await using (var scope = app.Factory.Services.CreateAsyncScope())
         {

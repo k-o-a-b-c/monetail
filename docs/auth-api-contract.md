@@ -35,14 +35,14 @@
 | --- | --- |
 | `POST /admin/accounts` | 初回201だけ`authUserId`・`enrollmentUrl`・`expiresAtUtc`。再送200は同じIDだがURL/期限はnull。従来の`code`応答は廃止 |
 | `POST /admin/accounts/{id}/enrollment-invitation` | Admin＋直近本人確認＋CSRFで未利用・鍵なしの既存アカウントへリンクを再発行。旧`/enrollment-code`は廃止し、旧リンクは失効 |
-| `DELETE /admin/accounts/{id}/enrollment-invitation` | Admin＋直近本人確認＋CSRFで未使用リンクを取消。未使用の有効な招待がなくても204を返し、利用者アカウントは削除しない |
+| `DELETE /admin/accounts/{id}/enrollment-invitation` | Admin＋直近本人確認＋CSRFで通常・初期管理者の未使用招待だけを取消。CLI復旧リンクは変更しない。未使用の有効な招待がなくても204を返し、利用者アカウントは削除しない |
 | `POST /auth/enrollment/options` | `{"token":"...","displayName":"..."}` を受け付ける。招待が有効・未消費・未取消であることを検証。旧`code` DTOは廃止 |
 | `POST /auth/enrollment/verify` | 既存の資格情報検証。成功時だけ招待の使用済み化と鍵・有効化を原子的に確定 |
 | `GET /auth/enroll` | 招待トークンをフラグメントからメモリへ取り込み、すぐにURLから削除。入力欄は表示名のみ |
 | `GET /auth/register` | 公開モードのみ提供する招待なし登録画面。`InvitationOnly`では表示・利用不可 |
 | `GET /auth/login` | 招待制では新規登録リンクなし、公開モードのみ新規登録リンクを表示 |
 
-通常の新規一般ユーザー招待の有効期限は**7日**、`initialize-admin`による初期管理者招待は**30分**とする。登録済み停止アカウントのWeb再発行は409で拒否する。運営者による`issue-recovery-link`は暫定10分を維持し、本人向けの自己復旧は実装しない。`initialize-admin`・`issue-enrollment-invitation`・`issue-recovery-link`は、**固定`Passkeys:Origin`を用いて招待URLだけを標準出力**し、Origin未設定時は生コードによる代替を禁止する。APIもCLIも互換用`code`は返さない。
+通常の新規一般ユーザー招待の有効期限は**7日**、`initialize-admin`による初期管理者招待は**30分**とする。登録済み停止アカウントのWeb再発行は409で拒否する。運営者による`issue-recovery-link`は登録済みかつ停止中・パスキーなしだけを対象とし、暫定10分を維持し、本人向けの自己復旧は実装しない。`initialize-admin`・`issue-enrollment-invitation`・`issue-recovery-link`は、**固定`Passkeys:Origin`を用いて招待URLだけを標準出力**し、Origin未設定時は生コードによる代替を禁止する。APIもCLIも互換用`code`は返さない。
 
 旧コード受付・通常招待への10分固定を残す移行期は設けない。CLI緊急復旧の10分はDEC-114の明示した別用途とする。ユーザーによるリンク開封は消費に含めず、登録成功時の1回だけ消費する。取消・再発行・期限切れ、管理者の権限失効、並行登録、フラグメント除去、誤ったOrigin、通常のログイン／OAuth回帰をテストする。取消・再発行・登録を保存する前後でも現在の状態を確認し、失敗時はロールバックする。 招待リンクの正本は[DEC-113](auth-passkeys.md#招待リンクの詳細契約dec-113利用者確認済み未実装)。
 

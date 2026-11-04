@@ -240,6 +240,49 @@ public class AuthenticationCommandTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RecoveryCommandRejectsUnregisteredAccountsWithoutChangingInvitation(bool initialAdmin)
+    {
+        using var fixture = new AuthDatabaseFixture();
+        await fixture.MigrateAsync();
+        await using var services = fixture.CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var provisioning = scope.ServiceProvider.GetRequiredService<AdminProvisioningService>();
+        var invitation = (await provisioning.InitializeAdminAsync())!;
+        if (!initialAdmin)
+        {
+            var users = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AuthUser>>();
+            var user = (await users.FindByIdAsync(invitation.AuthUserId))!;
+            Assert.True((await users.RemoveFromRoleAsync(user, "Admin")).Succeeded);
+            invitation = await provisioning.IssueEnrollmentInvitationAsync(user.Id);
+        }
+        var before = fixture.Snapshot(fixture.Tables());
+        var result = await RunAsync(fixture.ConnectionString, ["issue-recovery-link", "--account-id", invitation.AuthUserId]);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("", result.StandardOutput);
+        Assert.DoesNotContain(invitation.Token(), result.Output);
+        Assert.Equal(before, fixture.Snapshot(fixture.Tables()));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RecoveryCommandRejectsRegisteredAccountThatIsEnabledOrStillHasPasskeys(bool enabled)
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        var target = await app.AddAccountAsync();
+        app.Database.Execute(enabled
+            ? $"DELETE FROM AspNetUserPasskeys WHERE UserId='{target.UserId}'"
+            : $"UPDATE AspNetUsers SET IsEnabled=0 WHERE Id='{target.UserId}'");
+        var before = app.Database.Snapshot(app.Database.Tables());
+        var result = await RunAsync(app.Database.ConnectionString, ["issue-recovery-link", "--account-id", target.UserId]);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("", result.StandardOutput);
+        Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
+    }
+
     /// <summary>発行だけは固定Originを与え、他のWeb設定なしで管理コマンドを起動する。</summary>
     private static async Task<(int ExitCode, string Output, string StandardOutput, string StandardError)> RunAsync(string connectionString, string[] arguments, string? origin = LoginTestApp.Origin)
     {

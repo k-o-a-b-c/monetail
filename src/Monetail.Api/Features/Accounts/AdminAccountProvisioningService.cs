@@ -92,7 +92,7 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
         return EnrollmentInvitationReissueStatus.Issued;
     }
 
-    /// <summary>現在の管理者を保存前後で確認し、有効な未使用リンクだけを取消する。</summary>
+    /// <summary>現在の管理者を保存前後で確認し、有効な未使用の通常・初期管理者招待だけを取消する。</summary>
     public async Task<EnrollmentInvitationReissueStatus> CancelInvitationAsync(string id, HttpContext http, CancellationToken token)
     {
         await DatabaseInitializer.EnsureReadyAsync(context, token);
@@ -101,7 +101,8 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
         if (!await IsCurrentAdminAsync(current, token)) return EnrollmentInvitationReissueStatus.AuthenticationChanged;
         var now = time.GetUtcNow().UtcDateTime;
         await context.EnrollmentCodes.Where(row => row.AuthUserId == id && row.ConsumedAtUtc == null &&
-            row.RevokedAtUtc == null && row.ExpiresAtUtc > now)
+            row.RevokedAtUtc == null && row.ExpiresAtUtc > now &&
+            (row.Purpose == EnrollmentCode.InvitationPurpose || row.Purpose == EnrollmentCode.InitialAdminPurpose))
             .ExecuteUpdateAsync(update => update.SetProperty(row => row.RevokedAtUtc, now), token);
         if (!await IsCurrentAdminAsync(current, token)) return EnrollmentInvitationReissueStatus.AuthenticationChanged;
         await transaction.CommitAsync(token);
