@@ -8,6 +8,8 @@ public static class PasskeyLoginEndpoints
     /// <summary>認証開始は公開し、本人情報とログアウトには有効なセッションを要求する。</summary>
     public static void MapPasskeyLogin(this WebApplication app)
     {
+        app.MapGet("/ledger-invitation", () => Results.Content(PasskeyWeb.ReadPage("LedgerInvitation.html"), "text/html; charset=utf-8")).AllowAnonymous();
+        app.MapGet("/ledger-invitation.js", () => Results.Content(PasskeyWeb.ReadPage("LedgerInvitation.js"), "text/javascript; charset=utf-8")).AllowAnonymous();
         var group = app.MapGroup("/auth");
         group.MapGet("/login", (RegistrationSettings settings) => Results.Content(PasskeyWeb.ReadPage("Login.html")
             .Replace("<!--registration-entry-->", settings.Mode == RegistrationMode.Public

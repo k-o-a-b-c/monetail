@@ -172,3 +172,5 @@ for (const globalAdmin of [false, true]) test(`ログイン後の管理入口は
     await page.element("logout").listeners.click();
     assert.equal(page.element("account-management").hidden, true);
 });
+
+require("./ledger-invitation-ui.cases.js");

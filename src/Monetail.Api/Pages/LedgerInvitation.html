@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家計簿への招待 | Monetail</title>
+<style>body{font-family:system-ui,sans-serif;max-width:36rem;margin:3rem auto;padding:0 1rem;line-height:1.7}button,a{font:inherit;margin:.5rem .5rem .5rem 0}button{padding:.6rem 1rem}#message{white-space:pre-line}[hidden]{display:none!important}</style>
+<script src="/auth/passkey-client.js" defer></script><script src="/ledger-invitation.js" defer></script></head>
+<body><main><h1>家計簿への招待</h1><p id="ledger-name"></p><p id="message" role="status" aria-live="polite"></p>
+<a id="invitation-login" href="/auth/login?returnUrl=%2Fledger-invitation" hidden>ログイン</a>
+<button id="preview" hidden>招待を確認</button><button id="accept" hidden>参加する</button><button id="check" hidden>参加状況を確認</button><button id="back">戻る</button>
+<noscript>招待の確認にはJavaScriptが必要です。</noscript></main></body></html>

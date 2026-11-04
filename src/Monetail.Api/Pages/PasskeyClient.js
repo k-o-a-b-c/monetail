@@ -6,7 +6,7 @@ function authorizationTarget() {
     if (!value) return null;
     try {
         const target = new URL(value, location.origin);
-        return target.origin === location.origin && target.pathname === "/connect/authorize" &&
+        return target.origin === location.origin && (target.pathname === "/connect/authorize" || target.pathname === "/ledger-invitation" && !target.search) &&
             !target.username && !target.password && !target.hash ? target.href : null;
     } catch { return null; }
 }
