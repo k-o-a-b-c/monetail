@@ -18,7 +18,7 @@
 | `DELETE /auth/passkeys/{id}` | 最後の鍵を拒否し、削除成功時は全セッションを失効 |
 | `GET /admin/accounts` | 全体Admin専用。アカウントID順の`authUserId`・`displayName`・`isEnabled`。人物行は含めない |
 | `POST /admin/accounts` | 全体Admin・直近本人確認・CSRFが必要。`requestId`だけを受け取り、新規一般アカウントと招待リンクを発行 |
-| `POST /admin/accounts/{id}/enrollment-invitation` | 同じ条件で無効・鍵なしの一般／Adminへ再発行 |
+| `POST /admin/accounts/{id}/enrollment-invitation` | 同じ条件で無効・鍵なし・未登録の一般／初期Adminへ招待再発行。登録済み停止者はCLI復旧へ分離 |
 
 メール・パスワード登録を開く`MapIdentityApi`は使わず、標準パスキー機能へ薄い受付と画面を接続する。通常起動はCookie認証・OAuth・管理者APIを常に公開し、必須設定が不備なら起動しない。設定と管理コマンドの扱いは[42](42-api-foundation.md#認証の必須設定)を参照する。管理者の全失効HTTP経路・権限変更は未実装であり、この表に含めない。人物の追加は家計簿側の後続機能とする。
 
