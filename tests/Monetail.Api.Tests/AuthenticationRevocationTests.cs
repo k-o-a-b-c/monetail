@@ -71,14 +71,14 @@ public class AuthenticationRevocationTests
         await RevokeAsync(app, app.UserId, emergency: true);
         Assert.Equal(counts, app.Database.Snapshot(app.Database.Tables()));
         await using var scope = app.Factory.Services.CreateAsyncScope();
-        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(app.UserId);
+        var issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueRecoveryLinkAsync(app.UserId);
         Assert.Equal(app.UserId, issued.AuthUserId);
         Assert.Equal(0L, app.Database.Scalar("SELECT IsEnabled FROM AspNetUsers"));
         Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserRoles"));
         using var loggedOut = await client.GetAsync("/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, loggedOut.StatusCode);
         await LoginTestApp.CsrfAsync(client);
-        using var enrollment = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = issued.Code });
+        using var enrollment = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = issued.Token() });
         Assert.Equal(HttpStatusCode.OK, enrollment.StatusCode);
     }
 

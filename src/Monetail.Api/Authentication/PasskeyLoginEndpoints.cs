@@ -9,7 +9,10 @@ public static class PasskeyLoginEndpoints
     public static void MapPasskeyLogin(this WebApplication app)
     {
         var group = app.MapGroup("/auth");
-        group.MapGet("/login", () => Results.Content(PasskeyWeb.ReadPage("Login.html"), "text/html; charset=utf-8")).AllowAnonymous();
+        group.MapGet("/login", (RegistrationSettings settings) => Results.Content(PasskeyWeb.ReadPage("Login.html")
+            .Replace("<!--registration-entry-->", settings.Mode == RegistrationMode.Public
+                ? "<p><a id=\"registration-link\" href=\"/auth/register\">新規登録</a></p>" : ""), "text/html; charset=utf-8")).AllowAnonymous();
+        group.MapGet("/passkey-client.js", () => Results.Content(PasskeyWeb.ReadPage("PasskeyClient.js"), "text/javascript; charset=utf-8")).AllowAnonymous();
         group.MapGet("/login.js", () => Results.Content(PasskeyWeb.ReadPage("Login.js"), "text/javascript; charset=utf-8")).AllowAnonymous();
         group.MapPost("/login/options", async (LoginRequest request, HttpContext http, PasskeyLoginService service) =>
         {

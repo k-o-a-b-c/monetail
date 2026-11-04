@@ -77,7 +77,7 @@ bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
 | `ConnectionStrings:Monetail` | 永続SQLiteファイル。通常接続はReadWrite・FK有効、新規作成はinitialize-dbだけ |
 | `TZ` | Dockerの既定はEtc/UTC。Composeで変更し、.NETが解決した地域を起動ログで確認 |
 
-Docker Composeの`Registration__Mode: "InvitationOnly"`は維持する。`Public`へ変更してAPIコンテナを再作成すると、匿名自己登録APIが直ちに有効になる。停止時は`InvitationOnly`へ戻して再作成し、未完了チャレンジを破棄する。設定を変更できる権限は運営者に限定する。登録画面・CAPTCHA・退会・全パスキー喪失時の自己復旧は未実装であり、不特定多数への本番一般公開を開始しない。設定と単一APIプロセスの運用条件は[認証・パスキー](auth-passkeys.md#登録モードの設定dec-111設定読込と検証は実装)を参照する。
+Docker Composeの`Registration__Mode: "InvitationOnly"`は維持する。`Public`へ変更してAPIコンテナを再作成すると、匿名自己登録APIが直ちに有効になる。停止時は`InvitationOnly`へ戻して再作成し、未完了チャレンジを破棄する。設定を変更できる権限は運営者に限定する。登録画面は実装済み。CAPTCHA・退会・全パスキー喪失時の自己復旧は未実装であり、不特定多数への本番一般公開を開始しない。設定と単一APIプロセスの運用条件は[認証・パスキー](auth-passkeys.md#登録モードの設定dec-111設定読込と検証は実装)を参照する。
 
 固定HTTPS・証明書・HTTPS終端とサーバー上の実配置は運用で用意する。既定のComposeはループバック公開用で、認証設定・DBマウント・HTTPSを自動準備しない。DBの親フォルダとData Protectionキーを永続化する。
 
@@ -98,14 +98,16 @@ DB・Data Protectionキーと併せて、この2つのPFXもバックアップ�
 
 ## DB移行・登録・復旧コマンド
 
-APIは未リリース。EF移行は初期定義と`AddSelfRegistrationCompletions`（自己登録成功日時テーブル・索引の追加）の2件。初期定義を適用済みのAPI用DBは、停止・バックアップ後に`initialize-db`で追加移行する。既存ユーザー・パスキー・家計簿行は変更せず、通常API起動では移行しない。未知または定義不一致のDBを自動修復しない。旧Windows版DBの移行は別工程のままとする。
+APIは未リリース。EF移行は初期定義と`AddSelfRegistrationCompletions`（自己登録成功日時テーブル・索引の追加）と`RetireEnrollmentCodes`（旧方式の未使用トークン失効）の3件。初期定義を適用済みのAPI用DBは、停止・バックアップ後に`initialize-db`で追加移行する。既存ユーザー・パスキー・家計簿行は変更せず、通常API起動では移行しない。未知または定義不一致のDBを自動修復しない。旧Windows版DBの移行は別工程のままとする。
 
 新規導入は空または未存在のSQLiteファイルを指定する。親ディレクトリを事前に用意し、APIを停止して実行する。既存Windows版DBへの適用は拒否する。一度きりのSQL移行の方針は[58](ledger-core-transition.md#新規利用と既存dbの境界)を参照し、作業コピーとバックアップを用意する。
 
 ```sh
 dotnet run --project src/Monetail.Api -- initialize-db
 dotnet run --project src/Monetail.Api -- initialize-admin
-dotnet run --project src/Monetail.Api -- issue-enrollment-code --account-id ACCOUNT_ID
+dotnet run --project src/Monetail.Api -- issue-enrollment-invitation --account-id ACCOUNT_ID
+# 全失効・復元リセット後の対象に、緊急復旧リンクを明示発行する。
+dotnet run --project src/Monetail.Api -- issue-recovery-link --account-id ACCOUNT_ID
 dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID
 # 最後の管理者も全失効させる必要がある紛失復旧時だけ明示する。
 dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID --emergency-recovery
@@ -113,12 +115,16 @@ dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID 
 dotnet run --project src/Monetail.Api -- reset-authentication --after-restore
 ```
 
-- `initialize-db`はAPI専用の移行系列と`__MonetailMigrationsHistory`を使用する。空DBの初期作成または既知の未適用移行だけを行い、適用済みIDを表示する。管理者・コード・家計簿・人物は作らない。通常起動・HTTP要求では作成／移行しない。
+- `initialize-db`はAPI専用の移行系列と`__MonetailMigrationsHistory`を使用する。空DBの初期作成または既知の未適用移行だけを行い、適用済みIDを表示する。管理者・リンク・家計簿・人物は作らない。通常起動・HTTP要求では作成／移行しない。
 - 移行前はReadOnlyで履歴とその段階の表・索引・FK等のDDLを照合する。旧DB・別用途・未知／将来／不連続な履歴・構造不一致は書込み前に拒否する。新旧を切り替える設定や互換モードはない。不明な管理コマンドは一般の引数検証で拒否し、待受けを開始しない。
 - 既知の完了済み移行は再適用しない。DDLと履歴はEFのトランザクションで保存し、通常の例外で戻した後は再実行できる。空ファイルや、最初の移行前にEF管理表だけが残った状態も検証して再開する。移行ロック残留は自動削除しない。停止・バックアップ後に状態を調べる。
 - 初期化はDB横の空の`.initialize.lock`ファイルを排他オープンして直列化し、取得後にDBを検査する。ファイルは残るがプロセス終了でOSが排他を解放する。実行中に削除・置換しない。DBと親ディレクトリへの書込権限が必要で、親ディレクトリや既存ファイルを自動削除・置換しない。
-- 初期管理者は人物指定なしで新規作成する。既に管理者がいれば変更せず、そのアカウントIDを表示する。生コードは再表示しない。期限切れ・出力紛失時は同じ無効・鍵なしアカウントへ明示的に再発行する。操作オプションの混在・重複は拒否する。
-- 発行成功時だけ、アカウントID・生コード・UTC期限を標準出力へ出す。コードは10分・1回限りで、通常ログへ残さない。全失効ではコードを自動発行しない。本人が登録画面でパスキー登録後、明示ログインする。
+- `initialize-admin`は人物指定なしで初期管理者を作り、30分のリンクを発行する。管理者が既にいれば変更せず、標準エラーに既存IDと案内だけを出し、URLを再表示しない。
+- `issue-enrollment-invitation --account-id ID`は無効・鍵なし・未登録の対象だけ。一般は7日、未登録の初期管理者は30分。登録済み停止者へのWeb/API再発行は拒否する。
+- `issue-recovery-link --account-id ID`は、運営者が全失効または復元後リセット済みの登録済み・無効・鍵なしの対象に明示する緊急復旧。未登録者への発行は拒否し、`issue-enrollment-invitation`を使用する。**既存の10分間を暫定維持**し、認証ID・表示名・ロールを変えず、パスキー再登録と明示ログインを要求する。新アカウントを作成しない。本人向けの自己復旧・一般公開の本人確認条件は未実装。
+- URL発行コマンドは`Passkeys:Origin`だけを必須のWeb設定とし、正しい固定HTTPS Originがなければ状態を変更せず失敗する。RpId・Data Protection・OAuth証明書等の通常API設定はCLI発行には要求しない。DB初期化・全失効・復元リセットにはOriginを要求しない。
+- 発行成功時の標準出力は`https://固定ホスト/auth/enroll#token=...`の1行だけ。診断・監査は標準エラーへ出し、URL・生トークンをログへ含めない。URL出力は管理者だけの一時端末で扱い、共有ログ・teeへ流さない。旧`issue-enrollment-code`は受け付けない。
+- 追加移行`RetireEnrollmentCodes`は旧用途の未使用トークンだけを失効する。旧リンクや旧コード入力を継続させる互換モードはない。移行後に必要な未登録招待を再発行する。消費履歴・既存ユーザー・パスキー・ロールは保持し、移行を戻しても失効済みの秘密を再有効化しない。
 - 管理コマンドはWeb待受けを行わず、成功0・失敗1。30秒でキャンセルを要求する。認証APIと管理操作は新系列の移行完了・未知履歴・移行ロックを確認して未準備のDBを拒否し、自動修復しない。
 
-バックアップは停止・全接続終了後のコピー、またはSQLiteのBackup APIで取得する。稼働中のDB本体だけをコピーしない。復元後の全体リセットは手動で行い、まず管理者、次に他利用者へ再登録コードを発行する。バックアップ取得だけではリセットしない。同じRP ID・DB・Data Protectionキーを保つ通常移設は再登録不要。RP ID変更時は再登録を計画する。DB自体の暗号化は今回対象外。
+バックアップは停止・全接続終了後のコピー、またはSQLiteのBackup APIで取得する。稼働中のDB本体だけをコピーしない。復元後の全体リセットは手動で行い、まず管理者、次に他利用者へ`issue-recovery-link`で復旧リンクを発行する。バックアップ取得だけではリセットしない。同じRP ID・DB・Data Protectionキーを保つ通常移設は再登録不要。RP ID変更時は再登録を計画する。DB自体の暗号化は今回対象外。

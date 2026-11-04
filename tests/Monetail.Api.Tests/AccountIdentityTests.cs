@@ -59,7 +59,7 @@ public class AccountIdentityTests
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var account = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = account.GetProperty("authUserId").GetString()!;
-        using var reissued = await admin.PostAsJsonAsync($"/admin/accounts/{id}/enrollment-code", new { });
+        using var reissued = await admin.PostAsJsonAsync($"/admin/accounts/{id}/enrollment-invitation", new { });
         Assert.Equal(HttpStatusCode.OK, reissued.StatusCode);
         var rows = await admin.GetFromJsonAsync<JsonElement>("/admin/accounts");
         Assert.Equal(2, rows.GetArrayLength());
@@ -85,7 +85,7 @@ public class AccountIdentityTests
         var before = app.Database.Snapshot(app.Database.Tables());
         using var response = await client.PostAsJsonAsync("/auth/enrollment/options", new
         {
-            code = issued.Code, displayName = name == "too-long" ? new string('あ', 101) : name
+            token = issued.Token(), displayName = name == "too-long" ? new string('あ', 101) : name
         });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
@@ -104,7 +104,7 @@ public class AccountIdentityTests
         {
             using var client = app.Client();
             await LoginTestApp.CsrfAsync(client);
-            using var begin = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = issued.Code, displayName = maximumLength ? name : $"  {name}  " });
+            using var begin = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = issued.Token(), displayName = maximumLength ? name : $"  {name}  " });
             Assert.Equal(HttpStatusCode.OK, begin.StatusCode);
             Assert.Equal(1L, app.Database.Scalar($"SELECT COUNT(*) FROM AspNetUsers WHERE Id='{issued.AuthUserId}' AND DisplayName IS NULL"));
             var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
@@ -124,16 +124,16 @@ public class AccountIdentityTests
         var issued = await PendingAccountAsync(app);
         using var client = app.Client();
         await LoginTestApp.CsrfAsync(client);
-        using var begin = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = issued.Code, displayName = "本人が決めた名前" });
+        using var begin = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = issued.Token(), displayName = "本人が決めた名前" });
         var options = await begin.Content.ReadFromJsonAsync<JsonElement>();
         using var enrolled = await client.PostAsJsonAsync("/auth/enrollment/verify", new { credential = app.Attestation(options, RandomNumberGenerator.GetBytes(32)) });
         Assert.Equal(HttpStatusCode.OK, enrolled.StatusCode);
         await using (var scope = app.Factory.Services.CreateAsyncScope())
         {
             await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(issued.AuthUserId);
-            issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(issued.AuthUserId);
+            issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueRecoveryLinkAsync(issued.AuthUserId);
         }
-        using var recovery = await client.PostAsJsonAsync("/auth/enrollment/options", new { code = issued.Code, displayName = "置き換えを要求した名前" });
+        using var recovery = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = issued.Token(), displayName = "置き換えを要求した名前" });
         Assert.Equal(HttpStatusCode.OK, recovery.StatusCode);
         options = await recovery.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("本人が決めた名前", options.GetProperty("user").GetProperty("displayName").GetString());
@@ -143,12 +143,12 @@ public class AccountIdentityTests
     }
 
     /// <summary>初回登録待ちのアカウントと有効な登録コードを用意する。</summary>
-    private static async Task<IssuedEnrollmentCode> PendingAccountAsync(LoginTestApp app)
+    private static async Task<IssuedEnrollmentInvitation> PendingAccountAsync(LoginTestApp app)
     {
         await using var scope = app.Factory.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
         var user = new AuthUser { UserName = Guid.NewGuid().ToString("N") };
         Assert.True((await users.CreateAsync(user)).Succeeded);
-        return await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentCodeAsync(user.Id);
+        return await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueEnrollmentInvitationAsync(user.Id);
     }
 }

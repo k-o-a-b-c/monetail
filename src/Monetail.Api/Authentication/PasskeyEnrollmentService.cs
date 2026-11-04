@@ -6,12 +6,12 @@ using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>登録コードの対象へパスキーを登録し、成功時だけ利用可能にする。</summary>
+/// <summary>登録リンクの対象へパスキーを登録し、成功時だけ利用可能にする。</summary>
 public sealed class PasskeyEnrollmentService(ApiDbContext context, UserManager<AuthUser> users,
     IPasskeyHandler<AuthUser> passkeys, EnrollmentChallenges challenges, TimeProvider time,
     ILogger<PasskeyEnrollmentService> logger)
 {
-    /// <summary>有効な登録コードの対象に固定した、端末向けの作成オプションを発行する。</summary>
+    /// <summary>有効な登録リンクの対象に固定した、端末向けの作成オプションを発行する。</summary>
     public async Task<string?> BeginAsync(string? code, string? displayName, HttpContext http, CancellationToken token)
     {
         if (code is null || code.Length != 43 || code.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '-' and not '_'))
@@ -57,7 +57,7 @@ public sealed class PasskeyEnrollmentService(ApiDbContext context, UserManager<A
         var user = target;
         if (!(await users.AddOrUpdatePasskeyAsync(user, result.Passkey)).Succeeded)
             throw new InvalidOperationException("パスキーの保存に失敗しました。");
-        user.DisplayName ??= challenge.DisplayName;
+        if (code.Purpose != EnrollmentCode.RecoveryPurpose) user.DisplayName ??= challenge.DisplayName;
         user.IsEnabled = true;
         code.ConsumedAtUtc = time.GetUtcNow().UtcDateTime;
         if (!(await users.UpdateAsync(user)).Succeeded)
@@ -78,7 +78,8 @@ public sealed class PasskeyEnrollmentService(ApiDbContext context, UserManager<A
     }
 
     /// <summary>登録用途・未使用・未失効・期限内のコードだけを受け付ける。</summary>
-    private bool IsUsable(EnrollmentCode? code) => code is not null && code.Purpose == "passkey-enrollment" &&
+    private bool IsUsable(EnrollmentCode? code) => code is not null &&
+        code.Purpose is EnrollmentCode.InvitationPurpose or EnrollmentCode.InitialAdminPurpose or EnrollmentCode.RecoveryPurpose &&
         code.ConsumedAtUtc is null && code.RevokedAtUtc is null && code.ExpiresAtUtc > time.GetUtcNow().UtcDateTime;
 
     /// <summary>登録チャレンジのCookieをHTTPSの同一ホストだけに制限する。</summary>

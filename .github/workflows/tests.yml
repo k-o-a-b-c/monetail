@@ -191,6 +191,8 @@ jobs:
           scope: api
       - run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
         if: needs.changes.outputs.api == 'true'
+      - run: node --test tests/Monetail.Api.Tests/registration-ui.test.js
+        if: needs.changes.outputs.api == 'true'
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.api == 'true'
         with:

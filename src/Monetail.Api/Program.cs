@@ -5,18 +5,19 @@ using Monetail.Api.Features.Monetail.Ledgers;
 using Monetail.Api.Persistence;
 
 var command = args.FirstOrDefault();
-var isAuthCommand = command is "initialize-db" or "initialize-admin" or "issue-enrollment-code" or
+var isAuthCommand = command is "initialize-db" or "initialize-admin" or "issue-enrollment-invitation" or "issue-recovery-link" or
     "revoke-account" or "reset-authentication";
+var isLinkCommand = command is "initialize-admin" or "issue-enrollment-invitation" or "issue-recovery-link";
 var configurationArgs = isAuthCommand ? args[1..] : args;
 string? authUserId = null;
 // 緊急復旧を明示したときだけ、最後の管理者の通常停止保護を解除する。
 var emergencyRecovery = false;
-if (command is "issue-enrollment-code" or "revoke-account")
+if (command is "issue-enrollment-invitation" or "issue-recovery-link" or "revoke-account")
 {
     if (args.Length < 3 || args[1] != "--account-id" || string.IsNullOrWhiteSpace(args[2]) ||
         args[2].StartsWith("--", StringComparison.Ordinal))
     {
-        Console.Error.WriteLine("アカウントIDを明示してください: issue-enrollment-code / revoke-account --account-id ID");
+        Console.Error.WriteLine("アカウントIDを明示してください: issue-enrollment-invitation / issue-recovery-link / revoke-account --account-id ID");
         Environment.ExitCode = 1;
         return;
     }
@@ -59,6 +60,11 @@ string? connectionString;
 try
 {
     var builder = WebApplication.CreateBuilder(configurationArgs);
+    if (isLinkCommand)
+    {
+        _ = PasskeySettings.ReadOrigin(builder.Configuration);
+        builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+    }
     builder.Services.AddHealthChecks();
     connectionString = builder.Configuration.GetConnectionString("Monetail");
     if (!string.IsNullOrWhiteSpace(connectionString))
@@ -119,26 +125,26 @@ if (isAuthCommand)
                 await revocation.RevokeAccountAsync(authUserId!, emergencyRecovery, timeout.Token);
             else
                 await revocation.ResetAfterRestoreAsync(timeout.Token);
-            Console.WriteLine("認証情報を全失効しました。登録コードは発行していません。");
+            Console.WriteLine("認証情報を全失効しました。登録リンクは発行していません。");
         }
         else
         {
             var provisioning = scope.ServiceProvider.GetRequiredService<AdminProvisioningService>();
             var issued = command == "initialize-admin"
                 ? await provisioning.InitializeAdminAsync(timeout.Token)
-                : await provisioning.IssueEnrollmentCodeAsync(authUserId!, timeout.Token);
+                : command == "issue-recovery-link"
+                    ? await provisioning.IssueRecoveryLinkAsync(authUserId!, timeout.Token)
+                    : await provisioning.IssueEnrollmentInvitationAsync(authUserId!, timeout.Token);
             if (issued is null)
             {
                 var manager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AuthUser>>();
                 foreach (var admin in await manager.GetUsersInRoleAsync("Admin"))
-                    Console.WriteLine($"管理者アカウントID: {admin.Id}");
-                Console.WriteLine("初期管理者は作成済みです。コードが必要ならissue-enrollment-codeを実行してください。");
+                    Console.Error.WriteLine($"管理者アカウントID: {admin.Id}");
+                Console.Error.WriteLine("初期管理者は作成済みです。未登録の招待再発行はissue-enrollment-invitation、停止アカウントの緊急復旧はissue-recovery-linkを明示してください。");
             }
             else
             {
-                Console.WriteLine($"アカウントID: {issued.AuthUserId}");
-                Console.WriteLine($"登録コード: {issued.Code}");
-                Console.WriteLine($"有効期限（UTC）: {issued.ExpiresAtUtc:O}");
+                Console.WriteLine(issued.EnrollmentUrl);
             }
         }
     }

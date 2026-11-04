@@ -14,10 +14,7 @@ public sealed class PasskeySettings
     public static PasskeySettings Read(IConfiguration configuration)
     {
         var section = configuration.GetSection("Passkeys");
-        if (!Uri.TryCreate(section["Origin"], UriKind.Absolute, out var origin) ||
-            origin.Scheme != "https" || origin.AbsolutePath != "/" ||
-            origin.UserInfo.Length > 0 || origin.Query.Length > 0 || origin.Fragment.Length > 0)
-            throw new InvalidOperationException("Passkeys:Originに固定HTTPSオリジンを指定してください。");
+        var origin = ReadOrigin(configuration);
         var rpId = section["RpId"];
         if (Uri.CheckHostName(rpId) != UriHostNameType.Dns ||
             !string.Equals(origin.IdnHost, rpId, StringComparison.OrdinalIgnoreCase))
@@ -37,6 +34,16 @@ public sealed class PasskeySettings
             Origin = origin, RpId = rpId!.ToLowerInvariant(),
             DataProtectionKeysPath = keys, TrustedProxies = proxies.ToArray()
         };
+    }
+
+    /// <summary>URL発行CLIでも、他のWeb認証設定を要求せず固定HTTPS Originだけを検証する。</summary>
+    public static Uri ReadOrigin(IConfiguration configuration)
+    {
+        if (!Uri.TryCreate(configuration["Passkeys:Origin"], UriKind.Absolute, out var origin) ||
+            origin.Scheme != "https" || origin.AbsolutePath != "/" || Uri.CheckHostName(origin.IdnHost) != UriHostNameType.Dns ||
+            origin.UserInfo.Length > 0 || origin.Query.Length > 0 || origin.Fragment.Length > 0)
+            throw new InvalidOperationException("Passkeys:Originに固定HTTPSオリジンを指定してください。");
+        return origin;
     }
 
     /// <summary>HTTP要求が設定したHTTPSオリジンへの要求か判定する。</summary>

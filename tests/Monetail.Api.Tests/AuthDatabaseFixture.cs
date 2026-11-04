@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using System.Text;
 using Microsoft.Data.Sqlite;
@@ -42,6 +43,8 @@ internal sealed class AuthDatabaseFixture : IDisposable
     public ServiceProvider CreateServices()
     {
         var services = new ServiceCollection();
+        services.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Passkeys:Origin"] = LoginTestApp.Origin }).Build());
         services.AddAuthDatabase(ConnectionString);
         return services.BuildServiceProvider();
     }

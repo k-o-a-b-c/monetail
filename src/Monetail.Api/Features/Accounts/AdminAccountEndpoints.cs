@@ -3,12 +3,23 @@ using System.Text.Json.Serialization;
 
 namespace Monetail.Api.Features.Accounts;
 
-/// <summary>全体管理者によるアカウント一覧・新規発行・登録コード再発行を受け付ける。</summary>
+/// <summary>全体管理者によるアカウント一覧・新規発行・登録リンク再発行を受け付ける。</summary>
 public static class AdminAccountEndpoints
 {
     /// <summary>現在のAdminロールを要求し、発行には直近の本人確認とCSRFも要求する。</summary>
     public static void MapAdminAccounts(this WebApplication app)
     {
+        app.MapDelete("/admin/accounts/{id}/enrollment-invitation", async Task<IResult> (string id, HttpContext http, AdminAccountProvisioningService service) =>
+        {
+            var status = await service.CancelInvitationAsync(id, http, http.RequestAborted);
+            return status switch
+            {
+                EnrollmentInvitationReissueStatus.Issued => Results.NoContent(),
+                _ => Results.StatusCode(403)
+            };
+        }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"))
+            .RequireAuthorization(RecentPasskeyRequirement.PolicyName).AddEndpointFilter<AuthRequestFilter>()
+            .RequireRateLimiting("passkey-authentication");
         app.MapGet("/admin/accounts", (HttpContext http, AdminAccountService service) => service.ListAsync(http.RequestAborted))
             .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"))
             .AddEndpointFilter<AuthRequestFilter>();
@@ -26,14 +37,14 @@ public static class AdminAccountEndpoints
         }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"))
             .RequireAuthorization(RecentPasskeyRequirement.PolicyName).AddEndpointFilter<AuthRequestFilter>()
             .RequireRateLimiting("passkey-authentication");
-        app.MapPost("/admin/accounts/{id}/enrollment-code", async Task<IResult> (string id, HttpContext http, AdminAccountProvisioningService service) =>
+        app.MapPost("/admin/accounts/{id}/enrollment-invitation", async Task<IResult> (string id, HttpContext http, AdminAccountProvisioningService service) =>
         {
-            var result = await service.ReissueCodeAsync(id, http, http.RequestAborted);
+            var result = await service.ReissueInvitationAsync(id, http, http.RequestAborted);
             return result.Status switch
             {
-                EnrollmentCodeReissueStatus.Issued => Results.Ok(result.IssuedCode),
-                EnrollmentCodeReissueStatus.NotFound => Results.NotFound(new { message = "対象アカウントを確認できません。" }),
-                EnrollmentCodeReissueStatus.NotEligible => Results.Conflict(new { message = "利用中または状態が変わったアカウントです。停止中・パスキーなしの場合だけ再発行できます。" }),
+                EnrollmentInvitationReissueStatus.Issued => Results.Ok(result.Invitation),
+                EnrollmentInvitationReissueStatus.NotFound => Results.NotFound(new { message = "対象アカウントを確認できません。" }),
+                EnrollmentInvitationReissueStatus.NotEligible => Results.Conflict(new { message = "利用中または状態が変わったアカウントです。未登録・パスキーなしの場合だけ再発行できます。" }),
                 _ => Results.Json(new { message = "操作を完了できませんでした。本人確認をやり直してください。" }, statusCode: 403)
             };
         }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"))

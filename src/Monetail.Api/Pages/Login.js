@@ -1,14 +1,9 @@
 "use strict";
 
-// OAuthの認可要求へだけ戻り、外部URLへの転送を許可しない。
-function continueAuthorization() {
-    const value = new URLSearchParams(location.search).get("returnUrl");
-    if (!value) return;
-    let target;
-    try { target = new URL(value, location.origin); } catch { return; }
-    if (target.origin === location.origin && target.pathname === "/connect/authorize" &&
-        !target.username && !target.password && !target.hash) location.assign(target.href);
-}
+const { decode, encode, send, authenticate, continueAuthorization, authorizationTarget } = window.MonetailPasskeys;
+const registrationLink = document.getElementById("registration-link");
+if (registrationLink && authorizationTarget())
+    registrationLink.href = "/auth/register?returnUrl=" + encodeURIComponent(authorizationTarget());
 
 const loginButton = document.getElementById("login");
 const reauthenticationButton = document.getElementById("reauthenticate");
@@ -20,37 +15,6 @@ const person = document.getElementById("person");
 const message = document.getElementById("message");
 
 // WebAuthnのJSON表現を、ブラウザーに渡すバイト列へ変換する。
-function decode(value) {
-    return Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), char => char.charCodeAt(0));
-}
-
-// 署名などのバイト列を、POST本文用のbase64urlへ変換する。
-function encode(buffer) {
-    return btoa(Array.from(new Uint8Array(buffer), byte => String.fromCharCode(byte)).join(""))
-        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-// 匿名・ログイン後の本人に対応するCSRFトークンを、その操作直前に取得する。
-async function send(path, body, method = "POST") {
-    const csrfResponse = await fetch("/auth/csrf", { credentials: "same-origin", cache: "no-store" });
-    if (!csrfResponse.ok) throw new Error("認証処理を利用できません。時間をおいてやり直してください。");
-    const { token } = await csrfResponse.json();
-    const response = await fetch(path, {
-        method, credentials: "same-origin", cache: "no-store",
-        headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": token },
-        body: JSON.stringify(body)
-    });
-    if (!response.ok) {
-        if (response.status === 429) throw new Error("操作が続いています。1分ほど待ってからやり直してください。");
-        if (path.startsWith("/auth/passkeys") && response.status === 403)
-            throw new Error("本人確認をやり直してから、もう一度操作してください。");
-        if (path.startsWith("/auth/passkeys") && response.status === 409)
-            throw new Error("最後のパスキーは削除できません。");
-        throw new Error("操作を完了できませんでした。もう一度お試しください。");
-    }
-    return response.status === 204 ? null : response.json();
-}
-
 // 認証済みアカウントの表示名と固定期限を表示し、セッション識別子をJavaScriptで保持しない。
 async function refresh() {
     const response = await fetch("/auth/me", { credentials: "same-origin", cache: "no-store" });
@@ -72,25 +36,6 @@ async function refresh() {
 }
 
 // ログインと本人再確認の共通操作として、端末の署名応答を対応する受付へ送る。
-async function authenticate(path, body) {
-    if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials)
-        throw new Error("対応するブラウザーでHTTPSのログイン画面を開いてください。");
-    const options = await send(`${path}/options`, body);
-    options.challenge = decode(options.challenge);
-    for (const credential of options.allowCredentials || []) credential.id = decode(credential.id);
-    const credential = await navigator.credentials.get({ publicKey: options });
-    if (!credential) throw new Error("本人確認を中止しました。やり直してください。");
-    const response = credential.response;
-    await send(`${path}/verify`, { credential: {
-        id: credential.id, rawId: encode(credential.rawId), type: credential.type,
-        response: {
-            clientDataJSON: encode(response.clientDataJSON), authenticatorData: encode(response.authenticatorData),
-            signature: encode(response.signature), userHandle: response.userHandle ? encode(response.userHandle) : null
-        },
-        clientExtensionResults: credential.getClientExtensionResults()
-    } });
-}
-
 // ログインまたは本人再確認の間は、重複操作を止めて終了後に現在の状態を表示する。
 async function verifyIdentity(reauthentication) {
     setBusy(true);

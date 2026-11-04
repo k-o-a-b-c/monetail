@@ -3,29 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>パスキー登録 | Monetail</title>
+  <title>新規登録 | Monetail</title>
+  <script src="/auth/enroll.js"></script>
+  <script src="/auth/passkey-client.js" defer></script>
   <style>
     body { font-family: system-ui, sans-serif; margin: 3rem auto; padding: 0 1rem; max-width: 32rem; line-height: 1.7; }
     input, button { box-sizing: border-box; width: 100%; font: inherit; padding: .6rem; margin: .4rem 0 1rem; }
     #message { white-space: pre-line; }
+    #name-error { color: #b42318; }
   </style>
-  <script src="/auth/enroll.js" defer></script>
 </head>
-<body>
+<body data-registration="invitation">
   <main>
-    <h1>パスキーを登録</h1>
-    <p>受け取った登録コードを入力し、この端末で本人確認を行ってください。</p>
-    <form id="enrollment-form">
-      <label for="code">登録コード</label>
-      <input id="code" type="password" required maxlength="43" autocomplete="off" autocapitalize="none" spellcheck="false">
-      <label for="display-name">表示名（初回登録のみ必須）</label>
-      <input id="display-name" type="text" maxlength="100" autocomplete="nickname">
-      <p>表示名は100文字以内で入力してください。復旧による再登録では既存の表示名を引き継ぎます。</p>
-      <button id="register" type="submit">パスキーを登録する</button>
+    <h1 id="heading">新規登録</h1>
+    <form id="enrollment-form" hidden>
+      <label for="display-name">表示名</label>
+      <input id="display-name" type="text" required maxlength="100" autocomplete="nickname" aria-describedby="name-error">
+      <p id="name-error" role="alert"></p>
+      <button id="register" type="submit">登録</button>
     </form>
     <p id="message" role="status" aria-live="polite"></p>
-    <a id="login-link" href="/auth/login" hidden>ログイン画面へ</a>
-    <noscript>パスキーの登録にはJavaScriptが必要です。</noscript>
+    <button id="login" type="button" hidden>ログイン</button>
+    <noscript>登録にはJavaScriptが必要です。</noscript>
   </main>
 </body>
 </html>

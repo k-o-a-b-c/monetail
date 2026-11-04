@@ -150,7 +150,7 @@ public static class PasskeyWeb
             var write = HttpMethods.IsPost(http.Request.Method) || HttpMethods.IsDelete(http.Request.Method) ||
                 HttpMethods.IsPut(http.Request.Method) || HttpMethods.IsPatch(http.Request.Method);
             if (protectedPath && write && http.Request.Path != "/connect/token" &&
-                http.User.Identity?.AuthenticationType != DesktopTokenHandler.SchemeName &&
+                (PasskeyEnrollmentEndpoints.IsEndpoint(http) || http.User.Identity?.AuthenticationType != DesktopTokenHandler.SchemeName) &&
                 http.Request.Headers.Origin != settings.Origin.GetLeftPart(UriPartial.Authority))
             {
                 http.Response.StatusCode = 403;
