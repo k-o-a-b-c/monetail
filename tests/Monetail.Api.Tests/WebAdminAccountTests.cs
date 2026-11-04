@@ -181,20 +181,26 @@ public sealed class WebAdminAccountTests
     }
 
     [Theory]
-    [InlineData("role", false)]
-    [InlineData("session", false)]
-    [InlineData("verification", false)]
-    [InlineData("role", true)]
-    public async Task NoteAndAccountCreationRollBackWhenAuthorizationChangesDuringSave(string change, bool create)
+    [InlineData("role", false, false)]
+    [InlineData("session", false, false)]
+    [InlineData("verification", false, false)]
+    [InlineData("role", true, false)]
+    [InlineData("role", false, true)]
+    public async Task NoteAndAccountCreationRollBackWhenAuthorizationChangesDuringSave(string change, bool create, bool existing)
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var client = app.Client();
         await app.LoginAsync(client);
         await LoginTestApp.CsrfAsync(client);
+        if (existing)
+        {
+            using var initial = await Note(client, app.UserId, "変更前");
+            Assert.Equal(HttpStatusCode.NoContent, initial.StatusCode);
+        }
         var mutation = change switch { "role" => "DELETE FROM AspNetUserRoles",
             "session" => "UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc",
             _ => "UPDATE auth_sessions SET VerifiedAtUtc=datetime(VerifiedAtUtc,'-5 minutes')" };
-        app.Database.Execute($"CREATE TRIGGER change_admin AFTER INSERT ON auth_account_admin_notes BEGIN {mutation}; END");
+        app.Database.Execute($"CREATE TRIGGER change_admin AFTER {(existing ? "UPDATE" : "INSERT")} ON auth_account_admin_notes BEGIN {mutation}; END");
         var before = app.Database.Snapshot(app.Database.Tables());
         using var response = create ? await client.PostAsJsonAsync("/admin/accounts", new { requestId = Guid.NewGuid(), adminNote = "未保存" })
             : await client.PatchAsJsonAsync($"/admin/accounts/{app.UserId}/admin-note", new { adminNote = "未保存" });
