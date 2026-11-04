@@ -91,6 +91,8 @@ public sealed class EnrollmentLinkTests
         using var completed = await client.PostAsJsonAsync("/auth/enrollment/verify", new { credential = PasskeyEnrollmentTests.Credential(options) });
         Assert.Equal(HttpStatusCode.BadRequest, completed.StatusCode);
         Assert.Equal(0L, app.Database.Scalar($"SELECT IsEnabled FROM AspNetUsers WHERE Id='{id}'"));
+        using var missing = await admin.DeleteAsync("/admin/accounts/unknown/enrollment-invitation");
+        Assert.Equal(HttpStatusCode.NoContent, missing.StatusCode);
     }
 
     [Theory]
@@ -167,6 +169,34 @@ public sealed class EnrollmentLinkTests
         Assert.Equal(before, db.Snapshot(names));
         Assert.Equal(1L, db.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'01' AND RevokedAtUtc IS NOT NULL"));
         Assert.Equal(1L, db.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'02' AND ConsumedAtUtc IS NOT NULL AND RevokedAtUtc IS NULL"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CliRecoveryPreservesDisplayNameIncludingLegacyNull(bool missingName)
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        if (missingName) app.Database.Execute("UPDATE AspNetUsers SET DisplayName=NULL");
+        IssuedEnrollmentInvitation issued;
+        await using (var scope = app.Factory.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<AuthenticationRevocationService>().RevokeAccountAsync(app.UserId, emergencyRecovery: true);
+            issued = await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().IssueRecoveryLinkAsync(app.UserId);
+        }
+        using var client = app.Client();
+        await LoginTestApp.CsrfAsync(client);
+        using var options = await client.PostAsJsonAsync("/auth/enrollment/options", new { token = issued.Token(), displayName = "書き換え要求" });
+        Assert.Equal(HttpStatusCode.OK, options.StatusCode);
+        using var verified = await client.PostAsJsonAsync("/auth/enrollment/verify", new
+            { credential = PasskeyEnrollmentTests.Credential(await options.Content.ReadFromJsonAsync<JsonElement>()) });
+        Assert.Equal(HttpStatusCode.OK, verified.StatusCode);
+        var name = app.Database.Scalar("SELECT DisplayName FROM AspNetUsers");
+        if (missingName) Assert.IsType<DBNull>(name);
+        else Assert.Equal("同じ名前", name);
+        Assert.Equal(app.UserId, app.Database.Scalar("SELECT Id FROM AspNetUsers"));
+        Assert.Equal(1L, app.Database.Scalar("SELECT COUNT(*) FROM AspNetUserRoles"));
+        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_sessions"));
     }
 
     private static async Task<JsonElement> CreateAsync(HttpClient admin)

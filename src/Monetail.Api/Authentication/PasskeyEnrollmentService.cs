@@ -57,7 +57,7 @@ public sealed class PasskeyEnrollmentService(ApiDbContext context, UserManager<A
         var user = target;
         if (!(await users.AddOrUpdatePasskeyAsync(user, result.Passkey)).Succeeded)
             throw new InvalidOperationException("パスキーの保存に失敗しました。");
-        user.DisplayName ??= challenge.DisplayName;
+        if (code.Purpose != EnrollmentCode.RecoveryPurpose) user.DisplayName ??= challenge.DisplayName;
         user.IsEnabled = true;
         code.ConsumedAtUtc = time.GetUtcNow().UtcDateTime;
         if (!(await users.UpdateAsync(user)).Succeeded)

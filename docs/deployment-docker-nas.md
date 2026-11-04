@@ -127,13 +127,13 @@ Tailscale接続済みクライアントから`https://実際のノード名/heal
 dc run --rm --no-deps api initialize-admin
 ```
 
-この既存管理コマンドは、初回に管理者ID・**生の登録コード**・期限を端末へ表示する。通常のサービスログではなく、管理者だけが見る一時端末で実行し、リダイレクト・`tee`・共有ログ・スクリーンショットへ保存しない。`--rm`で実行コンテナを残さない。コマンド出力を収集するNASの実行機能は使わない。
+この管理コマンドは、初回に**30分有効な招待URLだけを標準出力へ表示**する。管理者ID等の診断は標準エラーへ出す。通常のサービスログではなく、管理者だけが見る一時端末で実行し、リダイレクト・`tee`・共有ログ・スクリーンショットへ保存しない。`--rm`で実行コンテナを残さない。コマンド出力を収集するNASの実行機能は使わない。
 
-10分以内にTailscale接続済みブラウザーで`https://実際のノード名/auth/enroll`を開き、コードと初回表示名を入力してパスキーを登録する。期限切れの場合や既存管理者がある場合、`initialize-admin`はコードを再表示しない。必要なら次で再発行する。
+30分以内に出力された招待URLをTailscale接続済みブラウザーで開き、表示名を入力してパスキーを登録する。URLのフラグメントは即座に除去され、トークンはタブのメモリだけに保持する。再読み込みした場合は元のリンクから開き直す。`initialize-admin`は再表示しない。未登録の初期管理者の期限切れ・出力紛失時は、診断に出たIDを指定して次で再発行する。
 
 ```bash
-# 表示された管理者IDへ置換する。IDは秘密の登録コードとは異なる。
-dc run --rm --no-deps api issue-enrollment-code --account-id REPLACE_ACCOUNT_ID
+# 診断に出た管理者IDへ置換する。登録済み停止者にはこの操作を使わない。
+dc run --rm --no-deps api issue-enrollment-invitation --account-id REPLACE_ACCOUNT_ID
 ```
 
 Windowsアプリには同じ`https://実際のノード名`を設定する。将来のスマートフォンもTailscale接続と同じOrigin/RpIdを使う前提だが、スマートフォンアプリの動作確認は別途必要。
@@ -218,12 +218,15 @@ sudo mv "$NAS_DATA" "${NAS_DATA}.before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
 sudo tar --extract --file "$BACKUP" --numeric-owner --same-owner \
   --directory "$(dirname "$NAS_DATA")"
 # NAS_DATA/nas.envが復元される。配置・Origin・実行UID/GID・PFX期限を確認する。
+sudo test -f "$NAS_DATA/db/monetail.db"
+# 新しいAPIで古いバックアップを復元する場合だけ、既存DBへ既知の追加移行を適用する。
+# dc run --rm --no-deps api initialize-db
 dc run --rm --no-deps api reset-authentication --after-restore
-dc run --rm --no-deps api issue-enrollment-code --account-id REPLACE_ADMIN_ACCOUNT_ID
+dc run --rm --no-deps api issue-recovery-link --account-id REPLACE_ADMIN_ACCOUNT_ID
 dc up -d --force-recreate api tailscale
 ```
 
-過去へ戻る復元では、失効情報も巻き戻るため**停止中に全体の認証リセットを行う**。まず管理者、次に他利用者へコードを再発行し、パスキーを再登録する。Windowsアプリも再ログインする。DBを再初期化したり、`initialize-admin`で管理者を作り直したりしない。管理者IDはバックアップ前に控え、既存のアカウントを使う。
+過去へ戻る復元では、失効情報も巻き戻るため**停止中に全体の認証リセットを行う**。まず管理者、次に他利用者へ`issue-recovery-link`で10分間の復旧リンクを発行し、パスキーを再登録する。Windowsアプリも再ログインする。DBを再初期化したり、`initialize-admin`で管理者を作り直したりしない。管理者IDはバックアップ前に控え、既存のアカウントを使う。
 
 同じDB・RP ID・鍵を保つ、ロールバックを伴わない通常移設は[42の移設方針](42-api-foundation.md#db移行登録復旧コマンド)に従う。新NASでは実行UID/GIDやDockerのuser namespace設定を再確認する。アクセスできなくてもDBや鍵を削除して直そうとしない。
 
@@ -262,9 +265,9 @@ APIは信頼した直前のプロキシから**1段分だけ**`X-Forwarded-For/H
 | HTTPSで到達しない | クライアントのTailscale接続、MagicDNS、HTTPS有効化、端末承認・期限、ポリシーの443許可、`tailscale serve status`。証明書更新に必要な外向き通信も確認 |
 | API更新後だけServeが502 | 共有先のAPIコンテナを再作成した可能性。両サービスを`--force-recreate`で再作成 |
 | 再起動でログインが失われる | DB・DPキー・PFXが同じ永続領域か、Tailscale stateが保持されているか、ホスト時計が正しいかを確認 |
-| 登録できない | 登録コードの期限・一回限りの消費、クライアントのパスキー対応、固定したOrigin/RpId、HTTPS、NASと端末の時刻を確認 |
+| 登録できない | 招待／復旧リンクの期限・一回限りの消費、クライアントのパスキー対応、固定したOrigin/RpId、HTTPS、NASと端末の時刻を確認 |
 
-ログ・`docker inspect`全文・`compose config`全文・バックアップ・登録コードを公開IssueやPRへ貼らない。Tailscale再認証時のログにはログイン用URLが出る場合もある。必要なエラー部分だけを、実環境の識別情報と秘密を除いて共有する。
+ログ・`docker inspect`全文・`compose config`全文・バックアップ・招待URLを公開IssueやPRへ貼らない。Tailscale再認証時のログにはログイン用URLが出る場合もある。必要なエラー部分だけを、実環境の識別情報と秘密を除いて共有する。
 
 ## 検証範囲と公式資料
 

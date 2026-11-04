@@ -5,10 +5,10 @@ using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Features.Accounts;
 
-/// <summary>初回だけ生コードを返し、再送時には作成済みアカウントだけを返す。</summary>
+/// <summary>初回だけ秘密のリンクを返し、再送時には作成済みアカウントだけを返す。</summary>
 public sealed record AccountCreationResponse(string AuthUserId, string? EnrollmentUrl, DateTime? ExpiresAtUtc)
 {
-    /// <summary>応答をログへ出しても登録コードを含めない。</summary>
+    /// <summary>応答をログへ出しても登録リンクを含めない。</summary>
     public override string ToString() => $"Account created for {AuthUserId}";
 }
 
@@ -24,7 +24,7 @@ public enum EnrollmentInvitationReissueStatus { Issued, NotFound, NotEligible, A
 /// <summary>再発行の結果と、成功した場合だけ新しいコードを保持する。</summary>
 public sealed record EnrollmentInvitationReissueResult(EnrollmentInvitationReissueStatus Status, IssuedEnrollmentInvitation? Invitation = null);
 
-/// <summary>現在の全体管理者を確認し、一般アカウントの初回発行と既存アカウントのコード再発行を行う。</summary>
+/// <summary>現在の全体管理者を確認し、一般アカウントの初回発行と既存アカウントの招待再発行を行う。</summary>
 public sealed class AdminAccountProvisioningService(ApiDbContext context, UserManager<AuthUser> users,
     AdminProvisioningService codes, TimeProvider time,
     ILogger<AdminAccountProvisioningService> logger)
@@ -78,7 +78,7 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
         var latest = await FindReissueTargetAsync(authUserId, token);
         if (latest != EnrollmentInvitationReissueStatus.Issued) return new(latest);
         await transaction.CommitAsync(token);
-        logger.LogInformation("登録コードを再発行しました。実行者={ActorId} 認証ID={AuthUserId} 日時={OccurredAtUtc} 結果=成功",
+        logger.LogInformation("登録リンクを再発行しました。実行者={ActorId} 認証ID={AuthUserId} 日時={OccurredAtUtc} 結果=成功",
             current.Session.AuthUserId, authUserId, time.GetUtcNow());
         return new(EnrollmentInvitationReissueStatus.Issued, issued);
     }
@@ -99,7 +99,6 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
         await using var transaction = await context.Database.BeginTransactionAsync(token);
         if (!await IsCurrentAdminAsync(current, token)) return EnrollmentInvitationReissueStatus.AuthenticationChanged;
-        if (!await context.Users.AnyAsync(user => user.Id == id, token)) return EnrollmentInvitationReissueStatus.NotFound;
         var now = time.GetUtcNow().UtcDateTime;
         await context.EnrollmentCodes.Where(row => row.AuthUserId == id && row.ConsumedAtUtc == null &&
             row.RevokedAtUtc == null && row.ExpiresAtUtc > now)

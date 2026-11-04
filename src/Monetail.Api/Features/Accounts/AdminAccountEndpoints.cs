@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Monetail.Api.Features.Accounts;
 
-/// <summary>全体管理者によるアカウント一覧・新規発行・登録コード再発行を受け付ける。</summary>
+/// <summary>全体管理者によるアカウント一覧・新規発行・登録リンク再発行を受け付ける。</summary>
 public static class AdminAccountEndpoints
 {
     /// <summary>現在のAdminロールを要求し、発行には直近の本人確認とCSRFも要求する。</summary>
@@ -15,7 +15,6 @@ public static class AdminAccountEndpoints
             return status switch
             {
                 EnrollmentInvitationReissueStatus.Issued => Results.NoContent(),
-                EnrollmentInvitationReissueStatus.NotFound => Results.NotFound(),
                 _ => Results.StatusCode(403)
             };
         }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"))
