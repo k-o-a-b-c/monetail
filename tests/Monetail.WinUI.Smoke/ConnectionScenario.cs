@@ -238,6 +238,7 @@ public partial class App
         internal readonly List<string> Creations = [];
         internal readonly List<string> OtherServerRequests = [];
         internal readonly List<string> RejectedPeopleBodies = [];
+        internal readonly List<string> RejectedManagementBodies = [];
         internal Guid AccountId = Guid.Parse("493d9035-2de5-4235-921f-f79b799d828b");
         internal Uri? AuthorizationUri;
         internal Task? CallbackTask;
@@ -310,6 +311,8 @@ public partial class App
             {
                 if (path.Contains("/people", StringComparison.Ordinal) && request.Content is not null)
                     RejectedPeopleBodies.Add(await request.Content.ReadAsStringAsync(token));
+                if (request.Content is not null && (path.Contains("/members", StringComparison.Ordinal) || path.Contains("/invitations", StringComparison.Ordinal)))
+                    RejectedManagementBodies.Add(await request.Content.ReadAsStringAsync(token));
                 return new(HttpStatusCode.Unauthorized);
             }
             if (path == "/auth/me") return RejectAuthentication ? new(HttpStatusCode.Unauthorized) : Json(new

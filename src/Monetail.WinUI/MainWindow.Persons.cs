@@ -41,6 +41,12 @@ public sealed partial class MainWindow
     {
         // 本体ごと標準Popupへ配置し、本文と標準ボタンを同じTab・キー処理範囲にする。
         WorkspaceRoot.Children.Remove(PersonDialog);
+        WorkspaceRoot.Children.Remove(ParticipantDialog);
+        WorkspaceRoot.Children.Remove(InvitationCancelDialog);
+        _ = FormKeyboard.ForDialog(ParticipantDialog, async () =>
+        {
+            if (!excludingMember && await TrySaveParticipantAsync()) ParticipantDialog.Hide();
+        });
         PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget =
             focused => focused is Button button && Equals(button.Content, PersonDialog.CloseButtonText);
         personKeyboard = FormKeyboard.ForDialog(PersonDialog, SavePersonAsync, PersonName, PersonValidFrom, PersonValidTo);

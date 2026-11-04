@@ -82,6 +82,7 @@ public partial class App : Application
             await CheckPersonOrderReauthentication();
             await CheckPersonReauthentication();
             await CheckParticipantsAndInvitations();
+            await CheckParticipantAuthenticationRecovery();
             await CheckInputControls();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,

@@ -38,8 +38,10 @@ public partial class App
             Check(Find<ComboBox>(root, "ParticipantRole").Visibility == Visibility.Collapsed && Find<TextBlock>(root, "ParticipantOwnRole").Text.Contains("管理者"), "本人の役割は読み取り専用");
             Invoke(Find<Button>(root, "ReturnButton"));
             Check(Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible, "参加者ダイアログ中は背後の遷移を抑止");
-            Invoke(ParticipantDialogAction(root, "ParticipantDialog", false));
+            Find<ComboBox>(root, "ParticipantPerson").SelectedIndex = 0;
+            Invoke(ParticipantDialogAction(root, "ParticipantDialog", true));
             await Wait(() => ParticipantEditorClosed(root));
+            Check(server.OwnPersonCleared, "本人の人物対応だけは編集・解除でき、役割は送らない");
 
             Invoke(ParticipantActionButton(list, server.Other.AccountId, "編集"));
             await Wait(() => !ParticipantEditorClosed(root)); await Settle();
@@ -129,6 +131,62 @@ public partial class App
                 "権限喪失後は管理画面から閉じて再入場不可");
         }
     }
+    private async Task CheckParticipantAuthenticationRecovery()
+    {
+        foreach (var sameAccount in new[] { true, false })
+        {
+            using var fixture = new SyntheticConnection(saved: true);
+            var server = new ParticipantsServer(fixture.AccountId); fixture.HasPreviousLedger = true; fixture.ParticipantsHandler = server.HandleAsync;
+            var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); Invoke(Find<Button>(root, "SettingsButton")); await Settle();
+            Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ParticipantsNavigation");
+            var list = Find<ListView>(root, "ParticipantsList"); await Wait(() => list.Items.Count == 2); await Settle();
+            Invoke(ParticipantActionButton(list, server.Other.AccountId, "編集")); await Wait(() => !ParticipantEditorClosed(root)); await Settle();
+            Find<ComboBox>(root, "ParticipantRole").SelectedIndex = 2;
+            var revision = server.Other.Revision;
+            fixture.RejectSession = true;
+            Invoke(ParticipantDialogAction(root, "ParticipantDialog", true));
+            await Wait(() => Visible(root, "LoginPage") && ParticipantEditorClosed(root));
+            if (!sameAccount) fixture.AccountId = Guid.NewGuid();
+            fixture.RejectSession = false; fixture.CompleteLogin = true;
+            Invoke(Find<Button>(root, "LoginButton"));
+            if (sameAccount)
+            {
+                await Wait(() => !ParticipantEditorClosed(root)); await Settle();
+                Check(Find<ComboBox>(root, "ParticipantRole").SelectedIndex == 2 && server.LastRevision == Guid.Empty,
+                    "同じ本人の再ログインで参加者の未保存入力を復元し自動保存しない");
+                server.Conflict = true;
+                Invoke(ParticipantDialogAction(root, "ParticipantDialog", true));
+                await Wait(() => Find<Border>(root, "ParticipantConflict").Visibility == Visibility.Visible);
+                Check(server.LastRevision == revision && Find<ComboBox>(root, "ParticipantRole").SelectedIndex == 2,
+                    "参加者編集の認証復帰でも元の更新版を維持して他者の変更を上書きしない");
+                Invoke(ParticipantDialogAction(root, "ParticipantDialog", false)); await Wait(() => ParticipantEditorClosed(root));
+            }
+            else
+            {
+                await Wait(() => Visible(root, "HomePage"));
+                Check(ParticipantEditorClosed(root) && server.EditReads == 1, "別アカウントへ参加者の入力を引き継がない");
+            }
+            await fixture.CallbackTask!;
+        }
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            var server = new ParticipantsServer(fixture.AccountId); fixture.HasPreviousLedger = true; fixture.ParticipantsHandler = server.HandleAsync;
+            var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); Invoke(Find<Button>(root, "SettingsButton")); await Settle();
+            Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ParticipantsNavigation");
+            await Wait(() => Find<ListView>(root, "ParticipantsList").Items.Count == 2);
+            Invoke(Find<Button>(root, "OpenInvitationsButton")); await Wait(() => Find<ListView>(root, "InvitationsList").Items.Count == 2);
+            fixture.RejectSession = true;
+            Invoke(Find<Button>(root, "IssueInvitationButton")); await Wait(() => Visible(root, "LoginPage"));
+            var original = JsonDocument.Parse(fixture.RejectedManagementBodies.Single()).RootElement.GetProperty("requestId").GetGuid();
+            fixture.RejectSession = false; fixture.CompleteLogin = true; Invoke(Find<Button>(root, "LoginButton"));
+            await Wait(() => Visible(root, "ManagementPage") && Find<Grid>(root, "InvitationsContent").Visibility == Visibility.Visible);
+            await Settle(); await fixture.CallbackTask!;
+            Check(server.CreatedCount == 0 && Find<TextBlock>(root, "InvitationRetryNotice").Visibility == Visibility.Visible,
+                "招待発行の認証復帰は未完了要求を復元し自動発行しない");
+            Invoke(Find<Button>(root, "IssueInvitationButton")); await Wait(() => server.CreatedCount == 1);
+            Check(server.CreateRequests.Single() == original, "招待発行の認証復帰でも同じrequestIdを再使用");
+        }
+    }
     private static bool ParticipantEditorClosed(FrameworkElement root) => Find<ScrollViewer>(root, "ParticipantEditorContent").Visibility == Visibility.Collapsed;
     private static Button ParticipantDialogAction(FrameworkElement root, string name, bool primary)
     {
@@ -145,7 +203,8 @@ public partial class App
     {
         internal readonly Guid Account;
         internal MemberInfo Other;
-        private readonly MemberInfo own;
+        private MemberInfo own;
+        internal bool OwnPersonCleared => own.PersonId is null;
         private readonly Guid occupied = Guid.NewGuid(), free = Guid.NewGuid();
         private bool excluded;
         internal int ListReads, EditReads, InvitationReads, Exclusions, CreatedCount, CancelCount;
@@ -193,6 +252,12 @@ public partial class App
                 else
                 {
                     var person = body.RootElement.GetProperty("personId");
+                    if (path.EndsWith(Account.ToString("N"), StringComparison.Ordinal))
+                    {
+                        if (body.RootElement.TryGetProperty("role", out _)) throw new InvalidOperationException("本人の役割は送信しません。");
+                        own = own with { PersonId = null, PersonName = null, PersonDisplayOrder = null, Revision = Guid.NewGuid() };
+                        return Json(Members);
+                    }
                     Other = Other with { Role = body.RootElement.GetProperty("role").GetString()!, PersonId = person.ValueKind == JsonValueKind.Null ? null : person.GetGuid(),
                         PersonName = person.ValueKind == JsonValueKind.Null ? null : "未使用の人物", PersonDisplayOrder = person.ValueKind == JsonValueKind.Null ? null : 1, Revision = Guid.NewGuid() };
                 }
