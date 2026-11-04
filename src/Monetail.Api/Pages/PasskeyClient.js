@@ -6,7 +6,7 @@ function authorizationTarget() {
     if (!value) return null;
     try {
         const target = new URL(value, location.origin);
-        return target.origin === location.origin && target.pathname === "/connect/authorize" &&
+        return target.origin === location.origin && (target.pathname === "/connect/authorize" || target.pathname === "/ledger-invitation" && !target.search) &&
             !target.username && !target.password && !target.hash ? target.href : null;
     } catch { return null; }
 }
@@ -45,6 +45,7 @@ async function send(path, body, method = "POST") {
             throw new Error("最後のパスキーは削除できません。");
         const error = new Error("操作を完了できませんでした。もう一度お試しください。");
         error.status = response.status;
+        try { error.code = (await response.json()).code; } catch { /* 本文がない共通拒否も扱う。 */ }
         throw error;
     }
     return response.status === 204 ? null : response.json();

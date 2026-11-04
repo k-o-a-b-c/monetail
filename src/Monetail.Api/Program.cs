@@ -161,7 +161,7 @@ if (isAuthCommand)
     return;
 }
 app.Logger.LogInformation("セッション期限の既定地域={TimeZone}", TimeZoneInfo.Local.Id);
-app.MapPasskeyWeb(app.Services.GetRequiredService<PasskeySettings>(), "/ledgers", "/ledger-invitations", "/connect", "/.well-known");
+app.MapPasskeyWeb(app.Services.GetRequiredService<PasskeySettings>(), "/ledgers", "/ledger-invitations", "/ledger-invitation", "/ledger-invitation.js", "/connect", "/.well-known");
 app.MapDesktopOAuth();
 app.MapAdminAccounts();
 app.MapLedgers();
