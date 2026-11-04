@@ -108,3 +108,28 @@
 
 `GET /admin/accounts`は登録待ち・停止中・人物未対応を含むアカウントID順。公開項目はID・表示名・利用可否だけで、参照に直近本人確認・CSRFを要求しない。名前だけの人物は含めず、役割・鍵・セッション・コード等を公開しない。
 
+## Webアカウント管理画面のAPI契約（DEC-115・未実装）
+
+全体管理者用のWeb画面は[画面の正本](ledger-onboarding.md#全体アカウント管理画面dec-115利用者確認済み未実装)を参照。既存の全体Admin限定APIを拡張する。**以下は実装前の目標契約**。今回のWeb画面は全体Adminのアカウント管理だけを対象とし、家計簿管理者・一般ユーザーへ公開しない。
+
+| 操作 | DEC-115の追加／変更 |
+| --- | --- |
+| `GET /admin/accounts` | Admin限定。既存`authUserId`・`displayName`・`isEnabled`に、`adminNote`（nullable）、`isGlobalAdmin`（bool）、`registrationStatus`、`invitationExpiresAtUtc`（nullable UTC）を追加。秘密トークン・全パスキー情報・CLI復旧情報は返さない |
+| `POST /admin/accounts` | 既存`requestId`と任意の`adminNote`（最大100文字）を受け付け、新規登録待ち一般アカウントとメモを**同じトランザクション**で保存。従来の要求IDによる冪等性は保持し、再送ではメモを上書きせず招待URLも再表示しない。新規発行の期限は引き続き7日間 |
+| `PATCH /admin/accounts/{id}/admin-note`（新設） | Admin＋直近5分本人確認＋Origin・CSRF必須。JSON `{"adminNote":"文字列またはnull"}` を保存し、空文字・`null`で削除する。100文字超は400、対象なしは404。本人の`displayName`・有効状態・ロール・招待は変更しない。成功204 |
+| `POST /admin/accounts/{id}/enrollment-invitation` | 既存APIを画面から使用。登録済み停止者への再発行は409。旧招待失効と新URLの一回限り表示を維持 |
+| `DELETE /admin/accounts/{id}/enrollment-invitation` | 既存APIを画面から使用。通常・初期管理者招待のみ取消し、CLI緊急復旧リンクは触らない |
+| `GET /auth/me` | 画面入口の表示判定用に**本人の`isGlobalAdmin`**を追加する。サーバーの管理画面・API権限判定を代替しない |
+| `GET /admin/account-management`（新設） | 同一OriginのHTML/JS管理画面。**サーバーでAdmin権限を確認**し、未ログイン401、ログイン中の非Admin403。管理HTMLや画面初期データを非Adminへ返さない |
+
+`registrationStatus`は`invited`（未登録・有効招待あり）／`unregistered`（未登録・有効招待なし）／`active`（登録済み有効）／`suspended`（登録済み停止中）の4種類。**登録履歴は認証ストアから判定**し、`displayName == null`だけで未登録にしない。現行の登録済み判定に用いる表示名・消費済み登録・セッション履歴等を参照し、必要なら判定関数を共用する。`invited`は未消費・未取消・期限内で用途が通常招待または初期管理者招待の場合だけ。`invitationExpiresAtUtc`は当該有効な招待の期限だけを返す。復旧用リンクの期限は返さず、招待状態と混同しない。状態やロールはサーバーから返し、画面は`isEnabled`や表示名・メモから独自推測しない。
+
+画面の表示順は**招待中→未登録・招待なし→利用中→停止中**、各状態内は**招待先メモ優先、なければ表示名の日本語五十音順**。両方ないものは末尾に置き、同値なら`authUserId`で安定化する。APIは必要な項目を返し、表示順の最終制御はWeb画面で行ってよい。
+
+`adminNote`はアカウントごとの永続な管理者専用文字列（最大100文字、任意、重複可）としてDBへ追加する。登録前・後・停止中の変更が可能で、個人表示名・家計簿内人物・Identityロール・認証・家計簿権限には反映しない。空文字と`null`はメモ未設定として扱う。登録画面や本人API、匿名自己登録へは公開しない。既存行のメモ初期値は`null`で、DB移行は既存アカウント・ロール・鍵・セッション・招待情報を破損しない。
+
+一覧・画面参照は有効な全体Adminセッションのみで直近5分の再認証を要求しない。**新規発行・再発行・取消・メモ更新**はすべてAdmin＋既存の直近5分WebAuthn確認＋Origin＋CSRFを必須とし、更新前後に権限・有効セッションを再確認して失敗時はロールバックする。管理画面内の本人確認には既存`/auth/reauthentication/options`・`verify`を利用し、ユーザー入力を保持して操作を再開する。招待URLは発行直後のレスポンス／ダイアログ内のメモリだけで保持し、一覧・再表示・URL・ログ・WebStorageへ保管しない。新規発行の通信失敗・再送では元の`requestId`を保持し、二重作成を防ぐ。既存要求の再送でURLを復元できない場合は、未登録アカウントの招待再発行を案内する。
+
+追加テストはAdminと非AdminのHTML/GET/更新権限、登録状態4種類とCLI復旧の分離、五十音・欠損名・安定順、メモ100文字／空欄／登録前後／競合・ロールバック、要求ID再送・リンク不再表示、本人確認期限、Origin・CSRF、既存の初期Admin・緊急復旧・Windows OAuth・招待パスキー登録の回帰を対象とする。
+
+**対象外**：全体Adminの付与・剥奪、アカウント停止・削除、本人の表示名変更、登録済み停止者のWeb復旧、家計簿内参加者権限の変更、メール送信、WinUI 3の画面。
