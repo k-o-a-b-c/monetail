@@ -9,6 +9,22 @@ public static class AdminAccountEndpoints
     /// <summary>現在のAdminロールを要求し、発行には直近の本人確認とCSRFも要求する。</summary>
     public static void MapAdminAccounts(this WebApplication app)
     {
+        app.MapGet("/admin/account-management", () => Results.Content(PasskeyWeb.ReadPage("AdminAccounts.html"), "text/html; charset=utf-8"))
+            .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin")).AddEndpointFilter<AuthRequestFilter>();
+        app.MapGet("/admin/account-management.js", () => Results.Content(PasskeyWeb.ReadPage("AdminAccounts.js"), "text/javascript; charset=utf-8"))
+            .RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin")).AddEndpointFilter<AuthRequestFilter>();
+        app.MapPatch("/admin/accounts/{id}/admin-note", async Task<IResult> (string id, UpdateNoteRequest request, HttpContext http, AdminAccountProvisioningService service) =>
+        {
+            if (request.AdminNote?.Length > AccountAdminNote.MaxLength) return InvalidNote();
+            return await service.UpdateNoteAsync(id, request.AdminNote, http, http.RequestAborted) switch
+            {
+                AccountNoteUpdateStatus.Updated => Results.NoContent(),
+                AccountNoteUpdateStatus.NotFound => Results.NotFound(),
+                _ => Results.StatusCode(403)
+            };
+        }).RequireAuthorization(policy => policy.RequireAuthenticatedUser().RequireRole("Admin"))
+            .RequireAuthorization(RecentPasskeyRequirement.PolicyName).AddEndpointFilter<AuthRequestFilter>()
+            .RequireRateLimiting("passkey-authentication");
         app.MapDelete("/admin/accounts/{id}/enrollment-invitation", async Task<IResult> (string id, HttpContext http, AdminAccountProvisioningService service) =>
         {
             var status = await service.CancelInvitationAsync(id, http, http.RequestAborted);
@@ -26,7 +42,8 @@ public static class AdminAccountEndpoints
         app.MapPost("/admin/accounts", async Task<IResult> (CreateAccountRequest request, HttpContext http, AdminAccountProvisioningService service) =>
         {
             if (request.RequestId == Guid.Empty) return Results.BadRequest(new { message = "要求IDを指定してください。" });
-            var result = await service.CreateAsync(request.RequestId, http, http.RequestAborted);
+            if (request.AdminNote?.Length > AccountAdminNote.MaxLength) return InvalidNote();
+            var result = await service.CreateAsync(request.RequestId, http, http.RequestAborted, request.AdminNote);
             return result.Status switch
             {
                 AccountCreationStatus.Created => Results.Json(result.Response, statusCode: 201),
@@ -54,5 +71,10 @@ public static class AdminAccountEndpoints
 
     /// <summary>再送識別子だけを受け付け、未対応の項目の追加指定を拒否する。</summary>
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public sealed record CreateAccountRequest([property: JsonRequired] Guid RequestId);
+    public sealed record CreateAccountRequest([property: JsonRequired] Guid RequestId, string? AdminNote = null);
+
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+    public sealed record UpdateNoteRequest([property: JsonRequired] string? AdminNote);
+
+    private static IResult InvalidNote() => Results.BadRequest(new { message = "招待先メモは100文字以内で入力してください。" });
 }

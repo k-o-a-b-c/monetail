@@ -31,6 +31,7 @@ public static class PasskeyLoginEndpoints
             return Results.Ok(new
             {
                 authUserId = current.Session.AuthUserId, displayName = current.DisplayName,
+                isGlobalAdmin = http.User.IsInRole("Admin"),
                 expiresAtUtc = DateTime.SpecifyKind(current.Session.ExpiresAtUtc, DateTimeKind.Utc),
                 verifiedAtUtc = DateTime.SpecifyKind(current.Session.VerifiedAtUtc, DateTimeKind.Utc)
             });

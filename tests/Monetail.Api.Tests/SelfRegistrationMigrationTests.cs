@@ -36,7 +36,7 @@ public sealed class SelfRegistrationMigrationTests
         Assert.Equal(before, db.Snapshot(tables));
         Assert.Equal(0L, db.Scalar("SELECT COUNT(*) FROM auth_self_registration_completions"));
         Assert.Equal(0L, db.Scalar("SELECT COUNT(*) FROM pragma_foreign_key_list('auth_self_registration_completions')"));
-        Assert.Equal(3L, db.Scalar("SELECT COUNT(*) FROM __MonetailMigrationsHistory"));
+        Assert.Equal(4L, db.Scalar("SELECT COUNT(*) FROM __MonetailMigrationsHistory"));
         await db.MigrateAsync();
         Assert.Equal(before, db.Snapshot(tables));
     }

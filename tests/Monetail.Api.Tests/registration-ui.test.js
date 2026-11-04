@@ -8,7 +8,7 @@ const pages = path.resolve(__dirname, "../../src/Monetail.Api/Pages");
 const token = "S".repeat(43); // 実際の招待情報を使わない。
 
 // 製品スクリプトをそのまま実行し、DOM・WebAuthn・HTTPの境界だけを置き換える。
-function browser({ mode = "invitation", hash = "#token=" + token, search = "", cancel = false, fail = "", invalid = false } = {}) {
+function browser({ mode = "invitation", hash = "#token=" + token, search = "", cancel = false, fail = "", invalid = false, globalAdmin = false } = {}) {
     const elements = new Map();
     function element(id) {
         if (!elements.has(id)) elements.set(id, { hidden: ["enrollment-form", "login"].includes(id), disabled: false,
@@ -46,12 +46,13 @@ function browser({ mode = "invitation", hash = "#token=" + token, search = "", c
         calls.push({ url, ...options, body: options?.body ? JSON.parse(options.body) : undefined });
         assert.ok(!url.includes(token));
         if (url === "/auth/csrf") return response(200, { token: "synthetic-csrf" });
-        if (url === "/auth/me") return response(loggedIn ? 200 : 401, { displayName: "名前", expiresAtUtc: "2030-01-01", verifiedAtUtc: "2026-01-01" });
+        if (url === "/auth/me") return response(loggedIn ? 200 : 401, { isGlobalAdmin: globalAdmin, displayName: "名前", expiresAtUtc: "2030-01-01", verifiedAtUtc: "2026-01-01" });
         if (url === "/auth/passkeys") return response(200, []);
         if (invalid && url.includes("/options")) return response(400, {});
         if (!didFail && fail && url.endsWith(fail)) { didFail = true; throw new TypeError("synthetic network failure"); }
         if (url.endsWith("/options")) return response(200, { challenge: "AQID", user: { id: "AQID" }, excludeCredentials: [] });
         if (url === "/auth/login/verify") loggedIn = true;
+        if (url === "/auth/logout") loggedIn = false;
         return response(200, { message: "ok" });
     } });
     function response(status, body) { return { status, ok: status === 200, json: async () => body }; }
@@ -157,4 +158,17 @@ test("通常のログイン画面も共通WebAuthn処理で認証できる", asy
     await page.element("login").listeners.click();
     assert.equal(page.getCount(), 1);
     assert.ok(page.calls.some(c => c.url === "/auth/login/verify"));
+});
+
+// 共通CIの同じNode実行で、管理画面の製品スクリプトも検証する。
+require("./admin-accounts-ui.cases.js");
+
+for (const globalAdmin of [false, true]) test(`ログイン後の管理入口は全体Adminだけに表示:${globalAdmin}`, async () => {
+    const page = browser({ mode: "public", hash: "", globalAdmin });
+    page.run("Login.js");
+    await new Promise(setImmediate);
+    await page.element("login").listeners.click();
+    assert.equal(page.element("account-management").hidden, !globalAdmin);
+    await page.element("logout").listeners.click();
+    assert.equal(page.element("account-management").hidden, true);
 });

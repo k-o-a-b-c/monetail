@@ -30,7 +30,7 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
     ILogger<AdminAccountProvisioningService> logger)
 {
     /// <summary>現在の全体管理者を再確認し、新規アカウント・初回コード・要求記録を同時に保存する。</summary>
-    public async Task<AccountCreationResult> CreateAsync(Guid requestId, HttpContext http, CancellationToken token)
+    public async Task<AccountCreationResult> CreateAsync(Guid requestId, HttpContext http, CancellationToken token, string? adminNote = null)
     {
         await DatabaseInitializer.EnsureReadyAsync(context, token);
         var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
@@ -46,6 +46,7 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
         user.UserName = user.Id;
         if (!(await users.CreateAsync(user)).Succeeded)
             throw new InvalidOperationException("認証アカウントを保存できません。");
+        context.Set<AccountAdminNote>().Add(new AccountAdminNote { AuthUserId = user.Id, AdminNote = string.IsNullOrEmpty(adminNote) ? null : adminNote });
         var issued = await codes.AddInvitationAsync(user.Id, TimeSpan.FromDays(7), EnrollmentCode.InvitationPurpose, token);
         context.Set<AccountCreationRequest>().Add(new AccountCreationRequest
         {
@@ -110,6 +111,24 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
         return EnrollmentInvitationReissueStatus.Issued;
     }
 
+    /// <summary>メモだけを更新し、途中で管理者権限や本人確認が失われた場合は巻き戻す。</summary>
+    public async Task<AccountNoteUpdateStatus> UpdateNoteAsync(string id, string? note, HttpContext http, CancellationToken token)
+    {
+        await DatabaseInitializer.EnsureReadyAsync(context, token);
+        var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
+        await using var transaction = await context.Database.BeginTransactionAsync(token);
+        if (!await IsCurrentAdminAsync(current, token)) return AccountNoteUpdateStatus.AuthenticationChanged;
+        if (!await context.Users.AnyAsync(user => user.Id == id, token)) return AccountNoteUpdateStatus.NotFound;
+        var saved = await context.Set<AccountAdminNote>().SingleOrDefaultAsync(row => row.AuthUserId == id, token);
+        if (saved is null) context.Set<AccountAdminNote>().Add(saved = new AccountAdminNote { AuthUserId = id });
+        saved.AdminNote = string.IsNullOrEmpty(note) ? null : note;
+        await context.SaveChangesAsync(token);
+        if (!await IsCurrentAdminAsync(current, token)) return AccountNoteUpdateStatus.AuthenticationChanged;
+        await transaction.CommitAsync(token);
+        logger.LogInformation("招待先メモを更新しました。実行者={ActorId} 認証ID={AuthUserId}", current.Session.AuthUserId, id);
+        return AccountNoteUpdateStatus.Updated;
+    }
+
     /// <summary>DBの現在のセッション・アカウント利用可否・Adminロール・直近5分を再確認する。</summary>
     private Task<bool> IsCurrentAdminAsync(CurrentSession current, CancellationToken token)
     {
@@ -124,3 +143,6 @@ public sealed class AdminAccountProvisioningService(ApiDbContext context, UserMa
                              select user.Id).AnyAsync(token);
     }
 }
+
+/// <summary>管理者用メモの保存結果を保持する。</summary>
+public enum AccountNoteUpdateStatus { Updated, NotFound, AuthenticationChanged }
