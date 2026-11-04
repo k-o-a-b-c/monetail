@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>アカウント管理 | Monetail</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #202938; background: #f6f7fa; line-height: 1.6; }
+    body { margin: 0; padding: 2rem; } main { max-width: 78rem; margin: auto; }
+    a { color: #245bb5; } header, .actions { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+    header { justify-content: space-between; margin: 1rem 0; } h1, h2 { margin: .4rem 0; }
+    .muted { color: #536173; } .table { background: white; border: 1px solid #dce1e8; border-radius: .75rem; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; } th, td { padding: .85rem; border-bottom: 1px solid #e8ebf0; vertical-align: top; }
+    th { font-size: .9rem; background: #fafbfd; white-space: nowrap; } td { overflow-wrap: anywhere; } td:first-child { font: .8rem ui-monospace, monospace; max-width: 12rem; }
+    button, input { font: inherit; border: 1px solid #bac4d3; border-radius: .4rem; padding: .5rem .8rem; }
+    button { cursor: pointer; background: white; color: inherit; } button.primary { background: #245bb5; border-color: #245bb5; color: white; }
+    button:disabled { cursor: default; opacity: .55; } :focus-visible { outline: 3px solid #5394ed; outline-offset: 2px; }
+    dialog { width: min(32rem, calc(100vw - 4rem)); border: 1px solid #c8d0dc; border-radius: .9rem; padding: 1.7rem; color: inherit; }
+    dialog::backdrop { background: #14263b66; } input { display: block; box-sizing: border-box; width: 100%; margin: .4rem 0 1rem; }
+    #target { overflow-wrap: anywhere; } #dialog-message, #message { white-space: pre-line; } .actions { margin-top: 1rem; }
+    [hidden] { display: none !important; } @media (max-width: 600px) { body { padding: 1rem; } }
+  </style>
+  <script src="/auth/passkey-client.js" defer></script>
+  <script src="/admin/account-management.js" defer></script>
+</head>
+<body>
+<main>
+  <a href="/auth/login">← ログイン情報に戻る</a>
+  <header><div><h1>アカウント管理</h1><span class="muted">全体管理者専用</span></div>
+    <div class="actions"><button id="reload" type="button">再読み込み</button><button id="invite" class="primary" type="button">＋ 新規招待</button></div></header>
+  <p class="muted">招待先メモは管理者だけに表示されます。更新操作には直近5分以内のパスキー本人確認が必要です。</p>
+  <p id="message" role="status" aria-live="polite"></p>
+  <div class="table"><table aria-label="全体アカウント一覧"><thead><tr><th>アカウントID</th><th>本人表示名</th><th>招待先メモ</th><th>全体権限</th><th>登録状態</th><th>招待期限</th><th>操作</th></tr></thead><tbody id="accounts"></tbody></table></div>
+  <noscript>アカウント管理にはJavaScriptが必要です。</noscript>
+</main>
+<dialog id="operation" aria-labelledby="dialog-title">
+  <form id="operation-form">
+    <h2 id="dialog-title"></h2><p id="target"></p>
+    <div id="note-field"><label for="note">招待先メモ（任意・100文字以内）</label><input id="note" maxlength="100" autocomplete="off"></div>
+    <p id="dialog-message" role="status" aria-live="polite"></p>
+    <div id="issued" hidden><label for="invitation-url">招待URL（閉じると再表示できません）</label>
+      <input id="invitation-url" readonly autocomplete="off" spellcheck="false"><button id="copy" type="button">URLをコピー</button></div>
+    <div class="actions"><button id="confirm" class="primary" type="submit"></button><button id="verify" type="button" hidden>本人確認して再試行</button><button id="close" type="button">キャンセル</button></div>
+  </form>
+</dialog>
+</body>
+</html>

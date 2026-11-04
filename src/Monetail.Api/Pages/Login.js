@@ -25,8 +25,10 @@ async function refresh() {
     passkeysSection.hidden = !loggedIn;
     passkeyList.replaceChildren();
     person.textContent = "";
+    document.getElementById("account-management").hidden = true;
     if (loggedIn) {
         const current = await response.json();
+        document.getElementById("account-management").hidden = !current.isGlobalAdmin;
         person.textContent = `${current.displayName} としてログインしています。`;
         message.textContent = `ログイン期限: ${new Date(current.expiresAtUtc).toLocaleString()}\n本人確認日時: ${new Date(current.verifiedAtUtc).toLocaleString()}`;
         await refreshPasskeys();

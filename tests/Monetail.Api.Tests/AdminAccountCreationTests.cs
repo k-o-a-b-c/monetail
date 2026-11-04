@@ -27,9 +27,9 @@ public class AdminAccountCreationTests
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
         await LoginAsync(app, admin);
-        var tables = app.Database.Tables().Except(new[] { "AspNetUsers", "auth_enrollment_codes", "auth_account_creation_requests" }).ToArray();
+        var tables = app.Database.Tables().Except(new[] { "AspNetUsers", "auth_enrollment_codes", "auth_account_creation_requests", "auth_account_admin_notes" }).ToArray();
         var before = app.Database.Snapshot(tables);
-        using var created = await CreateAsync(admin, Guid.NewGuid());
+        using var created = await CreateAsync(admin, Guid.NewGuid(), "招待先の管理メモ");
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.False(created.Headers.Contains("Set-Cookie"));
         Assert.Equal("no-store", created.Headers.CacheControl!.ToString());
@@ -62,6 +62,8 @@ public class AdminAccountCreationTests
         Assert.Equal(HttpStatusCode.OK, loggedIn.StatusCode);
         var me = await enrollee.GetFromJsonAsync<JsonElement>("/auth/me");
         Assert.False(me.TryGetProperty("userCode", out _));
+        Assert.False(me.TryGetProperty("adminNote", out _));
+        Assert.Equal("招待先の管理メモ", app.Database.Scalar($"SELECT AdminNote FROM auth_account_admin_notes WHERE AuthUserId='{id}'"));
         Assert.Equal("新しいアカウント名", me.GetProperty("displayName").GetString());
         await LoginTestApp.CsrfAsync(enrollee);
         using var denied = await CreateAsync(enrollee, Guid.NewGuid());
@@ -174,6 +176,7 @@ public class AdminAccountCreationTests
     [InlineData("AspNetUsers")]
     [InlineData("auth_enrollment_codes")]
     [InlineData("auth_account_creation_requests")]
+    [InlineData("auth_account_admin_notes")]
     public async Task EveryWriteFailureRollsBackTheWholeCreationAndAllowsTheSameRequestToRetry(string table)
     {
         await using var app = await LoginTestApp.CreateAsync();
@@ -298,8 +301,8 @@ public class AdminAccountCreationTests
     }
 
     /// <summary>再送識別子だけを一般アカウント発行APIへ送る。</summary>
-    private static Task<HttpResponseMessage> CreateAsync(HttpClient client, Guid requestId) =>
-        client.PostAsJsonAsync("/admin/accounts", new { requestId });
+    private static Task<HttpResponseMessage> CreateAsync(HttpClient client, Guid requestId, string? adminNote = null) =>
+        client.PostAsJsonAsync("/admin/accounts", new { requestId, adminNote });
 
     /// <summary>要求記録の保存中に本人確認の有効期間を超過させる。</summary>
     private sealed class DelayCreation(LoginTestApp.LoginTime time) : DbCommandInterceptor

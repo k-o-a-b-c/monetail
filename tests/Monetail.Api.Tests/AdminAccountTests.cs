@@ -52,7 +52,7 @@ public class AdminAccountTests
         AssertAccount(rows.Single(row => row.GetProperty("authUserId").GetString() == stopped.UserId), stopped.UserId, false);
         Assert.Null(rows.Single(row => row.GetProperty("authUserId").GetString() == pendingId).GetProperty("displayName").GetString());
         foreach (var row in rows)
-            Assert.Equal(new[] { "authUserId", "displayName", "isEnabled" }, row.EnumerateObject().Select(property => property.Name).Order().ToArray());
+            Assert.Equal(new[] { "adminNote", "authUserId", "displayName", "invitationExpiresAtUtc", "isEnabled", "isGlobalAdmin", "registrationStatus" }, row.EnumerateObject().Select(property => property.Name).Order().ToArray());
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
     }
 
@@ -189,7 +189,7 @@ public class AdminAccountTests
     /// <summary>アカウントの公開項目と保存済み利用可否が一致することを確認する。</summary>
     private static void AssertAccount(JsonElement account, string id, bool enabled)
     {
-        Assert.Equal(new[] { "authUserId", "displayName", "isEnabled" }, account.EnumerateObject().Select(property => property.Name).Order().ToArray());
+        Assert.Equal(new[] { "adminNote", "authUserId", "displayName", "invitationExpiresAtUtc", "isEnabled", "isGlobalAdmin", "registrationStatus" }, account.EnumerateObject().Select(property => property.Name).Order().ToArray());
         Assert.Equal(id, account.GetProperty("authUserId").GetString());
         Assert.Equal(enabled, account.GetProperty("isEnabled").GetBoolean());
     }

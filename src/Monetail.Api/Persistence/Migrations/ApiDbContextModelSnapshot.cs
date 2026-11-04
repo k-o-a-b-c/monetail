@@ -166,6 +166,14 @@ namespace Monetail.Api.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Monetail.Api.Features.Accounts.AccountAdminNote", b =>
+                {
+                    b.Property<string>("AuthUserId").HasColumnType("TEXT");
+                    b.Property<string>("AdminNote").HasMaxLength(100).HasColumnType("TEXT");
+                    b.HasKey("AuthUserId");
+                    b.ToTable("auth_account_admin_notes");
+                });
+
             modelBuilder.Entity("Monetail.Api.Authentication.AccountCreationRequest", b =>
                 {
                     b.Property<string>("RequestId")
@@ -1057,6 +1065,11 @@ namespace Monetail.Api.Persistence.Migrations
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", b =>
                 {
                     b.Navigation("Tokens");
+                });
+            modelBuilder.Entity("Monetail.Api.Features.Accounts.AccountAdminNote", b =>
+                {
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null).WithMany()
+                        .HasForeignKey("AuthUserId").OnDelete(DeleteBehavior.Cascade).IsRequired();
                 });
 #pragma warning restore 612, 618
         }

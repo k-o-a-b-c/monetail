@@ -89,9 +89,12 @@ public sealed class AdminProvisioningService(ApiDbContext context, UserManager<A
     }
 
     /// <summary>表示名・消費済み登録・セッションの履歴から、登録待ちと登録済み停止を分ける。</summary>
-    internal async Task<bool> WasRegisteredAsync(AuthUser user, CancellationToken token) => user.DisplayName is not null ||
-        await context.EnrollmentCodes.AnyAsync(row => row.AuthUserId == user.Id && row.ConsumedAtUtc != null, token) ||
-        await context.Sessions.AnyAsync(row => row.AuthUserId == user.Id, token);
+    internal IQueryable<AuthUser> RegisteredAccounts => context.Users.Where(user => user.DisplayName != null ||
+        context.EnrollmentCodes.Any(row => row.AuthUserId == user.Id && row.ConsumedAtUtc != null) ||
+        context.Sessions.Any(row => row.AuthUserId == user.Id));
+
+    internal Task<bool> WasRegisteredAsync(AuthUser user, CancellationToken token) =>
+        RegisteredAccounts.AnyAsync(row => row.Id == user.Id, token);
 
     /// <summary>Identityの保存失敗をトランザクション全体の失敗にする。</summary>
     private static void RequireSuccess(IdentityResult result)

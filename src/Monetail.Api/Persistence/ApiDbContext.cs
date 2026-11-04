@@ -55,6 +55,13 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
             session.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+        builder.Entity<Monetail.Api.Features.Accounts.AccountAdminNote>(note =>
+        {
+            note.ToTable("auth_account_admin_notes");
+            note.HasKey(row => row.AuthUserId);
+            note.Property(row => row.AdminNote).HasMaxLength(100);
+            note.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.AuthUserId).OnDelete(DeleteBehavior.Cascade);
+        });
         builder.Entity<AccountCreationRequest>(request =>
         {
             request.ToTable("auth_account_creation_requests");
