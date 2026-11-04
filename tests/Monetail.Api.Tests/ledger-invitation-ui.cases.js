@@ -3,7 +3,7 @@ const test=require('node:test'), assert=require('node:assert/strict'), vm=requir
 const pages=path.resolve(__dirname,'../../src/Monetail.Api/Pages');
 const account='11111111-1111-4111-8111-111111111111', ledger='22222222-2222-4222-8222-222222222222', token='S'.repeat(43);
 const flush=()=>new Promise(setImmediate);
-async function page({storage=new Map(),hash='#token='+token,pending=false,preview='valid',fail=false,logged=true,broken=false}={}) {
+async function page({storage=new Map(),hash='#token='+token,pending=false,preview='valid',fail=false,logged=true,broken=false,previewFail=false,previewCode=null}={}) {
  const elements=new Map(),calls=[],moves=[];let who=account,checkStatus=200;
  if(pending)storage.set('monetail.ledgerInvitation',JSON.stringify({token,pending:{accountId:account,ledgerId:ledger}}));
  const el=id=>{if(!elements.has(id))elements.set(id,{hidden:false,textContent:'',disabled:false,handlers:{},addEventListener(n,f){this.handlers[n]=f;}});return elements.get(id);};
@@ -15,7 +15,8 @@ async function page({storage=new Map(),hash='#token='+token,pending=false,previe
  async fetch(url,options={}){assert.equal(location.hash,'');assert.ok(!url.includes(token));calls.push({url,options});
  if(url==='/auth/me')return reply(logged?200:401,{authUserId:who});
  if(url==='/auth/csrf')return reply(200,{token:'csrf'});
- if(url.endsWith('/preview'))return reply(typeof preview==='number'?preview:200,{status:preview,ledgerId:ledger,ledgerName:'<家計簿>'});
+ if(url.endsWith('/preview') && previewFail)throw Error('offline');
+ if(url.endsWith('/preview'))return reply(typeof preview==='number'?preview:200,{code:previewCode,status:preview,ledgerId:ledger,ledgerName:'<家計簿>'});
  if(url.endsWith('/accept')){if(fail)throw Error('lost');return reply(200,{status:'joined',ledger:{ledgerId:ledger}});}
  return reply(checkStatus,{ledgerId:ledger});}});
  for(const file of ['PasskeyClient.js','LedgerInvitation.js'])vm.runInContext(fs.readFileSync(path.join(pages,file),'utf8'),ctx);
@@ -32,3 +33,28 @@ test('preview後の別アカウントにも参加操作を引き継がない',as
 test('保存不能ならAPIを呼ばずURLから秘密を除去',async()=>{const p=await page({broken:true});assert.equal(p.calls.length,0);assert.equal(p.el('accept').hidden,true);});
 test('戻るは一時情報を消す',async()=>{const p=await page();await p.click('back');assert.equal(p.storage.size,0);assert.deepEqual(p.moves,['/auth/login']);});
 for(const target of ['/ledger-invitation','/ledger-invitation?token=secret','https://wrong.example/ledger-invitation'])test('固定の招待戻り先だけを追加:'+target,async()=>{let assigned;const ctx=vm.createContext({window:{},location:{origin:'https://monetail.example.test',search:'?returnUrl='+encodeURIComponent(target),assign(v){assigned=v;}},URL,URLSearchParams,Uint8Array,atob,btoa});vm.runInContext(fs.readFileSync(path.join(pages,'PasskeyClient.js'),'utf8'),ctx);assert.equal(ctx.window.MonetailPasskeys.continueAuthorization(),target==='/ledger-invitation');if(assigned)assert.equal(assigned,'https://monetail.example.test/ledger-invitation');});
+
+for(const logged of [true,false])test('通常の戻るはログイン状態別の文言で一時情報を削除:'+logged,async()=>{
+ const p=await page({logged});assert.equal(p.el('back').hidden,false);
+ assert.equal(p.el('back').textContent,logged?'ログイン情報に戻る':'ログイン画面に戻る');
+ await p.click('back');assert.equal(p.storage.size,0);assert.deepEqual(p.moves,['/auth/login']);
+});
+for(const code of ['invalid_invitation','invitation_expired','invitation_used','invitation_revoked'])test('利用不可では戻るを含め操作を出さない:'+code,async()=>{
+ const p=await page({preview:409,previewCode:code});
+ for(const id of ['back','preview','accept','check','invitation-login'])assert.equal(p.el(id).hidden,true,id);
+ await p.click('back');assert.equal(p.moves.length,0);assert.equal(p.storage.size,0);
+});
+test('通常の通信失敗では確認再試行と通常の戻るを維持',async()=>{
+ const p=await page({previewFail:true});assert.equal(p.el('preview').hidden,false);assert.equal(p.el('back').hidden,false);assert.equal(p.storage.size,1);
+});
+test('別アカウントからの再ログイン導線は記録を保持し、元の本人だけが明示確認を再開',async()=>{
+ const p=await page({pending:true,hash:''});const saved=p.storage.get('monetail.ledgerInvitation');p.account(ledger);
+ await p.click('check');assert.equal(p.el('invitation-login').hidden,false);assert.match(p.el('invitation-login').textContent,/元のアカウント/);
+ assert.equal(p.el('back').hidden,true);await p.click('back');await p.click('accept');
+ assert.equal(p.storage.get('monetail.ledgerInvitation'),saved);assert.ok(p.calls.every(c=>c.url==='/auth/me'));
+ const html=fs.readFileSync(path.join(pages,'LedgerInvitation.html'),'utf8');assert.match(html,/id="invitation-login" href="\/auth\/login\?returnUrl=%2Fledger-invitation"/);
+ const loggedOut=await page({storage:p.storage,hash:'',logged:false});assert.equal(loggedOut.calls.length,0);await loggedOut.click('check');
+ assert.equal(loggedOut.el('invitation-login').hidden,false);assert.equal(p.storage.get('monetail.ledgerInvitation'),saved);
+ const restored=await page({storage:p.storage,hash:''});assert.equal(restored.calls.length,0);await restored.click('check');
+ assert.deepEqual(restored.calls.map(c=>c.url),['/auth/me','/ledgers/'+ledger]);assert.equal(p.storage.size,0);assert.match(restored.el('message').textContent,/Windows版/);
+});

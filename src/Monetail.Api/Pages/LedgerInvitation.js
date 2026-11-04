@@ -5,19 +5,24 @@ let state, preview, previewAccount, busy = false;
 const uuid = value => typeof value === "string" && /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(value);
 const same = (a, b) => a?.replaceAll("-", "").toLowerCase() === b?.replaceAll("-", "").toLowerCase();
 function message(text) { el("message").textContent = text; }
-function buttons(...ids) { for (const id of ["preview", "accept", "check", "invitation-login"]) el(id).hidden = !ids.includes(id); }
+function buttons(...ids) { for (const id of ["preview", "accept", "check", "invitation-login"]) el(id).hidden = !ids.includes(id); el("back").hidden = !!state?.pending; }
+function loginAction() {
+    el("invitation-login").textContent = state?.pending ? "元のアカウントでログインし直す" : "ログイン";
+    buttons("invitation-login");
+}
 function save() { sessionStorage.setItem(key, JSON.stringify(state)); }
 function clear() { sessionStorage.removeItem(key); state = null; }
 function complete() { clear(); buttons(); message("家計簿に参加しました。Windows版で家計簿を開いてください。"); }
 function unknown() { buttons("check"); message("参加できたか確認できませんでした。"); }
 async function me() {
     const response = await fetch("/auth/me", { credentials: "same-origin", cache: "no-store" });
-    if (response.status === 401) { buttons("invitation-login"); message("ログインしてから操作を続けてください。"); return null; }
+    if (response.status === 401) { el("back").textContent = "ログイン画面に戻る"; loginAction(); message("ログインしてから操作を続けてください。"); return null; }
     if (!response.ok) throw new Error();
     const user = await response.json();
     if (!uuid(user.authUserId)) throw new Error();
+    el("back").textContent = "ログイン情報に戻る";
     if (state.pending && !same(user.authUserId, state.pending.accountId)) {
-        buttons(); message("元の操作と異なるアカウントです。元のアカウントでログインし直してください。");
+        loginAction(); message("元の操作と異なるアカウントです。ログイン情報画面で、ご自身の操作でログアウトしてから元のアカウントでログインしてください。結果不明の記録は保持しています。");
         return null;
     }
     return user;
@@ -39,8 +44,8 @@ async function showPreview() {
         if (result.status === "already_member") { clear(); buttons(); message("この家計簿には参加済みです。"); }
         else { buttons("accept"); message(`「${result.ledgerName}」に参加しますか？`); }
     } catch (error) {
-        if (error.status === 401) { buttons("invitation-login"); message("ログインしてください。"); }
-        else if ([400, 404, 409].includes(error.status)) { clear(); buttons(); message(({ invitation_used: "この招待リンクは使用済みです。", invitation_expired: "この招待リンクは期限切れです。", invitation_revoked: "この招待リンクは取り消されています。" })[error.code] ?? "この招待リンクは無効のため利用できません。"); }
+        if (error.status === 401) { loginAction(); message("ログインしてください。"); }
+        else if ([400, 404, 409].includes(error.status)) { clear(); buttons(); el("back").hidden = true; message(({ invitation_used: "この招待リンクは使用済みです。", invitation_expired: "この招待リンクは期限切れです。", invitation_revoked: "この招待リンクは取り消されています。" })[error.code] ?? "この招待リンクは無効のため利用できません。"); }
         else throw error;
     }
 }
@@ -58,7 +63,7 @@ async function accept() {
         else if (result.status === "already_member" && same(result.ledgerId, state.pending.ledgerId)) complete();
         else unknown();
     } catch (error) {
-        if (error.status === 401) { buttons("invitation-login"); message("ログインしてから参加状況を確認してください。"); }
+        if (error.status === 401) { loginAction(); message("ログインしてから参加状況を確認してください。"); }
         else unknown();
     }
 }
@@ -72,13 +77,13 @@ async function check() {
     } else if (response.status === 404) {
         buttons("check", "accept"); el("check").textContent = "参加状況を再確認";
         message("現時点では参加を確認できません。元の参加要求が失敗したとは限りません。再確認または参加を選んでください。");
-    } else if (response.status === 401) { buttons("invitation-login"); message("ログインしてから参加状況を確認してください。"); }
+    } else if (response.status === 401) { loginAction(); message("ログインしてから参加状況を確認してください。"); }
     else unknown();
 }
 el("preview").addEventListener("click", () => run(showPreview));
 el("accept").addEventListener("click", () => run(accept));
 el("check").addEventListener("click", () => run(check));
-el("back").addEventListener("click", () => { try { clear(); location.assign("/auth/login"); } catch { buttons(); message("一時保存を削除できませんでした。"); } });
+el("back").addEventListener("click", () => { if (busy || state?.pending || el("back").hidden) return; try { clear(); location.assign("/auth/login"); } catch { buttons(); message("一時保存を削除できませんでした。"); } });
 // フラグメントは保存・通信に先立って除去する。結果不明の記録を別リンクで置き換えない。
 const hash = location.hash;
 history.replaceState(null, "", "/ledger-invitation");
@@ -90,8 +95,8 @@ try {
         if (!/^#token=[A-Za-z0-9_-]{43}$/.test(hash)) { clear(); throw new Error(); }
         state = { token: hash.slice(7) }; save();
     }
-    if (!state) { buttons(); message("招待リンクを開き直してください。"); }
+    if (!state) { buttons(); el("back").hidden = true; message("招待リンクを開き直してください。"); }
     else if (state.pending) unknown();
     else run(showPreview);
-} catch { buttons(); message("招待情報を一時保存・復元できません。元のリンクから開き直してください。"); }
+} catch { buttons(); el("back").hidden = true; message("招待情報を一時保存・復元できません。元のリンクから開き直してください。"); }
 })();
