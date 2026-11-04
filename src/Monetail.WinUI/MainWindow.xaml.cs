@@ -30,6 +30,7 @@ public sealed partial class MainWindow : Window
     private void DisplayLedger(LedgerInfo ledger)
     {
         ResetPeople();
+        ResetParticipants();
         currentLedger = ledger;
         LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);
@@ -62,7 +63,7 @@ public sealed partial class MainWindow : Window
 
     private void ShowRecord(object sender, RoutedEventArgs e)
     {
-        if (busy || personDialogOpen) return;
+        if (busy || ManagementDialogOpen) return;
         DropPendingPersonEdit();
         DiscardPersonEditor();
         DiscardPersonOrder();
@@ -71,8 +72,9 @@ public sealed partial class MainWindow : Window
 
     private async void ShowManagement(object sender, RoutedEventArgs e)
     {
-        if (busy || personDialogOpen) return;
+        if (busy || ManagementDialogOpen) return;
         DiscardPersonOrder();
+        ParticipantsContent.Visibility = InvitationsContent.Visibility = Visibility.Collapsed;
         ShowPage(ManagementPage);
         if (!CanViewPeople)
         {
