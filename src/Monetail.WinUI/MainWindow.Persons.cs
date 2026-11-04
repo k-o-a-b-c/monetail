@@ -65,6 +65,7 @@ public sealed partial class MainWindow
 
     private void UpdatePeopleActions()
     {
+        UpdateParticipantActions();
         AddPersonButton.IsEnabled = account is not null && IsPeopleAdmin;
         PersonOrderButton.IsEnabled = account is not null && IsPeopleAdmin && peopleInfo is not null;
         UpdatePersonOrderActions();
@@ -98,7 +99,7 @@ public sealed partial class MainWindow
 
     private void OpenPersonEditor(PersonInfo? person, bool deletion = false)
     {
-        if (personDialogOpen || IsOrderingPeople) return;
+        if (ManagementDialogOpen || IsOrderingPeople) return;
         editingPerson = person;
         isDeletingPerson = deletion;
         editingPeriod = !deletion && IsPeopleAdmin;

@@ -232,6 +232,8 @@
                     <NavigationViewItem Content="科目管理" IsEnabled="False" />
                     <NavigationViewItem Content="口座管理" IsEnabled="False" />
                     <NavigationViewItem Content="店舗管理" IsEnabled="False" />
+                    <NavigationViewItemHeader Content="家計簿管理" />
+                    <NavigationViewItem x:Name="ParticipantsNavigation" Content="参加者管理" Icon="People" Visibility="Collapsed" />
                     <NavigationViewItemHeader Content="アプリ設定" />
                     <NavigationViewItem x:Name="ConnectionNavigation" Content="接続先の設定" />
                     <NavigationViewItem Content="表示設定" IsEnabled="False" />
@@ -259,6 +261,54 @@
                             <TextBlock x:Name="AccountServer" TextWrapping="Wrap" />
                         </StackPanel>
                     </StackPanel>
+                    <Grid x:Name="ParticipantsContent" Visibility="Collapsed" RowSpacing="16">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <StackPanel Spacing="8"><TextBlock Text="参加者管理" Style="{ThemeResource TitleTextBlockStyle}"/>
+                            <TextBlock Text="家計簿の参加者と対応する人物を管理します。" Style="{StaticResource Description}" TextWrapping="Wrap"/></StackPanel>
+                        <Button x:Name="OpenInvitationsButton" Grid.Row="1" Content="招待" Click="OpenInvitations"/>
+                        <Grid Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                            <Grid ColumnSpacing="12" Padding="12,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="アカウント"/><TextBlock Grid.Column="1" Text="役割"/><TextBlock Grid.Column="2" Text="対応する人物"/>
+                            </Grid>
+                            <ListView x:Name="ParticipantsList" Grid.Row="1" SelectionMode="None" AutomationProperties.Name="参加者一覧" HorizontalContentAlignment="Stretch">
+                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate><DataTemplate x:DataType="local:ParticipantRow">
+                                    <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Role}" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind Person}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
+                                            <Button Content="編集" Tag="{x:Bind Member}" Click="EditParticipant" AutomationProperties.Name="参加者を編集"/>
+                                            <Button Content="除外" Tag="{x:Bind Member}" Click="ExcludeParticipant" Visibility="{x:Bind ExcludeVisibility}" AutomationProperties.Name="参加者を除外"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate></ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+                    </Grid>
+                    <Grid x:Name="InvitationsContent" Visibility="Collapsed" RowSpacing="16">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <Button x:Name="BackToParticipantsButton" Content="← 参加者一覧に戻る" Click="BackToParticipants"/>
+                        <StackPanel Grid.Row="1" Spacing="8"><TextBlock Text="招待管理" Style="{ThemeResource TitleTextBlockStyle}"/>
+                            <TextBlock Text="招待リンクは7日間有効です。参加時の役割は閲覧者です。リンクの送付先を限定してください。" TextWrapping="Wrap" Style="{StaticResource Description}"/></StackPanel>
+                        <StackPanel Grid.Row="2" Spacing="8"><Button x:Name="IssueInvitationButton" Content="新しい招待リンクを発行" Click="IssueInvitation"/>
+                            <TextBlock x:Name="InvitationRetryNotice" Visibility="Collapsed" Text="結果を確認できません。同じ要求IDで招待の発行を再試行します。" TextWrapping="Wrap" Style="{StaticResource Description}"/>
+                            <TextBlock x:Name="InvitationNotice" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                        </StackPanel>
+                        <Grid Grid.Row="3">
+                            <ListView x:Name="InvitationsList" SelectionMode="None" HorizontalContentAlignment="Stretch" AutomationProperties.Name="有効な招待リンク一覧">
+                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate><DataTemplate x:DataType="local:LedgerInvitationRow">
+                                    <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="4"><TextBlock Text="有効期限" Style="{StaticResource Description}"/><TextBlock Text="{x:Bind Expires}" TextWrapping="Wrap"/></StackPanel>
+                                        <Button Grid.Column="1" Content="コピー" Tag="{x:Bind Invitation}" Click="CopyInvitation" AutomationProperties.Name="招待リンクをコピー"/>
+                                        <Button Grid.Column="2" Content="取消" Tag="{x:Bind Invitation}" Click="CancelInvitation" AutomationProperties.Name="招待リンクを取り消す"/>
+                                    </Grid>
+                                </DataTemplate></ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock x:Name="EmptyInvitations" Text="有効な招待リンクはありません。" Visibility="Collapsed" Style="{StaticResource Description}"/>
+                        </Grid>
+                    </Grid>
                     <Grid x:Name="PersonOrderContent" Visibility="Collapsed" RowSpacing="16">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -431,6 +481,37 @@
                                Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
             </ScrollViewer>
+        </ContentDialog>
+        <ContentDialog x:Name="ParticipantDialog" Title="参加者の編集" PrimaryButtonText="保存" CloseButtonText="キャンセル" DefaultButton="None"
+                       PrimaryButtonClick="SaveParticipant" Closing="ParticipantDialogClosing" HorizontalContentAlignment="Stretch">
+            <ScrollViewer x:Name="ParticipantEditorContent" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16">
+                    <TextBlock x:Name="ParticipantName" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="ParticipantExcludeNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
+                    <StackPanel x:Name="ParticipantFields" Spacing="16">
+                        <ComboBox x:Name="ParticipantRole" Header="家計簿内の役割" HorizontalAlignment="Stretch">
+                            <ComboBoxItem Content="閲覧者" Tag="Viewer"/><ComboBoxItem Content="編集者" Tag="Editor"/><ComboBoxItem Content="管理者" Tag="Admin"/>
+                        </ComboBox>
+                        <TextBlock x:Name="ParticipantOwnRole" Visibility="Collapsed" TextWrapping="Wrap"/>
+                        <ComboBox x:Name="ParticipantPerson" Header="対応する人物" HorizontalAlignment="Stretch"/>
+                        <TextBlock x:Name="ParticipantPersonError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                    </StackPanel>
+                    <Border x:Name="ParticipantConflict" Visibility="Collapsed" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                        <StackPanel Spacing="12"><TextBlock Text="ほかの操作で変更されています。最新の保存内容" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="LatestParticipant" TextWrapping="Wrap"/>
+                            <TextBlock Text="読み込むと、未保存の入力・更新版を最新の内容に置き換えます。" TextWrapping="Wrap"/>
+                            <Button x:Name="UseLatestParticipantButton" Content="最新の内容を読み込む" Click="UseLatestParticipant"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="ParticipantError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                </StackPanel>
+            </ScrollViewer>
+        </ContentDialog>
+        <ContentDialog x:Name="InvitationCancelDialog" Title="招待の取消" PrimaryButtonText="取消する" CloseButtonText="キャンセル" DefaultButton="Close"
+                       PrimaryButtonClick="ConfirmCancelInvitation" Closing="InvitationDialogClosing" HorizontalContentAlignment="Stretch">
+            <StackPanel x:Name="InvitationCancelContent" Visibility="Collapsed" Spacing="16"><TextBlock x:Name="InvitationCancelTarget" TextWrapping="Wrap"/>
+                <TextBlock x:Name="InvitationCancelError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+            </StackPanel>
         </ContentDialog>
         <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False"
                       Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top"

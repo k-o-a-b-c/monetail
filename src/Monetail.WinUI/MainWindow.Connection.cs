@@ -170,6 +170,7 @@ public sealed partial class MainWindow
     private Task LogoutAsync() => RunAsync(async () =>
     {
         DropPendingPersonEdit();
+        pendingParticipantEdit = null;
         await connection.Session.LogoutAsync(lifetime.Token);
         ShowLogin();
     }, LogoutAsync);
@@ -187,9 +188,10 @@ public sealed partial class MainWindow
         catch (AuthenticationRejectedException)
         {
             RememberPersonEdit();
+            RememberParticipantEdit();
             ShowLogin("ログインを継続できません。もう一度ログインしてください。");
         }
-        catch (AuthenticationContextChangedException error) { DropPendingPersonEdit(); ShowLogin(error.Message); }
+        catch (AuthenticationContextChangedException error) { pendingParticipantEdit = null; DropPendingPersonEdit(); ShowLogin(error.Message); }
         catch (LedgerRequestException error)
         {
             var message = error.StatusCode switch
@@ -234,7 +236,7 @@ public sealed partial class MainWindow
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
-        PersonDialog.IsEnabled = enabled;
+        PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
         UpdatePeopleActions();
         var showProgress = !enabled && StartupPage.Visibility != Visibility.Visible;
         BusyProgress.IsActive = showProgress;
@@ -252,6 +254,10 @@ public sealed partial class MainWindow
 
     private void ShowError(string message)
     {
+        if (participantDialogOpen && !forceParticipantClose) { ShowParticipantError(message); return; }
+        if (invitationDialogOpen && !forceParticipantClose)
+        { InvitationCancelError.Text = message; InvitationCancelError.Visibility = Visibility.Visible; return; }
+        if (InvitationsContent.Visibility == Visibility.Visible) { ShowInvitationNotice(message); return; }
         if (IsOrderingPeople)
         {
             ShowPersonOrderNotice(message);
@@ -283,6 +289,7 @@ public sealed partial class MainWindow
     {
         closed = true;
         DiscardPersonEditor();
+        ResetParticipants();
         lifetime.Cancel();
         browserCancellation?.Cancel();
         connection.Dispose();
