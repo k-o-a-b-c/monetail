@@ -10,13 +10,14 @@ public sealed class AddLedgerPaymentMethods : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        // Add nullable first to avoid keeping a shared empty/default version on future people.
-        // Existing rows receive distinct tokens; then rebuild the table as NOT NULL.
+        // SQLite requires a constant default when adding a required column to an existing table.
+        // Existing rows are immediately backfilled below; the API always generates a UUID on new rows.
         migrationBuilder.AddColumn<string>(
             name: "payment_order_revision",
             table: "ledger_people",
             type: "TEXT",
-            nullable: true);
+            nullable: false,
+            defaultValue: "");
 
         // 32 hexadecimal characters, UUID v4 version/variant bits, one random value per row.
         migrationBuilder.Sql("""
@@ -27,15 +28,6 @@ public sealed class AddLedgerPaymentMethods : Migration
                 substr('89ab', abs(random() % 4) + 1, 1) ||
                 substr(lower(hex(randomblob(8))), 2);
             """);
-
-        migrationBuilder.AlterColumn<string>(
-            name: "payment_order_revision",
-            table: "ledger_people",
-            type: "TEXT",
-            nullable: false,
-            oldClrType: typeof(string),
-            oldType: "TEXT",
-            oldNullable: true);
 
         migrationBuilder.CreateTable(
             name: "ledger_payment_methods",
