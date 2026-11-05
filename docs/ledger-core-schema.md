@@ -162,6 +162,57 @@
 
 **後続設計（未確定）：** 具体的なDBスキーマ／EF実装、支払方法の追加・削除APIの再送・競合契約、画面の配置や細かな操作。採番・並び替えAPI・競合時の基本動作は確定したが、実装済みを意味しない。
 
+## 支払方法マスタの物理DB案（DEC-133・提案／未承認・未実装）
+
+DEC-123〜132の確定仕様をSQLite/EF Coreへ落とすための**設計提案**。**物理テーブル名・具体的DDL・索引・トリガーの採用は利用者未承認**。旧版の`m_payment_classification`をそのまま再利用せず、家計簿単位の新テーブル`ledger_payment_methods`を設ける。
+
+| 保存先・列 | SQLite型 | NULL | 用途 |
+| --- | --- | --- | --- |
+| `ledger_payment_methods.ledger_id` | TEXT | 不可 | 所属家計簿ID |
+| `payment_method_id` | TEXT | 不可 | APIが発行するUUID（N形式）、名前等と独立 |
+| `owner_person_id` | TEXT | 不可 | 同じ家計簿の所有者人物ID。作成後変更不可（DEC-130・131） |
+| `name` | TEXT COLLATE BINARY | 不可 | 前後空白除去後の名前1〜100 UTF-16コード単位（DEC-123） |
+| `display_order` | INTEGER | 不可 | その所有者内の並び順。0以上、欠番・同順位は許容（DEC-132） |
+| `valid_from` | TEXT | 可 | 有効開始日。制限なしならNULL（`YYYY-MM-DD`） |
+| `valid_to` | TEXT | 可 | 有効終了日。制限なしならNULL（`YYYY-MM-DD`） |
+| `revision` | TEXT | 不可 | この支払方法の名前・有効期間等の編集用UUID更新版 |
+| `ledger_people.payment_order_revision`（追加列） | TEXT | 不可 | **人物ごとの支払方法並び順更新版**。人物作成時に初期化（DEC-129・130） |
+
+**SQLite DDLのたたき台**（EF Coreのマッピング／Migrationから生成する設計意図を示す。既存DBへの適用SQLではない）：
+
+```sql
+CREATE TABLE ledger_payment_methods (
+    ledger_id TEXT NOT NULL,
+    payment_method_id TEXT NOT NULL,
+    owner_person_id TEXT NOT NULL,
+    name TEXT NOT NULL COLLATE BINARY,
+    display_order INTEGER NOT NULL CHECK (display_order >= 0),
+    valid_from TEXT NULL,
+    valid_to TEXT NULL,
+    revision TEXT NOT NULL,
+    PRIMARY KEY (ledger_id, payment_method_id),
+    FOREIGN KEY (ledger_id) REFERENCES ledgers(id) ON DELETE RESTRICT,
+    FOREIGN KEY (ledger_id, owner_person_id)
+        REFERENCES ledger_people(ledger_id, person_id) ON DELETE RESTRICT,
+    CHECK (valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to)
+);
+CREATE UNIQUE INDEX ux_ledger_payment_methods_owner_name
+    ON ledger_payment_methods(ledger_id, owner_person_id, name);
+CREATE INDEX ix_ledger_payment_methods_owner_order
+    ON ledger_payment_methods(ledger_id, owner_person_id,
+                              display_order, payment_method_id);
+```
+
+- **主キー・外部キー：** `(ledger_id, payment_method_id)`を主キーとし、支払方法を参照する今後のレシート・振替両側・残高・支払メモ等も**家計簿IDを含む複合FK**で参照する。`ON DELETE CASCADE`は使わずRESTRICT（DEC-125）。同一家計簿の人物しか所有者にできず、その人物に支払方法があれば人物削除は不可。
+- **名前の一意性：** 所有者必須なので`(ledger_id, owner_person_id, name)`の通常のUNIQUEでよい。APIは前後空白除去・Unicode空白判定・.NET `string.Length`の1〜100上限を検証。**SQLiteの`length()`はUTF-16コード単位と一致しない場合がある**ため、同じ100文字チェックを単純なSQLite `length(name)`制約で重ねない。SQLの`BINARY`照合を一意制約にも適用する。
+- **有効期間：** `DateOnly?`をISO固定桁`YYYY-MM-DD`で保存する。日付の実在・形式はAPIで検証し、DB CHECKで両端の前後関係を守る（DEC-119〜122）。既存のレシート等が期間外となる変更はAPIの同一書込処理で拒否する（DEC-121）。
+- **所有者の不変性：** API編集DTOには所有者変更を含めない。DB直接更新による変更も厳格に防止する場合、`BEFORE UPDATE OF owner_person_id`で値変更を`RAISE(ABORT)`するSQLiteトリガーをMigrationに追加する案とする（具体的トリガー採否は別途確認）。通常操作での誤作成訂正は未使用なら削除→新規（DEC-131）。
+- **並び順：** 1人物内で`display_order ASC, payment_method_id ASC`を使用。順序のUNIQUEは設けない。0件の人物でも`payment_order_revision`は人物行に残る。ポイント関連列は旧版に`default_point_code`があるが、新版のポイントモデル未確定のため**今回の8列へは含めない**。採用する場合はポイントマスタと整合したFK・列を別途設計する。
+- **更新版・競合：** 並び替え・追加・削除は**対象人物の`payment_order_revision`だけを条件付きUPDATEで照合・変更**し、支払方法の順序変更と同一トランザクションで確定する。人物編集用`ledger_people.revision`は変更しない。**`payment_order_revision`を単純に人物エンティティ全更新のEF Core同時実行トークンにすると人物名編集まで無関係な競合を起こし得る**ため、対象列を明示した条件付き更新（CAS相当）で独立性を維持する。支払方法自体の`revision`は名前・期間変更の競合検知に使う。
+- **既存人物の移行：** `ledger_people`へ列を追加するとき、既存行へ個別のサーバー発行UUIDを付与して最終的にNOT NULLとする。SQLiteのMigrationで必要ならテーブル再構築する。支払方法の旧版整数IDや所有者不明の行を新しいUUID／所有者へ自動推測で割り当てない。
+
+**次の確認事項：** この8列＋人物表1列・主キー／FK／UNIQUE／索引の構成を採用するか。所有者不変性をDBでも保証するトリガーの要否、ポイント機能のデータ構造、EF Core MigrationとAPIの実装は分けて決める。
+
 ## 保存構成（APIの初回定義へ実装済み）
 
 認証ストアは引き続きアカウント・鍵・セッションを保存する。家計簿用のモデルと権限確認は`Features/Monetail`へ配置し、認証基盤から家計簿の参加者・人物を参照しない。SQLiteの接続と初回定義はPersistence/ApiDbContextでまとめ、家計簿モデルの制約はLedgerModelで設定する。これらのAPI用テーブルは未リリースAPIの初回定義へ組み込む。以前の開発用DBを更新する互換経路は作らない。
