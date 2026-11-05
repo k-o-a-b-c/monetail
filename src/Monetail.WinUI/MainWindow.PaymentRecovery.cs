@@ -19,7 +19,12 @@ public sealed partial class MainWindow
             editingPayment, paymentDraft, ChosenPaymentOwner, PaymentName.Text, PaymentFrom.Text, PaymentTo.Text,
             IncludeInactivePayments.IsChecked == true, paymentOrderOwner, paymentOrderRevision, orderedPayments?.ToArray());
     }
-    private void DropPendingPaymentEdit() => pendingPaymentEdit = null;
+    private void DropPendingPaymentEdit()
+    {
+        if (pendingPaymentEdit is null) return;
+        pendingPaymentEdit = null; PaymentName.Text = PaymentFrom.Text = PaymentTo.Text = "";
+        PaymentOwnerChoice.SelectedItem = null;
+    }
     private async Task<bool> ResumePaymentEditAsync(CancellationToken token)
     {
         if (pendingPaymentEdit is not { } draft || account is null) return false;
@@ -54,6 +59,7 @@ public sealed partial class MainWindow
         else
         {
             OpenPaymentEditor(draft.Row, owner: draft.Owner);
+            if (draft.Owner is { } owner) PaymentOwnerName.Text = PaymentOwnerLabel(owner);
             PaymentName.Text = draft.Name; PaymentFrom.Text = draft.From; PaymentTo.Text = draft.To; paymentDraft = draft.Draft;
             if (draft.Row is not null && !payments.PaymentMethods.Any(r => r.PaymentMethodId == draft.Row.PaymentMethodId)) missingPayments.Add(draft.Row.PaymentMethodId);
             paymentEditorDenied = failure is not null || (draft.Row is null ? draft.Owner is null || !CanManagePaymentOwner(draft.Owner.Value) : !CanChangePayment(draft.Row));

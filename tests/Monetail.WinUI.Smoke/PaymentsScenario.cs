@@ -140,6 +140,12 @@ public partial class App
                 Check(!Find<Button>(root, "AddPaymentButton").IsEnabled && !Find<Button>(root, "EditPaymentButton").IsEnabled, "権限喪失後はダイアログを閉じても変更操作不可");
             }
         }
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            var server = new PaymentServer { Role = "Editor", Mapped = false }; var root = await OpenPaymentsWindow(fixture, server);
+            Check(!Find<Button>(root, "AddPaymentButton").IsEnabled && ((PaymentRow)Find<ListView>(root, "PaymentsList").Items[0]).Payment.OwnerPersonId == server.Other,
+                "人物未対応Editorは追加不可、本人優先なしで人物共通順を表示");
+        }
         await CheckPaymentRecovery();
     }
     private async Task CheckPaymentRecovery()
@@ -175,6 +181,18 @@ public partial class App
         using (var fixture = new SyntheticConnection(saved: true))
         {
             var server = new PaymentServer(); var root = await OpenPaymentsWindow(fixture, server);
+            await OpenPaymentDialog(root, "AddPaymentButton"); ChoosePaymentOwner(root, server.Other); Find<TextBox>(root, "PaymentName").Text = "元の所有者を維持";
+            fixture.RejectSession = true; Invoke(PaymentFooter(root, true));
+            await Wait(() => Visible(root, "LoginPage") && Find<Button>(root, "LoginButton").IsEnabled);
+            server.Role = "Editor"; fixture.RejectSession = false; fixture.CompleteLogin = true; Invoke(Find<Button>(root, "LoginButton"));
+            await Wait(() => Find<TextBlock>(root, "PaymentRestoredNotice").Visibility == Visibility.Visible); await fixture.CallbackTask!; await PaymentDialogReady(root);
+            Check(!PaymentDialogFor(root).IsPrimaryButtonEnabled && Find<TextBlock>(root, "PaymentOwnerName").Text == "母" && Find<TextBox>(root, "PaymentName").Text == "元の所有者を維持",
+                "認証待ち中に降格した場合は元の所有者と入力を保持し、本人へ割り替えず保存不可");
+            Invoke(PaymentFooter(root, false)); await Wait(() => PaymentEditorClosed(root));
+        }
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            var server = new PaymentServer(); var root = await OpenPaymentsWindow(fixture, server);
             await OpenPaymentDialog(root, "AddPaymentButton"); ChoosePaymentOwner(root, server.Mine); Find<TextBox>(root, "PaymentName").Text = "別人には渡さない";
             fixture.RejectSession = true; Invoke(PaymentFooter(root, true));
             await Wait(() => Visible(root, "LoginPage") && Find<Button>(root, "LoginButton").IsEnabled);
@@ -195,6 +213,7 @@ public partial class App
         internal int Reads;
         internal string Role = "Admin";
         internal bool FailSave, RowConflict, ReferenceDelete, OrderConflict, Deny;
+        internal bool Mapped = true;
         internal Guid ActiveId => Rows.Single(r => r.Name is "本日有効" or "最新名").PaymentMethodId;
         internal Guid OtherActiveId => Rows.Single(r => r.Name == "母の現金").PaymentMethodId;
         internal Guid ExpiredId => Rows.Single(r => r.Name == "終了済み").PaymentMethodId;
@@ -206,10 +225,10 @@ public partial class App
             Rows.Add(new(Guid.NewGuid(), Other, "母の現金", 0, null, null, Guid.NewGuid()));
             Rows.Add(new(Guid.NewGuid(), Other, "開始予定", 1, Tomorrow, null, Guid.NewGuid()));
         }
-        internal PeopleInfo People() => new([new(Other, "母", null, null, 0, Guid.NewGuid()), new(Mine, "父", null, null, 1, Guid.NewGuid()), new(Empty, "空人物", null, null, 2, Guid.NewGuid())], Mine, Role, Guid.NewGuid());
+        internal PeopleInfo People() => new([new(Other, "母", null, null, 0, Guid.NewGuid()), new(Mine, "父", null, null, 1, Guid.NewGuid()), new(Empty, "空人物", null, null, 2, Guid.NewGuid())], Mapped ? Mine : null, Role, Guid.NewGuid());
         private object Result(Guid? created = null) => new {
             paymentMethods = Rows.OrderBy(r => r.OwnerPersonId.ToString("N"), StringComparer.Ordinal).ThenBy(r => r.DisplayOrder).ThenBy(r => r.PaymentMethodId.ToString("N"), StringComparer.Ordinal).ToArray(),
-            ownerOrderRevisions = new[] { Other, Mine, Empty }.Select(p => new PaymentOwnerOrderInfo(p, orders[p])).ToArray(), myPersonId = Mine, currentRole = Role, paymentMethodId = created
+            ownerOrderRevisions = new[] { Other, Mine, Empty }.Select(p => new PaymentOwnerOrderInfo(p, orders[p])).ToArray(), myPersonId = Mapped ? (Guid?)Mine : null, currentRole = Role, paymentMethodId = created
         };
         internal static HttpResponseMessage Json(object value, HttpStatusCode status = HttpStatusCode.OK) => new(status) { Content = JsonContent.Create(value) };
         internal async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken token)
