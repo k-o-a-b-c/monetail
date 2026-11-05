@@ -507,6 +507,61 @@ namespace Monetail.Api.Persistence.Migrations
                     b.ToTable("ledger_navigation", (string)null);
                 });
 
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerPaymentMethod", b =>
+                {
+                    b.Property<string>("LedgerId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ledger_id");
+
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("payment_method_id");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("name")
+                        .UseCollation("BINARY");
+
+                    b.Property<string>("OwnerPersonId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("owner_person_id");
+
+                    b.Property<string>("Revision")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("revision");
+
+                    b.Property<DateOnly?>("ValidFrom")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("valid_to");
+
+                    b.HasKey("LedgerId", "Id");
+
+                    b.HasIndex("LedgerId", "OwnerPersonId", "DisplayOrder", "Id")
+                        .HasDatabaseName("ix_ledger_payment_methods_owner_order");
+
+                    b.HasIndex("LedgerId", "OwnerPersonId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ledger_payment_methods_owner_name");
+
+                    b.ToTable("ledger_payment_methods", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ledger_payment_methods_display_order", "display_order >= 0");
+                            t.HasCheckConstraint("CK_ledger_payment_methods_period", "valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to");
+                        });
+                });
+
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerPerson", b =>
                 {
                     b.Property<string>("LedgerId")
@@ -526,6 +581,11 @@ namespace Monetail.Api.Persistence.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("name")
                         .UseCollation("BINARY");
+
+                    b.Property<string>("PaymentOrderRevision")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("payment_order_revision");
 
                     b.Property<string>("Revision")
                         .IsConcurrencyToken()
@@ -1009,6 +1069,21 @@ namespace Monetail.Api.Persistence.Migrations
                     b.HasOne("Monetail.Api.Features.Monetail.Ledgers.Ledger", null)
                         .WithMany()
                         .HasForeignKey("LastOpenedLedgerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerPaymentMethod", b =>
+                {
+                    b.HasOne("Monetail.Api.Features.Monetail.Ledgers.Ledger", null)
+                        .WithMany()
+                        .HasForeignKey("LedgerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Monetail.Api.Features.Monetail.Ledgers.LedgerPerson", null)
+                        .WithMany()
+                        .HasForeignKey("LedgerId", "OwnerPersonId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
