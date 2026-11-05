@@ -10,6 +10,7 @@ public sealed class LedgerPerson
     public DateOnly? ValidTo { get; set; }
     public int DisplayOrder { get; set; }
     public string Revision { get; set; } = null!;
+    public string PaymentOrderRevision { get; set; } = null!;
 }
 
 /// <summary>家計簿参加用の招待と使用・取消状態を保存する。</summary>
