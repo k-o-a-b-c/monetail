@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Transport;
 
@@ -11,11 +12,11 @@ namespace Monetail.WinUI.Smoke;
 public partial class App
 {
     private static ContentDialog PaymentDialogFor(FrameworkElement root) => Find<ContentDialog>(root, "PaymentDialog");
-    private static Button PaymentFooter(FrameworkElement root, bool save) => All(PaymentDialogFor(root)).OfType<Button>()
+    private static Button PaymentFooter(FrameworkElement root, bool save) => All(PaymentDialogFor(root)).OfType<Button>().OrderByDescending(b => b.IsLoaded)
         .First(b => Equals(b.Content, save ? PaymentDialogFor(root).PrimaryButtonText : PaymentDialogFor(root).CloseButtonText));
     private static bool PaymentEditorClosed(FrameworkElement root) => Find<ScrollViewer>(root, "PaymentEditorContent").Visibility == Visibility.Collapsed;
     private static async Task PaymentDialogReady(FrameworkElement root) => await Wait(() => !PaymentEditorClosed(root) &&
-        PaymentDialogFor(root).IsLoaded && All(PaymentDialogFor(root)).OfType<Button>().Any(b => Equals(b.Content, PaymentDialogFor(root).CloseButtonText)));
+        PaymentDialogFor(root).IsLoaded && Find<ContentControl>(root, "Operations").IsEnabled && All(PaymentDialogFor(root)).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null && Equals(b.Content, PaymentDialogFor(root).CloseButtonText)));
     private async Task<FrameworkElement> OpenPaymentsWindow(SyntheticConnection fixture, PaymentServer server)
     {
         fixture.HasPreviousLedger = true;
@@ -25,7 +26,7 @@ public partial class App
         Invoke(Find<Button>(root, "SettingsButton"));
         await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 3);
         Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "PaymentsNavigation");
-        await Wait(() => server.Reads == 1 && Find<ListView>(root, "PaymentsList").Items.Count == 2);
+        await Wait(() => server.Reads == 1 && Find<ListView>(root, "PaymentsList").Items.Count == 2 && Find<ListView>(root, "PaymentsList").IsLoaded);
         await Settle(); return root;
     }
     private static async Task OpenPaymentDialog(FrameworkElement root, string button)
@@ -43,7 +44,7 @@ public partial class App
         var list = Find<ListView>(root, "PaymentsList");
         await Wait(() => All(list).OfType<Button>().Any(b => b.Tag is Guid id && id == owner));
         Invoke(All(list).OfType<Button>().Single(b => b.Tag is Guid id && id == owner));
-        await Wait(() => Find<Grid>(root, "PaymentOrderContent").Visibility == Visibility.Visible);
+        await Wait(() => Find<Grid>(root, "PaymentOrderContent").Visibility == Visibility.Visible && Find<Button>(root, "SavePaymentOrderButton").IsLoaded);
     }
     private async Task CheckPayments()
     {
@@ -59,10 +60,18 @@ public partial class App
             Find<CheckBox>(root, "IncludeInactivePayments").IsChecked = true;
             Check(list.Items.Count == 4 && server.Reads == 1, "有効期間外表示は保持した全件を使い、追加通信しない");
             Check(!Find<Button>(root, "EditPaymentButton").IsEnabled && !Find<Button>(root, "DeletePaymentButton").IsEnabled, "未選択の編集と削除は無効");
+            window!.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(900, 620)); await Settle();
+            Check(list.ActualHeight > 0 && list.ActualWidth > 0, "支払方法一覧は狭いウィンドウでもスクロール領域を保持");
             await OpenPaymentDialog(root, "AddPaymentButton");
+            await Wait(() => FitsHorizontally(Find<TextBox>(root, "PaymentName"), Find<ScrollViewer>(root, "PaymentEditorContent")));
+            Check(FitsHorizontally(Find<DateInputBox>(root, "PaymentTo"), Find<ScrollViewer>(root, "PaymentEditorContent")), "支払方法の名称と日付入力はダイアログ幅に収まる");
             Check(Find<ComboBox>(root, "PaymentOwnerChoice").SelectedIndex == -1 && !PaymentDialogFor(root).IsPrimaryButtonEnabled,
                 "管理者の追加所有者は未選択から始まり、選択前は登録不可");
             ChoosePaymentOwner(root, server.Mine);
+            var keyboard = (FormKeyboard)typeof(MainWindow).GetField("paymentKeyboard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!;
+            Find<TextBox>(root, "PaymentName").Focus(FocusState.Programmatic);
+            await keyboard.HandleEnter(false, false)!;
+            Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<DateInputBox>(root, "PaymentFrom")), "支払方法ダイアログのEnterは保存せず次の日付欄へ移動");
             Find<TextBox>(root, "PaymentName").Text = new string('あ', 101);
             Invoke(PaymentFooter(root, true));
             await Wait(() => Find<TextBlock>(root, "PaymentNameError").Visibility == Visibility.Visible);

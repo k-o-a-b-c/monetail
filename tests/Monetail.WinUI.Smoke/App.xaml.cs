@@ -113,7 +113,7 @@ public partial class App : Application
         {
             var dialog = (ContentDialog)root.FindName("PersonDialog");
             var text = name == "SavePersonButton" ? dialog.PrimaryButtonText : dialog.CloseButtonText;
-            return All(dialog).OfType<T>().FirstOrDefault(element => element is Button button && Equals(button.Content, text))
+            return All(dialog).OfType<T>().Where(element => element is Button button && Equals(button.Content, text)).OrderByDescending(element => element.IsLoaded).FirstOrDefault()
                 ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
         }
         return root.FindName(name) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);

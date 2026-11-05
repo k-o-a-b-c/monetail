@@ -18,6 +18,7 @@ public partial class App
             Find<TextBox>(root, "PersonName").Text = "  再ログイン後に登録  ";
             Find<DateInputBox>(root, "PersonValidFrom").Text = "20260401";
             fixture.RejectSession = true;
+            await WaitPersonEditorReady(root);
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             Check(server.Writes.Count == 0 && fixture.Tokens.Current is null, "人物保存中のログイン失効は保存せずログインへ戻る");
@@ -30,6 +31,7 @@ public partial class App
             Check(fixture.Requests.Count(path => path == "/ledgers/open-last") == 1 &&
                 fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1 && server.Reads == 2,
                 "編集復帰は元の家計簿を直接開き、現在の人物と権限を確認");
+            await WaitPersonEditorReady(root);
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => EditorClosed(root));
             Check(server.Writes.Single().Body == rejectedBody, "再ログイン後の明示的な登録も元の作成要求IDを維持");
@@ -45,10 +47,12 @@ public partial class App
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "編集を継続する入力";
             fixture.RejectSession = true;
+            await WaitPersonEditorReady(root);
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             server.ChangeOwnPerson();
             await LoginAgain(fixture, root);
+            await WaitPersonEditorReady(root);
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Find<Border>(root, "PersonConflict").Visibility == Visibility.Visible);
             Check(Find<TextBox>(root, "PersonName").Text == "編集を継続する入力" && !Find<Button>(root, "SavePersonButton").IsEnabled,
@@ -63,6 +67,7 @@ public partial class App
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "別サーバーへ渡さない入力";
             fixture.RejectSession = true;
+            await WaitPersonEditorReady(root);
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             fixture.RejectSession = false;
@@ -83,6 +88,7 @@ public partial class App
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "別アカウントへ渡さない入力";
             fixture.RejectSession = true;
+            await WaitPersonEditorReady(root);
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             fixture.AccountId = Guid.NewGuid();
@@ -107,6 +113,7 @@ public partial class App
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "権限が変わっても入力は残す";
             fixture.RejectSession = true;
+            await WaitPersonEditorReady(root);
             Invoke(Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             if (removed) fixture.CannotOpenLedger = true;
@@ -127,7 +134,7 @@ public partial class App
         var root = await OpenSyntheticWindow(fixture);
         await window!.StartAsync();
         Invoke(Find<Button>(root, "SettingsButton"));
-        await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 2);
+        await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 2 && Find<Button>(root, "AddPersonButton").IsLoaded);
         return root;
     }
 
@@ -138,5 +145,10 @@ public partial class App
         Invoke(Find<Button>(root, "LoginButton"));
         await Wait(() => Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Visible);
         await fixture.CallbackTask!;
+        await WaitPersonEditorReady(root);
     }
+    private static Task WaitPersonEditorReady(FrameworkElement root) => Wait(() =>
+        Find<ContentControl>(root, "Operations").IsEnabled &&
+        All(Find<ContentDialog>(root, "PersonDialog")).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null &&
+            Equals(b.Content, Find<ContentDialog>(root, "PersonDialog").PrimaryButtonText)));
 }
