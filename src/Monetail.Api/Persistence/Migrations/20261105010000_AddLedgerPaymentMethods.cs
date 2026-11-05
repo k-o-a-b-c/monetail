@@ -10,14 +10,13 @@ public sealed class AddLedgerPaymentMethods : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
-        // SQLite cannot add a NOT NULL column to a populated table without a constant default.
-        // Backfill each existing person with an independent random version before any API uses it.
+        // Add nullable first to avoid keeping a shared empty/default version on future people.
+        // Existing rows receive distinct tokens; then rebuild the table as NOT NULL.
         migrationBuilder.AddColumn<string>(
             name: "payment_order_revision",
             table: "ledger_people",
             type: "TEXT",
-            nullable: false,
-            defaultValue: "");
+            nullable: true);
 
         // 32 hexadecimal characters, UUID v4 version/variant bits, one random value per row.
         migrationBuilder.Sql("""
@@ -28,6 +27,15 @@ public sealed class AddLedgerPaymentMethods : Migration
                 substr('89ab', abs(random() % 4) + 1, 1) ||
                 substr(lower(hex(randomblob(8))), 2);
             """);
+
+        migrationBuilder.AlterColumn<string>(
+            name: "payment_order_revision",
+            table: "ledger_people",
+            type: "TEXT",
+            nullable: false,
+            oldClrType: typeof(string),
+            oldType: "TEXT",
+            oldNullable: true);
 
         migrationBuilder.CreateTable(
             name: "ledger_payment_methods",
