@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -117,7 +118,10 @@ public sealed class PaymentMethodSchemaTests
             await using var scope = services.CreateAsyncScope();
             var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
             await context.GetService<IMigrator>().MigrateAsync("20261104020000_AddAccountAdminNote");
-            accountId = (await services.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync())!.AuthUserId;
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
+            var existing = new AuthUser { Id = NewId(), UserName = "upgrade-account" };
+            Assert.True((await users.CreateAsync(existing)).Succeeded);
+            accountId = existing.Id;
         }
 
         var ledger = NewId();
