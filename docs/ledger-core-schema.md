@@ -236,6 +236,34 @@ END;
 
 **後続作業：** EF Coreモデル・Migration・APIへの実装とテスト。トリガーの採用は確定したが、コードは未実装。
 
+## 支払方法の作成・編集・削除API（DEC-135・提案／未承認・未実装）
+
+既存の人物API・`operation_requests`に合わせて、支払方法の取得・作成・編集・削除を以下のように設計する**提案**。所有者必須・不変（DEC-130・131・134）、利用権限（DEC-118・125〜128）、有効期間（DEC-119〜122）、人物別の並び順（DEC-129・132）を変更しない。**利用者確認前のため、本節は確定仕様ではない。**
+
+### エンドポイント案
+
+以下の相対パスはすべて`/ledgers/{ledgerId}`以下。ログイン・参加の検証と既存の認証／CSRF／レート制限を適用する。
+
+| HTTP・パス | 権限 | 本文 | 処理・応答 |
+| --- | --- | --- | --- |
+| `GET /payment-methods` | 参加者全員 | なし | **有効期間外も含む全支払方法**と所有者別の順序更新版・本人の人物ID・現在ロールを返す。所有者の支払方法0件でも版を返す |
+| `POST /payment-methods` | Adminは任意の同一家計簿人物、Editorは本人対応人物のみ | `requestId`、`ownerPersonId`、`name`、任意の`validFrom`／`validTo` | 新UUIDで作成、所有者内末尾へ追加。成功201、同要求の再送200。変更後の一覧を返す |
+| `PATCH /payment-methods/{paymentMethodId}` | Adminは全件、Editorは本人所有分のみ | 必須`revision`、変更対象の`name`／`validFrom`／`validTo` | 名前・有効期間だけ変更し、新しい行`revision`を発行。成功200で変更後の一覧を返す |
+| `DELETE /payment-methods/{paymentMethodId}` | Adminは全件、Editorは本人所有分のみ | 必須`revision` | **未使用の支払方法だけ**削除し、所有者の順序更新版を更新。成功200で変更後の一覧を返す |
+
+- **POSTの必須項目：** `requestId`は操作ごとにクライアントが発行するUUID、`ownerPersonId`は当該家計簿に存在する人物のUUID、`name`は前後空白除去後1〜100 UTF-16コード単位。所有者が指定されない・他家計簿の人物・無権限の人物なら拒否。作成時の期間は省略・`null`のどちらも制限なしとし、日付の文字列は`YYYY-MM-DD`（DEC-119）。
+- **PATCHの部分更新：** `name`を省略した場合は据え置き、指定時は文字列必須（`null`不可）。`validFrom`／`validTo`は省略＝据え置き、明示的な`null`＝その側の期間制限を解除。変更項目を1つ以上必須とし、実値が変わらなければ何も更新せず行版も変えない。実値が変わる場合は必須の旧`revision`との一致を検証し、値と新UUIDの行版を同一トランザクションで保存する。
+- **所有者の不変性：** PATCHでは`ownerPersonId`、`ledgerId`、`paymentMethodId`、`displayOrder`を受け付けない。所有者変更はAdminでも許可しない（DEC-131）。所有者列のDB直接更新もDEC-134のトリガーで拒否する。表示順はDEC-132の専用PUTだけで更新する。
+- **期間検証：** 作成・更新時は開始日≦終了日を検証。更新時には既存のレシート・振替（両側）・残高・日付付き支払メモ等の保存済み参照日付が新期間外にならないかを、業務データの実装段階で同じ書込処理内で確認する（DEC-121）。無効化対象の既存データがあれば支払方法も保存しない。
+- **DELETEの使用済み判定：** レシート・振替両側・残高・支払メモなど、参照が1件でもあれば不可（DEC-125）。使用額0や日付なしの参照も使用済み。FKのRESTRICTで同時作成からも保護し、参照失敗は`payment_method_referenced`として409。失敗時は順序更新版を変更しない。
+- **一覧の返却：** 共通レスポンスは`paymentMethods`（各`paymentMethodId`、`ownerPersonId`、`name`、`displayOrder`、`validFrom`、`validTo`、`revision`）、`ownerOrderRevisions`（`personId`と`orderRevision`の配列）、`myPersonId`、`currentRole`。管理画面ではDEC-120の「本日有効」を初期表示としてUIで絞るが、並び替え用の集合は有効期間外も含む全件とする。POST成功・再送では作成した`paymentMethodId`も応答に含める案とする。
+- **権限・競合：** 保存の直前にも現在の参加・ロール・本人の人物対応・対象所有者を検証する。行更新版不一致は409 `revision_conflict`で、権限の範囲で最新の支払方法情報を`latest`に返す。名前重複は409 `duplicate_payment_method_name`で区別し、所有者・名前入力エラーは400、権限不足403、未参加・対象不在404、予期しない保存障害503とする。行版の更新はDB側の旧値一致の条件付きUPDATEとし、同時操作で古い値が上書きされないようにする。
+- **追加・削除時の順序版：** 新規追加・削除では対象の`ledger_people.payment_order_revision`だけを新UUIDに更新し、支払方法の増減・版更新・成功再送記録を1トランザクションで確定する。所有者別順序版の旧値条件付きUPDATEで別端末との増減・並び替えを競合検出する。無関係な所有者や人物名編集用の`ledger_people.revision`は変更しない。
+- **再送管理：** POSTは既存の`operation_requests`を共用し、操作種別を`payment_method.create`とする。UUID`requestId`＋操作種別＋現在アカウント＋家計簿ID・所有者ID・正規化済み名前・期間の内容ハッシュで照合し、成功時に作成結果IDを同時記録。同じ要求は新しい支払方法を作らず現在の一覧と元の作成IDを返し、順序版も再更新しない。異なる内容による同じ要求IDは409 `request_conflict`。元の作成結果が削除済みなら409 `created_result_deleted`で、同じ要求IDで再作成しない。再送時にも現在の家計簿参加・作成権限を検証する。更新・削除に要求IDを追加する必要はない。
+
+**後続判断：** API実装時の細かなDTO／画面エラー文言、支払方法登録時の所有者欄初期選択、期間検証に必要な各業務テーブルの詳細。最初に本API契約案を確認し、承認後に実装する。
+
+
 ## 保存構成（APIの初回定義へ実装済み）
 
 認証ストアは引き続きアカウント・鍵・セッションを保存する。家計簿用のモデルと権限確認は`Features/Monetail`へ配置し、認証基盤から家計簿の参加者・人物を参照しない。SQLiteの接続と初回定義はPersistence/ApiDbContextでまとめ、家計簿モデルの制約はLedgerModelで設定する。これらのAPI用テーブルは未リリースAPIの初回定義へ組み込む。以前の開発用DBを更新する互換経路は作らない。
