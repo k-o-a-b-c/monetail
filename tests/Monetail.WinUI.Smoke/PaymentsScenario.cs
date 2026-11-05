@@ -60,7 +60,7 @@ public partial class App
             Find<CheckBox>(root, "IncludeInactivePayments").IsChecked = true;
             Check(list.Items.Count == 4 && server.Reads == 1, "有効期間外表示は保持した全件を使い、追加通信しない");
             Check(!Find<Button>(root, "EditPaymentButton").IsEnabled && !Find<Button>(root, "DeletePaymentButton").IsEnabled, "未選択の編集と削除は無効");
-            window!.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(900, 620)); await Settle();
+            window!.AppWindow.ResizeClient(new global::Windows.Graphics.SizeInt32(900, 620)); await Settle();
             Check(list.ActualHeight > 0 && list.ActualWidth > 0, "支払方法一覧は狭いウィンドウでもスクロール領域を保持");
             await OpenPaymentDialog(root, "AddPaymentButton");
             await Wait(() => FitsHorizontally(Find<TextBox>(root, "PaymentName"), Find<ScrollViewer>(root, "PaymentEditorContent")));
