@@ -40,6 +40,7 @@ public sealed partial class MainWindow
     private void InitializeInput()
     {
         // 本体ごと標準Popupへ配置し、本文と標準ボタンを同じTab・キー処理範囲にする。
+        InitializePayments();
         WorkspaceRoot.Children.Remove(PersonDialog);
         WorkspaceRoot.Children.Remove(ParticipantDialog);
         WorkspaceRoot.Children.Remove(InvitationCancelDialog);
@@ -71,6 +72,7 @@ public sealed partial class MainWindow
 
     private void UpdatePeopleActions()
     {
+        UpdatePaymentActions();
         UpdateParticipantActions();
         AddPersonButton.IsEnabled = account is not null && IsPeopleAdmin;
         PersonOrderButton.IsEnabled = account is not null && IsPeopleAdmin && peopleInfo is not null;

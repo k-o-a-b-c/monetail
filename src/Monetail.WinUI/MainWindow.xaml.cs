@@ -29,6 +29,7 @@ public sealed partial class MainWindow : Window
 
     private void DisplayLedger(LedgerInfo ledger)
     {
+        ResetPayments();
         ResetPeople();
         ResetParticipants();
         currentLedger = ledger;
@@ -64,6 +65,7 @@ public sealed partial class MainWindow : Window
     private void ShowRecord(object sender, RoutedEventArgs e)
     {
         if (busy || ManagementDialogOpen) return;
+        DropPendingPaymentEdit(); DiscardPaymentEditor(); DiscardPaymentOrder();
         DropPendingPersonEdit();
         DiscardPersonEditor();
         DiscardPersonOrder();
@@ -73,6 +75,7 @@ public sealed partial class MainWindow : Window
     private async void ShowManagement(object sender, RoutedEventArgs e)
     {
         if (busy || ManagementDialogOpen) return;
+        DiscardPaymentOrder(); PaymentsContent.Visibility = Visibility.Collapsed;
         DiscardPersonOrder();
         ParticipantsContent.Visibility = InvitationsContent.Visibility = Visibility.Collapsed;
         ShowPage(ManagementPage);

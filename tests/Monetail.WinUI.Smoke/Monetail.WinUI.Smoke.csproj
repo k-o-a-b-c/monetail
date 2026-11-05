@@ -17,6 +17,10 @@
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
+    <Compile Include="../../src/Monetail.WinUI/PaymentRow.cs" Link="PaymentRow.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.Payments.cs" Link="MainWindow.Payments.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.PaymentOrder.cs" Link="MainWindow.PaymentOrder.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.PaymentRecovery.cs" Link="MainWindow.PaymentRecovery.cs" />
     <ProjectReference Include="../../src/Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
     <Content Update="Assets/PreviewFont.otf" Condition="Exists('Assets/PreviewFont.otf')" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

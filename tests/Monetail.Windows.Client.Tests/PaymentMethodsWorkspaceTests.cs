@@ -112,12 +112,12 @@ public sealed class PaymentMethodsWorkspaceTests
     [InlineData("create")] [InlineData("patch")] [InlineData("delete")] [InlineData("order")]
     public async Task RevisionConflictsHaveOperationSpecificTypedLatestAndNoAutomaticFetch(string operation)
     {
-        var order = new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Expired.PaymentMethodId, Row.PaymentMethodId]);
+        var order = new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Expired.PaymentMethodId, Row.PaymentMethodId], [Expired, Row]);
         object latest = operation == "create" ? Payload() : operation == "order" ? order : Row;
         using var f = new Fixture(_ => Json(new { code = "revision_conflict", latest }, HttpStatusCode.Conflict));
         var error = await Assert.ThrowsAsync<PaymentMethodRequestException>(() => Act(f, operation));
         if (operation == "create") { Assert.Equal(State.PaymentMethods, error.LatestPaymentMethods!.PaymentMethods); Assert.Null(error.LatestPaymentMethod); }
-        else if (operation == "order") { Assert.Equal(order.OrderRevision, error.LatestOrder!.OrderRevision); Assert.Equal(order.PaymentMethodIds, error.LatestOrder.PaymentMethodIds); }
+        else if (operation == "order") { Assert.Equal(order.OrderRevision, error.LatestOrder!.OrderRevision); Assert.Equal(order.PaymentMethodIds, error.LatestOrder.PaymentMethodIds); Assert.Equal(order.PaymentMethods, error.LatestOrder.PaymentMethods); }
         else Assert.Equal(Row, error.LatestPaymentMethod);
         Assert.Single(f.Paths); Assert.NotNull(f.Store.Current);
     }
@@ -233,15 +233,19 @@ public sealed class PaymentMethodsWorkspaceTests
     [Theory]
     [InlineData("missing")] [InlineData("wrongRow")] [InlineData("wrongOwner")] [InlineData("duplicateIds")]
     [InlineData("badOrderRevision")] [InlineData("badOrderId")]
+    [InlineData("wrongRowOwner")] [InlineData("missingRows")] [InlineData("mismatchedRows")]
     public async Task MalformedOrMisdirectedConflictsDoNotReplaceInput(string kind)
     {
-        var order = kind is "wrongOwner" or "duplicateIds" or "badOrderRevision" or "badOrderId";
+        var order = kind is "wrongOwner" or "duplicateIds" or "badOrderRevision" or "badOrderId" or "wrongRowOwner" or "missingRows" or "mismatchedRows";
         object? latest = kind switch {
+            "wrongRowOwner" => new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Row.PaymentMethodId], [Row with { OwnerPersonId = Other }]),
+            "missingRows" => new { ownerPersonId = Owner, orderRevision = Guid.NewGuid(), paymentMethodIds = new[] { Row.PaymentMethodId } },
+            "mismatchedRows" => new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Row.PaymentMethodId], [Expired]),
             "wrongRow" => Row with { PaymentMethodId = Guid.NewGuid() },
-            "wrongOwner" => new PaymentMethodOrderInfo(Other, Guid.NewGuid(), [Row.PaymentMethodId]),
-            "duplicateIds" => new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Row.PaymentMethodId, Row.PaymentMethodId]),
-            "badOrderRevision" => new PaymentMethodOrderInfo(Owner, Guid.Empty, []),
-            "badOrderId" => new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Guid.Empty]), _ => null
+            "wrongOwner" => new PaymentMethodOrderInfo(Other, Guid.NewGuid(), [Row.PaymentMethodId], [Row]),
+            "duplicateIds" => new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Row.PaymentMethodId, Row.PaymentMethodId], [Row, Row]),
+            "badOrderRevision" => new PaymentMethodOrderInfo(Owner, Guid.Empty, [], []),
+            "badOrderId" => new PaymentMethodOrderInfo(Owner, Guid.NewGuid(), [Guid.Empty], []), _ => null
         };
         using var f = new Fixture(_ => Json(new { code = "revision_conflict", latest }, HttpStatusCode.Conflict));
         await Assert.ThrowsAsync<ApiConnectionException>(() => Act(f, order ? "order" : "patch")); Assert.NotNull(f.Store.Current); Assert.Single(f.Paths);
