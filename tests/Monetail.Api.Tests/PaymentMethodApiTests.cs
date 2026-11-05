@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Xunit;
 namespace Monetail.Api.Tests;
-public sealed class PaymentMethodApiTests
+public sealed partial class PaymentMethodApiTests
 {
     [Fact]
     public async Task CrudReplayAndIndependentVersions()
