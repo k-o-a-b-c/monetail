@@ -162,7 +162,9 @@
 
 **後続設計（未確定）：** DB基本構造はDEC-133で確定。EF実装、支払方法の追加・削除APIの再送・競合契約、画面の配置や細かな操作は後続とする。採番・並び替えAPI・競合時の基本動作も実装済みを意味しない。
 
-## 支払方法マスタの物理DB構成（DEC-133・モデルとMigration実装済／業務API未実装）
+<a id="支払方法マスタの物理db構成dec-133モデルとmigration実装済業務api未実装"></a>
+
+## 支払方法マスタの物理DB構成（DEC-133・実装済み）
 
 DEC-123〜132の確定仕様に従い、SQLite/EF Coreの**物理テーブル・8列＋人物表1列・PK・FK・UNIQUE・索引・日付CHECKを採用する**。旧版の`m_payment_classification`をそのまま再利用せず、家計簿単位の新テーブル`ledger_payment_methods`を設ける。所有者変更はDEC-131で禁止され、**DBトリガーでの強制はDEC-134で確定**した。
 
@@ -211,9 +213,11 @@ CREATE INDEX ix_ledger_payment_methods_owner_order
 - **更新版・競合：** 並び替え・追加・削除は**対象人物の`payment_order_revision`だけを条件付きUPDATEで照合・変更**し、支払方法の順序変更と同一トランザクションで確定する。人物編集用`ledger_people.revision`は変更しない。**`payment_order_revision`を単純に人物エンティティ全更新のEF Core同時実行トークンにすると人物名編集まで無関係な競合を起こし得る**ため、対象列を明示した条件付き更新（CAS相当）で独立性を維持する。支払方法自体の`revision`は名前・期間変更の競合検知に使う。
 - **既存人物の移行（Migrationに実装）：** `ledger_people`に`payment_order_revision`をNOT NULL列として追加し、既存人物ごとにSQLiteの乱数から個別のUUID v4（N形式）をバックフィルする。SQLiteの`ADD COLUMN`制約上、既存行がある表への列追加時のみ定数の空文字デフォルトをDDLに付け、直後に既存行を更新する。**今後の人物新規作成ではAPIが必ず新UUIDを列へ指定**し、空文字を業務上の有効な更新版とは扱わない。旧版の支払方法整数IDや所有者不明の行は、新しいUUID／所有者へ自動推測で割り当てない。
 
-**実装範囲：** `LedgerPaymentMethod`のEF Coreマッピング、人物の順序版列と初期化、支払方法テーブル・複合FK・UNIQUE・索引・CHECKを追加するMigration、およびDB制約テストをPR #115へ実装。**後続：** 業務API・WinUI、ポイント機能、旧版の支払方法データ移行。Migrationは本番DBに自動適用されず、APIの明示的な`initialize-db`を経る。
+**実装範囲：** `LedgerPaymentMethod`のEF Coreマッピング、人物の順序版列と初期化、支払方法テーブル・複合FK・UNIQUE・索引・CHECKを追加するMigration、およびDB制約テストをPR #115へ実装。CRUD APIはDEC-135で接続済み。**後続：** 並び替えAPI・WinUI、ポイント機能、旧版の支払方法データ移行。Migrationは本番DBに自動適用されず、APIの明示的な`initialize-db`を経る。
 
-## 支払方法の所有者変更をDBトリガーで禁止（DEC-134・Migration実装済／業務API未実装）
+<a id="支払方法の所有者変更をdbトリガーで禁止dec-134migration実装済業務api未実装"></a>
+
+## 支払方法の所有者変更をDBトリガーで禁止（DEC-134・実装済み）
 
 支払方法の所有者`owner_person_id`はDEC-131により作成後変更不可。**APIの入力拒否だけでなく、SQLiteのBEFORE UPDATEトリガーを採用してDBでも変更を拒否する**。家計簿管理者の操作やAPI側の誤実装によっても変更させない。
 
@@ -234,11 +238,13 @@ END;
 - EF Core Migration `20261105010000_AddLedgerPaymentMethods`に、テーブル作成後の`migrationBuilder.Sql(...)`によるトリガー追加と、ロールバック時の`DROP TRIGGER IF EXISTS`を実装。既存の稼働DBへは適用していない。
 - `PaymentMethodSchemaTests`で所有者変更の拒否、同じ所有者へのUPDATEの許容、他列更新の許容、未使用削除→別所有者での新規作成、トリガー失敗時のトランザクション全体のロールバックを検証する。
 
-**後続作業：** DBトリガーとテストはPRへ実装済み。支払方法の業務API、トリガー例外のHTTPエラーへの変換、WinUIへの接続は未実装。
+**後続作業：** DBトリガーとテストはPRへ実装済み。CRUD APIはDEC-135で実装し、更新要求は所有者列を受け付けない。トリガーを直接発火させる所有者変更APIは設けず、並び替えAPI・WinUIへの接続は後続とする。
 
-## 支払方法の作成・編集・削除API（DEC-135・仕様確定／未実装）
+<a id="支払方法の作成編集削除apidec-135仕様確定未実装"></a>
 
-既存の人物API・`operation_requests`に合わせて、支払方法の取得・作成・編集・削除のAPI契約を確定する。所有者必須・不変（DEC-130・131・134）、利用権限（DEC-118・125〜128）、有効期間（DEC-119〜122）、人物別の並び順（DEC-129・132）に従う。**API・DB・WinUIの実装は未実施**。
+## 支払方法の作成・編集・削除API（DEC-135・CRUD実装済み）
+
+既存の人物API・`operation_requests`に合わせて、支払方法の取得・作成・編集・削除のAPI契約を確定する。所有者必須・不変（DEC-130・131・134）、利用権限（DEC-118・125〜128）、有効期間（DEC-119〜122）、人物別の並び順（DEC-129・132）に従う。**GET・POST・PATCH・DELETEは実装済み**。DEC-133/134のDBを利用し、並び替えPUT・WinUIは未実装。
 
 ### エンドポイント（確定）
 
@@ -257,11 +263,12 @@ END;
 - **期間検証：** 作成・更新時は開始日≦終了日を検証。更新時には既存のレシート・振替（両側）・残高・日付付き支払メモ等の保存済み参照日付が新期間外にならないかを、業務データの実装段階で同じ書込処理内で確認する（DEC-121）。無効化対象の既存データがあれば支払方法も保存しない。
 - **DELETEの使用済み判定：** レシート・振替両側・残高・支払メモなど、参照が1件でもあれば不可（DEC-125）。使用額0や日付なしの参照も使用済み。FKのRESTRICTで同時作成からも保護し、参照失敗は`payment_method_referenced`として409。失敗時は順序更新版を変更しない。
 - **一覧の返却：** 共通レスポンスは`paymentMethods`（各`paymentMethodId`、`ownerPersonId`、`name`、`displayOrder`、`validFrom`、`validTo`、`revision`）、`ownerOrderRevisions`（`personId`と`orderRevision`の配列）、`myPersonId`、`currentRole`。管理画面ではDEC-120の「本日有効」を初期表示としてUIで絞るが、並び替え用の集合は有効期間外も含む全件とする。POST成功・再送では作成した`paymentMethodId`も応答に含める。
+- **API配列順と画面表示順：** `paymentMethods`配列は`ownerPersonId ASC, displayOrder ASC, paymentMethodId ASC`で返す。これは画面表示順ではない。画面側で`myPersonId`の所有分を最優先にし、他の人物は人物マスタの共通順（`ownerOrderRevisions`の配列順）、同一人物内は`displayOrder ASC, paymentMethodId ASC`で表示する。本人対応がなければ人物共通順を使う。表示の並び替えでDBの保存順・更新版は変更しない。
 - **権限・競合：** 保存の直前にも現在の参加・ロール・本人の人物対応・対象所有者を検証する。行更新版不一致は409 `revision_conflict`で、権限の範囲で最新の支払方法情報を`latest`に返す。名前重複は409 `duplicate_payment_method_name`で区別し、所有者・名前入力エラーは400、権限不足403、未参加・対象不在404、予期しない保存障害503とする。行版の更新はDB側の旧値一致の条件付きUPDATEとし、同時操作で古い値が上書きされないようにする。
 - **追加・削除時の順序版：** 新規追加・削除では対象の`ledger_people.payment_order_revision`だけを新UUIDに更新し、支払方法の増減と版更新を1トランザクションで確定する。**POSTの作成成功時だけ**共通再送記録も同じトランザクションに含める。所有者別順序版の旧値条件付きUPDATEで別端末との増減・並び替えを競合検出する。無関係な所有者や人物名編集用の`ledger_people.revision`は変更しない。
-- **再送管理：** POSTは既存の`operation_requests`を共用し、操作種別を`payment_method.create`とする。UUID`requestId`＋操作種別＋現在アカウント＋家計簿ID・所有者ID・正規化済み名前・期間の内容ハッシュで照合し、成功時に作成結果IDを同時記録。同じ要求は新しい支払方法を作らず現在の一覧と元の作成IDを返し、順序版も再更新しない。異なる内容による同じ要求IDは409 `request_conflict`。元の作成結果が削除済みなら409 `created_result_deleted`で、同じ要求IDで再作成しない。再送時にも現在の家計簿参加・作成権限を検証する。更新・削除に要求IDを追加する必要はない。
+- **再送管理：** POSTは既存の`operation_requests`を共用し、操作種別を`payment_method.create`とする。UUID`requestId`＋操作種別＋現在アカウント＋家計簿ID・所有者ID・正規化済み名前・期間の内容ハッシュで照合し、成功時に作成結果IDを同時記録。同じ要求は新しい支払方法を作らず現在の一覧と元の作成IDを返し、順序版も再更新しない。異なる内容による同じ要求IDは409 `request_conflict`。元の作成結果が削除済みなら、所有者の人物も削除されていても409 `created_result_deleted`で、同じ要求IDで再作成しない。現在の参加・操作権限を確認してから再送記録を照合し、所有者の実在確認は再送記録がない新規作成に対して行う。再送時にも現在の家計簿参加・作成権限を検証する。更新・削除に要求IDを追加する必要はない。
 
-**後続設計（未確定）：** API実装時の細かなDTO・画面エラー文言、支払方法登録時の所有者欄初期選択、期間検証に必要な各業務テーブルの詳細。基本のAPI契約は確定済みであり、DB・API・WinUIの実装は後続作業とする。
+**後続設計（未確定）：** API実装時の細かなDTO・画面エラー文言、支払方法登録時の所有者欄初期選択、期間検証に必要な各業務テーブルの詳細。CRUD APIは既存のトランザクション・共通再送・認証境界へ接続済み。現行DBには取引の参照表がないため使用済み判定は実在するRESTRICT FK違反で拒否する。将来のレシート・振替・残高等を追加する段階で、複合FKと参照日付の期間検証を接続する。これらの業務表・並び替えPUT・WinUIは今回実装しない。
 
 
 ## 保存構成（APIの初回定義へ実装済み）
