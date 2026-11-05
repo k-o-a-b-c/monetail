@@ -90,6 +90,7 @@ public sealed partial class LedgerManagementService
             var revision = input.Uuid("revision");
             if (row.Revision != revision) throw Conflict(PaymentInfo(row));
             var owner = await context.Set<LedgerPerson>().AsNoTracking().SingleAsync(p => p.LedgerId == id && p.Id == row.OwnerPersonId, token);
+            await AdvancePaymentOrderAsync(owner, actor, token);
             // 将来の業務表は作らない。参照表追加後も実際のRESTRICT違反をここで変換する。
             try
             {
@@ -98,7 +99,6 @@ public sealed partial class LedgerManagementService
             }
             catch (SqliteException error) when (error.SqliteExtendedErrorCode == 787 || error.SqliteExtendedErrorCode == 1811 && error.Message.Contains("FOREIGN KEY constraint failed", StringComparison.Ordinal))
             { throw new LedgerApiFault(409, "payment_method_referenced", "この支払方法は参照されているため削除できません。"); }
-            await AdvancePaymentOrderAsync(owner, actor, token);
             var result = await PaymentsAsync(id, actor, token); await PaymentAccessAsync(id, row.OwnerPersonId, actor, token); return result;
         }, token);
     private async Task<LedgerPaymentMethod> PaymentRowAsync(string id, string key, CancellationToken token) =>

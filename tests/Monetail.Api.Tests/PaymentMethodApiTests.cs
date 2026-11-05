@@ -152,7 +152,8 @@ public sealed class PaymentMethodApiTests
     {
         await using var f=await Fixture.Create();var row=await f.Payment();
         f.App.Database.Execute("CREATE TRIGGER stop_order BEFORE UPDATE OF payment_order_revision ON ledger_people BEGIN SELECT RAISE(IGNORE); END");var before=f.Snapshot();
-        await f.Call("DELETE",new {revision=Revision(row)},409,Path(row));Assert.Equal(before,f.Snapshot());
+        var conflict=await f.Call("DELETE",new {revision=Revision(row)},409,Path(row));Assert.Equal(before,f.Snapshot());
+        Assert.Single(conflict.GetProperty("latest").GetProperty("paymentMethods").EnumerateArray());
     }
     [Fact]
     public async Task DuplicatePatchDoesNotChangeRowOrOrderAndAppendKeepsGaps()
