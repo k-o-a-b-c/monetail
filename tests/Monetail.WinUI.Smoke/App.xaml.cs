@@ -129,6 +129,8 @@ public partial class App : Application
     }
     private static void Invoke(Button button)
     {
+        // ネイティブ異常の直前状態を残す。操作の置換・再送や成功扱いへの変更は行わない。
+        Console.WriteLine($"UI Invoke: {button.Name}; {button.Content}; loaded={button.IsLoaded}; root={button.XamlRoot is not null}");
         var peer = FrameworkElementAutomationPeer.CreatePeerForElement(button);
         ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)).Invoke();
     }

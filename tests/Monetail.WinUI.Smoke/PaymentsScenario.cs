@@ -90,6 +90,12 @@ public partial class App
             server.ReferenceDelete = true; Invoke(PaymentFooter(root, true)); await Wait(() => Find<TextBlock>(root, "PaymentSaveError").Visibility == Visibility.Visible);
             Check(Find<TextBlock>(root, "PaymentSaveError").Text.Contains("有効終了日") && list.Items.Count > 0, "参照拒否で一覧を維持し終了日による管理を案内");
             Invoke(PaymentFooter(root, false)); await Wait(() => PaymentEditorClosed(root));
+            server.ReferenceDelete = false;
+            var createdId = server.Rows.Single(r => r.Name == "登録").PaymentMethodId;
+            SelectPaymentRow(root, createdId); await OpenPaymentDialog(root, "DeletePaymentButton");
+            Invoke(PaymentFooter(root, true)); await Wait(() => PaymentEditorClosed(root));
+            Check(!list.Items.Cast<PaymentRow>().Any(r => r.Payment.PaymentMethodId == createdId) && server.Reads == 1,
+                "未使用の削除成功は応答だけで一覧へ反映");
             var reads = server.Reads;
             await OpenOrderFor(root, server.Mine);
             var order = Find<ListView>(root, "PaymentOrderList");
@@ -105,8 +111,10 @@ public partial class App
             using var savedOrder = JsonDocument.Parse(server.Writes.Last().Body);
             Check(savedOrder.RootElement.GetProperty("ownerPersonId").GetGuid() == server.Mine && savedOrder.RootElement.GetProperty("paymentMethodIds").EnumerateArray().Select(p => p.GetGuid()).SequenceEqual(currentIds),
                 "競合後の保存は対象人物と新版・最新全IDを1要求で送信");
-            await OpenOrderFor(root, server.Mine); Invoke(Find<Button>(root, "CancelPaymentOrderButton"));
-            Check(server.Reads == reads, "並び順キャンセルでは保存も追加GETもしない");
+            var writes = server.Writes.Count;
+            await OpenOrderFor(root, server.Mine); Find<ListView>(root, "PaymentOrderList").SelectedIndex = 0;
+            Invoke(Find<Button>(root, "MovePaymentDownButton")); Invoke(Find<Button>(root, "CancelPaymentOrderButton"));
+            Check(server.Reads == reads && server.Writes.Count == writes, "並び順キャンセルでは保存も追加GETもしない");
             await OpenOrderFor(root, server.Mine);
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
             await Settle(); Check(Find<Grid>(root, "PaymentOrderContent").Visibility == Visibility.Collapsed, "左メニュー移動時は未保存順を破棄");

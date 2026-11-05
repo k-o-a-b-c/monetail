@@ -46,9 +46,17 @@ public sealed partial class MainWindow
     }
     private Task LoadPaymentsAsync() => account is null || currentLedger is null ? Task.CompletedTask : RunAsync(async () =>
     {
-        var people = await new PeopleWorkspace(connection.Api, connection.Session, currentLedger.LedgerId).ListAsync(lifetime.Token);
-        var payments = await Payments.ListAsync(lifetime.Token);
-        paymentPeople = people; DisplayPayments(payments);
+        try
+        {
+            var people = await new PeopleWorkspace(connection.Api, connection.Session, currentLedger.LedgerId).ListAsync(lifetime.Token);
+            var payments = await Payments.ListAsync(lifetime.Token);
+            paymentPeople = people; DisplayPayments(payments);
+        }
+        catch (PeopleRequestException error)
+        {
+            // 所有者名取得の拒否でも、支払方法の古い権限表示を残さない。
+            throw new PaymentMethodRequestException(error.StatusCode, error.Code, error.Field, permissions: error.Permissions);
+        }
     }, LoadPaymentsAsync);
     private void DisplayPayments(PaymentMethodsInfo info)
     {
@@ -150,7 +158,7 @@ public sealed partial class MainWindow
             try { input = new(PaymentName.Text, PaymentFrom.Complete(), PaymentTo.Complete()); }
             catch (PaymentMethodInputException error) { ShowPaymentError(error.Field, error.Message); return false; }
         }
-        if (editingPayment is null && (paymentDraft?.Input != input || paymentDraft.OwnerPersonId != ChosenPaymentOwner))
+        if (editingPayment is null && (paymentDraft is null || paymentDraft.Input != input || paymentDraft.OwnerPersonId != ChosenPaymentOwner))
             paymentDraft = new(ChosenPaymentOwner!.Value, input!);
         var saved = false;
         await RunAsync(async () =>
@@ -227,5 +235,10 @@ public sealed partial class MainWindow
     {
         var target = field == "name" ? PaymentNameError : field is "validFrom" or "validTo" ? PaymentPeriodError : PaymentSaveError;
         target.Text = message; target.Visibility = Visibility.Visible;
+        if (field is not null) DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!closed && paymentDialogOpen && !deletingPayment)
+                (field == "name" ? (Control)PaymentName : field == "validFrom" ? PaymentFrom : PaymentTo).Focus(FocusState.Programmatic);
+        });
     }
 }
