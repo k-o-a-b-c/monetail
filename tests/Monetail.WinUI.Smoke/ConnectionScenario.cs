@@ -244,6 +244,7 @@ public partial class App
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PeopleHandler;
+        internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PaymentsHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ParticipantsHandler;
         internal bool ConnectionCancelled, RateLimitOpening, RejectSession, CannotOpenLedger;
         internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
@@ -311,7 +312,7 @@ public partial class App
             {
                 if (path.Contains("/people", StringComparison.Ordinal) && request.Content is not null)
                     RejectedPeopleBodies.Add(await request.Content.ReadAsStringAsync(token));
-                if (request.Content is not null && (path.Contains("/members", StringComparison.Ordinal) || path.Contains("/invitations", StringComparison.Ordinal)))
+                if (request.Content is not null && (path.Contains("/payment-methods", StringComparison.Ordinal) || path.Contains("/members", StringComparison.Ordinal) || path.Contains("/invitations", StringComparison.Ordinal)))
                     RejectedManagementBodies.Add(await request.Content.ReadAsStringAsync(token));
                 return new(HttpStatusCode.Unauthorized);
             }
@@ -333,6 +334,8 @@ public partial class App
             if (path == $"/ledgers/{first.LedgerId:N}/open") return CannotOpenLedger ? new(HttpStatusCode.NotFound) : Json(first);
             if (ParticipantsHandler is not null && (path.Contains("/members", StringComparison.Ordinal) || path.Contains("/invitations", StringComparison.Ordinal)))
                 return await ParticipantsHandler(request, token);
+            if (PaymentsHandler is not null && path.Contains("/payment-methods", StringComparison.Ordinal))
+                return await PaymentsHandler(request, token);
             if (PeopleHandler is not null && path.Contains("/people", StringComparison.Ordinal))
                 return await PeopleHandler(request, token);
             if (path == $"/ledgers/{first.LedgerId:N}/people") return Json(new PeopleInfo(

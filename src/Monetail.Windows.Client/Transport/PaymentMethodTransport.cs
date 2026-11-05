@@ -16,7 +16,7 @@ public sealed record PaymentMethodsInfo(PaymentMethodInfo[] PaymentMethods, Paym
         (CurrentRole == "Admin" || CurrentRole == "Editor" && MyPersonId == ownerPersonId);
 }
 public sealed record PaymentMethodCreationInfo(Guid PaymentMethodId, PaymentMethodsInfo State);
-public sealed record PaymentMethodOrderInfo(Guid OwnerPersonId, Guid OrderRevision, Guid[] PaymentMethodIds);
+public sealed record PaymentMethodOrderInfo(Guid OwnerPersonId, Guid OrderRevision, Guid[] PaymentMethodIds, PaymentMethodInfo[] PaymentMethods);
 
 public sealed class PaymentMethodRequestException(HttpStatusCode status, string? code, string? field,
     PaymentMethodInfo? latestPaymentMethod = null, PaymentMethodsInfo? latestPaymentMethods = null,
@@ -143,6 +143,11 @@ public sealed partial class MonetailApiClient
             throw new ApiConnectionException();
         var ids = rows.EnumerateArray().Select(ReadUuid).ToArray();
         if (ids.Distinct().Count() != ids.Length) throw new ApiConnectionException();
-        return new(ReadUuidProperty(json, "ownerPersonId"), ReadUuidProperty(json, "orderRevision"), ids);
+        if (!json.TryGetProperty("paymentMethods", out var values) || values.ValueKind != JsonValueKind.Array) throw new ApiConnectionException();
+        var owner = ReadUuidProperty(json, "ownerPersonId");
+        var payments = values.EnumerateArray().Select(ReadPayment).ToArray();
+        if (payments.Any(row => row.OwnerPersonId != owner) || !ids.SequenceEqual(payments.Select(row => row.PaymentMethodId)))
+            throw new ApiConnectionException();
+        return new(owner, ReadUuidProperty(json, "orderRevision"), ids, payments);
     }
 }

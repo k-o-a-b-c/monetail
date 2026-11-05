@@ -230,7 +230,7 @@
                     <NavigationViewItemHeader Content="マスタ管理" />
                     <NavigationViewItem x:Name="PeopleNavigation" Content="人物管理" Icon="Contact" />
                     <NavigationViewItem Content="科目管理" IsEnabled="False" />
-                    <NavigationViewItem Content="口座管理" IsEnabled="False" />
+                    <NavigationViewItem x:Name="PaymentsNavigation" Content="支払方法管理" />
                     <NavigationViewItem Content="店舗管理" IsEnabled="False" />
                     <NavigationViewItemHeader Content="家計簿管理" />
                     <NavigationViewItem x:Name="ParticipantsNavigation" Content="参加者管理" Icon="People" Visibility="Collapsed" />
@@ -308,6 +308,53 @@
                             </ListView>
                             <TextBlock x:Name="EmptyInvitations" Text="有効な招待リンクはありません。" Visibility="Collapsed" Style="{StaticResource Description}"/>
                         </Grid>
+                    </Grid>
+                    <Grid x:Name="PaymentsContent" Visibility="Collapsed" RowSpacing="16">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <TextBlock Text="支払方法管理" Style="{ThemeResource TitleTextBlockStyle}"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="AddPaymentButton" Content="追加" Click="AddPayment"/>
+                            <Button x:Name="EditPaymentButton" Content="編集" Click="EditPayment"/>
+                            <Button x:Name="DeletePaymentButton" Content="削除" Click="DeletePayment"/>
+                        </StackPanel>
+                        <CheckBox x:Name="IncludeInactivePayments" Grid.Row="2" Content="有効期間外も表示" Checked="FilterPayments" Unchecked="FilterPayments"/>
+                        <Grid Grid.Row="3"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                            <Grid ColumnSpacing="12" Padding="12,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="支払方法名"/><TextBlock Grid.Column="1" Text="有効開始日"/><TextBlock Grid.Column="2" Text="有効終了日"/>
+                            </Grid>
+                            <ListView x:Name="PaymentsList" Grid.Row="1" SelectionMode="Single" SelectionChanged="SelectPayment" HorizontalContentAlignment="Stretch" AutomationProperties.Name="人物別の支払方法一覧">
+                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
+                                <ListView.GroupStyle><GroupStyle HidesIfEmpty="True"><GroupStyle.HeaderTemplate><DataTemplate x:DataType="local:PaymentGroup">
+                                    <Grid ColumnSpacing="12" Margin="0,12,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Content="並び順変更" Tag="{x:Bind OwnerId}" Visibility="{x:Bind OrderVisibility}" Click="OpenPaymentOrder"/>
+                                    </Grid>
+                                </DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></ListView.GroupStyle>
+                                <ListView.ItemTemplate><DataTemplate x:DataType="local:PaymentRow">
+                                    <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/><TextBlock Grid.Column="1" Text="{x:Bind ValidFrom}"/><TextBlock Grid.Column="2" Text="{x:Bind ValidTo}"/>
+                                    </Grid>
+                                </DataTemplate></ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock x:Name="EmptyPayments" Grid.Row="1" Text="表示対象の支払方法はありません。" Visibility="Collapsed" Style="{StaticResource Description}"/>
+                        </Grid>
+                    </Grid>
+                    <Grid x:Name="PaymentOrderContent" Visibility="Collapsed" RowSpacing="16">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <TextBlock Text="支払方法の並び順" Style="{ThemeResource TitleTextBlockStyle}"/>
+                        <TextBlock x:Name="PaymentOrderOwner" Grid.Row="1" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                        <InfoBar x:Name="PaymentOrderNotice" Grid.Row="2" Visibility="Collapsed" IsOpen="False" Closed="CloseError"/>
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="MovePaymentUpButton" Content="上へ" Click="MovePaymentUp"/>
+                            <Button x:Name="MovePaymentDownButton" Content="下へ" Click="MovePaymentDown"/>
+                        </StackPanel>
+                        <ListView x:Name="PaymentOrderList" Grid.Row="4" SelectionMode="Single" SelectionChanged="SelectPaymentOrder" AutomationProperties.Name="有効期間外を含む全支払方法の順序">
+                            <ListView.ItemTemplate><DataTemplate x:DataType="local:PaymentRow"><TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/></DataTemplate></ListView.ItemTemplate>
+                        </ListView>
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="SavePaymentOrderButton" Content="保存" Click="SavePaymentOrder" Style="{ThemeResource AccentButtonStyle}"/>
+                            <Button x:Name="CancelPaymentOrderButton" Content="キャンセル" Click="CancelPaymentOrder"/>
+                        </StackPanel>
                     </Grid>
                     <Grid x:Name="PersonOrderContent" Visibility="Collapsed" RowSpacing="16">
                         <Grid.RowDefinitions>
@@ -479,6 +526,36 @@
                     </Border>
                     <TextBlock x:Name="PersonSaveError" Visibility="Collapsed" TextWrapping="Wrap"
                                Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+            </ScrollViewer>
+        </ContentDialog>
+        <ContentDialog x:Name="PaymentDialog" Title="支払方法の追加" PrimaryButtonText="登録" CloseButtonText="キャンセル" DefaultButton="None"
+                       PrimaryButtonClick="SavePayment" Opened="PaymentDialogOpened" Closing="PaymentDialogClosing" HorizontalContentAlignment="Stretch">
+            <ScrollViewer x:Name="PaymentEditorContent" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="16">
+                    <TextBlock x:Name="PaymentRestoredNotice" Text="未保存の入力を復元しました。内容を確認してください。" Visibility="Collapsed" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="PaymentDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
+                    <StackPanel x:Name="PaymentFields" Spacing="16">
+                        <ComboBox x:Name="PaymentOwnerChoice" Header="所有者" DisplayMemberPath="Name" SelectionChanged="SelectPaymentOwner" HorizontalAlignment="Stretch"/>
+                        <StackPanel x:Name="PaymentOwnerFixed"><TextBlock Text="所有者" Style="{StaticResource Description}"/><TextBlock x:Name="PaymentOwnerName" TextWrapping="Wrap"/></StackPanel>
+                        <TextBox x:Name="PaymentName" Header="支払方法名"/>
+                        <TextBlock x:Name="PaymentNameError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                        <input:DateInputBox x:Name="PaymentFrom" Header="有効開始日" AllowEmpty="True"/>
+                        <input:DateInputBox x:Name="PaymentTo" Header="有効終了日" AllowEmpty="True"/>
+                        <TextBlock x:Name="PaymentPeriodError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                        <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}"/>
+                    </StackPanel>
+                    <Border x:Name="PaymentConflict" Visibility="Collapsed" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                        <StackPanel Spacing="8"><TextBlock Text="ほかの操作で変更されています。最新の保存内容" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                            <TextBlock Text="所有者" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentOwner" TextWrapping="Wrap"/>
+                            <TextBlock Text="支払方法名" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentName" TextWrapping="Wrap"/>
+                            <TextBlock Text="有効開始日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentFrom"/>
+                            <TextBlock Text="有効終了日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentTo"/>
+                            <TextBlock Text="切り替えると、未保存の入力や削除対象の確認内容を最新内容に置き換えます。" TextWrapping="Wrap"/>
+                            <Button Content="最新内容に切り替える" Click="UseLatestPayment"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="PaymentSaveError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                 </StackPanel>
             </ScrollViewer>
         </ContentDialog>

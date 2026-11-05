@@ -15,6 +15,7 @@ public sealed partial class MainWindow
 
     private async Task OpenDestinationAsync(CancellationToken token)
     {
+        if (await ResumePaymentEditAsync(token)) return;
         if (await ResumeParticipantEditAsync(token)) return;
         if (await ResumePersonEditAsync(token)) return;
         var destination = await connection.Ledgers.StartAsync(token);
@@ -33,6 +34,7 @@ public sealed partial class MainWindow
     {
         currentLedger = null;
         ResetParticipants();
+        ResetPayments();
         ResetPeople();
         ledgerChoices = [];
         creationDraft = null;
@@ -129,6 +131,8 @@ public sealed partial class MainWindow
     private async void SelectManagement(object sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item || busy || ManagementDialogOpen) return;
+        DropPendingPaymentEdit(); DiscardPaymentEditor(); DiscardPaymentOrder();
+        PaymentsContent.Visibility = Visibility.Collapsed;
         DropPendingPersonEdit();
         DiscardPersonEditor();
         DiscardPersonOrder();
@@ -138,6 +142,11 @@ public sealed partial class MainWindow
             if (!CanManageParticipants) return;
             ParticipantsContent.Visibility = Visibility.Visible;
             await LoadParticipantsAsync();
+        }
+        else if (ReferenceEquals(item, PaymentsNavigation))
+        {
+            PaymentsContent.Visibility = Visibility.Visible;
+            await LoadPaymentsAsync();
         }
         else if (ReferenceEquals(item, PeopleNavigation))
         {

@@ -4,7 +4,7 @@ using Monetail.Api.Authentication;
 
 namespace Monetail.Api.Features.Monetail.Ledgers;
 
-public sealed record PaymentMethodOrderInfo(string OwnerPersonId, string OrderRevision, string[] PaymentMethodIds);
+public sealed record PaymentMethodOrderInfo(string OwnerPersonId, string OrderRevision, string[] PaymentMethodIds, PaymentMethodInfo[] PaymentMethods);
 
 public sealed partial class LedgerManagementService
 {
@@ -48,9 +48,9 @@ public sealed partial class LedgerManagementService
         await PaymentAccessAsync(id, owner, actor, token);
         var revision = await context.Set<LedgerPerson>().AsNoTracking().Where(row => row.LedgerId == id && row.Id == owner)
             .Select(row => row.PaymentOrderRevision).SingleOrDefaultAsync(token) ?? throw Missing();
-        var ids = await context.Set<LedgerPaymentMethod>().AsNoTracking().Where(row => row.LedgerId == id && row.OwnerPersonId == owner)
-            .OrderBy(row => row.DisplayOrder).ThenBy(row => row.Id).Select(row => row.Id).ToArrayAsync(token);
+        var rows = await context.Set<LedgerPaymentMethod>().AsNoTracking().Where(row => row.LedgerId == id && row.OwnerPersonId == owner)
+            .OrderBy(row => row.DisplayOrder).ThenBy(row => row.Id).ToArrayAsync(token);
         await PaymentAccessAsync(id, owner, actor, token);
-        return new(owner, revision, ids);
+        return new(owner, revision, rows.Select(row => row.Id).ToArray(), rows.Select(PaymentInfo).ToArray());
     }
 }

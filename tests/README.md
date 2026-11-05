@@ -9,11 +9,11 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 641 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 53 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 320 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用 | 42 |
-| 合計 | 1203 |
+| 合計 | 1206 |
 
 ## 検証する範囲
 
@@ -32,6 +32,10 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+DEC-136の支払方法画面はソース`8c35292d8fa10cfb3f9d05b08f05272fadd15e6b`の[CI 42032155217](https://github.com/k-o-a-b-c/monetail/actions/runs/42032155217)でWinUI製品/検証用Releaseビルドと既存・新規画面1シナリオが成功。人物別グループ/本人優先/本日両端/全期間切替/空見出し除外、Admin/Editor/未対応Editor/Viewer、ダイアログ入力/作成再送/削除/行競合、全件並び替え/未知の追加行を含む409/取消/メニュー移動、認証復帰/降格/別アカウント非引継ぎ、Enter移動/900pxリサイズを合成HTTPで確認した。並び替え409への対象人物全行の追加は承認済みのAPI変更で、Clientに不整合応答の拒否3件を追加。API全641件・Client全323件・Storage3件・Node53件・Dockerビルド/既存/NAS起動は[CI 42029128688](https://github.com/k-o-a-b-c/monetail/actions/runs/42029128688)の成功ジョブを再利用（この実行全体は下記WinUI異常で失敗）。ローカルClient323件・API並び替え39件・差分検査も成功。構成合計1206件を全件再実行した意味ではない。DB/Migration・外部ライブラリ変更なし。CIのDPIは100%。実API接続・実Windows手動操作・実IME/物理キー・125/150/200%やモニター間DPI移動は未検証。
+
+**既存ネイティブ異常の再発：** [CI 42029128688](https://github.com/k-o-a-b-c/monetail/actions/runs/42029128688)と[CI 42030851084](https://github.com/k-o-a-b-c/monetail/actions/runs/42030851084)で、PR #118と同じ人物再ログイン確認のAutomation Invoke中に0xC0000005が再発。後者の`ui-invoke.txt`では直前の保存ボタンがLoaded=False/Root=Trueだった。人物ダイアログのLoaded/操作可能状態を待機し、表示済みボタンを優先して取得するよう検証基盤を補強した。テスト項目・判定・UI Automation操作は維持し、診断ログも保存する。最終CIでは再発しなかったが、ネイティブ層の根本原因・再発可能性まで解決したとは扱わない。
 
 支払方法Clientは新規67件で5操作のHTTP契約、作成下書きの正規化/requestId維持、全操作の認証更新、部分更新の省略/null、全期間と空所有者の版・同順位/欠番の保持、3形式の409最新情報、権限表示/最新権限/回数制限、入力・不正応答/競合対象の拒否、別アカウント検知/認証失効/取消を確認する。ローカルReleaseでClient全320件・差分検査が成功。API/DB/Migration/WinUI画面・外部ライブラリは変更していない。ソース`876bd41c3819fa66d9aa08b4ba539c74de23b67f`の[CI 42001480827](https://github.com/k-o-a-b-c/monetail/actions/runs/42001480827)でClient320件・Storage3件・WinUI製品/検証用ビルドと既存画面1シナリオが成功。初回の未変更の人物再ログイン画面確認でボタンInvoke時にネイティブアクセス違反0xC0000005が発生し、失敗ジョブだけを同一ソースで再実行して成功した（原因未特定、コード/テストの緩和なし）。未変更のAPI等は成功結果を再利用し、構成合計1203件を全件再実行した意味ではない。実Windowsの支払方法画面・実API接続は未検証（今回は合成HTTP）。
 

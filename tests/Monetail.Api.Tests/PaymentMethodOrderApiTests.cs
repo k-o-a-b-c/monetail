@@ -110,9 +110,13 @@ public sealed partial class PaymentMethodApiTests
     public async Task OrderStaleVersionReturnsOnlyTargetLatestIncludingExpiredAndAddedRows()
     {
         await using var f = await Fixture.Create(); var first = await f.Payment(); var old = f.OwnerVersion(); var second = await f.Payment("追加");
-        await f.Call("PATCH", new { revision = Revision(first), validTo = "2000-01-01" }, suffix: Path(first));
+        await f.Call("POST", new { requestId = Guid.NewGuid(), ownerPersonId = f.Other, name = "応答に含めない他人物" }, 201);
+        var current = await f.Call("PATCH", new { revision = Revision(first), validTo = "2000-01-01" }, suffix: Path(first));
+        var expected = current.GetProperty("paymentMethods").EnumerateArray().Where(r => r.GetProperty("ownerPersonId").GetString() == f.Owner).Select(r => r.GetRawText()).ToArray();
         var before = f.Snapshot(); var conflict = await Order(f, [PaymentId(first)], old, 409);
-        AssertOrderLatest(conflict, f.Owner, f.OwnerVersion(), [PaymentId(first), PaymentId(second)]); Assert.Equal(before, f.Snapshot());
+        AssertOrderLatest(conflict, f.Owner, f.OwnerVersion(), [PaymentId(first), PaymentId(second)]);
+        Assert.Equal(expected, conflict.GetProperty("latest").GetProperty("paymentMethods").EnumerateArray().Select(r => r.GetRawText()));
+        Assert.Equal(before, f.Snapshot());
     }
 
     [Fact]
@@ -215,5 +219,12 @@ public sealed partial class PaymentMethodApiTests
         Assert.Equal("revision_conflict", result.GetProperty("code").GetString()); var latest = result.GetProperty("latest");
         Assert.Equal(owner, latest.GetProperty("ownerPersonId").GetString()); Assert.Equal(revision, latest.GetProperty("orderRevision").GetString());
         Assert.Equal(ids, latest.GetProperty("paymentMethodIds").EnumerateArray().Select(id => id.GetString()));
+        var rows = latest.GetProperty("paymentMethods").EnumerateArray().ToArray();
+        Assert.Equal(ids, rows.Select(PaymentId));
+        Assert.All(rows, row => { Assert.Equal(owner, row.GetProperty("ownerPersonId").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(row.GetProperty("name").GetString()));
+            Assert.True(Guid.TryParse(Revision(row), out _));
+            Assert.True(row.GetProperty("displayOrder").GetInt32() >= 0);
+            Assert.True(row.TryGetProperty("validFrom", out _)); Assert.True(row.TryGetProperty("validTo", out _)); });
     }
 }

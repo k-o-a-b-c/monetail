@@ -16,6 +16,7 @@ namespace Monetail.WinUI.Smoke;
 public partial class App : Application
 {
     private MainWindow? window;
+    private static string? invokeTracePath;
     public App() => InitializeComponent();
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
@@ -24,6 +25,7 @@ public partial class App : Application
         var output = Path.GetFullPath(arguments[Array.IndexOf(arguments, "--output") + 1]);
         var capture = arguments.Contains("--capture");
         Directory.CreateDirectory(output);
+        invokeTracePath = Path.Combine(output, "ui-invoke.txt");
         try
         {
             if (capture)
@@ -84,6 +86,7 @@ public partial class App : Application
             await CheckParticipantsAndInvitations();
             await CheckParticipantAuthenticationRecovery();
             await CheckInputControls();
+            await CheckPayments();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,
                     rasterizationScale, checks }));
@@ -110,7 +113,7 @@ public partial class App : Application
         {
             var dialog = (ContentDialog)root.FindName("PersonDialog");
             var text = name == "SavePersonButton" ? dialog.PrimaryButtonText : dialog.CloseButtonText;
-            return All(dialog).OfType<T>().FirstOrDefault(element => element is Button button && Equals(button.Content, text))
+            return All(dialog).OfType<T>().Where(element => element is Button button && Equals(button.Content, text)).OrderByDescending(element => element.IsLoaded).FirstOrDefault()
                 ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
         }
         return root.FindName(name) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
@@ -128,6 +131,8 @@ public partial class App : Application
     }
     private static void Invoke(Button button)
     {
+        // ネイティブ異常の直前状態を残す。操作の置換・再送や成功扱いへの変更は行わない。
+        if (invokeTracePath is not null) File.AppendAllText(invokeTracePath, $"{DateTimeOffset.UtcNow:O} UI Invoke: {button.Name}; {button.Content}; loaded={button.IsLoaded}; root={button.XamlRoot is not null}{Environment.NewLine}");
         var peer = FrameworkElementAutomationPeer.CreatePeerForElement(button);
         ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)).Invoke();
     }
