@@ -60,9 +60,38 @@ public static class LedgerModel
             person.Property(row => row.ValidTo).HasColumnName("valid_to");
             person.Property(row => row.DisplayOrder).HasColumnName("display_order");
             person.Property(row => row.Revision).HasColumnName("revision").IsRequired().IsConcurrencyToken();
+            // Separate from the person edit revision: changing a payment order never conflicts with editing the person's name.
+            person.Property(row => row.PaymentOrderRevision).HasColumnName("payment_order_revision").IsRequired();
             person.HasIndex(row => new { row.LedgerId, row.Name }).IsUnique();
             person.HasIndex(row => new { row.LedgerId, row.DisplayOrder });
             person.HasOne<Ledger>().WithMany().HasForeignKey(row => row.LedgerId).OnDelete(DeleteBehavior.Restrict);
+        });
+        builder.Entity<LedgerPaymentMethod>(payment =>
+        {
+            payment.ToTable("ledger_payment_methods", table =>
+            {
+                table.HasCheckConstraint("CK_ledger_payment_methods_display_order", "display_order >= 0");
+                table.HasCheckConstraint("CK_ledger_payment_methods_period",
+                    "valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to");
+            });
+            payment.HasKey(row => new { row.LedgerId, row.Id });
+            payment.Property(row => row.LedgerId).HasColumnName("ledger_id");
+            payment.Property(row => row.Id).HasColumnName("payment_method_id").ValueGeneratedNever();
+            payment.Property(row => row.OwnerPersonId).HasColumnName("owner_person_id").IsRequired();
+            payment.Property(row => row.Name).HasColumnName("name").IsRequired().UseCollation("BINARY");
+            payment.Property(row => row.DisplayOrder).HasColumnName("display_order");
+            payment.Property(row => row.ValidFrom).HasColumnName("valid_from");
+            payment.Property(row => row.ValidTo).HasColumnName("valid_to");
+            payment.Property(row => row.Revision).HasColumnName("revision").IsRequired().IsConcurrencyToken();
+            payment.HasIndex(row => new { row.LedgerId, row.OwnerPersonId, row.Name })
+                .IsUnique().HasDatabaseName("ux_ledger_payment_methods_owner_name");
+            payment.HasIndex(row => new { row.LedgerId, row.OwnerPersonId, row.DisplayOrder, row.Id })
+                .HasDatabaseName("ix_ledger_payment_methods_owner_order");
+            payment.HasOne<Ledger>().WithMany().HasForeignKey(row => row.LedgerId)
+                .OnDelete(DeleteBehavior.Restrict);
+            payment.HasOne<LedgerPerson>().WithMany()
+                .HasForeignKey(row => new { row.LedgerId, row.OwnerPersonId })
+                .OnDelete(DeleteBehavior.Restrict);
         });
         builder.Entity<OperationRequest>(request =>
         {
