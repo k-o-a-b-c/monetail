@@ -13,6 +13,8 @@ public static class LedgerManagementEndpoints
             Reply(await service.GetPaymentMethodsAsync(Key(ledgerId), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         routes.MapPost("/payment-methods", async (Guid ledgerId, HttpContext http, LedgerManagementService service) =>
             Reply(await service.CreatePaymentMethodAsync(Key(ledgerId), await LedgerPayload.ReadAsync(http, "requestId", "ownerPersonId", "name", "validFrom", "validTo"), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.WritePolicy);
+        routes.MapPut("/payment-methods/order", async (Guid ledgerId, HttpContext http, LedgerManagementService service) =>
+            Reply(await service.SavePaymentOrderAsync(Key(ledgerId), await LedgerPayload.ReadAsync(http, "ownerPersonId", "revision", "paymentMethodIds"), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.WritePolicy);
         routes.MapPatch("/payment-methods/{paymentMethodId:guid}", async (Guid ledgerId, Guid paymentMethodId, HttpContext http, LedgerManagementService service) =>
             Reply(await service.UpdatePaymentMethodAsync(Key(ledgerId), Key(paymentMethodId), await LedgerPayload.ReadAsync(http, "revision", "name", "validFrom", "validTo"), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.WritePolicy);
         routes.MapDelete("/payment-methods/{paymentMethodId:guid}", async (Guid ledgerId, Guid paymentMethodId, HttpContext http, LedgerManagementService service) =>
