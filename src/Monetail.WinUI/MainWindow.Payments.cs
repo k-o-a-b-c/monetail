@@ -75,6 +75,7 @@ public sealed partial class MainWindow
             .Where(g => g.Count != 0).ToArray();
         var source = new CollectionViewSource { IsSourceGrouped = true, Source = groups };
         PaymentsList.ItemsSource = source.View;
+        PaymentsList.SelectedIndex = -1;
         if (selection is not null) PaymentsList.SelectedItem = groups.SelectMany(g => g).FirstOrDefault(r => r.Payment.PaymentMethodId == selection);
         EmptyPayments.Visibility = groups.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdatePaymentActions();

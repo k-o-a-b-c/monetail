@@ -16,6 +16,7 @@ namespace Monetail.WinUI.Smoke;
 public partial class App : Application
 {
     private MainWindow? window;
+    private static string? invokeTracePath;
     public App() => InitializeComponent();
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
@@ -24,6 +25,7 @@ public partial class App : Application
         var output = Path.GetFullPath(arguments[Array.IndexOf(arguments, "--output") + 1]);
         var capture = arguments.Contains("--capture");
         Directory.CreateDirectory(output);
+        invokeTracePath = Path.Combine(output, "ui-invoke.txt");
         try
         {
             if (capture)
@@ -130,7 +132,7 @@ public partial class App : Application
     private static void Invoke(Button button)
     {
         // ネイティブ異常の直前状態を残す。操作の置換・再送や成功扱いへの変更は行わない。
-        Console.WriteLine($"UI Invoke: {button.Name}; {button.Content}; loaded={button.IsLoaded}; root={button.XamlRoot is not null}");
+        if (invokeTracePath is not null) File.AppendAllText(invokeTracePath, $"{DateTimeOffset.UtcNow:O} UI Invoke: {button.Name}; {button.Content}; loaded={button.IsLoaded}; root={button.XamlRoot is not null}{Environment.NewLine}");
         var peer = FrameworkElementAutomationPeer.CreatePeerForElement(button);
         ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)).Invoke();
     }
