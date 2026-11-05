@@ -36,7 +36,7 @@ public sealed partial class LedgerManagementService
             var person = new LedgerPerson
             {
                 LedgerId = id, Id = Version(), Name = name, ValidFrom = from, ValidTo = to,
-                DisplayOrder = checked((last ?? -1) + 1), Revision = Version()
+                DisplayOrder = checked((last ?? -1) + 1), Revision = Version(), PaymentOrderRevision = Version()
             };
             context.Add(person);
             await ChangeOrderVersionAsync(id, token);

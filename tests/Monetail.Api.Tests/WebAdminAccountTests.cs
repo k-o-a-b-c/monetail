@@ -237,7 +237,8 @@ public sealed class WebAdminAccountTests
         await app.LoginAsync(client);
         await using (var scope = app.Factory.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<ApiDbContext>().GetService<IMigrator>().MigrateAsync("20261104010000_RetireEnrollmentCodes");
-        var tables = app.Database.Tables().Where(table => table != ApiDbContext.HistoryTable).ToArray();
+        // The payment migration extends ledger_people; compare other existing tables unchanged.
+        var tables = app.Database.Tables().Where(table => table != ApiDbContext.HistoryTable && table != "ledger_people").ToArray();
         var before = app.Database.Snapshot(tables);
         await app.Database.MigrateAsync();
         Assert.Equal(before, app.Database.Snapshot(tables));
