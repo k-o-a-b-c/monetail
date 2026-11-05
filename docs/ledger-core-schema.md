@@ -263,9 +263,10 @@ END;
 - **期間検証：** 作成・更新時は開始日≦終了日を検証。更新時には既存のレシート・振替（両側）・残高・日付付き支払メモ等の保存済み参照日付が新期間外にならないかを、業務データの実装段階で同じ書込処理内で確認する（DEC-121）。無効化対象の既存データがあれば支払方法も保存しない。
 - **DELETEの使用済み判定：** レシート・振替両側・残高・支払メモなど、参照が1件でもあれば不可（DEC-125）。使用額0や日付なしの参照も使用済み。FKのRESTRICTで同時作成からも保護し、参照失敗は`payment_method_referenced`として409。失敗時は順序更新版を変更しない。
 - **一覧の返却：** 共通レスポンスは`paymentMethods`（各`paymentMethodId`、`ownerPersonId`、`name`、`displayOrder`、`validFrom`、`validTo`、`revision`）、`ownerOrderRevisions`（`personId`と`orderRevision`の配列）、`myPersonId`、`currentRole`。管理画面ではDEC-120の「本日有効」を初期表示としてUIで絞るが、並び替え用の集合は有効期間外も含む全件とする。POST成功・再送では作成した`paymentMethodId`も応答に含める。
+- **API配列順と画面表示順：** `paymentMethods`配列は`ownerPersonId ASC, displayOrder ASC, paymentMethodId ASC`で返す。これは画面表示順ではない。画面側で`myPersonId`の所有分を最優先にし、他の人物は人物マスタの共通順（`ownerOrderRevisions`の配列順）、同一人物内は`displayOrder ASC, paymentMethodId ASC`で表示する。本人対応がなければ人物共通順を使う。表示の並び替えでDBの保存順・更新版は変更しない。
 - **権限・競合：** 保存の直前にも現在の参加・ロール・本人の人物対応・対象所有者を検証する。行更新版不一致は409 `revision_conflict`で、権限の範囲で最新の支払方法情報を`latest`に返す。名前重複は409 `duplicate_payment_method_name`で区別し、所有者・名前入力エラーは400、権限不足403、未参加・対象不在404、予期しない保存障害503とする。行版の更新はDB側の旧値一致の条件付きUPDATEとし、同時操作で古い値が上書きされないようにする。
 - **追加・削除時の順序版：** 新規追加・削除では対象の`ledger_people.payment_order_revision`だけを新UUIDに更新し、支払方法の増減と版更新を1トランザクションで確定する。**POSTの作成成功時だけ**共通再送記録も同じトランザクションに含める。所有者別順序版の旧値条件付きUPDATEで別端末との増減・並び替えを競合検出する。無関係な所有者や人物名編集用の`ledger_people.revision`は変更しない。
-- **再送管理：** POSTは既存の`operation_requests`を共用し、操作種別を`payment_method.create`とする。UUID`requestId`＋操作種別＋現在アカウント＋家計簿ID・所有者ID・正規化済み名前・期間の内容ハッシュで照合し、成功時に作成結果IDを同時記録。同じ要求は新しい支払方法を作らず現在の一覧と元の作成IDを返し、順序版も再更新しない。異なる内容による同じ要求IDは409 `request_conflict`。元の作成結果が削除済みなら409 `created_result_deleted`で、同じ要求IDで再作成しない。再送時にも現在の家計簿参加・作成権限を検証する。更新・削除に要求IDを追加する必要はない。
+- **再送管理：** POSTは既存の`operation_requests`を共用し、操作種別を`payment_method.create`とする。UUID`requestId`＋操作種別＋現在アカウント＋家計簿ID・所有者ID・正規化済み名前・期間の内容ハッシュで照合し、成功時に作成結果IDを同時記録。同じ要求は新しい支払方法を作らず現在の一覧と元の作成IDを返し、順序版も再更新しない。異なる内容による同じ要求IDは409 `request_conflict`。元の作成結果が削除済みなら、所有者の人物も削除されていても409 `created_result_deleted`で、同じ要求IDで再作成しない。現在の参加・操作権限を確認してから再送記録を照合し、所有者の実在確認は再送記録がない新規作成に対して行う。再送時にも現在の家計簿参加・作成権限を検証する。更新・削除に要求IDを追加する必要はない。
 
 **後続設計（未確定）：** API実装時の細かなDTO・画面エラー文言、支払方法登録時の所有者欄初期選択、期間検証に必要な各業務テーブルの詳細。CRUD APIは既存のトランザクション・共通再送・認証境界へ接続済み。現行DBには取引の参照表がないため使用済み判定は実在するRESTRICT FK違反で拒否する。将来のレシート・振替・残高等を追加する段階で、複合FKと参照日付の期間検証を接続する。これらの業務表・並び替えPUT・WinUIは今回実装しない。
 

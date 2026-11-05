@@ -34,6 +34,63 @@ public sealed class PaymentMethodApiTests
         Assert.Equal("created_result_deleted",removed.GetProperty("code").GetString());
     }
     [Theory]
+    [InlineData("Admin",409,"created_result_deleted")]
+    [InlineData("Viewer",403,"forbidden")]
+    [InlineData("Editor",403,"forbidden")]
+    [InlineData("removed",404,"not_found")]
+    public async Task ReplayAfterPaymentAndOwnerDeletionStillChecksCurrentAccess(string role,int status,string code)
+    {
+        await using var f=await Fixture.Create();
+        var input=new {requestId=Guid.NewGuid(),ownerPersonId=f.Owner,name="現金"};
+        var created=await f.Call("POST",input,201);
+        var payment=created.GetProperty("paymentMethods")[0];
+        await f.Call("DELETE",new {revision=Revision(payment)},suffix:Path(payment));
+        var people=await Send(f.Client,"GET",$"/ledgers/{f.Ledger}/people");
+        var owner=people.GetProperty("people").EnumerateArray().Single(p=>p.GetProperty("personId").GetString()==f.Owner);
+        await Send(f.Client,"DELETE",$"/ledgers/{f.Ledger}/people/{f.Owner}",new {revision=Revision(owner)});
+        if(role=="removed") f.App.Database.Execute("DELETE FROM ledger_members");
+        else f.Role(role,false);
+        var before=f.Snapshot();
+        var replay=await f.Call("POST",input,status);
+        Assert.Equal(code,replay.GetProperty("code").GetString());
+        if(role=="Admin")
+        {
+            var conflict=await f.Call("POST",new {input.requestId,input.ownerPersonId,name="別の内容"},409);
+            Assert.Equal("request_conflict",conflict.GetProperty("code").GetString());
+            var missingOwner=await f.Call("POST",new {requestId=Guid.NewGuid(),input.ownerPersonId,input.name},400);
+            Assert.Equal("invalid_input",missingOwner.GetProperty("code").GetString());
+        }
+        Assert.Equal(before,f.Snapshot());
+    }
+    [Theory]
+    [InlineData(true)] [InlineData(false)]
+    public async Task ApiOwnerUuidOrderIsIndependentOfPersonCommonOrderAndMyPerson(bool mapped)
+    {
+        await using var f=await Fixture.Create();
+        var people=await Send(f.Client,"POST",$"/ledgers/{f.Ledger}/people",new {requestId=Guid.NewGuid(),name="子"},201);
+        var third=people.GetProperty("people")[2].GetProperty("personId").GetString();
+        // 人物共通順は3→1→2、本人は2。APIのUUID順1→2→3とすべて異なる。
+        var firstId="00000000000040008000000000000001";
+        var myId="00000000000040008000000000000002";
+        var lastId="00000000000040008000000000000003";
+        f.App.Database.Execute($"UPDATE ledger_people SET person_id='{lastId}' WHERE person_id='{f.Owner}'; UPDATE ledger_people SET person_id='{firstId}' WHERE person_id='{f.Other}'; UPDATE ledger_people SET person_id='{myId}' WHERE person_id='{third}'");
+        f.Owner=lastId; f.Other=firstId;
+        await f.Payment("先"); await f.Payment("後");
+        foreach(var owner in new[]{firstId,myId})
+            await f.Call("POST",new {requestId=Guid.NewGuid(),ownerPersonId=owner,name="現金"},201);
+        f.Role("Viewer",false);
+        if(mapped) f.App.Database.Execute($"UPDATE ledger_members SET person_id='{myId}' WHERE ledger_id='{f.Ledger}'");
+        var before=f.Snapshot();
+        var result=await f.Call("GET");
+        Assert.Equal(mapped?myId:null,result.GetProperty("myPersonId").GetString());
+        Assert.Equal(new[]{lastId,firstId,myId},result.GetProperty("ownerOrderRevisions").EnumerateArray().Select(p=>p.GetProperty("personId").GetString()));
+        var rows=result.GetProperty("paymentMethods").EnumerateArray().ToArray();
+        Assert.Equal(new[]{firstId,myId,lastId,lastId},rows.Select(p=>p.GetProperty("ownerPersonId").GetString()));
+        Assert.Equal(new[]{"先","後"},rows.Where(p=>p.GetProperty("ownerPersonId").GetString()==lastId).Select(p=>p.GetProperty("name").GetString()));
+        Assert.Equal(new[]{0,1},rows.Where(p=>p.GetProperty("ownerPersonId").GetString()==lastId).Select(p=>p.GetProperty("displayOrder").GetInt32()));
+        Assert.Equal(before,f.Snapshot());
+    }
+    [Theory]
     [InlineData("Viewer",false,403)] [InlineData("Editor",false,403)] [InlineData("Editor",true,201)] [InlineData("Admin",false,201)]
     public async Task WriterPermissions(string role,bool own,int expected)
     {

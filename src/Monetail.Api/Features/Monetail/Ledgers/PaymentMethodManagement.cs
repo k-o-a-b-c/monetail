@@ -32,8 +32,6 @@ public sealed partial class LedgerManagementService
         InLedgerAsync(id, actor, PaymentWriter, async _ =>
         {
             var owner = input.Uuid("ownerPersonId");
-            var person = await context.Set<LedgerPerson>().AsNoTracking().SingleOrDefaultAsync(row => row.LedgerId == id && row.Id == owner, token)
-                ?? throw LedgerPayload.Bad("同じ家計簿の所有者を指定してください。", "ownerPersonId");
             await PaymentAccessAsync(id, owner, actor, token);
             var name = PaymentName(input.Text("name")); var from = input.Date("validFrom"); var to = input.Date("validTo"); Period(from, to);
             var request = input.Uuid("requestId");
@@ -46,6 +44,8 @@ public sealed partial class LedgerManagementService
                 var replay = await PaymentsAsync(id, actor, token); await PaymentAccessAsync(id, owner, actor, token);
                 return new LedgerCreatedBody(new { paymentMethodId = previous.ResultId, replay.PaymentMethods, replay.OwnerOrderRevisions, replay.MyPersonId, replay.CurrentRole }, true);
             }
+            var person = await context.Set<LedgerPerson>().AsNoTracking().SingleOrDefaultAsync(row => row.LedgerId == id && row.Id == owner, token)
+                ?? throw LedgerPayload.Bad("同じ家計簿の所有者を指定してください。", "ownerPersonId");
             await UniquePaymentNameAsync(id, owner, null, name, token);
             await AdvancePaymentOrderAsync(person, actor, token);
             var last = await context.Set<LedgerPaymentMethod>().Where(row => row.LedgerId == id && row.OwnerPersonId == owner).MaxAsync(row => (int?)row.DisplayOrder, token);
