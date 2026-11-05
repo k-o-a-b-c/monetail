@@ -88,6 +88,6 @@ public sealed class AddLedgerPaymentMethods : Migration
     {
         migrationBuilder.Sql("DROP TRIGGER IF EXISTS trg_ledger_payment_methods_owner_immutable;");
         migrationBuilder.DropTable(name: "ledger_payment_methods");
-        migrationBuilder.DropColumn(name: "payment_order_revision", table: "ledger_people");
+        migrationBuilder.Sql("ALTER TABLE ledger_people DROP COLUMN payment_order_revision;");
     }
 }
