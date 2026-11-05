@@ -164,7 +164,7 @@
 
 ## 支払方法マスタの物理DB構成（DEC-133・仕様確定／未実装）
 
-DEC-123〜132の確定仕様に従い、SQLite/EF Coreの**物理テーブル・8列＋人物表1列・PK・FK・UNIQUE・索引・日付CHECKを採用する**。旧版の`m_payment_classification`をそのまま再利用せず、家計簿単位の新テーブル`ledger_payment_methods`を設ける。**所有者変更をDBでも禁止するトリガーの採否は未確定**であり、本決定には含まない。
+DEC-123〜132の確定仕様に従い、SQLite/EF Coreの**物理テーブル・8列＋人物表1列・PK・FK・UNIQUE・索引・日付CHECKを採用する**。旧版の`m_payment_classification`をそのまま再利用せず、家計簿単位の新テーブル`ledger_payment_methods`を設ける。所有者変更はDEC-131で禁止され、**DBトリガーでの強制はDEC-134で確定**した。
 
 | 保存先・列 | SQLite型 | NULL | 用途 |
 | --- | --- | --- | --- |
@@ -206,12 +206,35 @@ CREATE INDEX ix_ledger_payment_methods_owner_order
 - **主キー・外部キー：** `(ledger_id, payment_method_id)`を主キーとし、支払方法を参照する今後のレシート・振替両側・残高・支払メモ等も**家計簿IDを含む複合FK**で参照する。`ON DELETE CASCADE`は使わずRESTRICT（DEC-125）。同一家計簿の人物しか所有者にできず、その人物に支払方法があれば人物削除は不可。
 - **名前の一意性：** 所有者必須なので`(ledger_id, owner_person_id, name)`の通常のUNIQUEでよい。APIは前後空白除去・Unicode空白判定・.NET `string.Length`の1〜100上限を検証。**SQLiteの`length()`はUTF-16コード単位と一致しない場合がある**ため、同じ100文字チェックを単純なSQLite `length(name)`制約で重ねない。SQLの`BINARY`照合を一意制約にも適用する。
 - **有効期間：** `DateOnly?`をISO固定桁`YYYY-MM-DD`で保存する。日付の実在・形式はAPIで検証し、DB CHECKで両端の前後関係を守る（DEC-119〜122）。既存のレシート等が期間外となる変更はAPIの同一書込処理で拒否する（DEC-121）。
-- **所有者の不変性：** API編集DTOには所有者変更を含めない。DB直接更新による変更も厳格に防止する場合、`BEFORE UPDATE OF owner_person_id`で値変更を`RAISE(ABORT)`するSQLiteトリガーをMigrationに追加する案とする（具体的トリガー採否は別途確認）。通常操作での誤作成訂正は未使用なら削除→新規（DEC-131）。
+- **所有者の不変性：** API編集DTOには所有者変更を含めず、DBでも`BEFORE UPDATE OF owner_person_id`トリガーにより実際に値が変わる更新を拒否する（DEC-134）。通常操作での誤作成訂正は未使用なら削除→新規（DEC-131）。
 - **並び順：** 1人物内で`display_order ASC, payment_method_id ASC`を使用。順序のUNIQUEは設けない。0件の人物でも`payment_order_revision`は人物行に残る。ポイント関連列は旧版に`default_point_code`があるが、新版のポイントモデル未確定のため**今回の8列へは含めない**。採用する場合はポイントマスタと整合したFK・列を別途設計する。
 - **更新版・競合：** 並び替え・追加・削除は**対象人物の`payment_order_revision`だけを条件付きUPDATEで照合・変更**し、支払方法の順序変更と同一トランザクションで確定する。人物編集用`ledger_people.revision`は変更しない。**`payment_order_revision`を単純に人物エンティティ全更新のEF Core同時実行トークンにすると人物名編集まで無関係な競合を起こし得る**ため、対象列を明示した条件付き更新（CAS相当）で独立性を維持する。支払方法自体の`revision`は名前・期間変更の競合検知に使う。
 - **既存人物の移行：** `ledger_people`へ列を追加するとき、既存行へ個別のサーバー発行UUIDを付与して最終的にNOT NULLとする。SQLiteのMigrationで必要ならテーブル再構築する。支払方法の旧版整数IDや所有者不明の行を新しいUUID／所有者へ自動推測で割り当てない。
 
-**後続判断（未確定）：** 所有者不変性をDBでも保証するトリガーの採否、ポイント機能のデータ構造、既存人物への新列の初期化を含むEF Core Migration、API・WinUIの実装。今回の仕様確定はDB変更やAPIの実装完了を意味しない。
+**後続判断（未確定）：** ポイント機能のデータ構造、既存人物への新列の初期化を含むEF Core Migration、API・WinUIの実装。所有者変更を防止するトリガーの採用はDEC-134で確定済みだが、DB変更やAPI実装は未実施。
+
+## 支払方法の所有者変更をDBトリガーで禁止（DEC-134・仕様確定／未実装）
+
+支払方法の所有者`owner_person_id`はDEC-131により作成後変更不可。**APIの入力拒否だけでなく、SQLiteのBEFORE UPDATEトリガーを採用してDBでも変更を拒否する**。家計簿管理者の操作やAPI側の誤実装によっても変更させない。
+
+```sql
+CREATE TRIGGER trg_ledger_payment_methods_owner_immutable
+BEFORE UPDATE OF owner_person_id ON ledger_payment_methods
+FOR EACH ROW
+WHEN OLD.owner_person_id IS NOT NEW.owner_person_id
+BEGIN
+    SELECT RAISE(ABORT, 'payment_method_owner_immutable');
+END;
+```
+
+- `OLD.owner_person_id`と`NEW.owner_person_id`が**異なるときだけ**更新SQLを中止。同じ所有者を再指定するUPDATEや、名前・有効期間・表示順など他列の更新には影響させない。
+- 所有者必須（`NOT NULL`）および同一家計簿の人物への複合FK（RESTRICT）はDEC-133のまま維持する。
+- 誤作成時は未使用の支払方法を削除して正しい所有者で新規作成する。新しい支払方法IDを発行する（DEC-124・125・131）。トリガーはINSERT／DELETEを禁止しない。
+- `RAISE(ABORT)`は当該SQL文の変更を取り消す。既存トランザクション全体を自動で取り消すわけではないので、API側では例外を検知して業務トランザクション全体をロールバックし、保存失敗として扱う。
+- EF Core Migrationでテーブル作成後に`migrationBuilder.Sql(...)`でトリガーを追加し、Migrationを戻す場合は`DROP TRIGGER IF EXISTS`で除去する。既存の稼働DBにはまだ適用していない。
+- テストでは所有者変更の拒否、同じ所有者へのUPDATEの許容、他列更新の許容、未使用削除→別所有者での新規作成、トリガー失敗時のトランザクション全体のロールバックを検証する。
+
+**後続作業：** EF Coreモデル・Migration・APIへの実装とテスト。トリガーの採用は確定したが、コードは未実装。
 
 ## 保存構成（APIの初回定義へ実装済み）
 
