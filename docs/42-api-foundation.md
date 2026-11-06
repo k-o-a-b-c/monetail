@@ -42,7 +42,7 @@ dotnet test tests/Monetail.Api.Tests --configuration Release
 
 ## Dockerで起動
 
-配備環境に依存しない通信・認証・永続化・更新の条件は[共通配備要件](deployment.md)を参照する。具体的なGHCRイメージ配備は[NAS構成例](deployment-examples/nas-tailscale.md)に分離した。以下のルートComposeは開発用build構成。
+配備環境に依存しない通信・認証・永続化・更新の条件は[共通配備要件](deployment.md)を参照する。具体的なGHCRイメージ配備は[Docker構成例](deployment-examples/docker-tailscale.md)に分離した。以下のルートComposeは開発用build構成。
 
 DockerとComposeを用意する。既定の`compose.yaml`には認証設定や永続化領域を含めないため、そのままでは起動しない。環境ごとのCompose overrideで下記の[必須設定](#認証の必須設定)を環境変数へ渡し、DBの親フォルダ・Data Protectionキー・OAuth証明書をマウントしてから実行する。証明書は読取専用にする。ビルドコンテキストはリポジトリ直下だが、`.dockerignore`でAPIソースを中心に送信対象を限定し、`.env`やSQLite等を除外する。
 
