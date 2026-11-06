@@ -12,8 +12,8 @@
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
-| CIの実行対象選択・成功結果の再利用 | 42 |
-| 合計 | 1206 |
+| CIの実行対象選択・成功結果の再利用・配布条件 | 47 |
+| 合計 | 1211 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+GHCR/NAS配布はmainの同一SHAのpush Tests成功だけを採用し、PR/fork/別ブランチ/別SHA/失敗・取消の結果と不正バージョンを拒否する。新規5件を含む判定47件、actionlint、Bash構文、開発/NAS/配布用Composeがローカルで成功。最新APIのDockerビルドと通常/NAS/配布アーカイブ起動を確認し、初回再実行拒否、ソースなし配置、コンテナ再作成・停止バックアップ・隔離復元後のDB/DPキー/PFX/Tailscale state用ファイルのSHA256一致と管理者の保持が成功。環境の公開プロキシCAは一時DockerfileのBuildKit secretでビルド時だけ渡し、製品Dockerfileは変更していない。ソース`a2654e8a5896f4aa8f7336011bfce68bc24efc84`の[CI 42165673600](https://github.com/k-o-a-b-c/monetail/actions/runs/42165673600)で判定47件・API641件・Node53件・Client323件・Storage3件・旧版の計算/移行/保存/画面/ビルド/性能・WinUI製品/検証用ビルドと既存画面が成功。Docker/NAS/配布アーカイブ検証も成功し、今回はCI判定の変更に伴い全対象を実行した。GHCRへの実push・GitHub Releasesの実公開/匿名pull・ARM64ネイティブ実行はタグ配布後の確認が必要。実NAS・tailnet/Serve・実Windowsログイン・実バックアップ復元は未検証。
 
 DEC-136の支払方法画面はソース`8c35292d8fa10cfb3f9d05b08f05272fadd15e6b`の[CI 42032155217](https://github.com/k-o-a-b-c/monetail/actions/runs/42032155217)でWinUI製品/検証用Releaseビルドと既存・新規画面1シナリオが成功。人物別グループ/本人優先/本日両端/全期間切替/空見出し除外、Admin/Editor/未対応Editor/Viewer、ダイアログ入力/作成再送/削除/行競合、全件並び替え/未知の追加行を含む409/取消/メニュー移動、認証復帰/降格/別アカウント非引継ぎ、Enter移動/900pxリサイズを合成HTTPで確認した。並び替え409への対象人物全行の追加は承認済みのAPI変更で、Clientに不整合応答の拒否3件を追加。API全641件・Client全323件・Storage3件・Node53件・Dockerビルド/既存/NAS起動は[CI 42029128688](https://github.com/k-o-a-b-c/monetail/actions/runs/42029128688)の成功ジョブを再利用（この実行全体は下記WinUI異常で失敗）。ローカルClient323件・API並び替え39件・差分検査も成功。構成合計1206件を全件再実行した意味ではない。DB/Migration・外部ライブラリ変更なし。CIのDPIは100%。実API接続・実Windows手動操作・実IME/物理キー・125/150/200%やモニター間DPI移動は未検証。
 

@@ -202,7 +202,8 @@ jobs:
       - run: |
           docker compose config --quiet
           docker compose --env-file deploy/nas/nas.env.example -f compose.yaml -f deploy/nas/compose.nas.yaml config --quiet
-          bash -n deploy/nas/create-oauth-certificates.sh tests/Monetail.Api.Tests/nas-smoke.sh
+          docker compose --env-file deploy/nas/nas.env.example -f deploy/nas/compose.image.yaml -f deploy/nas/compose.nas.yaml config --quiet
+          bash -n deploy/nas/*.sh tests/Monetail.Api.Tests/*smoke.sh
         if: needs.changes.outputs.compose == 'true'
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.compose == 'true'
@@ -215,6 +216,8 @@ jobs:
       - run: bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
         if: needs.changes.outputs.docker == 'true'
       - run: bash tests/Monetail.Api.Tests/nas-smoke.sh monetail-api:ci
+        if: needs.changes.outputs.docker == 'true'
+      - run: bash tests/Monetail.Api.Tests/release-smoke.sh monetail-api:ci
         if: needs.changes.outputs.docker == 'true'
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.docker == 'true'

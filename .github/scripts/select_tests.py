@@ -74,6 +74,10 @@ def selected_inputs(paths, *, strict=True):
             for inputs in result.values():
                 inputs.add(path)
             continue
+        if path == ".github/workflows/release-api.yml":
+            for flag in ("api", "docker", "compose"):
+                result[flag].add(path)
+            continue
         if path == ".github/workflows/winui.yml" or path.startswith(("src/Monetail.WinUI/", "tests/Monetail.WinUI.Smoke/")):
             result["winui"].add(path)
             continue
@@ -89,7 +93,7 @@ def selected_inputs(paths, *, strict=True):
             enable("api", "docker")
         if path == "tests/Monetail.Api.Tests/docker-smoke.sh":
             enable("docker")
-        elif path == "tests/Monetail.Api.Tests/nas-smoke.sh" or path.startswith("deploy/nas/"):
+        elif path in {"tests/Monetail.Api.Tests/nas-smoke.sh", "tests/Monetail.Api.Tests/release-smoke.sh"} or path.startswith("deploy/nas/"):
             enable("docker", "compose")
         elif path.startswith("tests/Monetail.Api.Tests/"):
             enable("api")

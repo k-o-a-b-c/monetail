@@ -1,0 +1,155 @@
+name: Release API
+
+on:
+  push:
+    tags: ['api-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == 'k-o-a-b-c/monetail' ]]
+          [[ "$RELEASE_TAG" =~ ^api-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          git merge-base --is-ancestor HEAD origin/main
+          sha="$(git rev-parse HEAD)"
+          gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/tests.yml/runs" \
+            -f head_sha="$sha" -f branch=main -f event=push -f status=success > "$RUNNER_TEMP/test-runs.json"
+          version="$(python3 deploy/nas/verify-release.py "$RELEASE_TAG" "$sha" < "$RUNNER_TEMP/test-runs.json")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/k-o-a-b-c/monetail-api
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+      - run: node --test tests/Monetail.Api.Tests/registration-ui.test.js
+      - run: |
+          docker build --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" \
+            --label "org.opencontainers.image.version=$VERSION" -t monetail-api:release .
+          bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:release
+          bash tests/Monetail.Api.Tests/nas-smoke.sh monetail-api:release
+          bash tests/Monetail.Api.Tests/release-smoke.sh monetail-api:release
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: push
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          tag="$IMAGE:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$ARCH"
+          docker tag monetail-api:release "$tag"
+          docker push "$tag"
+          digest="$(docker image inspect "$tag" --format '{{index .RepoDigests 0}}')"
+          [[ "$digest" =~ ^ghcr.io/k-o-a-b-c/monetail-api@sha256:[0-9a-f]{64}$ ]]
+          mkdir -p digests
+          printf '%s\n' "$digest" > "digests/$ARCH"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-digest-${{ matrix.arch }}
+          path: digests/*
+          retention-days: 1
+
+  publish:
+    needs: [verify, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGE: ghcr.io/k-o-a-b-c/monetail-api
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: api-digest-*
+          path: digests
+          merge-multiple: true
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: manifest
+        run: |
+          set -euo pipefail
+          # 既存バージョンを上書きしない。通信・認証障害も失敗として止める。
+          if docker buildx imagetools inspect "$IMAGE:$VERSION" > /dev/null 2> "$RUNNER_TEMP/manifest-error"; then
+            echo '既存バージョンは上書きできません。新しいタグを作成してください。' >&2
+            exit 1
+          fi
+          if ! grep -Fxq "ERROR: $IMAGE:$VERSION: not found" "$RUNNER_TEMP/manifest-error"; then
+            cat "$RUNNER_TEMP/manifest-error" >&2
+            exit 1
+          fi
+          for arch in amd64 arm64; do
+            digest="$(cat "digests/$arch")"
+            [[ "$digest" =~ ^ghcr.io/k-o-a-b-c/monetail-api@sha256:[0-9a-f]{64}$ ]]
+          done
+          docker buildx imagetools create --annotation "index:org.opencontainers.image.revision=$(git rev-parse HEAD)" \
+            --tag "$IMAGE:$VERSION" "$(cat digests/amd64)" "$(cat digests/arm64)"
+          digest="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "image=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
+      - run: bash deploy/nas/package.sh "$RELEASE_TAG" "$RELEASE_IMAGE" "$RUNNER_TEMP/release"
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_IMAGE: ${{ steps.manifest.outputs.image }}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_IMAGE: ${{ steps.manifest.outputs.image }}
+        run: |
+          printf 'API image: `%s`\n\nmainのTestsとamd64/arm64のテスト・コンテナ検証が成功した配布です。\n' "$RELEASE_IMAGE" > "$RUNNER_TEMP/release-notes.md"
+          gh release create "$RELEASE_TAG" "$RUNNER_TEMP/release/"* --verify-tag --latest=false \
+            --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/release-notes.md"

@@ -6,8 +6,11 @@ umask 077
 image_name="${1:-monetail-api:ci}"
 test_dir="$(mktemp -d)"
 project="monetail-nas-check-$$"
+package="${2:-}"
+nas_files="${package:+$package/}deploy/nas"
+base_compose="${package:+$package/}compose.yaml"
 compose=(docker compose --project-name "$project" --env-file "$test_dir/nas.env"
-    -f compose.yaml -f deploy/nas/compose.nas.yaml -f "$test_dir/test.yaml")
+    -f "$base_compose" -f "$nas_files/compose.nas.yaml" -f "$test_dir/test.yaml")
 cleanup() {
     result=$?
     "${compose[@]}" down --remove-orphans >/dev/null 2>&1 || true
@@ -19,15 +22,16 @@ cleanup() {
 trap cleanup EXIT
 mkdir -p "$test_dir/db" "$test_dir/keys" "$test_dir/tailscale/config" "$test_dir/tailscale/state"
 printf 'synthetic-unused-authkey\n' > "$test_dir/tailscale/authkey"
-cp deploy/nas/serve.json "$test_dir/tailscale/config/serve.json"
-bash deploy/nas/create-oauth-certificates.sh "$test_dir/oauth" 1 >/dev/null
+cp "$nas_files/serve.json" "$test_dir/tailscale/config/serve.json"
+bash "$nas_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null
 sha256sum "$test_dir/oauth/"* > "$test_dir/before.sha256"
-if bash deploy/nas/create-oauth-certificates.sh "$test_dir/oauth" 1 >/dev/null 2>&1; then
+if bash "$nas_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null 2>&1; then
     printf '既存証明書への再実行を拒否しませんでした。\n' >&2
     exit 1
 fi
 sha256sum --check --status "$test_dir/before.sha256"
 cat > "$test_dir/nas.env" <<EOF
+MONETAIL_IMAGE=$image_name
 MONETAIL_DATA_DIR=$test_dir
 MONETAIL_ORIGIN=https://monetail-api.tail-example.ts.net
 MONETAIL_RP_ID=monetail-api.tail-example.ts.net
@@ -42,10 +46,11 @@ services:
       - "127.0.0.1::8080"
 EOF
 "${compose[@]}" config --format json > "$test_dir/compose.json"
-python3 - "$test_dir/compose.json" <<'PY'
+python3 - "$test_dir/compose.json" "$package" <<'PY'
 import json,sys
 config=json.load(open(sys.argv[1]))
 api=config['services']['api']; ts=config['services']['tailscale']
+if sys.argv[2]: assert 'build' not in api
 assert ts['network_mode']=='service:api'
 assert api['environment']['Passkeys__TrustedProxies__0']=='127.0.0.1'
 assert api['ports'][0]['host_ip']=='127.0.0.1'
@@ -62,15 +67,14 @@ docker run --rm --user 0 --entrypoint sh --mount "type=bind,src=$test_dir,dst=/t
 "${compose[@]}" up -d --no-deps --no-build api >/dev/null
 container_id="$("${compose[@]}" ps -q api)"
 port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}' "$container_id")"
-healthy=false
-for attempt in {1..30}; do
-    if [ "$(curl --silent --max-time 2 "http://127.0.0.1:$port/health" || true)" = Healthy ]; then
-        healthy=true
-        break
-    fi
-    sleep 1
-done
-[ "$healthy" = true ] || { printf 'NAS構成での起動に失敗しました。\n' >&2; exit 1; }
+wait_healthy() {
+    for attempt in {1..30}; do
+        if [ "$(curl --silent --max-time 2 "http://127.0.0.1:$port/health" || true)" = Healthy ]; then return; fi
+        sleep 1
+    done
+    printf 'NAS構成での起動に失敗しました。\n' >&2; return 1
+}
+wait_healthy
 [ "$(docker exec "$container_id" id -u)" -ne 0 ]
 # Serveと同じネットワーク名前空間・IPv4ループバックから転送する。
 for forwarded_host in monetail-api.tail-example.ts.net wrong.example.test; do
@@ -95,4 +99,30 @@ from pathlib import Path
 import sys
 assert '初期管理者は作成済みです' in Path(sys.argv[1]).read_text()
 PY
+if [ -n "$package" ]; then
+    printf 'synthetic-tail-state\n' > "$test_dir/tailscale/state/preservation-check"
+    docker run --rm --user 0 --entrypoint bash --mount "type=bind,src=$test_dir,dst=/test" "$image_name" -c '
+        cd /test
+        sha256sum db/monetail.db keys/* oauth/* tailscale/state/preservation-check > data-before.sha256
+        tar -cf backup.tar db keys oauth tailscale nas.env
+        mkdir restored
+        tar -xf backup.tar -C restored
+        cd restored
+        sha256sum --check --status ../data-before.sha256'
+    # イメージ差替えと同じコンテナ再作成でも、DB・DPキー・PFX・stateを初期化しない。
+    "${compose[@]}" up -d --no-deps --no-build --force-recreate api >/dev/null
+    container_id="$("${compose[@]}" ps -q api)"
+    port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort}}' "$container_id")"
+    wait_healthy
+    "${compose[@]}" stop api >/dev/null
+    MONETAIL_DATA_DIR="$test_dir/restored" "${compose[@]}" run --rm --no-deps api initialize-admin > "$test_dir/restored-admin-private.log" 2>&1
+    python3 - "$test_dir/restored-admin-private.log" <<'PY'
+from pathlib import Path
+import sys
+assert '初期管理者は作成済みです' in Path(sys.argv[1]).read_text()
+PY
+    docker run --rm --user 0 --entrypoint bash --mount "type=bind,src=$test_dir,dst=/test,readonly" "$image_name" -c '
+        cd /test; sha256sum --check --status data-before.sha256
+        cd restored; sha256sum --check --status ../data-before.sha256'
+fi
 printf 'NAS smoke: Compose secrets, PFX/DB preservation, DB/admin initialization, non-root startup, forwarded HTTPS/host boundary passed; real Tailscale not tested.\n'

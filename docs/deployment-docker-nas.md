@@ -1,6 +1,6 @@
 # Docker対応NASでAPIを運用する
 
-Docker EngineとDocker Composeが使えるLinux系NAS向けの手順。メーカー・型番・管理画面には依存しない。API・認証の契約は変更せず、[42 起動・運用](42-api-foundation.md)の設定と管理コマンドをコンテナで実行する。旧Windows版のDBをそのまま使う手順ではない。
+Docker EngineとDocker Composeが使えるLinux系NAS向けの手順。メーカー・型番・管理画面には依存しない。API・認証の契約は変更せず、[42 起動・運用](https://github.com/k-o-a-b-c/monetail/blob/main/docs/42-api-foundation.md)の設定と管理コマンドをコンテナで実行する。旧Windows版のDBをそのまま使う手順ではない。
 
 ## 構成と前提
 
@@ -12,12 +12,12 @@ Windows／将来のスマートフォン（Tailscale接続＋monetailのパス�
      └ TailscaleコンテナとAPIコンテナはネットワーク名前空間を共有
 ```
 
-標準は[追加Compose](../deploy/nas/compose.nas.yaml)と既存の[compose.yaml](../compose.yaml)を重ねる方式。Tailscaleはuserspaceモードで動かし、TUNデバイス・privileged・NET_ADMINは不要。NASの8080番は既存設定どおり**127.0.0.1だけ**で待ち受ける。443番をNASのLANへpublishする必要はない。Funnel、ルーターのポート転送、インターネットへの直接公開は行わない。
+標準は**GitHub ReleasesのNAS配布アーカイブ**を展開し、GHCRのビルド済みAPIを取得する方式。アーカイブの`compose.yaml`（image専用）に`deploy/nas/compose.nas.yaml`を重ねる。NASにGit・.NET SDK・ソースコード・Docker buildは不要。リポジトリ直下の開発用`compose.yaml`は従来どおりローカルbuild用として維持する。Tailscaleはuserspaceモードで動かし、TUNデバイス・privileged・NET_ADMINは不要。NASの8080番は既存設定どおり**127.0.0.1だけ**で待ち受ける。443番をNASのLANへpublishする必要はない。Funnel、ルーターのポート転送、インターネットへの直接公開は行わない。
 
 必要なもの:
 
-- Docker Compose **2.24.4以降**（検証スクリプトの`!override`にも対応）、Bash、OpenSSL、Git、curl、sudo等によるファイル所有権の変更手段。
-- NASのCPUに対応する.NET 10 SDK／ASP.NETランタイムとTailscaleの公式イメージ。両方のイメージに実機のアーキテクチャ用manifestがあることを事前確認する。
+- Docker Compose **2.24.4以降**（検証スクリプトの`!override`にも対応）、Bash、OpenSSL、curl、tar、sha256sum、sudo等によるファイル所有権の変更手段。
+- 公開済みのmonetail APIとTailscaleのイメージ。配布ワークフローはlinux/amd64・linux/arm64をネイティブrunnerで検証して同じタグのmanifestにまとめる。他のCPUは対象外。実際のリリースに両architectureのmanifestがあることを事前確認する。
 - NASのローカル永続領域。SQLiteのロックが保証されないSMB/NFS共有をDB保存先にしない。
 - Tailscaleのアカウントと接続済みクライアント。MagicDNS・HTTPSを有効にし、端末承認とtailnetポリシーで利用者からこのノードのTCP 443への接続を許可する。初期の全許可ポリシーをそのまま安全なアクセス制限とはみなさない。
 
@@ -27,29 +27,47 @@ Docker Engineはセキュリティ更新済みのものを使う。28.0.0未満�
 
 ## 1. 配置と設定
 
-以下のパス・ホスト名・tailnet名は**全て置換用の例**。実値や秘密ファイルはGitチェックアウトの外に置く。コマンドはNAS上のBashで実行する。実際の`.env`を作成・編集せず、専用の`nas.env`を使う。
+以下のパス・ホスト名・tailnet名は**全て置換用の例**。実値・秘密情報はGitへ入れない。コマンドはNAS上のBashで実行する。実際の`.env`は使わず、専用の`nas.env`を使う。初回以外は「更新」または「復元」へ進む。
+
+`api-v1.2.3`は説明用であり、公開済みの希望するバージョンへ置換する。`latest`や`releases/latest`には自動追従しない。GitHubでパッケージをPublicにする手順は末尾を参照する。
 
 ```bash
-git clone https://github.com/k-o-a-b-c/monetail.git
-cd monetail
-# 運用するコミット／リリースを確認してから選ぶ。
-NAS_DATA=/srv/monetail-data
-NAS_ENV="$NAS_DATA/nas.env"
-sudo install -d -m 711 "$NAS_DATA"
-sudo chown "$(id -u):$(id -g)" "$NAS_DATA"
+# 初回だけ。未使用の配置先を選ぶ。既存のデータ領域には実行しない。
+NAS_ROOT=/srv/monetail
+sudo mkdir -m 711 -- "$NAS_ROOT"
+sudo chown "$(id -u):$(id -g)" "$NAS_ROOT"
+NAS_PACKAGES="$NAS_ROOT/packages"
+mkdir -m 755 "$NAS_PACKAGES"
 umask 077
-mkdir -m 700 "$NAS_DATA/db" "$NAS_DATA/keys" "$NAS_DATA/tailscale"
-mkdir -m 700 "$NAS_DATA/tailscale/state" "$NAS_DATA/tailscale/config"
-cp deploy/nas/nas.env.example "$NAS_ENV"
-cp deploy/nas/serve.json "$NAS_DATA/tailscale/config/serve.json"
-chmod 600 "$NAS_ENV"
+NAS_RELEASE=api-v1.2.3  # 実際の公開済みバージョンへ置換
+mkdir "$NAS_PACKAGES/download-$NAS_RELEASE"
+cd "$NAS_PACKAGES/download-$NAS_RELEASE"
+curl --fail --location --proto '=https' --tlsv1.2 --output "monetail-nas-$NAS_RELEASE.tar.gz" \
+  "https://github.com/k-o-a-b-c/monetail/releases/download/$NAS_RELEASE/monetail-nas-$NAS_RELEASE.tar.gz"
+curl --fail --location --proto '=https' --tlsv1.2 --output SHA256SUMS \
+  "https://github.com/k-o-a-b-c/monetail/releases/download/$NAS_RELEASE/SHA256SUMS"
+sha256sum --check SHA256SUMS
+test ! -e "$NAS_PACKAGES/monetail-nas-$NAS_RELEASE"
+tar -xzf "monetail-nas-$NAS_RELEASE.tar.gz" -C "$NAS_PACKAGES"
+NAS_PACKAGE="$NAS_PACKAGES/monetail-nas-$NAS_RELEASE"
+# 公開したmulti-arch manifestの固定digest。秘密情報は入っていない。
+. "$NAS_PACKAGE/images.env"
+docker pull "$MONETAIL_IMAGE"
+NAS_DATA="$NAS_ROOT/data"
+NAS_ENV="$NAS_DATA/nas.env"
+bash "$NAS_PACKAGE/deploy/nas/initialize-files.sh" "$NAS_DATA" "$MONETAIL_IMAGE"
 ```
+
+初回スクリプトは新しいデータ領域だけを作り、PFX生成・設定例/Serve設定の配置と実イメージの非root UID/GIDへの所有権設定を行う。既存ディレクトリは拒否する。**DB・管理者は作成しない**。失敗した出力を自動消去せず、未使用だと確認した不完全な領域だけを退避して再試行する。更新・復元時には実行しない。
+
+アーカイブは設定例、Tailscale Serve設定、初回スクリプト、手順、`VERSION`/`images.env`だけを含み、ソース・Git・秘密ファイルは含まない。checksum不一致なら展開・実行を止める。GitHub Releasesの添付アーカイブを使い、自動生成の「Source code」は使わない。
 
 `nas.env`をエディターで変更する。ここに認証キー・パスワードは書かない。
 
 | 項目 | ダミー例と置換内容 |
 | --- | --- |
-| `MONETAIL_DATA_DIR` | `/srv/monetail-data`。上の`NAS_DATA`と同じ絶対パス。空白やComposeの展開文字を含まないパスを使う |
+| `MONETAIL_IMAGE` | アーカイブ`images.env`の`ghcr.io/k-o-a-b-c/monetail-api@sha256:…`を初回スクリプトが記入する。`ghcr.io/k-o-a-b-c/monetail-api:v1.2.3`の固定バージョン指定も可能。`:latest`は使わない |
+| `MONETAIL_DATA_DIR` | `/srv/monetail/data`。上の`NAS_DATA`と同じ絶対パス。空白やComposeの展開文字を含まないパスを使う |
 | `TAILSCALE_HOSTNAME` | `monetail-api`。tailnet内で重複しないノード名 |
 | `MONETAIL_ORIGIN` | `https://monetail-api.tail-example.ts.net`。実際に割り当てられたノードの完全なHTTPS Origin。パス・末尾の`/`・クエリーを付けない |
 | `MONETAIL_RP_ID` | `monetail-api.tail-example.ts.net`。Originと同じホスト名のみ。スキーム・ポート・パスは付けない |
@@ -59,15 +77,15 @@ chmod 600 "$NAS_ENV"
 
 `serve.json`中の`${TS_CERT_DOMAIN}`は**置換せず残す**。Composeの環境変数ではなく、Tailscaleコンテナがノードの証明書ドメインに置き換える。設定はファイル単体でなくディレクトリごと読取専用マウントする。
 
-以降、リポジトリ直下で次の関数を使う。新しいシェルでは変数と関数を再定義する。
+以降、次の関数を使う。新しいシェルでは`NAS_PACKAGE`・`NAS_DATA`・`NAS_ENV`と関数を同じ値で再定義する。設定ファイルの展開で秘密値をログに出さない。
 
 ```bash
 dc() {
   docker compose --project-name monetail --env-file "$NAS_ENV" \
-    -f compose.yaml -f deploy/nas/compose.nas.yaml "$@"
+    -f "$NAS_PACKAGE/compose.yaml" -f "$NAS_PACKAGE/deploy/nas/compose.nas.yaml" "$@"
 }
 dc config --quiet
-dc build api
+dc pull tailscale
 ```
 
 `config --quiet`は値を表示しない構文検証。実ファイルの権限や接続の成功まで保証しない。通常のDocker権限エラーはNAS側のDocker操作権限を整える。Dockerソケットを誰でも操作できる権限にはしない。
@@ -76,13 +94,7 @@ dc build api
 
 HTTPS用とは**別**の、署名用・暗号化用の自己署名RSA PFXを作る。スクリプトは異なる鍵、個別の乱数パスワード、読込用JSONを生成し、秘密値は表示しない。
 
-```bash
-# 初回だけ。第2引数は証明書の有効日数の例。期限を運用記録へ残す。
-bash deploy/nas/create-oauth-certificates.sh "$NAS_DATA/oauth" 365
-api_uid="$(docker run --rm --entrypoint id monetail-api:local -u)"
-api_gid="$(docker run --rm --entrypoint id monetail-api:local -g)"
-sudo chown -R "$api_uid:$api_gid" "$NAS_DATA/db" "$NAS_DATA/keys" "$NAS_DATA/oauth"
-```
+初回スクリプトが`create-oauth-certificates.sh`を呼び、365日有効のOAuth PFXを生成済み。期限を運用記録へ残す。再生成せず、そのまま使う。HTTPS証明書の取得・更新はTailscaleの担当。
 
 `oauth`が既にあれば、空ディレクトリやシンボリックリンクも含めて生成を拒否する。再実行で上書きしない。途中失敗でも既存の出力先を自動削除しない。**初回作業で未使用だと確認できた不完全なディレクトリ**だけを別名へ退避してから再試行する。更新時には実行しない。
 
@@ -109,7 +121,7 @@ APIを停止した状態で**初回のみ**実行する。DBの通常起動は�
 
 ```bash
 dc run --rm --no-deps api initialize-db
-dc up -d api tailscale
+dc up -d --no-build api tailscale
 dc exec tailscale tailscale status --peers=false
 dc exec tailscale tailscale serve status
 ```
@@ -118,7 +130,7 @@ Tailscaleの端末承認が必要なら承認し、実際のHTTPS URLを確認�
 
 ```bash
 # APIの再作成でネットワーク名前空間が変わるため、常に両方を再作成する。
-dc up -d --force-recreate api tailscale
+dc up -d --no-build --force-recreate api tailscale
 ```
 
 Tailscale接続済みクライアントから`https://実際のノード名/health`を開き、`Healthy`を確認する。続いて次をNASの管理用端末で実行する。
@@ -162,20 +174,39 @@ curlのURLは実際のものへ置換し、`-k`でTLS検証を無効にしない
 
 ## 5. 更新と証明書の期限
 
-先に次節の停止バックアップを取得し、更新元コミット・APIイメージID・Tailscaleバージョンを記録する。APIソース更新、イメージ更新、DB変更を同一作業だと決めつけず、リリース内容を確認する。
+先に次節の停止バックアップを取得し、旧`VERSION`・`nas.env`のAPI digest・Tailscaleバージョンを記録する。既存のデータ領域と`NAS_ENV`をそのまま使い、初回スクリプト・証明書生成・管理者初期化は実行しない。
 
 ```bash
-git fetch origin
-git checkout REPLACE_REVIEWED_COMMIT_OR_TAG
-dc build api
-# nas.envのTAILSCALE_IMAGEを承認した安定版へ変更した場合のみ取得する。
-dc pull tailscale
+NAS_RELEASE=api-v1.2.4  # 実際の公開済み更新先へ置換
+mkdir "$NAS_PACKAGES/download-$NAS_RELEASE"
+cd "$NAS_PACKAGES/download-$NAS_RELEASE"
+curl --fail --location --proto '=https' --tlsv1.2 --output "monetail-nas-$NAS_RELEASE.tar.gz" \
+  "https://github.com/k-o-a-b-c/monetail/releases/download/$NAS_RELEASE/monetail-nas-$NAS_RELEASE.tar.gz"
+curl --fail --location --proto '=https' --tlsv1.2 --output SHA256SUMS \
+  "https://github.com/k-o-a-b-c/monetail/releases/download/$NAS_RELEASE/SHA256SUMS"
+sha256sum --check SHA256SUMS
+test ! -e "$NAS_PACKAGES/monetail-nas-$NAS_RELEASE"
+tar -xzf "monetail-nas-$NAS_RELEASE.tar.gz" -C "$NAS_PACKAGES"
+NAS_PACKAGE="$NAS_PACKAGES/monetail-nas-$NAS_RELEASE"
+. "$NAS_PACKAGE/images.env"
+cp "$NAS_ENV" "$NAS_ENV.before-update-$(date -u +%Y%m%dT%H%M%SZ)"
+sed -i "s|^MONETAIL_IMAGE=.*|MONETAIL_IMAGE=$MONETAIL_IMAGE|" "$NAS_ENV"
+dc config --quiet
+dc pull api
+# Tailscaleの固定バージョンを明示変更した場合のみ dc pull tailscale
+# 新イメージのUID/GIDを確認。変更があればdb/keys/oauthの所有権・ACLを調整する。
+docker run --rm --pull never --entrypoint id "$MONETAIL_IMAGE"
 dc stop tailscale api
-# 必要なDB移行が明示されたリリースだけ、バックアップ後に指定の管理手順を実行する。
-dc up -d --force-recreate api tailscale
+# リリースでDB移行が指定された場合だけ、停止バックアップ後に指定の手順を実行する。
+dc up -d --no-build --force-recreate api tailscale
+dc ps
 ```
 
-更新では`initialize-admin`、証明書生成、DBファイルの削除、`down -v`を実行しない。DB移行が必要な場合も通常起動には任せず、[42](42-api-foundation.md#db移行登録復旧コマンド)とリリースの指示に従い停止中に行う。DB移行後に古いAPIイメージだけへ戻すのは安全とは限らない。
+`MONETAIL_IMAGE`をシェルでexportしていると`nas.env`より優先されるため、意図した値か`dc config --images`で確認する。digest指定では同じ内容を再取得し、バージョンを勝手に切り替えない。API再作成時は名前空間を共有するTailscaleも同時に再作成する。
+
+以前のGit/build方式から移る場合も、既存`MONETAIL_DATA_DIR`のdb/keys/oauth/tailscaleと`nas.env`をそのまま保持する。旧構成で停止バックアップを取り、配布アーカイブを展開して`NAS_PACKAGE`を設定し、既存`nas.env`へ`MONETAIL_IMAGE`だけ追加する。同じCompose project-name `monetail`で上のpull/再作成を行う。初回スクリプトやDB/管理者初期化は実行しない。
+
+更新では`initialize-admin`、証明書生成、DBファイルの削除、`down -v`を実行しない。DB移行が必要な場合も通常起動には任せず、[42](https://github.com/k-o-a-b-c/monetail/blob/main/docs/42-api-foundation.md#db移行登録復旧コマンド)とリリースの指示に従い停止中に行う。DB移行後に古いAPIイメージだけへ戻すのは安全とは限らない。
 
 HTTPS証明書はTailscaleが管理する。OAuth PFXの期限は別管理で、次のようにパスワードをコマンド引数へ入れず確認できる。
 
@@ -208,7 +239,7 @@ dc start api tailscale
 
 ### 過去のバックアップから復元
 
-対応するAPIコミット／イメージを用意し、復元先のパスを確認する。元ノードを停止し、同じTailscale stateのコピーを二台同時に起動しない。
+バックアップ時と対応するNAS配布アーカイブと固定APIイメージを用意し、`NAS_PACKAGE`を該当版へ設定する。復元先のパスを確認する。元ノードを停止し、同じTailscale stateのコピーを二台同時に起動しない。
 
 ```bash
 dc down
@@ -219,16 +250,17 @@ sudo tar --extract --file "$BACKUP" --numeric-owner --same-owner \
   --directory "$(dirname "$NAS_DATA")"
 # NAS_DATA/nas.envが復元される。配置・Origin・実行UID/GID・PFX期限を確認する。
 sudo test -f "$NAS_DATA/db/monetail.db"
+dc pull api tailscale
 # 新しいAPIで古いバックアップを復元する場合だけ、既存DBへ既知の追加移行を適用する。
 # dc run --rm --no-deps api initialize-db
 dc run --rm --no-deps api reset-authentication --after-restore
 dc run --rm --no-deps api issue-recovery-link --account-id REPLACE_ADMIN_ACCOUNT_ID
-dc up -d --force-recreate api tailscale
+dc up -d --no-build --force-recreate api tailscale
 ```
 
 過去へ戻る復元では、失効情報も巻き戻るため**停止中に全体の認証リセットを行う**。まず管理者、次に他利用者へ`issue-recovery-link`で10分間の復旧リンクを発行し、パスキーを再登録する。Windowsアプリも再ログインする。DBを再初期化したり、`initialize-admin`で管理者を作り直したりしない。管理者IDはバックアップ前に控え、既存のアカウントを使う。
 
-同じDB・RP ID・鍵を保つ、ロールバックを伴わない通常移設は[42の移設方針](42-api-foundation.md#db移行登録復旧コマンド)に従う。新NASでは実行UID/GIDやDockerのuser namespace設定を再確認する。アクセスできなくてもDBや鍵を削除して直そうとしない。
+同じDB・RP ID・鍵を保つ、ロールバックを伴わない通常移設は[42の移設方針](https://github.com/k-o-a-b-c/monetail/blob/main/docs/42-api-foundation.md#db移行登録復旧コマンド)に従う。新NASでは実行UID/GIDやDockerのuser namespace設定を再確認する。アクセスできなくてもDBや鍵を削除して直そうとしない。
 
 ## TailscaleをNAS本体で実行する場合
 
@@ -258,6 +290,8 @@ APIは信頼した直前のプロキシから**1段分だけ**`X-Forwarded-For/H
 
 | 症状 | 確認すること |
 | --- | --- |
+| GHCRの401/403 | パッケージのPublic設定、指定バージョン/digestの公開、既存packageへのActions権限を確認。Public配布はNASでログイン不要 |
+| no matching manifest | CPUがamd64/arm64か、リリースに両manifestがあるか確認 |
 | Composeの変数エラー／マウント失敗 | `--env-file`と両`-f`、絶対パス、ファイルの存在。存在しないbind sourceは自動作成しない構成 |
 | APIが起動しない | `dc logs --tail 80 api`をローカルで確認。PFXの期限・別鍵・JSONの読込・非root UID/GIDとACL・DB接続文字列を調べる。秘密ファイルの中身は出力しない |
 | DB未初期化／読み書き不可 | 初回`initialize-db`の終了コード、DB親の所有権、同時接続とロック、ディスク残量。旧DBの拒否を無理に解除しない |
@@ -269,9 +303,28 @@ APIは信頼した直前のプロキシから**1段分だけ**`X-Forwarded-For/H
 
 ログ・`docker inspect`全文・`compose config`全文・バックアップ・招待URLを公開IssueやPRへ貼らない。Tailscale再認証時のログにはログイン用URLが出る場合もある。必要なエラー部分だけを、実環境の識別情報と秘密を除いて共有する。
 
+## GitHubでの配布（リポジトリ管理者向け・NASでは実行しない）
+
+`.github/workflows/release-api.yml`は`api-vX.Y.Z`タグpushだけで起動する。対象コミットがmainの履歴上にあり、**同じSHAに対するTestsのmain push実行が成功済み**の場合だけ先へ進む。PR/forkの成功や別SHAの結果は採用しない。mainのCI完了前にタグを付けた場合は、成功後に失敗ワークフローを再実行する。
+
+```bash
+# 開発用PCで実行。CIが成功したmainのコミットを明示して選ぶ。
+git fetch origin main
+git tag api-v1.2.3 REPLACE_VERIFIED_MAIN_COMMIT
+git push origin api-v1.2.3
+```
+
+amd64/arm64の各ネイティブrunnerでAPI/ブラウザースクリプトのテスト、Dockerビルドと通常/NAS/配布アーカイブの起動・保全を検証する。各イメージをpush後、両方成功時だけ`ghcr.io/k-o-a-b-c/monetail-api:v1.2.3`のmulti-arch manifestとReleasesのアーカイブ・SHA256SUMSを公開する。`latest`は作らない。作業用`build-…`タグはNASの運用指定に使わない。
+
+認証は`GITHUB_TOKEN`だけを使う。検証ジョブはcontents/actionsのread、イメージjobはcontents read/packages write、最終公開jobはcontents/packages writeで、checkoutへ認証を残さない。PRのCIでは公開しない。既存のバージョンタグは上書きしない。公開途中に失敗してvX.Y.Zのmanifestだけ存在する場合も同じバージョンへ再公開せず、原因を確認して新しいバージョンタグを作る。
+
+初回のGHCRパッケージは、公開リポジトリに紐づけても自動でPublicになるとは限らない。GitHubの所有者のPackagesから`monetail-api`のPackage settingsを開き、リポジトリを確認して可視性を**Public**へ設定する。既存パッケージを使う場合はManage Actions accessで`k-o-a-b-c/monetail`へwrite権限を付与する。設定反映後、未ログイン環境で公開版をpullできることを確認する。実際の公開設定変更は管理者が行う。
+
+Privateを選ぶ場合はNASでもGHCR認証が必要。専用アカウントのread:packages権限のPAT classic等を公式手順に従い非表示入力から`docker login ghcr.io --username REPLACE_USER --password-stdin`へ渡す。トークンをCompose・Git・コマンド引数・ログへ記載しない。標準手順はPublicイメージの匿名pullを前提とする。
+
 ## 検証範囲と公式資料
 
-自動検証はダミー設定と隔離DBを使う。Composeのマージ、PFX再生成拒否、非rootでの秘密読込、DB・管理者初期化、HTTPS転送とHostの境界、再起動時のPFX保全を確認する。実際のTailscale参加・ServeのHTTPS証明書取得更新、NASのACL／再起動、実ブラウザーのパスキー、Windowsアプリとの実接続、実バックアップの復元は**実機で確認が必要**。採用した検証結果は[tests/README](../tests/README.md)に集約する。
+自動検証はダミー設定と隔離DBを使う。既存の開発用構成に加え、ソースなしのアーカイブ内からimage専用Composeを起動し、初回再実行拒否、DB・DPキー・PFX・Tailscale state用ファイルの再作成前後の一致、停止バックアップと隔離復元を検証する。実際のGHCR公開・匿名pull・GitHubの可視性設定は、マージ後の初回リリースで確認する。実ARM64検証はタグ配布ワークフローで行い、未実行なら検証済みとしない。実際のTailscale参加・ServeのHTTPS証明書取得更新、NASのACL／再起動、実ブラウザーのパスキー、Windowsアプリとの実接続、実バックアップの復元は**実機で確認が必要**。採用した検証結果は[tests/README](https://github.com/k-o-a-b-c/monetail/blob/main/tests/README.md)に集約する。
 
 - [Docker Compose secrets](https://docs.docker.com/compose/how-tos/use-secrets/)／[servicesのsecretsとファイル権限の制約](https://docs.docker.com/reference/compose-file/services/#secrets)
 - [Tailscale Docker設定](https://tailscale.com/docs/features/containers/docker/docker-params)／[userspace networking](https://tailscale.com/docs/concepts/userspace-networking)
@@ -279,3 +332,6 @@ APIは信頼した直前のプロキシから**1段分だけ**`X-Forwarded-For/H
 - [Tailscale認証キーの安全な取扱い](https://tailscale.com/docs/features/access-control/auth-keys/how-to/secure-auth-keys)／[アクセス制御](https://tailscale.com/docs/features/access-control)
 - [ASP.NET Coreの転送ヘッダー](https://learn.microsoft.com/aspnet/core/host-and-deploy/proxy-load-balancer)／[Data Protectionの保存](https://learn.microsoft.com/aspnet/core/security/data-protection/implementation/key-storage-providers)
 - [OpenIddictの署名・暗号化証明書](https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html#registering-a-certificate-recommended-for-production)／[SQLiteのバックアップ](https://www.sqlite.org/backup.html)
+
+- [GitHub ActionsでDockerイメージを公開](https://docs.github.com/actions/use-cases-and-examples/publishing-packages/publishing-docker-images)／[GHCR認証・匿名pull](https://docs.github.com/packages/working-with-a-github-packages-registry/working-with-the-container-registry)／[パッケージ可視性・Actionsアクセス](https://docs.github.com/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
+- [GitHubのARM runner](https://docs.github.com/actions/reference/runners/github-hosted-runners)／[Docker multi-platform](https://docs.docker.com/build/building/multi-platform/)
