@@ -37,6 +37,27 @@ class FingerprintTests(unittest.TestCase):
         without_docs = {path: value for path, value in self.records.items() if not path.endswith(".md")}
         self.assertEqual(fingerprints(self.records), fingerprints(without_docs))
 
+    def test_ghcr_script_addition_changes_mode_and_removal_keep_product_fingerprints(self):
+        before = fingerprints(self.records)
+        for path in [".github/scripts/registry_image.py", ".github/scripts/test_registry_image.py"]:
+            for identity in ["100644 blob initial", "100644 blob changed", "100755 blob changed"]:
+                with self.subTest(path=path, identity=identity):
+                    records = dict(self.records, **{path: identity})
+                    self.assertEqual(before, fingerprints(records))
+                    del records[path]
+                    self.assertEqual(before, fingerprints(records))
+        both = dict(self.records, **{".github/scripts/registry_image.py": "100644 blob ghcr",
+                                    ".github/scripts/test_registry_image.py": "100644 blob ghcr-test"})
+        self.assertEqual(before, fingerprints(both))
+
+    def test_renaming_ghcr_script_outside_exception_invalidates_all_product_proofs(self):
+        for path in [".github/scripts/registry_image.py", ".github/scripts/test_registry_image.py"]:
+            with self.subTest(path=path):
+                before = fingerprints(dict(self.records, **{path: "100644 blob same-content"}))
+                renamed = dict(self.records, **{path.replace(".py", "_extra.py"): "100644 blob same-content"})
+                after = fingerprints(renamed)
+                self.assertEqual(set(FLAGS), {flag for flag in FLAGS if before[flag] != after[flag]})
+
     def test_ui_changes_do_not_invalidate_api_client_or_storage(self):
         self.assert_changed("src/Monetail.WinUI/MainWindow.xaml", "winui")
         self.assert_changed("tests/Monetail.WinUI.Smoke/InputScenario.cs", "winui")
@@ -51,6 +72,8 @@ class FingerprintTests(unittest.TestCase):
 
     def test_ci_definition_and_shared_settings_invalidate_their_checks(self):
         for path in [".github/workflows/tests.yml", ".github/scripts/ci_plan.py",
+                     ".github/scripts/select_tests.py", ".github/scripts/test_ci_plan.py",
+                     ".github/scripts/test_select_tests.py", ".github/scripts/future.py",
                      ".github/actions/ci-proof/action.yml", "Directory.Build.props"]:
             with self.subTest(path=path):
                 self.assert_changed(path, *FLAGS)
@@ -106,6 +129,42 @@ class PlanningTests(unittest.TestCase):
         self.assertTrue(current["required"]["api"])
         self.assertTrue(current["required"]["winui"])
         self.assertFalse(resolve(current, {"api": "true", "docker": "true", "winui": "true"})["api"])
+
+    def test_ghcr_only_pr_requires_no_product_proofs(self):
+        with patch("ci_plan.changed_files", return_value=[".github/scripts/registry_image.py",
+                                                           ".github/scripts/test_registry_image.py"]):
+            current = plan({}, "pull_request", self.records)
+        self.assertFalse(any(current["required"].values()))
+        self.assertFalse(any(resolve(current, {}).values()))
+
+    def test_main_ghcr_only_push_still_requires_checks_without_success_proof(self):
+        with patch("ci_plan.changed_files", return_value=[".github/scripts/test_registry_image.py"]):
+            current = plan({"ref": "refs/heads/main"}, "push", self.records)
+        self.assertEqual({"api", "docker", "winui"},
+                         {flag for flag, run in resolve(current, {}).items() if run})
+
+    def test_main_ghcr_only_push_reuses_success_but_keeps_unvalidated_product_changes(self):
+        for unvalidated_api in [False, True]:
+            with self.subTest(unvalidated_api=unvalidated_api), tempfile.TemporaryDirectory() as directory:
+                records = dict(self.records, **{".github/scripts/registry_image.py": "100644 blob new-ghcr",
+                                               ".github/scripts/test_registry_image.py": "100644 blob new-test"})
+                if unvalidated_api:
+                    records["src/Monetail.Api/Program.cs"] = "100644 blob unvalidated-api"
+                with patch("ci_plan.changed_files", return_value=[".github/scripts/registry_image.py"]):
+                    current = plan({"ref": "refs/heads/main"}, "push", records)
+                # pushでは全入力の成功を照合し、直近差分がGHCRだけでも未検証APIを見落とさない。
+                self.assertTrue(current["required"]["api"])
+                self.assertTrue(current["required"]["docker"])
+                self.assertTrue(current["required"]["winui"])
+                reused = {}
+                for flag, digest in fingerprints(self.records).items():
+                    options = {"directory": Path(directory)}
+                    proof("save", flag, digest, **options)
+                    hit = proof("restore", flag, current["fingerprints"][flag],
+                                needed=current["required"][flag], cache_hit=True, **options)
+                    reused[flag] = str(hit).lower()
+                runs = {flag for flag, run in resolve(current, reused).items() if run}
+                self.assertEqual({"api", "docker"} if unvalidated_api else set(), runs)
 
     def test_manual_run_selects_all_existing_inputs(self):
         current = plan({}, "workflow_dispatch", self.records)
