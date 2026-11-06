@@ -16,7 +16,7 @@
 | APIの認証仕様 | [認証・アカウント管理](docs/43-passkey-authentication-design.md) |
 | 新規利用・家計簿の設計 | [家計簿設計](docs/58-ledger-foundation-design.md) |
 | APIを起動・運用する | [起動・設定・管理コマンド](docs/42-api-foundation.md)・[配備共通要件](docs/deployment.md) |
-| Docker対応NASでAPIを動かす（構成例） | [NASとHTTPS転送のセットアップ例](docs/deployment-examples/nas-tailscale.md) |
+| Docker対応サーバーでAPIを動かす（構成例） | [DockerとHTTPS転送のセットアップ例](docs/deployment-examples/docker-tailscale.md) |
 | 検証する | [テスト](tests/README.md) |
 | Windows版を操作する | [操作ガイド](docs/09-user-guide.md) |
 
