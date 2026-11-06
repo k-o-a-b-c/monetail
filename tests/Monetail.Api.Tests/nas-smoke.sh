@@ -2,7 +2,7 @@
 set -euo pipefail
 set +x
 umask 077
-# 実tailnetへは接続せず、NAS設定・鍵の保全・非root起動と1段の転送を検証する。
+# 既存の別コンテナTailscaleは起動せず、host待受設定と安全な隔離ネットワークでのAPI起動を検証する。
 image_name="${1:-monetail-api:ci}"
 test_dir="$(mktemp -d)"
 project="monetail-nas-check-$$"
@@ -20,9 +20,7 @@ cleanup() {
     exit "$result"
 }
 trap cleanup EXIT
-mkdir -p "$test_dir/db" "$test_dir/keys" "$test_dir/tailscale/config" "$test_dir/tailscale/state"
-printf 'synthetic-unused-authkey\n' > "$test_dir/tailscale/authkey"
-cp "$nas_files/serve.json" "$test_dir/tailscale/config/serve.json"
+mkdir -p "$test_dir/db" "$test_dir/keys"
 bash "$nas_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null
 sha256sum "$test_dir/oauth/"* > "$test_dir/before.sha256"
 if bash "$nas_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null 2>&1; then
@@ -35,26 +33,39 @@ MONETAIL_IMAGE=$image_name
 MONETAIL_DATA_DIR=$test_dir
 MONETAIL_ORIGIN=https://monetail-api.tail-example.ts.net
 MONETAIL_RP_ID=monetail-api.tail-example.ts.net
-TAILSCALE_HOSTNAME=monetail-api
-TAILSCALE_IMAGE=tailscale/tailscale:v1.104.4
 EOF
 cat > "$test_dir/test.yaml" <<EOF
 services:
   api:
     image: $image_name
+    # CI内では実ホストの8080番を使わず、独立bridgeとランダムportへ置換する。
+    network_mode: bridge
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
     ports: !override
       - "127.0.0.1::8080"
 EOF
+docker compose --project-name "$project" --env-file "$test_dir/nas.env" \
+    -f "$base_compose" -f "$nas_files/compose.nas.yaml" \
+    config --format json > "$test_dir/production-compose.json"
 "${compose[@]}" config --format json > "$test_dir/compose.json"
-python3 - "$test_dir/compose.json" "$package" <<'PY'
+python3 - "$test_dir/production-compose.json" "$test_dir/compose.json" "$package" <<'PY'
 import json,sys
-config=json.load(open(sys.argv[1]))
-api=config['services']['api']; ts=config['services']['tailscale']
-if sys.argv[2]: assert 'build' not in api
-assert ts['network_mode']=='service:api'
+production=json.load(open(sys.argv[1]))
+assert set(production['services'])=={'api'}
+prod=production['services']['api']
+assert prod['network_mode']=='host'
+assert not prod.get('ports')
+assert prod['environment']['ASPNETCORE_URLS']=='http://127.0.0.1:8080'
+assert prod['environment']['Passkeys__TrustedProxies__0']=='127.0.0.1'
+config=json.load(open(sys.argv[2]))
+assert set(config['services'])=={'api'}
+api=config['services']['api']
+if sys.argv[3]: assert 'build' not in api
+assert api['network_mode']=='bridge'
+assert api['environment']['ASPNETCORE_URLS']=='http://0.0.0.0:8080'
 assert api['environment']['Passkeys__TrustedProxies__0']=='127.0.0.1'
 assert api['ports'][0]['host_ip']=='127.0.0.1'
-assert ts['environment']['TS_AUTHKEY']=='file:/run/secrets/tailscale-authkey'
 assert any(s['target']=='/app/appsettings.Production.json' for s in api['secrets'])
 assert not any('Password' in name for name in api['environment'])
 PY
@@ -76,7 +87,7 @@ wait_healthy() {
 }
 wait_healthy
 [ "$(docker exec "$container_id" id -u)" -ne 0 ]
-# Serveと同じネットワーク名前空間・IPv4ループバックから転送する。
+# IPv4ループバックからのHTTPS転送ヘッダーを模擬する（実Tailscaleは対象外）。
 for forwarded_host in monetail-api.tail-example.ts.net wrong.example.test; do
     response="$(docker exec "$container_id" bash -c '
         exec 3<>/dev/tcp/127.0.0.1/8080
@@ -100,11 +111,10 @@ import sys
 assert '初期管理者は作成済みです' in Path(sys.argv[1]).read_text()
 PY
 if [ -n "$package" ]; then
-    printf 'synthetic-tail-state\n' > "$test_dir/tailscale/state/preservation-check"
     docker run --rm --user 0 --entrypoint bash --mount "type=bind,src=$test_dir,dst=/test" "$image_name" -c '
         cd /test
-        sha256sum db/monetail.db keys/* oauth/* tailscale/state/preservation-check > data-before.sha256
-        tar -cf backup.tar db keys oauth tailscale nas.env
+        sha256sum db/monetail.db keys/* oauth/* > data-before.sha256
+        tar -cf backup.tar db keys oauth nas.env
         mkdir restored
         tar -xf backup.tar -C restored
         cd restored
@@ -125,4 +135,4 @@ PY
         cd /test; sha256sum --check --status data-before.sha256
         cd restored; sha256sum --check --status ../data-before.sha256'
 fi
-printf 'NAS smoke: Compose secrets, PFX/DB preservation, DB/admin initialization, non-root startup, forwarded HTTPS/host boundary passed; real Tailscale not tested.\n'
+printf 'NAS smoke: externally managed proxy, host-only loopback configuration, secrets, PFX/DB preservation, non-root startup and HTTPS forwarded host boundary passed.\n'
