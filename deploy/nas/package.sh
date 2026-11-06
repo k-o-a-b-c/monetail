@@ -14,15 +14,16 @@ name="monetail-nas-$version"
 [ ! -e "$output/$name.tar.gz" ] && [ ! -e "$output/SHA256SUMS" ] || { printf '既存の配布物は上書きしません。\n' >&2; exit 1; }
 staging="$(mktemp -d)"
 trap 'rm -rf -- "$staging"' EXIT
-mkdir -p "$staging/$name/deploy/nas" "$staging/$name/docs"
+mkdir -p "$staging/$name/deploy/nas" "$staging/$name/docs/deployment-examples"
 cp "$root/deploy/nas/compose.image.yaml" "$staging/$name/compose.yaml"
 for file in compose.nas.yaml nas.env.example create-oauth-certificates.sh initialize-files.sh; do
     cp "$root/deploy/nas/$file" "$staging/$name/deploy/nas/$file"
 done
-cp "$root/docs/deployment-docker-nas.md" "$staging/$name/docs/"
+cp "$root/docs/deployment.md" "$staging/$name/docs/"
+cp "$root/docs/deployment-examples/nas-tailscale.md" "$staging/$name/docs/deployment-examples/"
 printf 'MONETAIL_IMAGE=%s\n' "$image" > "$staging/$name/images.env"
 printf '%s\n%s\n' "$version" "$image" > "$staging/$name/VERSION"
-printf '# monetail API NAS package\n\n手順: [NASセットアップ](docs/deployment-docker-nas.md)\n\n固定イメージ: `%s`\n' "$image" > "$staging/$name/README.md"
+printf '# monetail API NAS package\n\n手順: [NAS配備例](docs/deployment-examples/nas-tailscale.md)／[配備共通要件](docs/deployment.md)\n\n固定イメージ: `%s`\n' "$image" > "$staging/$name/README.md"
 tar --create --gzip --file "$output/$name.tar.gz" --directory "$staging" "$name"
 (cd -- "$output" && sha256sum "$name.tar.gz" > SHA256SUMS)
 printf '%s\n' "$output/$name.tar.gz"
