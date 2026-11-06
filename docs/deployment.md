@@ -1,6 +1,6 @@
 # APIの配備・運用（共通要件）
 
-monetail APIは特定のVPN、DNSサービス、NAS製品、コンテナ構成に依存しない。接続手段は運用環境で選択する。APIの起動設定と管理コマンドの正本は[42 APIの起動・設定・運用](42-api-foundation.md)、認証仕様は[認証・パスキー](auth-passkeys.md)および[Windows OAuth](auth-windows-oauth.md)を参照する。
+monetail APIは特定のVPN、DNSサービス、サーバー製品、コンテナ構成に依存しない。接続手段は運用環境で選択する。APIの起動設定と管理コマンドの正本は[42 APIの起動・設定・運用](42-api-foundation.md)、認証仕様は[認証・パスキー](auth-passkeys.md)および[Windows OAuth](auth-windows-oauth.md)を参照する。
 
 ## 通信・認証
 
@@ -33,6 +33,6 @@ Windows / ブラウザー / 将来のスマートフォン
 
 ## 配備例
 
-- [Docker対応NAS + 別管理のTailscale Serve](deployment-examples/nas-tailscale.md)：既存の同一NAS上のHTTPS転送を使い、GHCRのAPIイメージを配備する**具体例**。Tailscaleはmonetailの必須要件ではなく、別のHTTPS終端を採用してもよい。
+- [Dockerサーバー + 別管理のTailscale Serve](deployment-examples/docker-tailscale.md)：既存の同一サーバー上のHTTPS転送を使い、GHCRのAPIイメージを配備する**具体例**。Tailscaleはmonetailの必須要件ではなく、別のHTTPS終端を採用してもよい。
 
 配備例の`127.0.0.1:8080`、Docker hostネットワーク、固定ディレクトリは**その環境に固有の値**。別のネットワーク構成へ流用するときは、転送元IP・待受アドレス・秘密ファイル権限を再評価する。
