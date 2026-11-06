@@ -32,6 +32,7 @@ PY
 # 公開レジストリへは接続・pushせず、同じ検証イメージへローカルで固定タグを付ける。
 docker tag "$image" "$tag"
 bash "$package/deploy/nas/initialize-files.sh" "$work/data" "$tag" >/dev/null
+test ! -e "$work/data/tailscale"
 docker run --rm --user 0 --entrypoint bash --mount "type=bind,src=$work,dst=/test" "$image" -c 'cd /test; sha256sum data/oauth/* > files-before.sha256'
 if bash "$package/deploy/nas/initialize-files.sh" "$work/data" "$tag" >/dev/null 2>&1; then exit 1; fi
 docker run --rm --user 0 --entrypoint bash --mount "type=bind,src=$work,dst=/test,readonly" "$image" -c 'cd /test; sha256sum --check --status files-before.sha256'
