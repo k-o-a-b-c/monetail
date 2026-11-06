@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using System.Text;
@@ -55,6 +58,14 @@ internal sealed class AuthDatabaseFixture : IDisposable
         await using var services = CreateServices();
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(CancellationToken.None);
+    }
+
+    /// <summary>過去のMigration単体を、後続のスキーマ変更と混同せず検証する。</summary>
+    public async Task MigrateToAsync(string target)
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<ApiDbContext>().GetService<IMigrator>().MigrateAsync(target);
     }
 
     /// <summary>認証接続とは独立した旧接続でSQLを実行する。</summary>

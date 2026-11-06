@@ -17,6 +17,8 @@ public sealed class Ledger
     public string Revision { get; set; } = null!;
     /// <summary>人物の構成と共通順の更新版を保持する。</summary>
     public string PeopleOrderRevision { get; set; } = Guid.NewGuid().ToString("N");
+    /// <summary>科目の構成と共通順の更新版。家計簿名・人物順とは独立して照合する。</summary>
+    public string CategoryOrderRevision { get; set; } = Guid.NewGuid().ToString("N");
 }
 
 /// <summary>家計簿への参加と家計簿内の役割を保存する。</summary>

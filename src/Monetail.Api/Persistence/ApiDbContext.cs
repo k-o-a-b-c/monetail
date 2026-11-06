@@ -26,6 +26,8 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
         base.OnModelCreating(builder);
         DesktopOAuthModel.Configure(builder);
         LedgerModel.Configure(builder);
+        LedgerCategoryModel.Configure(builder);
+        Monetail.Api.Features.Monetail.Taxes.TaxModel.Configure(builder);
         builder.Entity<SelfRegistrationCompletion>(completion =>
         {
             completion.ToTable("auth_self_registration_completions");

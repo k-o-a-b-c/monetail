@@ -144,7 +144,7 @@ public sealed class PaymentMethodSchemaTests
         using (var connection = db.OpenForeignKeyConnection()) peopleBefore = ExistingPeople(connection);
         var unchangedTables = db.Tables().Where(table => table is not "ledger_people" and not ApiDbContext.HistoryTable).ToArray();
         var otherDataBefore = db.Snapshot(unchangedTables);
-        await db.MigrateAsync();
+        await db.MigrateToAsync("20261105010000_AddLedgerPaymentMethods");
         Assert.Equal(otherDataBefore, db.Snapshot(unchangedTables));
         using (var connection = db.OpenForeignKeyConnection())
         {
@@ -159,7 +159,7 @@ public sealed class PaymentMethodSchemaTests
             Assert.NotEqual(Guid.Empty.ToString("N"), firstToken);
             InsertPayment(connection, ledger, first, NewId(), "カード");
         }
-        await db.MigrateAsync();
+        await db.MigrateToAsync("20261105010000_AddLedgerPaymentMethods");
         using (var connection = db.OpenForeignKeyConnection())
         {
             Assert.Equal(peopleBefore, ExistingPeople(connection));
@@ -208,7 +208,7 @@ public sealed class PaymentMethodSchemaTests
         var otherDataBefore = db.Snapshot(unchangedTables);
         ExistingPerson[] peopleBefore;
         using (var connection = db.OpenForeignKeyConnection()) peopleBefore = ExistingPeople(connection);
-        await db.MigrateAsync();
+        await db.MigrateToAsync("20261105010000_AddLedgerPaymentMethods");
         Dictionary<string, string> firstVersions;
         var paymentId = NewId();
         string upgradedSchema;
@@ -229,7 +229,7 @@ public sealed class PaymentMethodSchemaTests
             Assert.Equal(0L, Scalar(connection, "SELECT COUNT(*) FROM sqlite_schema WHERE name IN ('ledger_payment_methods','trg_ledger_payment_methods_owner_immutable')"));
             AssertConstraint(() => Execute(connection, "DELETE FROM ledgers WHERE id=@id", ("@id", ledger)));
         }
-        await db.MigrateAsync();
+        await db.MigrateToAsync("20261105010000_AddLedgerPaymentMethods");
         Dictionary<string, string> secondVersions;
         using (var connection = db.OpenForeignKeyConnection())
         {
@@ -252,7 +252,7 @@ public sealed class PaymentMethodSchemaTests
             using var check = connection.CreateCommand(); check.CommandText = "PRAGMA foreign_key_check";
             using var reader = check.ExecuteReader(); Assert.False(reader.Read());
         }
-        await db.MigrateAsync();
+        await db.MigrateToAsync("20261105010000_AddLedgerPaymentMethods");
         using (var connection = db.OpenForeignKeyConnection())
             Assert.Equal(secondVersions.OrderBy(row => row.Key), PaymentVersions(connection).OrderBy(row => row.Key));
         await using var modelServices = db.CreateServices(); await using var modelScope = modelServices.CreateAsyncScope();

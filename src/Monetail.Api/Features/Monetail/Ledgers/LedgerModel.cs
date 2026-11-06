@@ -29,6 +29,7 @@ public static class LedgerModel
             ledger.Property(row => row.CreatedAtUtc).HasColumnName("created_at_utc");
             ledger.Property(row => row.Revision).HasColumnName("revision").IsRequired().IsConcurrencyToken();
             ledger.Property(row => row.PeopleOrderRevision).HasColumnName("people_order_revision").IsRequired().IsConcurrencyToken();
+            ledger.Property(row => row.CategoryOrderRevision).HasColumnName("category_order_revision").IsRequired();
             ledger.HasOne<AuthUser>().WithMany().HasForeignKey(row => row.CreatedByAuthUserId).OnDelete(DeleteBehavior.Restrict);
         });
         builder.Entity<LedgerMember>(member =>

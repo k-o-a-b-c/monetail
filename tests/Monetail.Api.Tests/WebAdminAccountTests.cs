@@ -237,15 +237,15 @@ public sealed class WebAdminAccountTests
         await app.LoginAsync(client);
         await using (var scope = app.Factory.Services.CreateAsyncScope())
             await scope.ServiceProvider.GetRequiredService<ApiDbContext>().GetService<IMigrator>().MigrateAsync("20261104010000_RetireEnrollmentCodes");
-        // The payment migration extends ledger_people; compare other existing tables unchanged.
-        var tables = app.Database.Tables().Where(table => table != ApiDbContext.HistoryTable && table != "ledger_people").ToArray();
+        // アカウント管理用メモのMigrationだけを検証し、人物・家計簿も除外しない。
+        var tables = app.Database.Tables().Where(table => table != ApiDbContext.HistoryTable).ToArray();
         var before = app.Database.Snapshot(tables);
-        await app.Database.MigrateAsync();
+        await app.Database.MigrateToAsync("20261104020000_AddAccountAdminNote");
         Assert.Equal(before, app.Database.Snapshot(tables));
         Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_account_admin_notes"));
         await using (var scope = app.Factory.Services.CreateAsyncScope())
             Assert.False(scope.ServiceProvider.GetRequiredService<ApiDbContext>().Database.HasPendingModelChanges());
-        await app.Database.MigrateAsync();
+        await app.Database.MigrateToAsync("20261104020000_AddAccountAdminNote");
         Assert.Equal(before, app.Database.Snapshot(tables));
     }
 

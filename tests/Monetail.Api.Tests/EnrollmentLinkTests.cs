@@ -202,10 +202,10 @@ public sealed class EnrollmentLinkTests
                 new() { AuthUserId = "pending", Purpose = "passkey-enrollment", CodeHash = [2], CreatedAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow, ConsumedAtUtc = DateTime.UtcNow });
             await context.SaveChangesAsync();
         }
-        // The new payment migration intentionally changes ledger_people DDL, not account data.
-        var names = db.Tables().Where(name => name is not "auth_enrollment_codes" and not "__MonetailMigrationsHistory" and not "ledger_people");
+        // このテストは招待方式移行だけを検証し、人物を含む既存表をすべて比較する。
+        var names = db.Tables().Where(name => name is not "auth_enrollment_codes" and not "__MonetailMigrationsHistory");
         var before = db.Snapshot(names);
-        await db.MigrateAsync();
+        await db.MigrateToAsync("20261104010000_RetireEnrollmentCodes");
         Assert.Equal(before, db.Snapshot(names));
         Assert.Equal(1L, db.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'01' AND RevokedAtUtc IS NOT NULL"));
         Assert.Equal(1L, db.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'02' AND ConsumedAtUtc IS NOT NULL AND RevokedAtUtc IS NULL"));

@@ -166,14 +166,6 @@ namespace Monetail.Api.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Monetail.Api.Features.Accounts.AccountAdminNote", b =>
-                {
-                    b.Property<string>("AuthUserId").HasColumnType("TEXT");
-                    b.Property<string>("AdminNote").HasMaxLength(100).HasColumnType("TEXT");
-                    b.HasKey("AuthUserId");
-                    b.ToTable("auth_account_admin_notes");
-                });
-
             modelBuilder.Entity("Monetail.Api.Authentication.AccountCreationRequest", b =>
                 {
                     b.Property<string>("RequestId")
@@ -352,11 +344,30 @@ namespace Monetail.Api.Persistence.Migrations
                     b.ToTable("auth_self_registration_completions", (string)null);
                 });
 
+            modelBuilder.Entity("Monetail.Api.Features.Accounts.AccountAdminNote", b =>
+                {
+                    b.Property<string>("AuthUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AdminNote")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("AuthUserId");
+
+                    b.ToTable("auth_account_admin_notes", (string)null);
+                });
+
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.Ledger", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("TEXT")
                         .HasColumnName("id");
+
+                    b.Property<string>("CategoryOrderRevision")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("category_order_revision");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT")
@@ -390,6 +401,88 @@ namespace Monetail.Api.Persistence.Migrations
                     b.HasIndex("CreatedByAuthUserId");
 
                     b.ToTable("ledgers", (string)null);
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerCategory", b =>
+                {
+                    b.Property<string>("LedgerId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ledger_id");
+
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("category_id");
+
+                    b.Property<string>("Cost")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("cost");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("IncomeExpense")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("income_expense");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("name")
+                        .UseCollation("BINARY");
+
+                    b.Property<string>("Occurrence")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("occurrence");
+
+                    b.Property<int?>("RecurrenceMonths")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("recurrence_months");
+
+                    b.Property<string>("Revision")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("revision");
+
+                    b.Property<string>("TaxCategoryCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("tax_category_code");
+
+                    b.HasKey("LedgerId", "Id");
+
+                    b.HasIndex("TaxCategoryCode");
+
+                    b.HasIndex("LedgerId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_ledger_categories_name");
+
+                    b.HasIndex("LedgerId", "DisplayOrder", "Id")
+                        .HasDatabaseName("ix_ledger_categories_order");
+
+                    b.ToTable("ledger_categories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ledger_categories_enabled", "is_enabled IN (0,1)");
+
+                            t.HasCheckConstraint("CK_ledger_categories_income_cost", "(income_expense = 'Income' AND cost = 'NotApplicable') OR (income_expense = 'Expense' AND cost IN ('Fixed','Variable'))");
+
+                            t.HasCheckConstraint("CK_ledger_categories_name", "length(name) BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_ledger_categories_occurrence", "occurrence IN ('Regular','Irregular','Extraordinary')");
+
+                            t.HasCheckConstraint("CK_ledger_categories_order", "display_order >= 0");
+
+                            t.HasCheckConstraint("CK_ledger_categories_recurrence", "(occurrence = 'Regular' AND recurrence_months IS NOT NULL AND recurrence_months IN (1,12)) OR (occurrence IN ('Irregular','Extraordinary') AND recurrence_months IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerInvitation", b =>
@@ -548,16 +641,17 @@ namespace Monetail.Api.Persistence.Migrations
 
                     b.HasKey("LedgerId", "Id");
 
-                    b.HasIndex("LedgerId", "OwnerPersonId", "DisplayOrder", "Id")
-                        .HasDatabaseName("ix_ledger_payment_methods_owner_order");
-
                     b.HasIndex("LedgerId", "OwnerPersonId", "Name")
                         .IsUnique()
                         .HasDatabaseName("ux_ledger_payment_methods_owner_name");
 
+                    b.HasIndex("LedgerId", "OwnerPersonId", "DisplayOrder", "Id")
+                        .HasDatabaseName("ix_ledger_payment_methods_owner_order");
+
                     b.ToTable("ledger_payment_methods", null, t =>
                         {
                             t.HasCheckConstraint("CK_ledger_payment_methods_display_order", "display_order >= 0");
+
                             t.HasCheckConstraint("CK_ledger_payment_methods_period", "valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to");
                         });
                 });
@@ -649,6 +743,93 @@ namespace Monetail.Api.Persistence.Migrations
                     b.HasIndex("ActorAuthUserId");
 
                     b.ToTable("operation_requests", (string)null);
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Taxes.TaxCategory", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("name");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("tax_categories", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_tax_categories_code", "code IN ('Standard','ReducedFood','ReducedNewspaper','Exempt')");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "Standard",
+                            Name = "標準"
+                        },
+                        new
+                        {
+                            Code = "ReducedFood",
+                            Name = "食品軽減"
+                        },
+                        new
+                        {
+                            Code = "ReducedNewspaper",
+                            Name = "新聞軽減"
+                        },
+                        new
+                        {
+                            Code = "Exempt",
+                            Name = "非課税"
+                        });
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Taxes.TaxRateHistory", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<decimal?>("Rate")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("rate");
+
+                    b.Property<string>("Revision")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("revision");
+
+                    b.Property<string>("TaxCategoryCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("tax_category_code");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("valid_from");
+
+                    b.Property<DateOnly?>("ValidTo")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("valid_to");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaxCategoryCode", "ValidFrom", "ValidTo")
+                        .HasDatabaseName("ix_tax_rate_history_category_period");
+
+                    b.ToTable("tax_rate_history", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_tax_rate_history_from", "typeof(valid_from) = 'text' AND length(valid_from) = 10 AND valid_from GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND valid_from >= '0001-01-01' AND COALESCE(date(valid_from, '+0 days') = valid_from, 0)");
+
+                            t.HasCheckConstraint("CK_tax_rate_history_period", "valid_to IS NULL OR valid_from <= valid_to");
+
+                            t.HasCheckConstraint("CK_tax_rate_history_rate", "(tax_category_code = 'Exempt' AND rate IS NULL) OR (tax_category_code <> 'Exempt' AND rate IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_tax_rate_history_to", "valid_to IS NULL OR (typeof(valid_to) = 'text' AND length(valid_to) = 10 AND valid_to GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND valid_to >= '0001-01-01' AND COALESCE(date(valid_to, '+0 days') = valid_to, 0))");
+                        });
                 });
 
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>
@@ -1009,11 +1190,35 @@ namespace Monetail.Api.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Monetail.Api.Features.Accounts.AccountAdminNote", b =>
+                {
+                    b.HasOne("Monetail.Api.Authentication.AuthUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.Ledger", b =>
                 {
                     b.HasOne("Monetail.Api.Authentication.AuthUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedByAuthUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Ledgers.LedgerCategory", b =>
+                {
+                    b.HasOne("Monetail.Api.Features.Monetail.Ledgers.Ledger", null)
+                        .WithMany()
+                        .HasForeignKey("LedgerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Monetail.Api.Features.Monetail.Taxes.TaxCategory", null)
+                        .WithMany()
+                        .HasForeignKey("TaxCategoryCode")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
@@ -1106,6 +1311,15 @@ namespace Monetail.Api.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Monetail.Api.Features.Monetail.Taxes.TaxRateHistory", b =>
+                {
+                    b.HasOne("Monetail.Api.Features.Monetail.Taxes.TaxCategory", null)
+                        .WithMany()
+                        .HasForeignKey("TaxCategoryCode")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", b =>
                 {
                     b.HasOne("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", "Application")
@@ -1140,11 +1354,6 @@ namespace Monetail.Api.Persistence.Migrations
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreAuthorization", b =>
                 {
                     b.Navigation("Tokens");
-                });
-            modelBuilder.Entity("Monetail.Api.Features.Accounts.AccountAdminNote", b =>
-                {
-                    b.HasOne("Monetail.Api.Authentication.AuthUser", null).WithMany()
-                        .HasForeignKey("AuthUserId").OnDelete(DeleteBehavior.Cascade).IsRequired();
                 });
 #pragma warning restore 612, 618
         }
