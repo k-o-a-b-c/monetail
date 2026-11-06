@@ -24,7 +24,7 @@ from pathlib import Path
 import sys
 root=Path(sys.argv[1])
 expected={'README.md','VERSION','images.env','compose.yaml','docs/deployment-docker-nas.md',
-          'deploy/nas/compose.nas.yaml','deploy/nas/nas.env.example','deploy/nas/serve.json',
+          'deploy/nas/compose.nas.yaml','deploy/nas/nas.env.example',
           'deploy/nas/create-oauth-certificates.sh','deploy/nas/initialize-files.sh'}
 assert {str(p.relative_to(root)) for p in root.rglob('*') if p.is_file()}==expected
 assert 'ghcr.io/k-o-a-b-c/monetail-api@sha256:' in (root/'images.env').read_text()
