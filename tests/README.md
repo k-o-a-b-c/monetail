@@ -12,8 +12,8 @@
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
-| CIの実行対象選択・成功結果の再利用・配布条件 | 47 |
-| 合計 | 1211 |
+| CIの実行対象選択・成功結果の再利用・配布条件 | 60 |
+| 合計 | 1224 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+初回GHCR配布失敗の修正では、Registry検証13件を追加し、判定・配布条件の全60件とactionlintがローカルで成功。単一manifest/OCI index/provenance、固定参照・digest・platform不一致、既存タグ、404のRegistryエラー種別、401/403/429/500・redirect・通信断・タイムアウトと認証先制限を確認する。失敗実行[42174933547](https://github.com/k-o-a-b-c/monetail/actions/runs/42174933547)はamd64のpush成功後、ローカル`RepoDigests[0]`の形式検証で停止していた（その取得値自体はログになく断定しない）。公開済みの作業用イメージを読み取り、修正スクリプトでamd64のprovenance付きindexとarm64の単一manifestからpushログと一致するdigestを取得し、既存タグ・CPU誤指定の拒否と未公開版の404も確認した。両イメージのmanifest統合は`imagetools create --dry-run`で検証した。新しいタグでの実push・最終manifest公開・Releases作成はマージ後に未検証として残し、`api-v0.1.0`は変更していない。API本体・Dockerfile・NAS構成は未変更で、基点mainの[Tests 42173513238](https://github.com/k-o-a-b-c/monetail/actions/runs/42173513238)成功を変更前の根拠として再利用する。
 
 GHCR/NAS配布はmainの同一SHAのpush Tests成功だけを採用し、PR/fork/別ブランチ/別SHA/失敗・取消の結果と不正バージョンを拒否する。新規5件を含む判定47件、actionlint、Bash構文、開発/NAS/配布用Composeがローカルで成功。最新APIのDockerビルドと通常/NAS/配布アーカイブ起動を確認し、初回再実行拒否、ソースなし配置、コンテナ再作成・停止バックアップ・隔離復元後のDB/DPキー/PFX/Tailscale state用ファイルのSHA256一致と管理者の保持が成功。環境の公開プロキシCAは一時DockerfileのBuildKit secretでビルド時だけ渡し、製品Dockerfileは変更していない。ソース`a2654e8a5896f4aa8f7336011bfce68bc24efc84`の[CI 42165673600](https://github.com/k-o-a-b-c/monetail/actions/runs/42165673600)で判定47件・API641件・Node53件・Client323件・Storage3件・旧版の計算/移行/保存/画面/ビルド/性能・WinUI製品/検証用ビルドと既存画面が成功。Docker/NAS/配布アーカイブ検証も成功し、今回はCI判定の変更に伴い全対象を実行した。GHCRへの実push・GitHub Releasesの実公開/匿名pull・ARM64ネイティブ実行はタグ配布後の確認が必要。実NAS・tailnet/Serve・実Windowsログイン・実バックアップ復元は未検証。
 
