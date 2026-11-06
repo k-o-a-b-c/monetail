@@ -28,7 +28,7 @@
 | Windows版の接続・画面遷移 | [Windows接続](ledger-windows.md) |
 | API起動・設定・移行・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
 | 通信・認証・永続化・更新に関する配備共通要件 | [API配備・運用](deployment.md) |
-| Git不要のGHCR配布とNASの具体的な接続手順 | [NAS配備例](deployment-examples/nas-tailscale.md) |
+| Git不要のGHCR配布とDockerサーバーの具体的な接続手順 | [Docker配備例](deployment-examples/docker-tailscale.md) |
 | 構成の入口・旧見出しリンク | [04 構成](04-architecture.md) |
 | 旧VB.NET・Windows Forms・SQLite・旧版の処理 | [旧Windows版](architecture-legacy.md) |
 | 新Windows版の構成・WinUI 3・Client | [新Windows版](architecture-winui.md) |
