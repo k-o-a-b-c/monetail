@@ -1,7 +1,7 @@
-# NAS用オーバーレイ。Tailscaleは別コンテナ（hostネットワーク）で運用する。
+# NAS向けの配備例。HTTPS終端を行う別管理のプロキシはhostネットワークで動作する。
 services:
   api:
-    # 別途管理するhostネットワークのTailscale Serveから、ホストのloopbackへ転送する。
+    # 別途管理するHTTPSリバースプロキシから、ホストのloopbackへ転送する。
     network_mode: host
     ports: !override []
     environment:
