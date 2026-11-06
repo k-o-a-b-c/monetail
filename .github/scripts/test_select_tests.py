@@ -59,10 +59,15 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["Dockerfile", ".dockerignore"], "docker")
         self.assert_flags(["compose.yaml"], "docker", "compose")
 
-    def test_nas_deployment_validates_merged_configuration_and_real_container(self):
-        for path in ["deploy/nas/compose.nas.yaml", "deploy/nas/serve.json",
-                     "deploy/nas/nas.env.example", "deploy/nas/create-oauth-certificates.sh",
-                     "tests/Monetail.Api.Tests/nas-smoke.sh"]:
+    def test_removed_deployment_paths_still_trigger_compose_checks(self):
+        for path in ["deploy/nas/compose.image.yaml", "deploy/nas/package.sh"]:
+            with self.subTest(path=path):
+                self.assert_flags([path], "docker", "compose")
+
+    def test_server_deployment_validates_merged_configuration_and_real_container(self):
+        for path in ["deploy/docker/compose.server.yaml", 
+                     "deploy/docker/server.env.example", "deploy/docker/create-oauth-certificates.sh",
+                     "tests/Monetail.Api.Tests/server-smoke.sh"]:
             with self.subTest(path=path):
                 self.assert_flags([path], "docker", "compose")
 

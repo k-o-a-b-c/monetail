@@ -201,9 +201,9 @@ jobs:
           fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).api }}
       - run: |
           docker compose config --quiet
-          docker compose --env-file deploy/nas/nas.env.example -f compose.yaml -f deploy/nas/compose.nas.yaml config --quiet
-          docker compose --env-file deploy/nas/nas.env.example -f deploy/nas/compose.image.yaml -f deploy/nas/compose.nas.yaml config --quiet
-          bash -n deploy/nas/*.sh tests/Monetail.Api.Tests/*smoke.sh
+          docker compose --env-file deploy/docker/server.env.example -f compose.yaml -f deploy/docker/compose.server.yaml config --quiet
+          docker compose --env-file deploy/docker/server.env.example -f deploy/docker/compose.image.yaml -f deploy/docker/compose.server.yaml config --quiet
+          bash -n deploy/docker/*.sh tests/Monetail.Api.Tests/*smoke.sh
         if: needs.changes.outputs.compose == 'true'
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.compose == 'true'
@@ -215,7 +215,7 @@ jobs:
         if: needs.changes.outputs.docker == 'true'
       - run: bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:ci
         if: needs.changes.outputs.docker == 'true'
-      - run: bash tests/Monetail.Api.Tests/nas-smoke.sh monetail-api:ci
+      - run: bash tests/Monetail.Api.Tests/server-smoke.sh monetail-api:ci
         if: needs.changes.outputs.docker == 'true'
       - run: bash tests/Monetail.Api.Tests/release-smoke.sh monetail-api:ci
         if: needs.changes.outputs.docker == 'true'

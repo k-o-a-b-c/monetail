@@ -97,7 +97,10 @@ def selected_inputs(paths, *, strict=True):
             enable("api", "docker")
         if path == "tests/Monetail.Api.Tests/docker-smoke.sh":
             enable("docker")
-        elif path in {"tests/Monetail.Api.Tests/nas-smoke.sh", "tests/Monetail.Api.Tests/release-smoke.sh"} or path.startswith("deploy/nas/"):
+        elif path in {"tests/Monetail.Api.Tests/server-smoke.sh", "tests/Monetail.Api.Tests/release-smoke.sh"} or path.startswith("deploy/docker/"):
+            enable("docker", "compose")
+        elif path.startswith("deploy/") and not (ROOT / path).exists():
+            # 移動・削除された配備ファイルも確認対象に含め、未分類でCIを止めない。
             enable("docker", "compose")
         elif path.startswith("tests/Monetail.Api.Tests/"):
             enable("api")

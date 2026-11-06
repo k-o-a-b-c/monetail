@@ -1,4 +1,4 @@
-# 配布用の基底。既存compose.nas.yamlと重ねる。ソース・SDK・buildは不要。
+# 配布用の基底。既存compose.server.yamlと重ねる。ソース・SDK・buildは不要。
 services:
   api:
     image: ${MONETAIL_IMAGE:?Set MONETAIL_IMAGE to a fixed GHCR version or digest}

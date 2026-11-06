@@ -36,7 +36,7 @@ jobs:
           sha="$(git rev-parse HEAD)"
           gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/tests.yml/runs" \
             -f head_sha="$sha" -f branch=main -f event=push -f status=success > "$RUNNER_TEMP/test-runs.json"
-          version="$(python3 deploy/nas/verify-release.py "$RELEASE_TAG" "$sha" < "$RUNNER_TEMP/test-runs.json")"
+          version="$(python3 deploy/docker/verify-release.py "$RELEASE_TAG" "$sha" < "$RUNNER_TEMP/test-runs.json")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   image:
@@ -69,7 +69,7 @@ jobs:
             --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" \
             --label "org.opencontainers.image.version=$VERSION" -t monetail-api:release .
           bash tests/Monetail.Api.Tests/docker-smoke.sh monetail-api:release
-          bash tests/Monetail.Api.Tests/nas-smoke.sh monetail-api:release
+          bash tests/Monetail.Api.Tests/server-smoke.sh monetail-api:release
           bash tests/Monetail.Api.Tests/release-smoke.sh monetail-api:release
         env:
           VERSION: ${{ needs.verify.outputs.version }}
@@ -136,7 +136,7 @@ jobs:
             --tag "$IMAGE:$VERSION" "$(cat digests/amd64)" "$(cat digests/arm64)"
           digest="$(python3 .github/scripts/registry_image.py resolve "$IMAGE:$VERSION" amd64 arm64)"
           echo "image=$digest" >> "$GITHUB_OUTPUT"
-      - run: bash deploy/nas/package.sh "$RELEASE_TAG" "$RELEASE_IMAGE" "$RUNNER_TEMP/release"
+      - run: bash deploy/docker/package.sh "$RELEASE_TAG" "$RELEASE_IMAGE" "$RUNNER_TEMP/release"
         env:
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_IMAGE: ${{ steps.manifest.outputs.image }}

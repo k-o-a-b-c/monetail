@@ -2,15 +2,15 @@
 set -euo pipefail
 set +x
 umask 077
-# 既存の別コンテナTailscaleは起動せず、host待受設定と安全な隔離ネットワークでのAPI起動を検証する。
+# 既存の外部プロキシは起動せず、host待受設定と安全な隔離ネットワークでのAPI起動を検証する。
 image_name="${1:-monetail-api:ci}"
 test_dir="$(mktemp -d)"
-project="monetail-nas-check-$$"
+project="monetail-server-check-$$"
 package="${2:-}"
-nas_files="${package:+$package/}deploy/nas"
+docker_files="${package:+$package/}deploy/docker"
 base_compose="${package:+$package/}compose.yaml"
-compose=(docker compose --project-name "$project" --env-file "$test_dir/nas.env"
-    -f "$base_compose" -f "$nas_files/compose.nas.yaml" -f "$test_dir/test.yaml")
+compose=(docker compose --project-name "$project" --env-file "$test_dir/server.env"
+    -f "$base_compose" -f "$docker_files/compose.server.yaml" -f "$test_dir/test.yaml")
 cleanup() {
     result=$?
     "${compose[@]}" down --remove-orphans >/dev/null 2>&1 || true
@@ -21,18 +21,18 @@ cleanup() {
 }
 trap cleanup EXIT
 mkdir -p "$test_dir/db" "$test_dir/keys"
-bash "$nas_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null
+bash "$docker_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null
 sha256sum "$test_dir/oauth/"* > "$test_dir/before.sha256"
-if bash "$nas_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null 2>&1; then
+if bash "$docker_files/create-oauth-certificates.sh" "$test_dir/oauth" 1 >/dev/null 2>&1; then
     printf '既存証明書への再実行を拒否しませんでした。\n' >&2
     exit 1
 fi
 sha256sum --check --status "$test_dir/before.sha256"
-cat > "$test_dir/nas.env" <<EOF
+cat > "$test_dir/server.env" <<EOF
 MONETAIL_IMAGE=$image_name
 MONETAIL_DATA_DIR=$test_dir
-MONETAIL_ORIGIN=https://monetail-api.tail-example.ts.net
-MONETAIL_RP_ID=monetail-api.tail-example.ts.net
+MONETAIL_ORIGIN=https://monetail.example.test
+MONETAIL_RP_ID=monetail.example.test
 EOF
 cat > "$test_dir/test.yaml" <<EOF
 services:
@@ -45,8 +45,8 @@ services:
     ports: !override
       - "127.0.0.1::8080"
 EOF
-docker compose --project-name "$project" --env-file "$test_dir/nas.env" \
-    -f "$base_compose" -f "$nas_files/compose.nas.yaml" \
+docker compose --project-name "$project" --env-file "$test_dir/server.env" \
+    -f "$base_compose" -f "$docker_files/compose.server.yaml" \
     config --format json > "$test_dir/production-compose.json"
 "${compose[@]}" config --format json > "$test_dir/compose.json"
 python3 - "$test_dir/production-compose.json" "$test_dir/compose.json" "$package" <<'PY'
@@ -83,17 +83,17 @@ wait_healthy() {
         if [ "$(curl --silent --max-time 2 "http://127.0.0.1:$port/health" || true)" = Healthy ]; then return; fi
         sleep 1
     done
-    printf 'NAS構成での起動に失敗しました。\n' >&2; return 1
+    printf 'サーバー構成での起動に失敗しました。\n' >&2; return 1
 }
 wait_healthy
 [ "$(docker exec "$container_id" id -u)" -ne 0 ]
-# IPv4ループバックからのHTTPS転送ヘッダーを模擬する（実Tailscaleは対象外）。
-for forwarded_host in monetail-api.tail-example.ts.net wrong.example.test; do
+# IPv4ループバックからのHTTPS転送ヘッダーを模擬する（実プロキシは対象外）。
+for forwarded_host in monetail.example.test wrong.example.test; do
     response="$(docker exec "$container_id" bash -c '
         exec 3<>/dev/tcp/127.0.0.1/8080
         printf "GET /auth/enroll HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nX-Forwarded-Host: %s\r\nX-Forwarded-Proto: https\r\nX-Forwarded-For: 192.0.2.10\r\nConnection: close\r\n\r\n" "$1" >&3
         cat <&3' bash "$forwarded_host")"
-    if [ "$forwarded_host" = monetail-api.tail-example.ts.net ]; then
+    if [ "$forwarded_host" = monetail.example.test ]; then
         [[ "$response" = 'HTTP/1.1 200 '* ]]
     else
         [[ "$response" = 'HTTP/1.1 400 '* ]]
@@ -114,7 +114,7 @@ if [ -n "$package" ]; then
     docker run --rm --user 0 --entrypoint bash --mount "type=bind,src=$test_dir,dst=/test" "$image_name" -c '
         cd /test
         sha256sum db/monetail.db keys/* oauth/* > data-before.sha256
-        tar -cf backup.tar db keys oauth nas.env
+        tar -cf backup.tar db keys oauth server.env
         mkdir restored
         tar -xf backup.tar -C restored
         cd restored
@@ -135,4 +135,4 @@ PY
         cd /test; sha256sum --check --status data-before.sha256
         cd restored; sha256sum --check --status ../data-before.sha256'
 fi
-printf 'NAS smoke: externally managed proxy, host-only loopback configuration, secrets, PFX/DB preservation, non-root startup and HTTPS forwarded host boundary passed.\n'
+printf 'Server smoke: externally managed proxy, host-only loopback configuration, secrets, PFX/DB preservation, non-root startup and HTTPS forwarded host boundary passed.\n'
