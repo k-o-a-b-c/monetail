@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('release_gate', ROOT / 'deploy/nas/verify-release.py')
+spec = importlib.util.spec_from_file_location('release_gate', ROOT / 'deploy/docker/verify-release.py')
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
 
@@ -43,7 +43,7 @@ class ReleaseDistributionTests(unittest.TestCase):
             data = Path(work) / 'data'
             for image in ['ghcr.io/k-o-a-b-c/monetail-api:latest', 'ghcr.io/k-o-a-b-c/monetail-api',
                           'wrong.example/monetail-api:v1.2.3', 'ghcr.io/k-o-a-b-c/monetail-api@sha256:bad']:
-                result = subprocess.run(['bash', str(ROOT / 'deploy/nas/initialize-files.sh'), str(data), image],
+                result = subprocess.run(['bash', str(ROOT / 'deploy/docker/initialize-files.sh'), str(data), image],
                                         capture_output=True, text=True)
                 self.assertNotEqual(0, result.returncode)
                 self.assertFalse(data.exists())
