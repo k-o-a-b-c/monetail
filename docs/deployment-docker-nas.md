@@ -316,6 +316,8 @@ git push origin api-v1.2.3
 
 amd64/arm64の各ネイティブrunnerでAPI/ブラウザースクリプトのテスト、Dockerビルドと通常/NAS/配布アーカイブの起動・保全を検証する。各イメージをpush後、両方成功時だけ`ghcr.io/k-o-a-b-c/monetail-api:v1.2.3`のmulti-arch manifestとReleasesのアーカイブ・SHA256SUMSを公開する。`latest`は作らない。作業用`build-…`タグはNASの運用指定に使わない。
 
+push後のdigestはローカルimage storeではなく、GHCRへ`docker buildx imagetools inspect`で照会する。単一manifestとprovenance付きOCI indexに対応し、固定digestの参照先がこのパッケージであること、各ジョブのlinux/amd64・linux/arm64、統合後の両platformを検証する。公開前の既存タグ確認はRegistry APIのHTTP 404かつ`MANIFEST_UNKNOWN`だけを未公開と扱い、既存タグ・認証・通信・その他の応答では停止する。
+
 認証は`GITHUB_TOKEN`だけを使う。検証ジョブはcontents/actionsのread、イメージjobはcontents read/packages write、最終公開jobはcontents/packages writeで、checkoutへ認証を残さない。PRのCIでは公開しない。既存のバージョンタグは上書きしない。公開途中に失敗してvX.Y.Zのmanifestだけ存在する場合も同じバージョンへ再公開せず、原因を確認して新しいバージョンタグを作る。
 
 初回のGHCRパッケージは、公開リポジトリに紐づけても自動でPublicになるとは限らない。GitHubの所有者のPackagesから`monetail-api`のPackage settingsを開き、リポジトリを確認して可視性を**Public**へ設定する。既存パッケージを使う場合はManage Actions accessで`k-o-a-b-c/monetail`へwrite権限を付与する。設定反映後、未ログイン環境で公開版をpullできることを確認する。実際の公開設定変更は管理者が行う。

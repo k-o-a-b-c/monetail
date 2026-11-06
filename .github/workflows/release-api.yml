@@ -78,6 +78,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
       - id: push
         env:
           ARCH: ${{ matrix.arch }}
@@ -86,8 +87,7 @@ jobs:
           tag="$IMAGE:build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$ARCH"
           docker tag monetail-api:release "$tag"
           docker push "$tag"
-          digest="$(docker image inspect "$tag" --format '{{index .RepoDigests 0}}')"
-          [[ "$digest" =~ ^ghcr.io/k-o-a-b-c/monetail-api@sha256:[0-9a-f]{64}$ ]]
+          digest="$(python3 .github/scripts/registry_image.py resolve "$tag" "$ARCH")"
           mkdir -p digests
           printf '%s\n' "$digest" > "digests/$ARCH"
       - uses: actions/upload-artifact@v4
@@ -121,26 +121,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: manifest
+        env:
+          GHCR_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           # 既存バージョンを上書きしない。通信・認証障害も失敗として止める。
-          if docker buildx imagetools inspect "$IMAGE:$VERSION" > /dev/null 2> "$RUNNER_TEMP/manifest-error"; then
-            echo '既存バージョンは上書きできません。新しいタグを作成してください。' >&2
-            exit 1
-          fi
-          if ! grep -Fxq "ERROR: $IMAGE:$VERSION: not found" "$RUNNER_TEMP/manifest-error"; then
-            cat "$RUNNER_TEMP/manifest-error" >&2
-            exit 1
-          fi
+          python3 .github/scripts/registry_image.py ensure-absent "$IMAGE:$VERSION"
           for arch in amd64 arm64; do
             digest="$(cat "digests/$arch")"
             [[ "$digest" =~ ^ghcr.io/k-o-a-b-c/monetail-api@sha256:[0-9a-f]{64}$ ]]
+            python3 .github/scripts/registry_image.py resolve "$digest" "$arch" > /dev/null
           done
           docker buildx imagetools create --annotation "index:org.opencontainers.image.revision=$(git rev-parse HEAD)" \
             --tag "$IMAGE:$VERSION" "$(cat digests/amd64)" "$(cat digests/arm64)"
-          digest="$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')"
-          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          echo "image=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
+          digest="$(python3 .github/scripts/registry_image.py resolve "$IMAGE:$VERSION" amd64 arm64)"
+          echo "image=$digest" >> "$GITHUB_OUTPUT"
       - run: bash deploy/nas/package.sh "$RELEASE_TAG" "$RELEASE_IMAGE" "$RUNNER_TEMP/release"
         env:
           RELEASE_TAG: ${{ github.ref_name }}
