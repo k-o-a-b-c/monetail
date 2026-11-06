@@ -67,6 +67,10 @@ def selected_inputs(paths, *, strict=True):
     for path in paths:
         if path.endswith(".md") or path in {".gitignore", ".gitattributes"}:
             continue
+        # GHCR専用処理はchangesジョブで常にPython検証する。製品の入力指紋には含めない。
+        # 共通CIや新しいスクリプトへ除外を広げず、既知の2ファイルだけに限定する。
+        if path in {".github/scripts/registry_image.py", ".github/scripts/test_registry_image.py"}:
+            continue
         if path == ".github/workflows/tests.yml" or path.startswith((".github/scripts/", ".github/actions/ci-proof/", ".github/actions/nuget-cache/")) or path in {
             "global.json", "NuGet.config", "nuget.config", "Directory.Build.props",
             "Directory.Build.targets", "Directory.Packages.props",

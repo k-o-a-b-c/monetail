@@ -12,8 +12,8 @@
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
-| CIの実行対象選択・成功結果の再利用・配布条件 | 60 |
-| 合計 | 1224 |
+| CIの実行対象選択・成功結果の再利用・配布条件 | 68 |
+| 合計 | 1232 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+GHCR専用スクリプトのCI選択を最適化し、回帰8件を追加。Python全68件と差分検査がローカルで成功した。対象2ファイルの単独・混在変更、追加/変更/実行属性/削除での製品fingerprint維持、例外外への改名と共通/新規スクリプトの安全側判定、mainの成功記録再利用・記録欠落・過去の未検証API変更を確認する。変更前の根拠は基点main `ca21a81d6345eae2003efad69f53f580b1d065fa`の[Tests 42179499790](https://github.com/k-o-a-b-c/monetail/actions/runs/42179499790)成功を再利用する。
 
 初回GHCR配布失敗の修正では、Registry検証13件を追加し、判定・配布条件の全60件とactionlintがローカルで成功。単一manifest/OCI index/provenance、固定参照・digest・platform不一致、既存タグ、404のRegistryエラー種別、401/403/429/500・redirect・通信断・タイムアウトと認証先制限を確認する。失敗実行[42174933547](https://github.com/k-o-a-b-c/monetail/actions/runs/42174933547)はamd64のpush成功後、ローカル`RepoDigests[0]`の形式検証で停止していた（その取得値自体はログになく断定しない）。公開済みの作業用イメージを読み取り、修正スクリプトでamd64のprovenance付きindexとarm64の単一manifestからpushログと一致するdigestを取得し、既存タグ・CPU誤指定の拒否と未公開版の404も確認した。両イメージのmanifest統合は`imagetools create --dry-run`で検証した。新しいタグでの実push・最終manifest公開・Releases作成はマージ後に未検証として残し、`api-v0.1.0`は変更していない。API本体・Dockerfile・NAS構成は未変更で、基点mainの[Tests 42173513238](https://github.com/k-o-a-b-c/monetail/actions/runs/42173513238)成功を変更前の根拠として再利用する。
 
@@ -136,7 +138,10 @@ NAS構成の確認はLinux上のDocker・Bash・OpenSSL・Python 3・curlを使�
 | WinUI 3／スモーク | WinUI 3のビルド・製品起動・画面スモーク |
 | Dockerfile等／Compose／NAS配備 | Dockerfile等はDocker、Compose・NAS配備はDocker＋Compose |
 | 旧Windows・計算・SQL等 | 依存するテスト、ビルド、必要なら性能計測 |
+| GHCR専用の`registry_image.py`・`test_registry_image.py` | 常時実行するPython検証のみ。製品テストの指紋にも含めない |
 | 共通CI・判定処理・SDK／ビルド設定 | 全対象。WinUI専用ワークフローの変更はWinUIのみ |
+
+GHCRの例外は`.github/scripts/registry_image.py`・`.github/scripts/test_registry_image.py`の完全一致だけに限定する。他の新しいスクリプト、選択・成功記録の共通処理やそのテストは従来どおり全対象へ影響する。Python検証は毎回実行するため、この2ファイルを製品の指紋から除いても検証を省略しない。`main`ではGHCRだけのpushでも全入力の成功記録を照合し、未検証の製品変更や記録欠落があれば必要な検証を実行する。
 
 再利用には、各検証に影響するファイルのパス・Gitオブジェクト・実行属性から求めた指紋を使う。製品だけでなくテスト、参照先、CI定義、共通ビルド設定を含め、チェックアウトしたPRのマージ後ツリーで照合する。入力が変われば別の記録となる。既存の未分類ファイルは指紋から黙って落とさず、保守的に全検証へ含める。
 

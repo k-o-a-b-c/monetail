@@ -103,6 +103,28 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags([".github/workflows/release-api.yml"], "api", "docker", "compose")
         self.assert_flags(["tests/Monetail.Api.Tests/release-smoke.sh"], "docker", "compose")
 
+    def test_ghcr_only_scripts_do_not_select_product_checks(self):
+        paths = [".github/scripts/registry_image.py", ".github/scripts/test_registry_image.py"]
+        for path in paths:
+            with self.subTest(path=path):
+                self.assert_flags([path])
+        self.assert_flags(paths)
+
+    def test_ghcr_scripts_do_not_hide_mixed_product_changes(self):
+        paths = [".github/scripts/registry_image.py", ".github/scripts/test_registry_image.py"]
+        self.assert_flags(paths + ["src/Monetail.Api/Program.cs"], "api", "docker")
+        self.assert_flags(paths + ["src/Monetail.WinUI/MainWindow.xaml"], "winui")
+        with self.assertRaisesRegex(ValueError, "未分類"):
+            select(paths + ["src/Future.Shared/Tax.cs"])
+
+    def test_ghcr_exception_does_not_apply_to_shared_or_new_scripts(self):
+        for path in [".github/scripts/select_tests.py", ".github/scripts/test_select_tests.py",
+                     ".github/scripts/ci_plan.py", ".github/scripts/test_ci_plan.py",
+                     ".github/scripts/registry_image_extra.py", ".github/scripts/test_registry_image_extra.py",
+                     ".github/scripts/future.py"]:
+            with self.subTest(path=path):
+                self.assert_flags([path], *FLAGS)
+
     def test_mixed_changes_use_union_and_unknown_changes_fail(self):
         self.assert_flags(["README.md", "src/Monetail.Api/Program.cs", PRODUCT + "Control/RegisterForm.vb"],
                           "api", "docker", "windows_tests", "windows_build")
