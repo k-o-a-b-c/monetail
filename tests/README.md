@@ -7,13 +7,13 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 697 |
+| ASP.NET Core API | 698 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 53 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 1289 |
+| 合計 | 1290 |
 
 ## 検証する範囲
 
@@ -33,7 +33,7 @@
 
 ## 採用結果
 
-科目・共通税区分/税率履歴のDB基盤（DEC-137・138）に56ケースを追加し、API全697件、Node53件、Python判定69件がローカルで成功。Nodeは作業環境で子プロセスの集計がファイル単位になったため`--test-isolation=none`で全53ケースを確認した。新規/既存API DB、旧列・認証/パスキー・人物・支払方法の保持、MigrationのUp→Down→Upと再適用、FK/UNIQUE/CHECK・無効科目の重複・将来の複合FK参照、初期値の組合せ、UTF-16境界、行版と家計簿版の独立、Decimal精度、期間両端・終了なし・全重複形・更新・同時挿入・トランザクション破棄を検証する。過去Migrationのテストは対象Migrationを明示し、人物表等を比較から除外せずに保持検証する形へ変更した。基点main `c0f6fee8581707b9806d302cb7811188d29b5acd`の[CI 42233302048](https://github.com/k-o-a-b-c/monetail/actions/runs/42233302048)ではAPI/Dockerが成功し、WinUI起動検証は既存の失敗。本変更でWinUI・旧版・税計算は変更しない。科目API・WinUI・取引テーブル・実データ移行、税履歴の実データ投入と管理運用は未実装。実運用DBへの適用は未検証。
+科目・共通税区分/税率履歴のDB基盤（DEC-137・138）に57ケースを追加。API全697件の実行と、追加した初期API DB→最新版の全経路保持1件、Node53件、Python判定69件がローカルで成功（現構成API698件）。Nodeは作業環境で子プロセスの集計がファイル単位になったため`--test-isolation=none`で全53ケースを確認した。新規/既存API DB、旧列・認証/パスキー・人物・支払方法の保持、MigrationのUp→Down→Upと再適用、FK/UNIQUE/CHECK・無効科目の重複・将来の複合FK参照、初期値の組合せ、UTF-16境界、行版と家計簿版の独立、Decimal精度、期間両端・終了なし・全重複形・更新・同時挿入・トランザクション破棄を検証する。過去Migrationのテストは対象Migrationを明示し、人物表等を比較から除外せずに保持検証する形へ変更した。加えて初期API DBから最新版までの全経路でも、認証・パスキー・全体権限・家計簿参加/人物対応と全旧列の保持を確認する。ソース`1a364d3f656fc4c22ab9db8ca168086c63f67ad4`の[CI 42293545583](https://github.com/k-o-a-b-c/monetail/actions/runs/42293545583)でAPI697件とDocker/起動検証が成功した。基点main `c0f6fee8581707b9806d302cb7811188d29b5acd`の[CI 42233302048](https://github.com/k-o-a-b-c/monetail/actions/runs/42233302048)ではAPI/Dockerが成功し、WinUI起動検証は既存の失敗。本変更でWinUI・旧版・税計算は変更しない。科目API・WinUI・取引テーブル・実データ移行、税履歴の実データ投入と管理運用は未実装。実運用DBへの適用は未検証。
 
 配備用の名称をNAS固有からDockerサーバー用へ変更し、共通要件とTailscale構成例を分離した。旧リリースのアーカイブ名はそのまま保持し、新リリースで`monetail-docker-api-vX.Y.Z.tar.gz`を使用する。実装と配布構成の検証結果はPR #125のCIで確認する。
 

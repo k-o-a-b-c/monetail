@@ -50,7 +50,7 @@
 | `revision` | TEXT・不可 | 科目行の編集用UUID版。EF同時実行トークン |
 | `ledgers.category_order_revision` | TEXT・不可 | 家計簿共通の科目構成・順序用UUID版。家計簿編集版・人物順とは独立 |
 
-家計簿へのFKはRESTRICT。将来の使用先は必ず`(ledger_id, category_id)`へRESTRICT FKを張り、参照のある科目の削除をDBでも防ぐ。今回、使用先テーブルや「使用済み」フラグは仮実装しない。新しいUUIDはアプリが発行する。既存家計簿の科目順版はMigrationで個別のUUID v4を付与し、再適用時には変えない。SQLiteの既存表へのNOT NULL列追加用に空文字DDLデフォルトを用いるが、業務上の有効な版にはせず、新規`Ledger`は必ずUUIDを初期化する（支払方法順版と同じ移行方式）。
+家計簿へのFKはRESTRICT。将来の使用先は当該列に索引を設け、必ず`(ledger_id, category_id)`へRESTRICT FKを張り、参照のある科目の削除をDBでも防ぐ。今回、使用先テーブルや「使用済み」フラグは仮実装しない。新しいUUIDはアプリが発行する。既存家計簿の科目順版はMigrationで個別のUUID v4を付与し、再適用時には変えない。SQLiteの既存表へのNOT NULL列追加用に空文字DDLデフォルトを用いるが、業務上の有効な版にはせず、新規`Ledger`は必ずUUIDを初期化する（支払方法順版と同じ移行方式）。
 
 **責務の分担：** DBはNOT NULL・UNIQUE・FK・有効状態・非負順序・初期値の組合せを保護する。名称の空白除去と正確なUTF-16文字数は`LedgerCategory.Name`の設定時に検証し、DBの長さCHECKも補助的に使う（SQLiteの`length`はUnicode文字数でありUTF-16単位とは異なる）。後続APIの条件付きUPDATE・生SQLでも同じ正規化・検証が必要。Adminの再検証、未使用判定、末尾採番と科目順版のCASを同一トランザクションにまとめる処理・エラー表示・再送契約はAPI実装で行う。`category_order_revision`を家計簿全体のEF同時実行トークンにはせず、対象列の条件付きUPDATEで照合する。
 

@@ -412,6 +412,72 @@ public sealed class CategoryTaxSchemaTests
         }
     }
 
+    [Fact]
+    public async Task InitialApiDatabaseUpgradesThroughEntireChainWithoutChangingOriginalAuthPermissionsOrBusinessValues()
+    {
+        using var db = new AuthDatabaseFixture();
+        await db.MigrateToAsync("20261027104007_InitializeApiDatabase");
+        var account = Id(); var ledger = Id(); var person = Id();
+        await using (var services = db.CreateServices())
+        {
+            await using var scope = services.CreateAsyncScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
+            var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            var user = new AuthUser { Id = account, UserName = account, DisplayName = "初期DBの本人", IsEnabled = true };
+            Assert.True((await users.CreateAsync(user)).Succeeded);
+            Assert.True((await roles.CreateAsync(new IdentityRole("Admin"))).Succeeded);
+            Assert.True((await users.AddToRoleAsync(user, "Admin")).Succeeded);
+            Assert.True((await users.AddOrUpdatePasskeyAsync(user, new UserPasskeyInfo([5, 6], [7, 8], DateTimeOffset.UtcNow,
+                0, ["internal"], true, false, false, [], []))).Succeeded);
+        }
+        using (var connection = db.OpenForeignKeyConnection())
+        {
+            Execute(connection, "INSERT INTO ledgers(id,name,created_by_auth_user_id,created_at_utc,revision,people_order_revision) VALUES(@ledger,'初期DBの家計簿',@account,'2026-01-01',@revision,@order)",
+                ("@ledger", ledger), ("@account", account), ("@revision", Id()), ("@order", Id()));
+            Execute(connection, "INSERT INTO ledger_people(ledger_id,person_id,name,valid_from,valid_to,display_order,revision) VALUES(@ledger,@person,'初期DBの人物','2020-04-01','2026-09-30',7,@revision)",
+                ("@ledger", ledger), ("@person", person), ("@revision", Id()));
+            Execute(connection, "INSERT INTO ledger_members(ledger_id,auth_user_id,role,joined_at_utc,revision,person_id) VALUES(@ledger,@account,'Admin','2026-01-01',@revision,@person)",
+                ("@ledger", ledger), ("@account", account), ("@person", person), ("@revision", Id()));
+        }
+        // 列が増える2表は旧列を全比較し、他表はDDL・全データをスナップショット比較する。
+        var unchanged = db.Tables().Where(table => table is not "ledgers" and not "ledger_people" and not ApiDbContext.HistoryTable).ToArray();
+        var before = db.Snapshot(unchanged);
+        Dictionary<string, object?> ledgersBefore, peopleBefore;
+        using (var connection = db.OpenForeignKeyConnection())
+        {
+            ledgersBefore = LedgerValues(connection);
+            peopleBefore = OriginalPeopleValues(connection);
+        }
+        await db.MigrateAsync();
+        Assert.Equal(before, db.Snapshot(unchanged));
+        string version;
+        using (var connection = db.OpenForeignKeyConnection())
+        {
+            Assert.Equal(ledgersBefore.OrderBy(row => row.Key), LedgerValues(connection).OrderBy(row => row.Key));
+            Assert.Equal(peopleBefore.OrderBy(row => row.Key), OriginalPeopleValues(connection).OrderBy(row => row.Key));
+            version = (string)Scalar(connection, "SELECT category_order_revision FROM ledgers")!;
+            AssertUuid(version);
+            AssertUuid((string)Scalar(connection, "SELECT payment_order_revision FROM ledger_people")!);
+            Assert.Equal(6L, Scalar(connection, "SELECT COUNT(*) FROM __MonetailMigrationsHistory"));
+            Assert.Equal(0L, Scalar(connection, "SELECT COUNT(*) FROM ledger_categories"));
+            Assert.Equal(0L, Scalar(connection, "SELECT COUNT(*) FROM tax_rate_history"));
+        }
+        await db.MigrateAsync();
+        Assert.Equal(before, db.Snapshot(unchanged));
+        using var after = db.OpenForeignKeyConnection();
+        Assert.Equal(version, Scalar(after, "SELECT category_order_revision FROM ledgers"));
+    }
+
+    private static Dictionary<string, object?> OriginalPeopleValues(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT ledger_id,person_id,name,valid_from,valid_to,display_order,revision FROM ledger_people ORDER BY ledger_id,person_id";
+        using var reader = command.ExecuteReader(); var result = new Dictionary<string, object?>();
+        while (reader.Read()) for (var index = 2; index < reader.FieldCount; index++)
+            result[reader.GetString(0) + ":" + reader.GetString(1) + ":" + reader.GetName(index)] = reader.GetValue(index);
+        return result;
+    }
+
     private static string Id() => Guid.NewGuid().ToString("N");
     private static void AssertUuid(string value)
     {
