@@ -16,7 +16,7 @@ staging="$(mktemp -d)"
 trap 'rm -rf -- "$staging"' EXIT
 mkdir -p "$staging/$name/deploy/nas" "$staging/$name/docs"
 cp "$root/deploy/nas/compose.image.yaml" "$staging/$name/compose.yaml"
-for file in compose.nas.yaml nas.env.example serve.json create-oauth-certificates.sh initialize-files.sh; do
+for file in compose.nas.yaml nas.env.example create-oauth-certificates.sh initialize-files.sh; do
     cp "$root/deploy/nas/$file" "$staging/$name/deploy/nas/$file"
 done
 cp "$root/docs/deployment-docker-nas.md" "$staging/$name/docs/"

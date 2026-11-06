@@ -1,7 +1,11 @@
-# 開発用compose.yamlまたは配布用compose.image.yaml（アーカイブ内compose.yaml）と重ねる。手順: docs/deployment-docker-nas.md
+# NAS用オーバーレイ。Tailscaleは別コンテナ（hostネットワーク）で運用する。
 services:
   api:
+    # 別途管理するhostネットワークのTailscale Serveから、ホストのloopbackへ転送する。
+    network_mode: host
+    ports: !override []
     environment:
+      ASPNETCORE_URLS: http://127.0.0.1:8080
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Monetail: Data Source=/var/lib/monetail/db/monetail.db;Mode=ReadWrite;Foreign Keys=True
       Passkeys__Origin: ${MONETAIL_ORIGIN:?Set MONETAIL_ORIGIN}
@@ -30,34 +34,6 @@ services:
       - source: oauth_passwords
         target: /app/appsettings.Production.json
 
-  tailscale:
-    image: ${TAILSCALE_IMAGE:?Set TAILSCALE_IMAGE to a stable version}
-    network_mode: service:api
-    depends_on:
-      - api
-    environment:
-      TS_USERSPACE: "true"
-      TS_STATE_DIR: /var/lib/tailscale
-      TS_AUTH_ONCE: "true"
-      TS_AUTHKEY: file:/run/secrets/tailscale-authkey
-      TS_HOSTNAME: ${TAILSCALE_HOSTNAME:?Set TAILSCALE_HOSTNAME}
-      TS_SERVE_CONFIG: /config/serve.json
-    volumes:
-      - type: bind
-        source: ${MONETAIL_DATA_DIR:?Set MONETAIL_DATA_DIR}/tailscale/state
-        target: /var/lib/tailscale
-        bind:
-          create_host_path: false
-      - type: bind
-        source: ${MONETAIL_DATA_DIR:?Set MONETAIL_DATA_DIR}/tailscale/config
-        target: /config
-        read_only: true
-        bind:
-          create_host_path: false
-    secrets:
-      - tailscale_authkey
-    restart: unless-stopped
-
 secrets:
   oauth_signing:
     file: ${MONETAIL_DATA_DIR:?Set MONETAIL_DATA_DIR}/oauth/signing.pfx
@@ -65,5 +41,3 @@ secrets:
     file: ${MONETAIL_DATA_DIR:?Set MONETAIL_DATA_DIR}/oauth/encryption.pfx
   oauth_passwords:
     file: ${MONETAIL_DATA_DIR:?Set MONETAIL_DATA_DIR}/oauth/appsettings.Production.json
-  tailscale_authkey:
-    file: ${MONETAIL_DATA_DIR:?Set MONETAIL_DATA_DIR}/tailscale/authkey
