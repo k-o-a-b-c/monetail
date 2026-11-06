@@ -99,6 +99,10 @@ class SelectionTests(unittest.TestCase):
                 self.assert_flags([path], *FLAGS)
         self.assert_flags([".github/scripts/select_tests.py"], *FLAGS)
 
+    def test_release_distribution_selects_api_and_containers(self):
+        self.assert_flags([".github/workflows/release-api.yml"], "api", "docker", "compose")
+        self.assert_flags(["tests/Monetail.Api.Tests/release-smoke.sh"], "docker", "compose")
+
     def test_mixed_changes_use_union_and_unknown_changes_fail(self):
         self.assert_flags(["README.md", "src/Monetail.Api/Program.cs", PRODUCT + "Control/RegisterForm.vb"],
                           "api", "docker", "windows_tests", "windows_build")

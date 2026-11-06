@@ -1,4 +1,4 @@
-# リポジトリ直下の compose.yaml と重ねる。手順: docs/deployment-docker-nas.md
+# 開発用compose.yamlまたは配布用compose.image.yaml（アーカイブ内compose.yaml）と重ねる。手順: docs/deployment-docker-nas.md
 services:
   api:
     environment:
