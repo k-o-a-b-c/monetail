@@ -1,6 +1,6 @@
 # 配備例：Dockerサーバーと別管理のTailscale Serve
 
-Docker対応Linuxサーバーと特定のネットワーク構成を想定した**配備例**。サーバーもDockerが動作するなら利用できる。Tailscaleはmonetailに必須ではない。共通の安全要件は[配備・運用](../deployment.md)を参照する。Docker EngineとDocker Composeが使えるLinuxサーバー向けで、メーカー・型番・管理画面には依存しない。API・認証の契約は変更せず、[42 起動・運用](https://github.com/k-o-a-b-c/monetail/blob/main/docs/42-api-foundation.md)の設定と管理コマンドをコンテナで実行する。旧Windows版のDBをそのまま使う手順ではない。
+Docker対応Linuxサーバーと特定のネットワーク構成を想定した**配備例**。NASもDockerが動作するなら利用できる。Tailscaleはmonetailに必須ではない。共通の安全要件は[配備・運用](../deployment.md)を参照する。Docker EngineとDocker Composeが使えるLinuxサーバー向けで、メーカー・型番・管理画面には依存しない。API・認証の契約は変更せず、[42 起動・運用](https://github.com/k-o-a-b-c/monetail/blob/main/docs/42-api-foundation.md)の設定と管理コマンドをコンテナで実行する。旧Windows版のDBをそのまま使う手順ではない。
 
 ## 構成と前提
 
