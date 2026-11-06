@@ -30,15 +30,15 @@ public sealed class SelfRegistrationMigrationTests
                 ["internal"], true, false, false, [], []) { Name = "existing-key" };
             Assert.True((await users.AddOrUpdatePasskeyAsync(user, passkey)).Succeeded);
         }
-        // ledger_people receives an added payment_order_revision column in a later migration.
-        var tables = db.Tables().Where(name => !name.StartsWith("__", StringComparison.Ordinal) && name != "ledger_people").ToArray();
+        // 自己登録成功記録のMigration単体で、既存の全業務表も比較する。
+        var tables = db.Tables().Where(name => !name.StartsWith("__", StringComparison.Ordinal)).ToArray();
         var before = db.Snapshot(tables);
-        await db.MigrateAsync();
+        await db.MigrateToAsync("20261103221508_AddSelfRegistrationCompletions");
         Assert.Equal(before, db.Snapshot(tables));
         Assert.Equal(0L, db.Scalar("SELECT COUNT(*) FROM auth_self_registration_completions"));
         Assert.Equal(0L, db.Scalar("SELECT COUNT(*) FROM pragma_foreign_key_list('auth_self_registration_completions')"));
-        Assert.Equal(5L, db.Scalar("SELECT COUNT(*) FROM __MonetailMigrationsHistory"));
-        await db.MigrateAsync();
+        Assert.Equal(2L, db.Scalar("SELECT COUNT(*) FROM __MonetailMigrationsHistory"));
+        await db.MigrateToAsync("20261103221508_AddSelfRegistrationCompletions");
         Assert.Equal(before, db.Snapshot(tables));
     }
 

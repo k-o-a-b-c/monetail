@@ -7,13 +7,13 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 641 |
+| ASP.NET Core API | 697 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 53 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
-| CIの実行対象選択・成功結果の再利用・配布条件 | 68 |
-| 合計 | 1232 |
+| CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
+| 合計 | 1289 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+科目・共通税区分/税率履歴のDB基盤（DEC-137・138）に56ケースを追加し、API全697件、Node53件、Python判定69件がローカルで成功。Nodeは作業環境で子プロセスの集計がファイル単位になったため`--test-isolation=none`で全53ケースを確認した。新規/既存API DB、旧列・認証/パスキー・人物・支払方法の保持、MigrationのUp→Down→Upと再適用、FK/UNIQUE/CHECK・無効科目の重複・将来の複合FK参照、初期値の組合せ、UTF-16境界、行版と家計簿版の独立、Decimal精度、期間両端・終了なし・全重複形・更新・同時挿入・トランザクション破棄を検証する。過去Migrationのテストは対象Migrationを明示し、人物表等を比較から除外せずに保持検証する形へ変更した。基点main `c0f6fee8581707b9806d302cb7811188d29b5acd`の[CI 42233302048](https://github.com/k-o-a-b-c/monetail/actions/runs/42233302048)ではAPI/Dockerが成功し、WinUI起動検証は既存の失敗。本変更でWinUI・旧版・税計算は変更しない。科目API・WinUI・取引テーブル・実データ移行、税履歴の実データ投入と管理運用は未実装。実運用DBへの適用は未検証。
 
 配備用の名称をNAS固有からDockerサーバー用へ変更し、共通要件とTailscale構成例を分離した。旧リリースのアーカイブ名はそのまま保持し、新リリースで`monetail-docker-api-vX.Y.Z.tar.gz`を使用する。実装と配布構成の検証結果はPR #125のCIで確認する。
 
