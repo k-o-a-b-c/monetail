@@ -2,7 +2,7 @@
 set -euo pipefail
 set +x
 umask 077
-# 既存の別コンテナTailscaleは起動せず、host待受設定と安全な隔離ネットワークでのAPI起動を検証する。
+# 既存の外部プロキシは起動せず、host待受設定と安全な隔離ネットワークでのAPI起動を検証する。
 image_name="${1:-monetail-api:ci}"
 test_dir="$(mktemp -d)"
 project="monetail-nas-check-$$"
@@ -31,8 +31,8 @@ sha256sum --check --status "$test_dir/before.sha256"
 cat > "$test_dir/nas.env" <<EOF
 MONETAIL_IMAGE=$image_name
 MONETAIL_DATA_DIR=$test_dir
-MONETAIL_ORIGIN=https://monetail-api.tail-example.ts.net
-MONETAIL_RP_ID=monetail-api.tail-example.ts.net
+MONETAIL_ORIGIN=https://monetail.example.test
+MONETAIL_RP_ID=monetail.example.test
 EOF
 cat > "$test_dir/test.yaml" <<EOF
 services:
@@ -87,13 +87,13 @@ wait_healthy() {
 }
 wait_healthy
 [ "$(docker exec "$container_id" id -u)" -ne 0 ]
-# IPv4ループバックからのHTTPS転送ヘッダーを模擬する（実Tailscaleは対象外）。
-for forwarded_host in monetail-api.tail-example.ts.net wrong.example.test; do
+# IPv4ループバックからのHTTPS転送ヘッダーを模擬する（実プロキシは対象外）。
+for forwarded_host in monetail.example.test wrong.example.test; do
     response="$(docker exec "$container_id" bash -c '
         exec 3<>/dev/tcp/127.0.0.1/8080
         printf "GET /auth/enroll HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nX-Forwarded-Host: %s\r\nX-Forwarded-Proto: https\r\nX-Forwarded-For: 192.0.2.10\r\nConnection: close\r\n\r\n" "$1" >&3
         cat <&3' bash "$forwarded_host")"
-    if [ "$forwarded_host" = monetail-api.tail-example.ts.net ]; then
+    if [ "$forwarded_host" = monetail.example.test ]; then
         [[ "$response" = 'HTTP/1.1 200 '* ]]
     else
         [[ "$response" = 'HTTP/1.1 400 '* ]]
