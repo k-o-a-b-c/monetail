@@ -9,11 +9,11 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 858 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 53 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・補完） | 421 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 1450 |
+| 合計 | 1548 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+科目Clientに合成HTTPの98ケースを追加。5操作/全コード/有効状態/空配列/UTF-16/部分更新/行版と順序版、通信再試行とrequestId、全操作の認証更新と本文保持、更新中の配列変更/別アカウント変更、2形式の409と対象ID、403/404の権限情報と非公開latest非参照、503を含む業務エラーと不正応答、認証失効/再ログイン/取消を確認する。ローカルReleaseは初回の新規97件と追加・重点を含む関連104件（重複あり）が成功。ソース`522c368be36303ac34d610b2d54988b94ffb9a83`の[CI 42372634577](https://github.com/k-o-a-b-c/monetail/actions/runs/42372634577)でClient全421件、Windows保存3件、WinUI製品/検証用ビルドと既存画面の起動・操作、Pythonが成功。基点main `64a159ca6f112668f42f247241df63d038c762f1`（PR #129マージ）の[CI 42371937136](https://github.com/k-o-a-b-c/monetail/actions/runs/42371937136)成功を変更前の根拠とし、API/Docker・旧版・性能の成功記録は再利用。構成合計1548件を全件再実行した意味ではない。API/DB/Migration・WinUI画面・外部ライブラリの変更なし。科目画面は未実装で、実API接続・実Windowsでの科目操作は未検証。
 
 科目並び替えAPIに実HTTP/隔離SQLiteの61ケースを追加。無効科目・収支混在・欠番/同順位からの再採番、0件/1件/同順保存時の新版、家計簿Admin限定と全体権限の分離、入力/家計簿境界、全行属性/他の更新版の保持、旧版/同時保存/追加削除との競合、DB条件付きUPDATE、途中障害・降格/除外/認証失効の全体ロールバック、競合情報の保護と共有書込枠を確認する。ローカルReleaseで新規61件と既存の科目CRUD/支払方法並び替え147件が成功。ソース`95993d19b911c225732fe7375718cecfcf588ab8`の[CI 42369954389](https://github.com/k-o-a-b-c/monetail/actions/runs/42369954389)でAPI全858件・Node・Python、Dockerビルドと通常/server/配布アーカイブの起動検証が成功。基点main `a24574d20f6d09d23b88adf6fed23dd45a7729e8`（PR #128マージ）の[CI 42366871026](https://github.com/k-o-a-b-c/monetail/actions/runs/42366871026)成功を変更前の根拠として再利用し、変更前の全件確認と影響のないWindows系・旧版・性能テストは再実行していない。構成合計1450件を全件再実行した意味ではない。DB/Migration・CRUD仕様・Client/WinUI・レシート・既存税計算の変更なし。実運用DB・実Windowsからの操作は未検証。
 
