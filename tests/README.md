@@ -7,13 +7,13 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 689 |
+| ASP.NET Core API | 797 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 53 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 1281 |
+| 合計 | 1389 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+科目CRUD APIに実HTTP/隔離SQLiteの108ケースを追加（構成API797件）。参加者の閲覧/家計簿Adminのみ更新・全体Adminとの分離、家計簿境界、正規化/UTF-16/無効科目の重複、収支/税区分/boolean/JSON/更新版入力、同時作成/再送/行更新、作成後の改名・削除と再送、RESTRICTと想定外DBエラー分類、独立した順序版、保存前/確定前の降格・除外・認証失効とロールバック、競合情報の失効後非公開、既存20/120回枠の共有を検証する。将来の取引参照はテスト専用FK表のみで再現し、改名時のJOIN表示と保存済み税区分/率の非更新を確認する。対象をローカルで実行し、修正・追加ケースの対象再実行も成功。DBモデル/Migration・Client/WinUI・レシート・既存税計算は変更していない。基点main `92cab63`の[CI 42354526041](https://github.com/k-o-a-b-c/monetail/actions/runs/42354526041)成功を変更前の根拠とする。
 
 科目設定の移設（DEC-139）は科目/税DB対象48ケースがローカルで成功。旧仕様の費用・発生区分/周期の組合せ20ケースを、新仕様の収支区分INSERT/UPDATE8ケースと、8列/モデル/Designer一致・DB上の収支変更可能性・適用済み旧構造の非自動変換3ケースへ置換したため、API構成は698→689件。名称・家計簿分離・参照・版・税区分/税率履歴・移行往復/全経路の既存検証は維持している。同じMigration IDが記録済みの隔離DBでは、Migrateしても旧11列・税履歴/科目/版が変わらず、initialize-dbの構造照合が拒否することを確認した。実DBは変更・初期化していない。ソース`3e7fbd6e0cecafdc1fc157685034a54524de33d0`の[CI 42351364987](https://github.com/k-o-a-b-c/monetail/actions/runs/42351364987)でAPI全689件・Node・Python、Dockerビルドと起動検証が成功。影響のないClient/WinUI・旧版・性能テストは再実行していない。変更前の根拠はmain `bfb9ce13563e4a74781b40bd44b1f310304d6d61`の[CI 42313249586](https://github.com/k-o-a-b-c/monetail/actions/runs/42313249586)成功を採用する。
 

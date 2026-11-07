@@ -9,6 +9,14 @@ public static class LedgerManagementEndpoints
     {
         var routes = app.MapGroup("/ledgers/{ledgerId:guid}").RequireAuthorization()
             .AddEndpointFilter<AuthRequestFilter>().AddEndpointFilter<LedgerApiFilter>();
+        routes.MapGet("/categories", async (Guid ledgerId, HttpContext http, LedgerManagementService service) =>
+            Reply(await service.GetCategoriesAsync(Key(ledgerId), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
+        routes.MapPost("/categories", async (Guid ledgerId, HttpContext http, LedgerManagementService service) =>
+            Reply(await service.CreateCategoryAsync(Key(ledgerId), await LedgerPayload.ReadAsync(http, "requestId", "name", "incomeExpense", "taxCategoryCode"), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.WritePolicy);
+        routes.MapPatch("/categories/{categoryId:guid}", async (Guid ledgerId, Guid categoryId, HttpContext http, LedgerManagementService service) =>
+            Reply(await service.UpdateCategoryAsync(Key(ledgerId), Key(categoryId), await LedgerPayload.ReadAsync(http, "revision", "name", "taxCategoryCode", "isEnabled"), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.WritePolicy);
+        routes.MapDelete("/categories/{categoryId:guid}", async (Guid ledgerId, Guid categoryId, HttpContext http, LedgerManagementService service) =>
+            Reply(await service.DeleteCategoryAsync(Key(ledgerId), Key(categoryId), await LedgerPayload.ReadAsync(http, "revision"), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.WritePolicy);
         routes.MapGet("/payment-methods", async (Guid ledgerId, HttpContext http, LedgerManagementService service) =>
             Reply(await service.GetPaymentMethodsAsync(Key(ledgerId), Current(http), http.RequestAborted))).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         routes.MapPost("/payment-methods", async (Guid ledgerId, HttpContext http, LedgerManagementService service) =>
