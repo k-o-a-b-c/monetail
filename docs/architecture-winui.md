@@ -32,15 +32,15 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 
 ## 科目のClient接続（画面未実装）
 
-`CategoryTransport`・`CategoriesWorkspace`で一覧・作成・部分編集・削除・家計簿共通の並び替えを接続済み。[科目CRUD](ledger-core-schema.md#category-crud-api)・[並び替えAPI](ledger-core-schema.md#category-order-api)の契約は変更しない。
+`CategoryTransport`・`CategoriesWorkspace`で一覧・作成・部分編集・削除・共通順の並び替えを接続済み。確定契約は[科目CRUD](ledger-core-schema.md#category-crud-api)・[並び替え](ledger-core-schema.md#category-order-api)を参照する。
 
-- `CategoryInfo`・`CategoriesInfo`・`CategoryCreationInfo`はGuidのID/更新版を使い、無効科目を含むAPIの全行・配列順・同順位/欠番を保持する。収支・税区分は確定済みコードだけを受け付け、不正な型・ID・更新版・一覧は接続エラーにする。`CanManage`は現在の家計簿ロールによる表示用判定で、操作権限・重複・全IDの一致はAPIが最終検証する。
-- `CategoryCreationDraft`はTrim後の入力とrequestIdを保持し、同じ作成の明示的な再試行へ再利用する。`CategoryChanges`は名前・初期税区分・有効状態の指定分だけを送る。nullは項目省略でAPIへ明示nullを送らず、falseは無効化として送る。収支区分・表示順はPATCHへ含めない。
-- `ClientSession`の認証更新・再ログイン・外部の認証変更検知を共用する。入力・下書き・対象の行版を保持し、並び替え配列は認証更新前にコピーして順序版とともに再送する。成功応答の一覧を利用し、追加GETをしない。
-- `CategoryRequestException`は業務コード・field・403/404の`PeoplePermissions`を保持する。409 `revision_conflict`の形に応じて`LatestCategory`または`LatestCategories`を返し、最新行の対象IDも照合する。行操作でも内部の順序版CASによって最新一覧が返る場合に対応する。競合情報を自動適用・保存・再取得しない。
-- 401では既存の認証拒否を使い、403/404を含めて非公開のlatestを読まない。429・503も型付きで返す。503は共通送信の任意指定を科目通信だけで有効にし、既存のClient操作の例外動作は維持する。
+- 型付きDTOの`CategoryInfo`は`IsEnabled`を持たず、`ValidFrom`・`ValidTo`をnullableのDateOnlyで保持する。`CategoriesInfo`は期間外を含む全行・API配列順・同順位/欠番・順序版を保持する。ID/更新版はGuid。未知の収支/税区分、不正な日付・型・ID・版・一覧は接続エラーにする。
+- `CategoryInput`は名前・収支・初期税区分に任意の期間を加える。名前はTrim後1〜100 UTF-16単位。`CategoryCreationDraft`は入力とrequestIdを保持し、同じ作成の明示再試行に使う。
+- `CategoryChanges`は名前・収支・初期税区分と、`CategoryDateChange`による期間の部分更新。文字列のnullは省略、期間はdefaultが省略・new(null)が境界解除。片方の期間だけでも現在行と組み合わせて前後関係を検証する。表示順は送らない。
+- 行版と順序版を使い分け、並び替え配列は認証更新前にコピーする。`ClientSession`の認証更新・再ログイン・外部認証変更検知を共用し、成功一覧を使って追加GETしない。`CanManage`は現在の家計簿ロールによる表示用判定で、権限・重複・全IDの整合性はAPIが最終検証する。
+- `CategoryRequestException`はコード・field・403/404の権限と、409の形に応じた`LatestCategory`/`LatestCategories`を保持する。最新行の対象IDも照合し、更新された収支・期間も受信する。自動取得・適用・保存はしない。401/403/404の非公開latestは読まない。429/503も型付き。既存Client操作の503処理は変更しない。
 
-科目のWinUI画面・画面側の競合表示/明示切替・再ログイン後の編集復元は未実装。API・DB/Migration・レシート・税率管理はこのClient接続で変更しない。
+科目のWinUI画面・競合表示/明示切替・再ログイン後の画面復元は未実装。人物初期表示・レシート・税率管理をこの変更で実装しない。
 
 ## 新版Windows版の配布・削除（未実装）
 

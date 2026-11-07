@@ -11,99 +11,96 @@
 構造の再設計と機能の変更を分け、旧版と異なる操作・計算・保存内容が必要になった場合は実装前に確認する。既存データの引継ぎと保存時合計の保持は[新規利用と既存DBの境界](ledger-core-transition.md#新規利用と既存dbの境界)に従い、新スキーマ確定後に旧列・旧キーとの対応を整理する。科目・共通税履歴の構成は以下で定義し、それ以外の未決定の業務テーブル・採番方式は後続で確定する。
 
 
-## 科目マスタ（DEC-137・139・DB基盤実装済み）
+## 科目マスタ（DEC-137・139・140・DB/API/Client実装済み）
 
 <a id="category-master"></a>
 
-科目は家計簿ごとの独立したマスタ。全参加者が閲覧でき、追加・編集・削除・無効化・再有効化・並び替えは**家計簿Adminのみ**。アカウント全体のAdminを家計簿Adminとして扱わない。家計簿作成時に初期科目を生成せず、0件なら後続の管理画面で手動登録する。CRUD・並び替えAPIと参加・権限再検証、[Windows Client接続](architecture-winui.md#科目のclient接続画面未実装)は実装済み。管理画面は未実装。
+科目は家計簿ごとの独立したマスタ。全参加者が閲覧でき、追加・編集・削除・期間設定・並び替えは**家計簿Adminのみ**。全体Adminを家計簿Adminとして扱わない。家計簿作成時に初期科目を生成せず、0件なら後続の管理画面で手動登録する。管理画面は未実装。[Client接続](architecture-winui.md#科目のclient接続画面未実装)は実装済み。
 
-- 名称は.NETの`Trim()`後に1〜100 UTF-16コード単位（`string.Length`）。同一家計簿内はBINARY完全一致で同名不可。無効な科目も重複判定へ含め、別家計簿では同名を許可する。
-- IDは名称・初期値・状態・並び順から独立し、改名でも維持する。過去の記録・集計は科目IDを参照して新しい名称を表示し、取引データ自体を更新しない。初期税区分を変えても取引に保存済みの実際の税区分・税率は変更しない。
-- 未使用なら削除可能。参照があれば物理削除不可とし、無効化で対応する。無効化した科目は新規入力候補から除くが、既存データ・集計から除かない。再有効化可能で、開始日・終了日は持たない。
-- 順序は収入・支出を分けず家計簿共通。新規は無効科目を含む末尾（MAX+1、0件なら0）。有効・無効の切替だけで`display_order`を変えない。順序の欠番・同順位を許容し、保存順の補助キーは科目IDとする。全件指定・競合応答は[並び替えAPI](#category-order-api)に従う。
+- 名前は`.NET Trim()`後に1〜100 UTF-16コード単位。同一家計簿内はBINARY完全一致で同名不可。有効期間外も重複判定へ含め、別家計簿では同名を許可する。
+- 科目IDは変更しない。過去の表示・集計は科目IDで新しい名前を参照し、保存済み取引データ自体を更新しない。初期税区分を変えても保存済みの実際の税区分・税率は変更しない。
+- `is_enabled`は廃止。nullableの開始日・終了日で有効期間を指定し、両方nullなら全期間有効。**開始日・終了日を含む**。開始日≦終了日。同日の期間も許可する。作成時の省略はnullを初期値とする。
+- 未使用なら削除可能。参照があればRESTRICTで物理削除不可。期間に関係なく、過去の参照データや集計を削除しない。
+- 順序は収入・支出を分けず家計簿共通。新規は有効期間外を含む末尾（MAX+1、0件なら0）。期間・収支・名前・初期税区分の編集だけでは順序を変更しない。欠番・同順位を許容し、補助キーは科目ID。
 
-### 科目固有の収支区分と初期税区分（DEC-139）
+### 科目固有の収支区分と初期税区分（DEC-139・140）
 
 | 項目 | 保存値・用途 |
 | --- | --- |
-| 収支区分 | `Income` 収入・`Expense` 支出。科目固有の設定で、レシートグループ単位では変更しない |
-| 初期税区分 | `Standard` 標準・`ReducedFood` 食品軽減・`ReducedNewspaper` 新聞軽減・`Exempt` 非課税。グループ作成時の初期値として使い、グループ単位で変更可能 |
+| 収支区分 | `Income` 収入・`Expense` 支出。科目固有。**使用済みでも変更可能**。グループ単位では変更しない |
+| 初期税区分 | `Standard` 標準・`ReducedFood` 食品軽減・`ReducedNewspaper` 新聞軽減・`Exempt` 非課税。グループの初期値とし、グループ単位で変更可能 |
 
-科目の収支区分を後から変更できるか、その場合の保存済み取引への影響は**未決定**。今回、DBへ収支変更禁止トリガー等は追加しない。DBは`Income`/`Expense`以外を拒否するが、値の変更がSQLで可能であることを業務上の編集許可とは扱わない。
-
-費用区分・発生区分・発生周期は科目マスタに保持しない。これらは[後続の明細仕様](#category-receipt-handoff)へ移し、今回はレシートモデル・DB・API・UIを実装しない。定期取引の自動生成・次回発生日管理・入力候補の自動生成も行わない。
+収支変更の可否は確定した。**既存取引の金額符号・集計との整合性はレシート実装前の設計課題**であり、今回既存の符号による収支計算・税計算・保存済み金額を変更しない。費用区分・発生区分・周期は科目マスタへ戻さず、[後続の明細仕様](#category-receipt-handoff)に従う。
 
 ### 科目の物理モデルと制約
 
-`ledger_categories`のPKは`(ledger_id, category_id)`。既存の人物・支払方法と同じUUID文字列を採用し、複合FKで将来のレシート等から家計簿をまたいだ参照を防げる構造とする。
+`ledger_categories`は次の9列。PKは`(ledger_id, category_id)`。ID/更新版はUUID N形式のTEXT。
 
 | 列 | 型・NULL | 用途 |
 | --- | --- | --- |
-| `ledger_id`・`category_id` | TEXT・不可 | 所属家計簿ID・科目ID（UUID N形式） |
-| `name` | TEXT BINARY・不可 | 科目名。家計簿IDとの複合UNIQUE、有効状態による部分索引にはしない |
-| `is_enabled` | INTEGER・不可 | 有効1・無効0。CHECKで他の値を拒否 |
-| `display_order` | INTEGER・不可 | 0以上。家計簿ID・順序・科目IDの索引 |
+| `ledger_id`・`category_id` | TEXT・不可 | 所属家計簿ID・科目ID |
+| `name` | TEXT BINARY・不可 | 家計簿IDとの複合UNIQUE。期間による部分索引にしない |
+| `valid_from`・`valid_to` | TEXT・可 | `YYYY-MM-DD`。CHECKで開始日≦終了日を保護 |
+| `display_order` | INTEGER・不可 | 非負。家計簿ID・順序・科目IDの索引 |
 | `tax_category_code` | TEXT・不可 | 共通税区分へのRESTRICT FK |
-| `income_expense` | TEXT・不可 | 科目固有の収支区分。CHECKで`Income`/`Expense`に限定 |
-| `revision` | TEXT・不可 | 科目行の編集用UUID版。EF同時実行トークン |
-| `ledgers.category_order_revision` | TEXT・不可 | 家計簿共通の科目構成・順序用UUID版。家計簿編集版・人物順とは独立 |
+| `income_expense` | TEXT・不可 | CHECKで`Income`/`Expense`のみ。変更禁止トリガーは設けない |
+| `revision` | TEXT・不可 | 行編集用UUID版・EF同時実行トークン |
 
-家計簿へのFKはRESTRICT。将来の使用先は当該列に索引を設け、必ず`(ledger_id, category_id)`へRESTRICT FKを張り、参照のある科目の削除をDBでも防ぐ。今回、使用先テーブルや「使用済み」フラグは仮実装しない。新しいUUIDはアプリが発行する。既存家計簿の科目順版はMigrationで個別のUUID v4を付与し、再適用時には変えない。SQLiteの既存表へのNOT NULL列追加用に空文字DDLデフォルトを用いるが、業務上の有効な版にはせず、新規`Ledger`は必ずUUIDを初期化する（支払方法順版と同じ移行方式）。
+家計簿へのFKはRESTRICT。将来の使用先は`(ledger_id, category_id)`へRESTRICT FKと索引を設け、家計簿間の参照と連鎖削除を防ぐ。使用先テーブルや「使用済み」フラグは仮実装しない。
 
-**責務の分担：** DBはNOT NULL・UNIQUE・FK・有効状態・非負順序・収支区分の許容値を保護する。名称の空白除去と正確なUTF-16文字数は`LedgerCategory.Name`の設定時に検証し、DBの長さCHECKも補助的に使う（SQLiteの`length`はUnicode文字数でありUTF-16単位とは異なる）。後続APIの条件付きUPDATE・生SQLでも同じ正規化・検証が必要。CRUD APIではAdminの再検証、末尾採番と科目順版のCASを同一トランザクションで実行する。参照のある削除はRESTRICT違反を409へ変換し、使用先テーブルの仮実装は行わない。`category_order_revision`を家計簿全体のEF同時実行トークンにはせず、対象列の条件付きUPDATEで照合する。
+`ledgers.category_order_revision`は家計簿共通の構成・順序用UUID版で、家計簿編集版・人物/支払方法の版から独立する。新しい家計簿はUUIDを初期化し、既存行の補正や空文字デフォルトは設けない。DB初期化は[現行モデル方式](42-api-foundation.md#db初期化登録復旧コマンド)を正本とする。
+
+**責務：** DBはNOT NULL・UNIQUE・FK・非負順序・収支許容値・期間の前後関係を保護する。名前のTrim/UTF-16長と日付の厳密な書式/実在日はAPIで検証する。名前の長さCHECKは補助的なUnicode文字数検証。Admin再検証・条件付き更新・順序版・再送記録の同時確定はAPIの責務。
 
 ## 科目CRUD API（実装済み）
 
 <a id="category-crud-api"></a>
 
-PR #127の8列構造を前提とする。旧11列構造を同じMigration IDで適用済みの開発DBは[取扱い](#category-master-development-databases)を確認する。DBモデル・MigrationはこのAPI実装では変更しない。
-
 | メソッド・パス（`/ledgers/{ledgerId}`以下） | 権限 | 入力 |
 | --- | --- | --- |
-| `GET /categories` | 全参加者 | なし。無効科目も含む全件 |
-| `POST /categories` | 家計簿Adminのみ | `requestId`・`name`・`incomeExpense`・`taxCategoryCode`必須 |
-| `PATCH /categories/{categoryId}` | 家計簿Adminのみ | `revision`必須。`name`・`taxCategoryCode`・`isEnabled`から1つ以上 |
-| `DELETE /categories/{categoryId}` | 家計簿Adminのみ | `revision`必須 |
+| `GET /categories` | 全参加者 | なし。有効期間外も含む全件 |
+| `POST /categories` | 家計簿Admin | `requestId`・`name`・`incomeExpense`・`taxCategoryCode`必須。`validFrom`・`validTo`は任意、初期値null |
+| `PATCH /categories/{categoryId}` | 家計簿Admin | `revision`必須。名前・収支・初期税区分・開始日・終了日から1つ以上 |
+| `DELETE /categories/{categoryId}` | 家計簿Admin | `revision`必須 |
 
-全体Adminの権限を家計簿Adminへ読み替えない。現在の参加・セッション・権限を共通処理で照合し、書込直前とトランザクション確定前にも再確認する。家計簿をまたぐ行の参照・更新はしない。認証・CookieのCSRF/Origin・エラー形式は[共通契約](ledger-person-api-contract.md)と同じ。アカウント単位の既存枠（書込20回/分、参照120回/分）を共有し、新しい制限を設けない。
+現在の参加・認証・家計簿Admin権限を書込前と確定前に再確認し、家計簿をまたぐ参照/更新をしない。認証・CookieのCSRF/Origin・エラー形式は[共通契約](ledger-person-api-contract.md)と同じ。既存アカウント単位の書込20回/分・参照120回/分を共有する。
 
 ### 入力と応答
 
-- 名前はTrim後1〜100 UTF-16単位、家計簿内BINARY完全一致。無効科目も重複判定に含める。
-- `incomeExpense`は`Income`/`Expense`、`taxCategoryCode`は`Standard`/`ReducedFood`/`ReducedNewspaper`/`Exempt`の文字列を完全一致で指定する。
-- PATCHの省略項目は保持する。名前・税区分・有効状態のnullは不可。`isEnabled`はJSONのtrue/falseのみ。収支区分・表示順・その他の未許可項目は400で拒否する。科目の後からの収支変更が業務上可能かは未決定のままで、今回のPATCHの対象にしない。
-- 要求ID・更新版は空でないUUID。未知・重複JSONプロパティ、不正な本文/型は既存`invalid_input`で拒否する。
+- 名前・収支・税区分のnullは不可。収支/税区分は上記コードの完全一致。`validFrom`・`validTo`は人物・支払方法と同じ`YYYY-MM-DD`またはnull。実在しない日付・時刻付き・別書式・逆転期間は400。
+- POSTの期間省略/nullは無制限。PATCHでは**省略は現在値の保持、明示nullはその境界の解除**。片方だけの編集も現在値と組み合わせて期間を検証する。
+- `isEnabled`・`displayOrder`等の未許可項目、重複JSON項目、不正な本文/型/空UUIDは400 `invalid_input`。
 
-GET・PATCH・DELETE成功時は次の一覧形式を返す。順序は常に`display_order ASC, category_id ASC`。本人優先等の並べ替えや無効科目の除外は行わない。
+GET・PATCH・DELETEは次の`CategoriesResponse`。順序は`display_order ASC, category_id ASC`、有効期間外の除外や本人優先をしない。
 
 ```json
 {
   "categories": [
     { "categoryId": "科目UUID", "name": "食費", "incomeExpense": "Expense",
-      "taxCategoryCode": "ReducedFood", "isEnabled": true, "displayOrder": 0, "revision": "行UUID更新版" }
+      "taxCategoryCode": "ReducedFood", "validFrom": "2026-04-01", "validTo": null,
+      "displayOrder": 0, "revision": "行UUID更新版" }
   ],
   "orderRevision": "家計簿のcategory_order_revision",
   "currentRole": "Admin"
 }
 ```
 
-POSTは同じ一覧形式にトップレベルの`categoryId`を加え、初回201・再送200を返す。更新後の一覧を同じ応答で返し、成功後の追加GETを前提にしない。
+POSTはこの一覧にトップレベルの`categoryId`を追加し、初回201・再送200。成功時は更新後一覧を返し、追加GETを必要としない。
 
 ### 保存・再送・競合
 
-- 作成時の科目IDと行版はサーバー発行UUID、有効状態はtrue。無効科目を含むMAX順序+1（0件なら0）へ追加する。
-- [共通再送](ledger-operation-retries.md)の`operation_requests`を`category.create`で使用し、正規化済み家計簿ID・名前・収支区分・初期税区分を照合値へ含める。操作者と処理種類も共通処理で照合する。記録を権限の根拠としない。
-- 作成・科目順版CAS・再送記録を同じ書込トランザクションで確定する。同一要求の再送は元の科目IDと現在の一覧を返し、改名/無効化後も重複作成しない。異内容・別操作者/処理/家計簿の要求は409 `request_conflict`、元の結果が削除済みなら409 `created_result_deleted`。削除しても共通記録は保持する。
-- PATCHは家計簿・科目ID・旧行版をWHERE条件にして更新する。実値が変わった場合だけ新しい行版を発行し、科目順版・収支区分・表示順を変えない。実値不変なら書き込まず、共通SQLite書込トランザクション内で旧版を照合する。
-- DELETEも旧行版を条件にして削除し、科目順版のCASと同時に確定する。参照違反だけを409 `category_referenced`とし、他のDB障害は503 `store_unavailable`。連鎖削除はしない。
-- 重複名は409 `duplicate_category_name`（field=`name`）。行版競合は409 `revision_conflict`で`latest`へ科目行全項目を返す。内部の科目順版CASが不一致なら`latest`は最新一覧・順版。最新情報を取得した後にも現在の権限を再確認し、失効/除外/降格なら401/404/403を返して最新データを公開しない。
-- 名前・初期税区分の編集は科目だけを更新する。既存取引は科目IDで新名称を表示し、保存済み取引の行・税区分・税率は更新しない。レシート機能自体は未実装。
+- 科目ID/行版はサーバー発行UUID。全期間のMAX順序+1へ追加し、科目作成・順序版CAS・[共通再送](ledger-operation-retries.md)記録を同じSQLiteトランザクションで保存する。
+- `category.create`は操作者・操作種類・正規化済み家計簿ID/名前/収支/初期税区分/**開始日/終了日**を照合する。省略/nullの期間は同じ値。同じ要求の再送は元IDと現在一覧を返し、異内容等は409 `request_conflict`、元結果削除後は409 `created_result_deleted`。削除しても記録は保持する。
+- PATCHは家計簿・科目ID・旧行版の条件付きUPDATE。実値変更時だけ行版を更新し、科目順版・表示順は変更しない。全値が同じなら書き込まず、共通書込トランザクションで版を照合する。
+- DELETEは旧行版を条件に削除し、順序版CASと同時に確定。参照違反だけを409 `category_referenced`、他DB障害は503 `store_unavailable`。連鎖削除しない。
+- 重複名は409 `duplicate_category_name`（field=`name`）。行版競合は409 `revision_conflict`と最新行全項目。内部の順序版CAS競合は最新一覧/順序版。最新取得後も現在の認証・権限を確認し、401/403/404では最新情報を公開しない。
+- マスタ編集では保存済み取引の行・金額・実際の税区分/税率を変更しない。収支編集と金額符号/集計の整合性は未決定のまま残す。
 
 ## 科目並び替えAPI（実装済み）
 
 <a id="category-order-api"></a>
 
-`PUT /ledgers/{ledgerId}/categories/order`。アクセス権・認証/CSRF/Origin・書込20回/分の共有枠・エラー形式は[科目CRUD API](#category-crud-api)と同じ。**家計簿Adminのみ**実行可能で、Editor・Viewer・家計簿に参加していない全体Adminは保存できない。DB/Migration・CRUD契約は変更しない。
+`PUT /ledgers/{ledgerId}/categories/order`。アクセス権・認証/CSRF/Origin・書込20回/分の共有枠・エラー形式は[科目CRUD API](#category-crud-api)と同じ。**家計簿Adminのみ**実行可能で、Editor・Viewer・家計簿に参加していない全体Adminは保存できない。DBの初期化はDEC-141の方式を使用する。
 
 ```json
 {
@@ -112,11 +109,11 @@ POSTは同じ一覧形式にトップレベルの`categoryId`を加え、初回2
 }
 ```
 
-- 保存済みの**全科目ID**を無効科目・収入/支出を含め、過不足・重複なく指定する。0件なら空配列を許可する。家計簿をまたぐID・未知ID・不正UUID・配列以外・項目省略・未知/重複JSON項目は400 `invalid_input`。UUIDは既存APIと同じく空UUIDを拒否し、N形式へ正規化して照合する。
+- 保存済みの**全科目ID**を有効期間外の科目・収入/支出を含め、過不足・重複なく指定する。0件なら空配列を許可する。家計簿をまたぐID・未知ID・不正UUID・配列以外・項目省略・未知/重複JSON項目は400 `invalid_input`。UUIDは既存APIと同じく空UUIDを拒否し、N形式へ正規化して照合する。
 - 初期一覧はGETの`display_order ASC, category_id ASC`。受信配列順に`display_order`を0から連番へ再採番する。収入・支出別の順序は持たない。
 - 書込SQLiteトランザクション内で旧順序版を照合し、**DB更新時にも家計簿IDと旧`category_order_revision`を条件にしたUPDATE**で新UUIDへ変更する。行の順序変更と版を同時に確定し、失敗時は全体をロールバックする。
 - 支払方法並び替えと同じく、**0件・1件・同一順序の再保存も、成功ごとに順序版を更新する**。追加・削除もこの版を更新するため、旧一覧の並び替えで構成変更を上書きしない。通常の科目編集はこの版を変更しない。
-- 科目自身の`revision`・名前・収支区分・初期税区分・有効状態、家計簿自身の`revision`、人物・支払方法の順序版/行版は変更しない。他家計簿も変更しない。
+- 科目自身の`revision`・名前・収支区分・初期税区分・有効期間、家計簿自身の`revision`、人物・支払方法の順序版/行版は変更しない。他家計簿も変更しない。
 - 成功は200と既存の`CategoriesResponse`（全科目の全項目・`orderRevision`・`currentRole`）。追加GETを必要としない。
 - 旧版不一致は409 `revision_conflict`。`latest`に**現在の全科目一覧と`orderRevision`・`currentRole`**を同じ`CategoriesResponse`形式で返す。既存支払方法APIと同じく、版競合を全IDの集合照合より先に判定し、追加・削除後の古い配列にも最新一覧を返す。
 - 書込前・確定前に現在の認証・参加・Admin権限を再検証する。競合情報取得後も再検証し、認証失効は401、参加喪失/家計簿不在は404、権限不足は403として`latest`を公開しない。想定外DB障害は既存の503 `store_unavailable`。
@@ -127,7 +124,7 @@ POSTは同じ一覧形式にトップレベルの`categoryId`を加え、初回2
 
 ここでの税区分（`TaxCategory`）は標準・軽減・非課税の分類であり、従来の税込/税抜設定（`TaxType`）とは別の概念。税込/税抜設定や既存計算は変更しない。
 
-税区分・税率履歴は**全家計簿で共有**する。家計簿ごとの業務マスタとは分離し、`ledger_id`を持たない。標準・食品軽減・新聞軽減・非課税の4区分を`tax_categories(code PK, name)`へ登録する。食品と新聞は同じ税率でも異なるコードで保持する。確定していない税率履歴は自動投入せず、今回のMigrationは税率履歴を0件で作成する。
+税区分・税率履歴は**全家計簿で共有**する。家計簿ごとの業務マスタとは分離し、`ledger_id`を持たない。標準・食品軽減・新聞軽減・非課税の4区分を`tax_categories(code PK, name)`へ登録する。食品と新聞は同じ税率でも異なるコードで保持する。確定していない税率履歴は自動投入せず、新規DB初期化では税率履歴を0件で作成する。
 
 `tax_rate_history`は次を保持する。
 
@@ -147,25 +144,17 @@ POSTは同じ一覧形式にトップレベルの`categoryId`を加え、初回2
 - 食品軽減だけ8%→1%→8%、新聞軽減は8%を維持する履歴を表現できる。**1%と日付は仮定の例であり、法令・施行日・初期データではない**。試験データ以外には投入しない。
 - 税履歴の管理権限・API・編集UI・確定した履歴データの投入手順は後続設計。今回、暗黙の編集者・全体Admin用API等は追加しない。
 
-Migration `20261106204316_AddLedgerCategoriesAndTaxHistory`は科目・税関連3表と科目順版だけを追加し、既存の認証・人物・支払方法・旧Windows版データを変更しない。Downは追加した科目・税履歴と科目順版を失わせる。再Upしてもそのデータは戻らず、運用データの復旧には停止バックアップを使う。
-
-### 適用済み開発DBの扱い（未リリースMigrationの直接修正）
+### 既存API用DBの扱い
 
 <a id="category-master-development-databases"></a>
 
-DEC-139では新しいMigrationを追加せず、未リリースの`20261106204316_AddLedgerCategoriesAndTaxHistory`を直接修正する。新規DB・このMigrationの適用前のAPI DBには8列の科目表を作成する。
-
-**PR #126の旧11列構造を適用済みのDBは、自動では8列へ変わらない。** EFは適用履歴の同じIDを再実行しない。モデルとSnapshotの差分なしという判定も、物理DBが新構造であることを保証しない。`initialize-db`の構造照合は旧構造を不一致として拒否し、通常起動やMigrateだけで不要列を消す補正は行わない。
-
-- 破棄可能な開発DBなら、サービス停止・バックアップのうえ、明示的に別の新規DBを初期化する。実DBや既存ファイルを本PRで削除・初期化しない。
-- データ保持が必要なら旧DBとバックアップを残し、別途、科目のID・残す8列・順序版・税区分/税率履歴・認証等を保持した変換手順を検証してから移す。今回、その変換や自動修復は実装しない。
-- Down→Upは科目・税履歴を失うため、保持が必要なDBの更新手段には使わない。削除する3項目の値が必要なら、移行前に別途保管する。
+旧Migration・Snapshot・履歴はDEC-141で廃止した。旧11列・8列を含む既存API用DBを自動変換せず、保持したうえで別の新規DBを明示的に準備する。既存ファイルや認証データを本変更で削除・初期化しない。現行の正しいDBは再初期化で保存値を変えない。手順と拒否条件は[DB初期化](42-api-foundation.md#db初期化登録復旧コマンド)に集約する。
 
 ### 後続レシート実装への引き継ぎ（DEC-139・未実装）
 
 <a id="category-receipt-handoff"></a>
 
-- グループは科目を持ち、**収支区分は科目に従う。グループ単位で収支区分を変更できない**。科目の収支区分の後変更可否・保存済み取引への影響は別途確定する。
+- グループは科目を持ち、**収支区分は科目に従う。グループ単位で収支区分を変更できない**。科目の収支区分自体は使用済みでも変更可能。既存取引の金額符号・集計との整合性は別途確定する。
 - 税区分だけを科目の初期値からグループへ設定し、グループごとに変更可能とする。税率は取引日とグループの税区分から初期決定し、**実際の税区分と率をグループへ保存する**。マスタの初期税区分や税率履歴の改定で保存済み値・金額を変更しない。
 - 同一レシート内で同じ科目のグループを複数認める。同じ科目でも税区分が異なるグループを作れる。科目IDをレシート内のUNIQUEにしない。
 - 費用区分・発生区分・周期は**明細**の設定とする。科目やグループからこれらの初期値をコピーしない。
@@ -329,7 +318,7 @@ DEC-139では新しいMigrationを追加せず、未リリースの`202611062043
 - **競合応答：** 更新版不一致はHTTP 409と`revision_conflict`、対象人物の最新の全支払方法順・更新版を`latest`（`ownerPersonId`、`orderRevision`、`paymentMethodIds`、`paymentMethods`）に含める。`paymentMethods`は対象人物の全行（ID・所有者ID・名前・表示順・有効開始/終了日・行revision）を`paymentMethodIds`と同順で含み、他人物の行は含めない。既存3項目は維持する。画面は競合を通知して未保存順を破棄し、応答の対象人物データだけを最新順・新版へ置き換える。未知の追加行も応答だけで反映し、追加GETや自動保存は行わない。
 - **入力・権限：** 配列やIDの不備は400、権限不足は403、対象・家計簿不在等は404とする。最新版を取得できない場合に存在や他人の詳細を漏らさない。
 
-**実装状態：** DEC-133/134の既存DBとDEC-135のCRUDに接続し、並び替えPUT・所有者単位の条件付き版更新・全件検証・保存後の権限再検証・対象人物だけの競合応答を実装済み。認証・CSRF・Originとアカウント単位の既存書込枠（20回/分）を共用する。DB/Migrationは変更しない。WinUIの並び替え画面・画面内の競合処理もDEC-136に従い実装済み。
+**実装状態：** DEC-133/134の既存DBとDEC-135のCRUDに接続し、並び替えPUT・所有者単位の条件付き版更新・全件検証・保存後の権限再検証・対象人物だけの競合応答を実装済み。認証・CSRF・Originとアカウント単位の既存書込枠（20回/分）を共用する。このAPIでの構造変更はない。WinUIの並び替え画面・画面内の競合処理もDEC-136に従い実装済み。
 
 <a id="支払方法マスタの物理db構成dec-133モデルとmigration実装済業務api未実装"></a>
 
@@ -349,7 +338,7 @@ DEC-123〜132の確定仕様に従い、SQLite/EF Coreの**物理テーブル・
 | `revision` | TEXT | 不可 | この支払方法の名前・有効期間等の編集用UUID更新版 |
 | `ledger_people.payment_order_revision`（追加列） | TEXT | 不可 | **人物ごとの支払方法並び順更新版**。人物作成時に初期化（DEC-129・130） |
 
-**確定したSQLite DDLの基本構造**（EF CoreモデルとMigration `20261105010000_AddLedgerPaymentMethods` に実装。以下は構成の説明であり、既存DBへ手動で直接実行するSQLではない）：
+**確定したSQLite DDLの基本構造**（EF Coreモデルと現行DB初期化に実装。以下は構成の説明であり、既存DBへ手動で直接実行するSQLではない）：
 
 ```sql
 CREATE TABLE ledger_payment_methods (
@@ -380,9 +369,9 @@ CREATE INDEX ix_ledger_payment_methods_owner_order
 - **所有者の不変性：** API編集DTOには所有者変更を含めず、DBでも`BEFORE UPDATE OF owner_person_id`トリガーにより実際に値が変わる更新を拒否する（DEC-134）。通常操作での誤作成訂正は未使用なら削除→新規（DEC-131）。
 - **並び順：** 1人物内で`display_order ASC, payment_method_id ASC`を使用。順序のUNIQUEは設けない。0件の人物でも`payment_order_revision`は人物行に残る。ポイント関連列は旧版に`default_point_code`があるが、新版のポイントモデル未確定のため**今回の8列へは含めない**。採用する場合はポイントマスタと整合したFK・列を別途設計する。
 - **更新版・競合：** 並び替え・追加・削除は**対象人物の`payment_order_revision`だけを条件付きUPDATEで照合・変更**し、支払方法の順序変更と同一トランザクションで確定する。人物編集用`ledger_people.revision`は変更しない。**`payment_order_revision`を単純に人物エンティティ全更新のEF Core同時実行トークンにすると人物名編集まで無関係な競合を起こし得る**ため、対象列を明示した条件付き更新（CAS相当）で独立性を維持する。支払方法自体の`revision`は名前・期間変更の競合検知に使う。
-- **既存人物の移行（Migrationに実装）：** `ledger_people`に`payment_order_revision`をNOT NULL列として追加し、既存人物ごとにSQLiteの乱数から個別のUUID v4（N形式）をバックフィルする。SQLiteの`ADD COLUMN`制約上、既存行がある表への列追加時のみ定数の空文字デフォルトをDDLに付け、直後に既存行を更新する。**今後の人物新規作成ではAPIが必ず新UUIDを列へ指定**し、空文字を業務上の有効な更新版とは扱わない。旧版の支払方法整数IDや所有者不明の行は、新しいUUID／所有者へ自動推測で割り当てない。
+- **人物の順序版初期化：** 新規人物はAPIで`payment_order_revision`へ個別のUUID v4（N形式）を指定する。空文字デフォルトや既存行のバックフィルは行わない。旧版整数IDや所有者不明行を自動推測で割り当てない。既存API DBの扱いは[現行DB初期化](42-api-foundation.md#db初期化登録復旧コマンド)に従う。
 
-**実装範囲：** `LedgerPaymentMethod`のEF Coreマッピング、人物の順序版列と初期化、支払方法テーブル・複合FK・UNIQUE・索引・CHECKを追加するMigration、およびDB制約テストをPR #115へ実装。CRUD APIはDEC-135で接続済み。**後続：** WinUI、ポイント機能、旧版の支払方法データ移行。Migrationは本番DBに自動適用されず、APIの明示的な`initialize-db`を経る。
+**実装範囲：** EFマッピング・人物順序版・支払方法のPK/FK/UNIQUE/索引/CHECKと制約テストを実装済み。新規DBは現行モデルから作成する。CRUD・並び替え・WinUIは接続済み。ポイント機能・旧版データ移行は後続。
 
 <a id="支払方法の所有者変更をdbトリガーで禁止dec-134migration実装済業務api未実装"></a>
 
@@ -404,7 +393,7 @@ END;
 - 所有者必須（`NOT NULL`）および同一家計簿の人物への複合FK（RESTRICT）はDEC-133のまま維持する。
 - 誤作成時は未使用の支払方法を削除して正しい所有者で新規作成する。新しい支払方法IDを発行する（DEC-124・125・131）。トリガーはINSERT／DELETEを禁止しない。
 - `RAISE(ABORT)`は当該SQL文の変更を取り消す。既存トランザクション全体を自動で取り消すわけではないので、API側では例外を検知して業務トランザクション全体をロールバックし、保存失敗として扱う。
-- EF Core Migration `20261105010000_AddLedgerPaymentMethods`に、テーブル作成後の`migrationBuilder.Sql(...)`によるトリガー追加と、ロールバック時の`DROP TRIGGER IF EXISTS`を実装。既存の稼働DBへは適用していない。
+- 所有者変更禁止トリガーは`Persistence/DatabaseSchema`で明示定義し、新規DBの表/索引/初期値と同一トランザクションで作成する。Migration/Downによる適用・削除は行わない。
 - `PaymentMethodSchemaTests`で所有者変更の拒否、同じ所有者へのUPDATEの許容、他列更新の許容、未使用削除→別所有者での新規作成、トリガー失敗時のトランザクション全体のロールバックを検証する。
 
 **後続作業：** DBトリガーとテストはPRへ実装済み。CRUD APIはDEC-135で実装し、更新要求は所有者列を受け付けない。トリガーを直接発火させる所有者変更APIは設けず、並び替えAPIも接続済み。WinUIへの接続は後続とする。

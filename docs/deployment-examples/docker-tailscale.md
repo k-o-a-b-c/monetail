@@ -175,16 +175,16 @@ dc pull api
 # 新イメージのUID/GIDを確認。変更があればdb/keys/oauthの所有権・ACLを調整する。
 docker run --rm --pull never --entrypoint id "$MONETAIL_IMAGE"
 dc stop api
-# リリースでDB移行が指定された場合だけ、停止バックアップ後に指定の手順を実行する。
+# 更新先が既存DB形式に対応することを事前確認。initialize-dbによる旧DBの変換は行わない。
 dc up -d --no-build --force-recreate api
 dc ps
 ```
 
 `MONETAIL_IMAGE`をシェルでexportしていると`server.env`より優先されるため、意図した値か`dc config --images`で確認する。digest指定では同じ内容を再取得し、バージョンを勝手に切り替えない。既存Tailscaleコンテナは更新対象に含めない。
 
-以前のGit/build方式から移る場合も、既存`MONETAIL_DATA_DIR`のdb/keys/oauthと`server.env`をそのまま保持する。旧構成で停止バックアップを取り、配布アーカイブを展開して`SERVER_PACKAGE`を設定し、既存`server.env`へ`MONETAIL_IMAGE`だけ追加する。同じCompose project-name `monetail`で上のpull/再作成を行う。初回スクリプトやDB/管理者初期化は実行しない。
+DB形式に互換性があるリリースでGit/build方式から移る場合も、既存`MONETAIL_DATA_DIR`のdb/keys/oauthと`server.env`をそのまま保持する。旧構成で停止バックアップを取り、配布アーカイブを展開して`SERVER_PACKAGE`を設定し、既存`server.env`へ`MONETAIL_IMAGE`だけ追加する。同じCompose project-name `monetail`で上のpull/再作成を行う。初回スクリプトやDB/管理者初期化は実行しない。
 
-更新では`initialize-admin`、証明書生成、DBファイルの削除、`down -v`を実行しない。DB移行が必要な場合も通常起動には任せず、[42](https://github.com/k-o-a-b-c/monetail/blob/main/docs/42-api-foundation.md#db移行登録復旧コマンド)とリリースの指示に従い停止中に行う。DB移行後に古いAPIイメージだけへ戻すのは安全とは限らない。
+更新では`initialize-admin`、証明書生成、DBファイルの削除、`down -v`を実行しない。`initialize-db`は既存DBへ追加移行しない。旧API形式との互換性がない場合、旧DB・鍵・対応イメージを保持し、別の新規保存先で初回手順を行う。旧DBのデータを新方式へ移す機能はない。[DB初期化の正本](https://github.com/k-o-a-b-c/monetail/blob/main/docs/42-api-foundation.md#db初期化登録復旧コマンド)とリリースの対応形式を確認する。
 
 HTTPS証明書はTailscaleが管理する。OAuth PFXの期限は別管理で、次のようにパスワードをコマンド引数へ入れず確認できる。
 
@@ -229,8 +229,8 @@ sudo tar --extract --file "$BACKUP" --numeric-owner --same-owner \
 # SERVER_DATA/server.envが復元される。配置・Origin・実行UID/GID・PFX期限を確認する。
 sudo test -f "$SERVER_DATA/db/monetail.db"
 dc pull api
-# 新しいAPIで古いバックアップを復元する場合だけ、既存DBへ既知の追加移行を適用する。
-# dc run --rm --no-deps api initialize-db
+# バックアップのDB形式に対応する固定イメージを使う。
+# initialize-dbで旧DBを変換・再作成しない。
 dc run --rm --no-deps api reset-authentication --after-restore
 dc run --rm --no-deps api issue-recovery-link --account-id REPLACE_ADMIN_ACCOUNT_ID
 dc up -d --no-build --force-recreate api
