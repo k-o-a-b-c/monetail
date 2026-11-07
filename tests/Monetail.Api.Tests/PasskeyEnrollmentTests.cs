@@ -351,7 +351,7 @@ public class PasskeyEnrollmentTests
         public static async Task<EnrollmentApp> CreateAsync()
         {
             var app = new EnrollmentApp();
-            await app.Database.MigrateAsync();
+            await app.Database.InitializeAsync();
             app.Factory = app.NewFactory();
             await using var scope = app.Factory.Services.CreateAsyncScope();
             app.Code = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync())!;

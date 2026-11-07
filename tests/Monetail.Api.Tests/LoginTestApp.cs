@@ -32,7 +32,7 @@ internal sealed class LoginTestApp : IAsyncDisposable
     public static async Task<LoginTestApp> CreateAsync()
     {
         var app = new LoginTestApp();
-        await app.Database.MigrateAsync();
+        await app.Database.InitializeAsync();
         app.Factory = app.NewFactory();
         await using var scope = app.Factory.Services.CreateAsyncScope();
         var issued = (await scope.ServiceProvider.GetRequiredService<AdminProvisioningService>().InitializeAdminAsync())!;

@@ -18,7 +18,8 @@ public sealed class LedgerCategory
             _name = trimmed;
         }
     }
-    public bool IsEnabled { get; set; } = true;
+    public DateOnly? ValidFrom { get; set; }
+    public DateOnly? ValidTo { get; set; }
     public int DisplayOrder { get; set; }
     public string TaxCategoryCode { get; set; } = null!;
     public IncomeExpenseKind IncomeExpense { get; set; }

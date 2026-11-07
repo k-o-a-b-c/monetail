@@ -5,16 +5,13 @@ using Monetail.Api.Features.Monetail.Ledgers;
 
 namespace Monetail.Api.Persistence;
 
-/// <summary>API全体の保存モデルと移行を管理する。</summary>
+/// <summary>API全体の現在の保存モデルを管理する。</summary>
 public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
     : IdentityDbContext<AuthUser>(options)
 {
-    /// <summary>API専用の移行履歴を使うSQLite接続を構成する。</summary>
+    /// <summary>API専用のSQLite接続を構成する。</summary>
     public static void Configure(DbContextOptionsBuilder options, string connectionString) =>
-        options.UseSqlite(connectionString, sqlite => sqlite.MigrationsHistoryTable(HistoryTable));
-
-    /// <summary>API全体の適用済み移行を記録する表名を定める。</summary>
-    public const string HistoryTable = "__MonetailMigrationsHistory";
+        options.UseSqlite(connectionString);
 
     public DbSet<EnrollmentCode> EnrollmentCodes => Set<EnrollmentCode>();
     public DbSet<AuthSession> Sessions => Set<AuthSession>();

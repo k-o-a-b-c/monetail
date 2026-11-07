@@ -297,7 +297,7 @@ public class LedgerApiTests
         }) Assert.Equal(19, Assert.Throws<SqliteException>(() => AuthDatabaseFixture.Execute(connection, sql)).SqliteErrorCode);
         await using var scope = app.Factory.Services.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<ApiDbContext>().Database;
-        Assert.Equal(database.GetMigrations(), await database.GetAppliedMigrationsAsync());
+        await DatabaseInitializer.EnsureReadyAsync(scope.ServiceProvider.GetRequiredService<ApiDbContext>());
     }
 
     /// <summary>指定したアカウントでログインし、その状態のCSRFトークンを取得する。</summary>

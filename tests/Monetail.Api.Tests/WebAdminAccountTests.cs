@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Accounts;
@@ -230,23 +229,13 @@ public sealed class WebAdminAccountTests
     }
 
     [Fact]
-    public async Task MigrationPreservesAllExistingTablesAndStartsWithNoNotes()
+    public async Task ReinitializationPreservesNotesAndAllAuthenticationAndBusinessTables()
     {
         await using var app = await LoginTestApp.CreateAsync();
-        using var client = app.Client();
-        await app.LoginAsync(client);
-        await using (var scope = app.Factory.Services.CreateAsyncScope())
-            await scope.ServiceProvider.GetRequiredService<ApiDbContext>().GetService<IMigrator>().MigrateAsync("20261104010000_RetireEnrollmentCodes");
-        // アカウント管理用メモのMigrationだけを検証し、人物・家計簿も除外しない。
-        var tables = app.Database.Tables().Where(table => table != ApiDbContext.HistoryTable).ToArray();
-        var before = app.Database.Snapshot(tables);
-        await app.Database.MigrateToAsync("20261104020000_AddAccountAdminNote");
-        Assert.Equal(before, app.Database.Snapshot(tables));
-        Assert.Equal(0L, app.Database.Scalar("SELECT COUNT(*) FROM auth_account_admin_notes"));
-        await using (var scope = app.Factory.Services.CreateAsyncScope())
-            Assert.False(scope.ServiceProvider.GetRequiredService<ApiDbContext>().Database.HasPendingModelChanges());
-        await app.Database.MigrateToAsync("20261104020000_AddAccountAdminNote");
-        Assert.Equal(before, app.Database.Snapshot(tables));
+        app.Database.Execute($"INSERT INTO auth_account_admin_notes(AuthUserId,AdminNote) VALUES('{app.UserId}','保持するメモ')");
+        var before = app.Database.Snapshot(app.Database.Tables());
+        await app.Database.InitializeAsync();
+        Assert.Equal(before,app.Database.Snapshot(app.Database.Tables()));
     }
 
     [Fact]
