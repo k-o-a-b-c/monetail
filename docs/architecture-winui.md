@@ -30,6 +30,18 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 - `CanManageOwner`は現在ロールと本人対応から操作可否を示す。Workspaceは人物管理と同じく権限をキャッシュせず、保存時の現在権限をAPIで検証する。403/404の最新権限と、操作別の409最新行/一覧/順序は型付きの業務例外で返し、勝手に表示状態へ適用しない。
 - 認証更新・別アカウント検知・応答サイズ制限は既存Clientを共用する。WinUIの人物別一覧・追加/編集/削除ダイアログ・人物固定の並び順画面も[DEC-136](ledger-core-schema.md#windows版の支払方法管理画面dec-136winui実装済み)へ接続済み。認証復帰は元のアカウント・接続先・所有者・入力/旧版/requestIdを保持し、別アカウントへ引き継がない。並び順409だけは対象所有者の全行情報を応答へ追加し、追加GETなしで最新へ置換する。これ以外のAPI・DB/Migrationは変更していない。
 
+## 科目のClient接続（画面未実装）
+
+`CategoryTransport`・`CategoriesWorkspace`で一覧・作成・部分編集・削除・家計簿共通の並び替えを接続済み。[科目CRUD](ledger-core-schema.md#category-crud-api)・[並び替えAPI](ledger-core-schema.md#category-order-api)の契約は変更しない。
+
+- `CategoryInfo`・`CategoriesInfo`・`CategoryCreationInfo`はGuidのID/更新版を使い、無効科目を含むAPIの全行・配列順・同順位/欠番を保持する。収支・税区分は確定済みコードだけを受け付け、不正な型・ID・更新版・一覧は接続エラーにする。`CanManage`は現在の家計簿ロールによる表示用判定で、操作権限・重複・全IDの一致はAPIが最終検証する。
+- `CategoryCreationDraft`はTrim後の入力とrequestIdを保持し、同じ作成の明示的な再試行へ再利用する。`CategoryChanges`は名前・初期税区分・有効状態の指定分だけを送る。nullは項目省略でAPIへ明示nullを送らず、falseは無効化として送る。収支区分・表示順はPATCHへ含めない。
+- `ClientSession`の認証更新・再ログイン・外部の認証変更検知を共用する。入力・下書き・対象の行版を保持し、並び替え配列は認証更新前にコピーして順序版とともに再送する。成功応答の一覧を利用し、追加GETをしない。
+- `CategoryRequestException`は業務コード・field・403/404の`PeoplePermissions`を保持する。409 `revision_conflict`の形に応じて`LatestCategory`または`LatestCategories`を返し、最新行の対象IDも照合する。行操作でも内部の順序版CASによって最新一覧が返る場合に対応する。競合情報を自動適用・保存・再取得しない。
+- 401では既存の認証拒否を使い、403/404を含めて非公開のlatestを読まない。429・503も型付きで返す。503は共通送信の任意指定を科目通信だけで有効にし、既存のClient操作の例外動作は維持する。
+
+科目のWinUI画面・画面側の競合表示/明示切替・再ログイン後の編集復元は未実装。API・DB/Migration・レシート・税率管理はこのClient接続で変更しない。
+
 ## 新版Windows版の配布・削除（未実装）
 
 新版はインストーラー形式で配布する方針とする。アンインストール時に、そのWindowsユーザーの設定・認証情報も削除するか選べるようにする。対象はこのPCに保存した新版のデータで、サーバー上のアカウントや家計簿データは削除しない。アプリ内の専用データ削除操作は保留にし、初期実装の必須機能にはしない。
