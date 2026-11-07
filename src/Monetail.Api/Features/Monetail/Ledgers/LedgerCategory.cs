@@ -1,6 +1,6 @@
 namespace Monetail.Api.Features.Monetail.Ledgers;
 
-/// <summary>家計簿共通の科目と、将来のレシートグループへコピーする初期値。</summary>
+/// <summary>家計簿共通の科目固有設定と、レシートグループ用の初期税区分。</summary>
 public sealed class LedgerCategory
 {
     public const int NameMaxLength = 100;
@@ -22,13 +22,7 @@ public sealed class LedgerCategory
     public int DisplayOrder { get; set; }
     public string TaxCategoryCode { get; set; } = null!;
     public IncomeExpenseKind IncomeExpense { get; set; }
-    public CategoryCostKind Cost { get; set; }
-    public CategoryOccurrenceKind Occurrence { get; set; }
-    /// <summary>定期の場合だけ1（毎月）または12（毎年）。将来は月数を拡張できる。</summary>
-    public int? RecurrenceMonths { get; set; }
     public string Revision { get; set; } = null!;
 }
 
 public enum IncomeExpenseKind { Income, Expense }
-public enum CategoryCostKind { Fixed, Variable, NotApplicable }
-public enum CategoryOccurrenceKind { Regular, Irregular, Extraordinary }

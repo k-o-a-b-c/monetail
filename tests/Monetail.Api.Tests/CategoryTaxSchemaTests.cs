@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Monetail.Ledgers;
@@ -87,43 +88,80 @@ public sealed class CategoryTaxSchemaTests
     }
 
     [Theory]
-    [InlineData("Income", "NotApplicable", "Regular", 1)]
-    [InlineData("Income", "NotApplicable", "Regular", 12)]
-    [InlineData("Income", "NotApplicable", "Irregular", null)]
-    [InlineData("Income", "NotApplicable", "Extraordinary", null)]
-    [InlineData("Expense", "Fixed", "Regular", 1)]
-    [InlineData("Expense", "Variable", "Regular", 12)]
-    [InlineData("Expense", "Fixed", "Irregular", null)]
-    [InlineData("Expense", "Variable", "Extraordinary", null)]
-    public async Task ValidCategoryDefaultsAreAccepted(string income, string cost, string occurrence, int? months)
+    [InlineData("Income")]
+    [InlineData("Expense")]
+    public async Task CategoryAcceptsBothIncomeExpenseValues(string income)
     {
         using var db = new AuthDatabaseFixture();
         var (ledger, _) = await SeedAsync(db);
         using var connection = db.OpenForeignKeyConnection();
-        InsertCategory(connection, ledger, Id(), "科目", income: income, cost: cost, occurrence: occurrence, months: months);
-        Assert.Equal(1L, Scalar(connection, "SELECT COUNT(*) FROM ledger_categories"));
+        InsertCategory(connection, ledger, Id(), "科目", income: income);
+        Assert.Equal(income, Scalar(connection, "SELECT income_expense FROM ledger_categories"));
     }
 
     [Theory]
-    [InlineData("Income", "Fixed", "Irregular", null)]
-    [InlineData("Income", "Variable", "Irregular", null)]
-    [InlineData("Expense", "NotApplicable", "Irregular", null)]
-    [InlineData("Unknown", "NotApplicable", "Irregular", null)]
-    [InlineData("Expense", "Unknown", "Irregular", null)]
-    [InlineData("Expense", "Fixed", "Unknown", null)]
-    [InlineData("Expense", "Fixed", "Regular", null)]
-    [InlineData("Expense", "Fixed", "Regular", 0)]
-    [InlineData("Expense", "Fixed", "Regular", 2)]
-    [InlineData("Expense", "Fixed", "Regular", -1)]
-    [InlineData("Expense", "Fixed", "Irregular", 1)]
-    [InlineData("Expense", "Fixed", "Extraordinary", 12)]
-    public async Task InvalidCategoryDefaultsAreRejectedIncludingNullCheckBoundaries(string income, string cost, string occurrence, int? months)
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Unknown")]
+    [InlineData("income")]
+    [InlineData("expense")]
+    [InlineData("0")]
+    public async Task CategoryRejectsInvalidIncomeExpenseOnInsertAndUpdate(string? income)
     {
         using var db = new AuthDatabaseFixture();
         var (ledger, _) = await SeedAsync(db);
         using var connection = db.OpenForeignKeyConnection();
-        Constraint(() => InsertCategory(connection, ledger, Id(), "科目", income: income, cost: cost, occurrence: occurrence, months: months));
-        Assert.Equal(0L, Scalar(connection, "SELECT COUNT(*) FROM ledger_categories"));
+        Constraint(() => InsertCategory(connection, ledger, Id(), "不正値", income: income!));
+        InsertCategory(connection, ledger, Id(), "既存科目");
+        Constraint(() => Execute(connection, "UPDATE ledger_categories SET income_expense=@income", ("@income", income)));
+        Assert.Equal("Expense", Scalar(connection, "SELECT income_expense FROM ledger_categories"));
+    }
+
+    [Fact]
+    public async Task CategoryHasOnlyEightFieldsAndNoRemovedDefaultConstraintsInModelOrMigration()
+    {
+        using var db = new AuthDatabaseFixture(); await db.MigrateAsync();
+        using var connection = db.OpenForeignKeyConnection();
+        var expectedColumns = new[] { "category_id", "display_order", "income_expense", "is_enabled", "ledger_id", "name", "revision", "tax_category_code" };
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT name FROM pragma_table_info('ledger_categories') ORDER BY name";
+            using var reader = command.ExecuteReader(); var columns = new List<string>();
+            while (reader.Read()) columns.Add(reader.GetString(0));
+            Assert.Equal(expectedColumns, columns);
+        }
+        var ddl = (string)Scalar(connection, "SELECT sql FROM sqlite_schema WHERE name='ledger_categories'")!;
+        foreach (var removed in new[] { "cost", "occurrence", "recurrence_months" }) Assert.DoesNotContain(removed, ddl);
+        Assert.Contains("CK_ledger_categories_income_expense", ddl);
+        await using var services = db.CreateServices(); await using var scope = services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
+        var expectedProperties = new[] { "DisplayOrder", "Id", "IncomeExpense", "IsEnabled", "LedgerId", "Name", "Revision", "TaxCategoryCode" };
+        Assert.Equal(expectedProperties, context.Model.FindEntityType(typeof(LedgerCategory))!.GetProperties().Select(property => property.Name).Order());
+        var migrations = context.GetService<IMigrationsAssembly>();
+        var id = "20261106204316_AddLedgerCategoriesAndTaxHistory";
+        Assert.Equal(id, migrations.Migrations.Keys.Last());
+        var migration = migrations.CreateMigration(migrations.Migrations[id], context.Database.ProviderName!);
+        Assert.Equal(expectedProperties, migration.TargetModel.FindEntityType(typeof(LedgerCategory).FullName!)!.GetProperties().Select(property => property.Name).Order());
+        var target = context.GetService<IModelRuntimeInitializer>().Initialize(migration.TargetModel, designTime: true);
+        Assert.False(context.GetService<IMigrationsModelDiffer>().HasDifferences(target.GetRelationalModel(),
+            context.GetService<IDesignTimeModel>().Model.GetRelationalModel()));
+        Assert.False(context.Database.HasPendingModelChanges());
+    }
+
+    [Fact]
+    public async Task DatabaseDoesNotMakeIncomeExpenseImmutableWhileBusinessChangePolicyIsUndecided()
+    {
+        using var db = new AuthDatabaseFixture(); var (ledger, _) = await SeedAsync(db);
+        using var connection = db.OpenForeignKeyConnection();
+        var id = Id(); InsertCategory(connection, ledger, id, "科目", order: 7);
+        foreach (var income in new[] { "Income", "Expense" })
+        {
+            Assert.Equal(1, Execute(connection, "UPDATE ledger_categories SET income_expense=@income WHERE ledger_id=@ledger AND category_id=@id",
+                ("@income", income), ("@ledger", ledger), ("@id", id)));
+            Assert.Equal(income, Scalar(connection, "SELECT income_expense FROM ledger_categories"));
+            Assert.Equal(7L, Scalar(connection, "SELECT display_order FROM ledger_categories"));
+            Assert.Equal(id, Scalar(connection, "SELECT category_id FROM ledger_categories"));
+        }
     }
 
     [Fact]
@@ -162,7 +200,7 @@ public sealed class CategoryTaxSchemaTests
         var parent = await first.Set<Ledger>().SingleAsync(row => row.Id == ledger);
         var before = (parent.Revision, parent.PeopleOrderRevision, parent.CategoryOrderRevision);
         var category = new LedgerCategory { LedgerId = ledger, Id = Id(), Name = "　食費　", TaxCategoryCode = TaxCategory.Standard,
-            IncomeExpense = IncomeExpenseKind.Expense, Cost = CategoryCostKind.Fixed, Occurrence = CategoryOccurrenceKind.Irregular, Revision = Id() };
+            IncomeExpense = IncomeExpenseKind.Expense, Revision = Id() };
         first.Add(category);
         await first.SaveChangesAsync();
         var stale = await second.Set<LedgerCategory>().SingleAsync();
@@ -328,8 +366,8 @@ public sealed class CategoryTaxSchemaTests
         {
             ExecuteIn(connection, transaction, "UPDATE ledgers SET category_order_revision=@revision WHERE id=@ledger", ("@revision", Id()), ("@ledger", ledger));
             ExecuteIn(connection, transaction, """
-                INSERT INTO ledger_categories(ledger_id,category_id,name,is_enabled,display_order,tax_category_code,income_expense,cost,occurrence,revision)
-                VALUES(@ledger,@id,'ロールバック対象',1,0,'Standard','Expense','Fixed','Irregular',@revision)
+                INSERT INTO ledger_categories(ledger_id,category_id,name,is_enabled,display_order,tax_category_code,income_expense,revision)
+                VALUES(@ledger,@id,'ロールバック対象',1,0,'Standard','Expense',@revision)
                 """, ("@ledger", ledger), ("@id", Id()), ("@revision", Id()));
             Constraint(() => ExecuteIn(connection, transaction, """
                 INSERT INTO tax_rate_history(id,tax_category_code,valid_from,rate,revision)
@@ -479,6 +517,60 @@ public sealed class CategoryTaxSchemaTests
     }
 
     private static string Id() => Guid.NewGuid().ToString("N");
+
+    [Fact]
+    public async Task AlreadyAppliedLegacyShapeIsNotSilentlyRewrittenAndExplicitInitializationRejectsIt()
+    {
+        using var db = new AuthDatabaseFixture(); var (ledger, _) = await SeedAsync(db);
+        using (var connection = db.OpenForeignKeyConnection())
+        {
+            // 隔離DBだけで、同じMigration IDを適用済みのPR #126旧構造を再現する。
+            Execute(connection, """
+                DROP TABLE ledger_categories;
+                CREATE TABLE ledger_categories (
+                    ledger_id TEXT NOT NULL, category_id TEXT NOT NULL, name TEXT NOT NULL COLLATE BINARY,
+                    is_enabled INTEGER NOT NULL, display_order INTEGER NOT NULL, tax_category_code TEXT NOT NULL,
+                    income_expense TEXT NOT NULL, cost TEXT NOT NULL, occurrence TEXT NOT NULL,
+                    recurrence_months INTEGER NULL, revision TEXT NOT NULL,
+                    PRIMARY KEY(ledger_id,category_id),
+                    FOREIGN KEY(ledger_id) REFERENCES ledgers(id) ON DELETE RESTRICT,
+                    FOREIGN KEY(tax_category_code) REFERENCES tax_categories(code) ON DELETE RESTRICT,
+                    CONSTRAINT CK_ledger_categories_enabled CHECK(is_enabled IN (0,1)),
+                    CONSTRAINT CK_ledger_categories_name CHECK(length(name) BETWEEN 1 AND 100),
+                    CONSTRAINT CK_ledger_categories_order CHECK(display_order>=0),
+                    CONSTRAINT CK_ledger_categories_income_cost CHECK(
+                        (income_expense='Income' AND cost='NotApplicable') OR (income_expense='Expense' AND cost IN ('Fixed','Variable'))),
+                    CONSTRAINT CK_ledger_categories_occurrence CHECK(occurrence IN ('Regular','Irregular','Extraordinary')),
+                    CONSTRAINT CK_ledger_categories_recurrence CHECK(
+                        (occurrence='Regular' AND recurrence_months IS NOT NULL AND recurrence_months IN (1,12)) OR
+                        (occurrence IN ('Irregular','Extraordinary') AND recurrence_months IS NULL))
+                );
+                CREATE UNIQUE INDEX ux_ledger_categories_name ON ledger_categories(ledger_id,name);
+                CREATE INDEX ix_ledger_categories_order ON ledger_categories(ledger_id,display_order,category_id);
+                CREATE INDEX IX_ledger_categories_tax_category_code ON ledger_categories(tax_category_code);
+                """);
+            Execute(connection, """
+                INSERT INTO ledger_categories(ledger_id,category_id,name,is_enabled,display_order,tax_category_code,
+                    income_expense,cost,occurrence,recurrence_months,revision)
+                VALUES(@ledger,@id,'保持する旧科目',1,7,'Standard','Expense','Variable','Irregular',NULL,@revision)
+                """, ("@ledger", ledger), ("@id", Id()), ("@revision", Id()));
+            InsertRate(connection, Id(), TaxCategory.Standard, "2026-01-01", null, "10");
+        }
+        var tables = db.Tables().ToArray();
+        var before = db.Snapshot(tables);
+        await using (var services = db.CreateServices())
+        {
+            await using var scope = services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
+            Assert.False(context.Database.HasPendingModelChanges()); // モデルとSnapshotの一致だけでは物理構造を保証しない。
+            await context.GetService<IMigrator>().MigrateAsync(); // 同一IDが記録済みなのでDDLは再適用されない。
+        }
+        Assert.Equal(before, db.Snapshot(tables));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => db.MigrateAsync());
+        Assert.Contains("構造と履歴が一致しません", error.Message);
+        Assert.Equal(before, db.Snapshot(tables)); // 科目・税履歴・版を削除/初期化して補正しない。
+    }
+
     private static void AssertUuid(string value)
     {
         Assert.True(Guid.TryParseExact(value, "N", out var parsed)); Assert.NotEqual(Guid.Empty, parsed);
@@ -501,12 +593,12 @@ public sealed class CategoryTaxSchemaTests
         await scope.ServiceProvider.GetRequiredService<ApiDbContext>().GetService<IMigrator>().MigrateAsync(target);
     }
     private static int InsertCategory(SqliteConnection connection, string ledger, string id, string name, bool enabled = true,
-        int order = 0, string tax = "Standard", string income = "Expense", string cost = "Variable", string occurrence = "Irregular", int? months = null) =>
+        int order = 0, string tax = "Standard", string income = "Expense") =>
         Execute(connection, """
-            INSERT INTO ledger_categories(ledger_id,category_id,name,is_enabled,display_order,tax_category_code,income_expense,cost,occurrence,recurrence_months,revision)
-            VALUES(@ledger,@id,@name,@enabled,@order,@tax,@income,@cost,@occurrence,@months,@revision)
+            INSERT INTO ledger_categories(ledger_id,category_id,name,is_enabled,display_order,tax_category_code,income_expense,revision)
+            VALUES(@ledger,@id,@name,@enabled,@order,@tax,@income,@revision)
             """, ("@ledger", ledger), ("@id", id), ("@name", name), ("@enabled", enabled), ("@order", order), ("@tax", tax),
-            ("@income", income), ("@cost", cost), ("@occurrence", occurrence), ("@months", months), ("@revision", Id()));
+            ("@income", income), ("@revision", Id()));
     private static int InsertRate(SqliteConnection connection, string id, string tax, string from, string? to, string? rate) =>
         Execute(connection, "INSERT INTO tax_rate_history(id,tax_category_code,valid_from,valid_to,rate,revision) VALUES(@id,@tax,@from,@to,@rate,@revision)",
             ("@id", id), ("@tax", tax), ("@from", from), ("@to", to), ("@rate", rate), ("@revision", Id()));

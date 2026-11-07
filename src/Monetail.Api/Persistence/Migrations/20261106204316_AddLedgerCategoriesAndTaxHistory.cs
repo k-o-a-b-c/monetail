@@ -51,20 +51,15 @@ namespace Monetail.Api.Persistence.Migrations
                     display_order = table.Column<int>(type: "INTEGER", nullable: false),
                     tax_category_code = table.Column<string>(type: "TEXT", nullable: false),
                     income_expense = table.Column<string>(type: "TEXT", nullable: false),
-                    cost = table.Column<string>(type: "TEXT", nullable: false),
-                    occurrence = table.Column<string>(type: "TEXT", nullable: false),
-                    recurrence_months = table.Column<int>(type: "INTEGER", nullable: true),
                     revision = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ledger_categories", x => new { x.ledger_id, x.category_id });
                     table.CheckConstraint("CK_ledger_categories_enabled", "is_enabled IN (0,1)");
-                    table.CheckConstraint("CK_ledger_categories_income_cost", "(income_expense = 'Income' AND cost = 'NotApplicable') OR (income_expense = 'Expense' AND cost IN ('Fixed','Variable'))");
+                    table.CheckConstraint("CK_ledger_categories_income_expense", "income_expense IN ('Income','Expense')");
                     table.CheckConstraint("CK_ledger_categories_name", "length(name) BETWEEN 1 AND 100");
-                    table.CheckConstraint("CK_ledger_categories_occurrence", "occurrence IN ('Regular','Irregular','Extraordinary')");
                     table.CheckConstraint("CK_ledger_categories_order", "display_order >= 0");
-                    table.CheckConstraint("CK_ledger_categories_recurrence", "(occurrence = 'Regular' AND recurrence_months IS NOT NULL AND recurrence_months IN (1,12)) OR (occurrence IN ('Irregular','Extraordinary') AND recurrence_months IS NULL)");
                     table.ForeignKey(
                         name: "FK_ledger_categories_ledgers_ledger_id",
                         column: x => x.ledger_id,
