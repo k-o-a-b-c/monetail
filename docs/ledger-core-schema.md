@@ -15,10 +15,10 @@
 
 <a id="category-master"></a>
 
-科目は家計簿ごとの独立したマスタ。全参加者が閲覧でき、追加・編集・削除・無効化・再有効化・並び替えは**家計簿Adminのみ**。アカウント全体のAdminを家計簿Adminとして扱わない。家計簿作成時に初期科目を生成せず、0件なら後続の管理画面で手動登録する。API・画面・権限の実行時検証は今回未実装。
+科目は家計簿ごとの独立したマスタ。全参加者が閲覧でき、追加・編集・削除・無効化・再有効化・並び替えは**家計簿Adminのみ**。アカウント全体のAdminを家計簿Adminとして扱わない。家計簿作成時に初期科目を生成せず、0件なら後続の管理画面で手動登録する。CRUD APIと参加・権限再検証は実装済み。管理画面・並び替えAPIは未実装。
 
 - 名称は.NETの`Trim()`後に1〜100 UTF-16コード単位（`string.Length`）。同一家計簿内はBINARY完全一致で同名不可。無効な科目も重複判定へ含め、別家計簿では同名を許可する。
-- IDは名称・初期値・状態・並び順から独立し、改名でも維持する。過去の記録・集計は科目を参照して新しい名称を表示する。初期値のスナップショットとは区別する。
+- IDは名称・初期値・状態・並び順から独立し、改名でも維持する。過去の記録・集計は科目IDを参照して新しい名称を表示し、取引データ自体を更新しない。初期税区分を変えても取引に保存済みの実際の税区分・税率は変更しない。
 - 未使用なら削除可能。参照があれば物理削除不可とし、無効化で対応する。無効化した科目は新規入力候補から除くが、既存データ・集計から除かない。再有効化可能で、開始日・終了日は持たない。
 - 順序は家計簿共通。新規は無効科目を含む末尾（MAX+1、0件なら0）。有効・無効の切替だけで`display_order`を変えない。順序の欠番・同順位を許容し、保存順の補助キーは科目IDとする。並び替えAPIの全件指定・競合応答等の契約は後続。
 
@@ -50,7 +50,54 @@
 
 家計簿へのFKはRESTRICT。将来の使用先は当該列に索引を設け、必ず`(ledger_id, category_id)`へRESTRICT FKを張り、参照のある科目の削除をDBでも防ぐ。今回、使用先テーブルや「使用済み」フラグは仮実装しない。新しいUUIDはアプリが発行する。既存家計簿の科目順版はMigrationで個別のUUID v4を付与し、再適用時には変えない。SQLiteの既存表へのNOT NULL列追加用に空文字DDLデフォルトを用いるが、業務上の有効な版にはせず、新規`Ledger`は必ずUUIDを初期化する（支払方法順版と同じ移行方式）。
 
-**責務の分担：** DBはNOT NULL・UNIQUE・FK・有効状態・非負順序・収支区分の許容値を保護する。名称の空白除去と正確なUTF-16文字数は`LedgerCategory.Name`の設定時に検証し、DBの長さCHECKも補助的に使う（SQLiteの`length`はUnicode文字数でありUTF-16単位とは異なる）。後続APIの条件付きUPDATE・生SQLでも同じ正規化・検証が必要。Adminの再検証、未使用判定、末尾採番と科目順版のCASを同一トランザクションにまとめる処理・エラー表示・再送契約はAPI実装で行う。`category_order_revision`を家計簿全体のEF同時実行トークンにはせず、対象列の条件付きUPDATEで照合する。
+**責務の分担：** DBはNOT NULL・UNIQUE・FK・有効状態・非負順序・収支区分の許容値を保護する。名称の空白除去と正確なUTF-16文字数は`LedgerCategory.Name`の設定時に検証し、DBの長さCHECKも補助的に使う（SQLiteの`length`はUnicode文字数でありUTF-16単位とは異なる）。後続APIの条件付きUPDATE・生SQLでも同じ正規化・検証が必要。CRUD APIではAdminの再検証、末尾採番と科目順版のCASを同一トランザクションで実行する。参照のある削除はRESTRICT違反を409へ変換し、使用先テーブルの仮実装は行わない。`category_order_revision`を家計簿全体のEF同時実行トークンにはせず、対象列の条件付きUPDATEで照合する。
+
+## 科目CRUD API（実装済み）
+
+<a id="category-crud-api"></a>
+
+PR #127の8列構造を前提とする。旧11列構造を同じMigration IDで適用済みの開発DBは[取扱い](#category-master-development-databases)を確認する。DBモデル・MigrationはこのAPI実装では変更しない。
+
+| メソッド・パス（`/ledgers/{ledgerId}`以下） | 権限 | 入力 |
+| --- | --- | --- |
+| `GET /categories` | 全参加者 | なし。無効科目も含む全件 |
+| `POST /categories` | 家計簿Adminのみ | `requestId`・`name`・`incomeExpense`・`taxCategoryCode`必須 |
+| `PATCH /categories/{categoryId}` | 家計簿Adminのみ | `revision`必須。`name`・`taxCategoryCode`・`isEnabled`から1つ以上 |
+| `DELETE /categories/{categoryId}` | 家計簿Adminのみ | `revision`必須 |
+
+全体Adminの権限を家計簿Adminへ読み替えない。現在の参加・セッション・権限を共通処理で照合し、書込直前とトランザクション確定前にも再確認する。家計簿をまたぐ行の参照・更新はしない。認証・CookieのCSRF/Origin・エラー形式は[共通契約](ledger-person-api-contract.md)と同じ。アカウント単位の既存枠（書込20回/分、参照120回/分）を共有し、新しい制限を設けない。
+
+### 入力と応答
+
+- 名前はTrim後1〜100 UTF-16単位、家計簿内BINARY完全一致。無効科目も重複判定に含める。
+- `incomeExpense`は`Income`/`Expense`、`taxCategoryCode`は`Standard`/`ReducedFood`/`ReducedNewspaper`/`Exempt`の文字列を完全一致で指定する。
+- PATCHの省略項目は保持する。名前・税区分・有効状態のnullは不可。`isEnabled`はJSONのtrue/falseのみ。収支区分・表示順・その他の未許可項目は400で拒否する。科目の後からの収支変更が業務上可能かは未決定のままで、今回のPATCHの対象にしない。
+- 要求ID・更新版は空でないUUID。未知・重複JSONプロパティ、不正な本文/型は既存`invalid_input`で拒否する。
+
+GET・PATCH・DELETE成功時は次の一覧形式を返す。順序は常に`display_order ASC, category_id ASC`。本人優先等の並べ替えや無効科目の除外は行わない。
+
+```json
+{
+  "categories": [
+    { "categoryId": "科目UUID", "name": "食費", "incomeExpense": "Expense",
+      "taxCategoryCode": "ReducedFood", "isEnabled": true, "displayOrder": 0, "revision": "行UUID更新版" }
+  ],
+  "orderRevision": "家計簿のcategory_order_revision",
+  "currentRole": "Admin"
+}
+```
+
+POSTは同じ一覧形式にトップレベルの`categoryId`を加え、初回201・再送200を返す。更新後の一覧を同じ応答で返し、成功後の追加GETを前提にしない。
+
+### 保存・再送・競合
+
+- 作成時の科目IDと行版はサーバー発行UUID、有効状態はtrue。無効科目を含むMAX順序+1（0件なら0）へ追加する。
+- [共通再送](ledger-operation-retries.md)の`operation_requests`を`category.create`で使用し、正規化済み家計簿ID・名前・収支区分・初期税区分を照合値へ含める。操作者と処理種類も共通処理で照合する。記録を権限の根拠としない。
+- 作成・科目順版CAS・再送記録を同じ書込トランザクションで確定する。同一要求の再送は元の科目IDと現在の一覧を返し、改名/無効化後も重複作成しない。異内容・別操作者/処理/家計簿の要求は409 `request_conflict`、元の結果が削除済みなら409 `created_result_deleted`。削除しても共通記録は保持する。
+- PATCHは家計簿・科目ID・旧行版をWHERE条件にして更新する。実値が変わった場合だけ新しい行版を発行し、科目順版・収支区分・表示順を変えない。実値不変なら書き込まず、共通SQLite書込トランザクション内で旧版を照合する。
+- DELETEも旧行版を条件にして削除し、科目順版のCASと同時に確定する。参照違反だけを409 `category_referenced`とし、他のDB障害は503 `store_unavailable`。連鎖削除はしない。
+- 重複名は409 `duplicate_category_name`（field=`name`）。行版競合は409 `revision_conflict`で`latest`へ科目行全項目を返す。内部の科目順版CASが不一致なら`latest`は最新一覧・順版。最新情報を取得した後にも現在の権限を再確認し、失効/除外/降格なら401/404/403を返して最新データを公開しない。
+- 名前・初期税区分の編集は科目だけを更新する。既存取引は科目IDで新名称を表示し、保存済み取引の行・税区分・税率は更新しない。レシート機能自体は未実装。
 
 ## 共通税区分・日付別税率履歴（DEC-138・DB基盤実装済み）
 
