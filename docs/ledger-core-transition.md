@@ -36,6 +36,6 @@
 
 ## 科目・税DB基盤の後続
 
-[科目と共通税履歴](ledger-core-schema.md#category-master)のモデル・Migrationは実装済み。科目CRUD APIは実装済み。次は並び替えAPI、WinUI管理画面、確定した税履歴の投入・管理運用を別々に実装する。家計簿Adminの再検証・条件付き版更新・入力と再送のエラー契約は[科目CRUD API](ledger-core-schema.md#category-crud-api)へ反映した。レシート実装前に、科目固有の収支区分と既存の金額符号の整合性、科目収支の後変更可否を確認する。明細の費用・発生区分・周期は正本の初期値と流用方針に従い、UIは未決定。実データの旧版移行は行わず、税率改定を保存済み取引の更新に使わない。詳細仕様と保存構成はリンク先のみを正本とする。
+[科目と共通税履歴](ledger-core-schema.md#category-master)のモデル・Migration、科目CRUD・並び替えAPIは実装済み。次はWinUI管理画面、確定した税履歴の投入・管理運用を別々に実装する。API契約は[科目CRUD](ledger-core-schema.md#category-crud-api)・[並び替え](ledger-core-schema.md#category-order-api)を正本とする。レシート実装前に、科目固有の収支区分と既存の金額符号の整合性、科目収支の後変更可否を確認する。明細の費用・発生区分・周期は正本の初期値と流用方針に従い、UIは未決定。実データの旧版移行は行わず、税率改定を保存済み取引の更新に使わない。詳細仕様と保存構成はリンク先のみを正本とする。
 
 未リリースの科目MigrationはDEC-139で直接修正した。同じIDを適用済みの開発DBは自動更新されないため、[開発DBの扱い](ledger-core-schema.md#category-master-development-databases)を確認する。実DBの変換・初期化は本変更では行わない。

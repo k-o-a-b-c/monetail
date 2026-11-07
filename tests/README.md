@@ -7,13 +7,13 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 797 |
+| ASP.NET Core API | 858 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 53 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・補完） | 323 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 1389 |
+| 合計 | 1450 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+科目並び替えAPIに実HTTP/隔離SQLiteの61ケースを追加。無効科目・収支混在・欠番/同順位からの再採番、0件/1件/同順保存時の新版、家計簿Admin限定と全体権限の分離、入力/家計簿境界、全行属性/他の更新版の保持、旧版/同時保存/追加削除との競合、DB条件付きUPDATE、途中障害・降格/除外/認証失効の全体ロールバック、競合情報の保護と共有書込枠を確認する。ローカルReleaseで新規61件と既存の科目CRUD/支払方法並び替え147件が成功。ソース`95993d19b911c225732fe7375718cecfcf588ab8`の[CI 42369954389](https://github.com/k-o-a-b-c/monetail/actions/runs/42369954389)でAPI全858件・Node・Python、Dockerビルドと通常/server/配布アーカイブの起動検証が成功。基点main `a24574d20f6d09d23b88adf6fed23dd45a7729e8`（PR #128マージ）の[CI 42366871026](https://github.com/k-o-a-b-c/monetail/actions/runs/42366871026)成功を変更前の根拠として再利用し、変更前の全件確認と影響のないWindows系・旧版・性能テストは再実行していない。構成合計1450件を全件再実行した意味ではない。DB/Migration・CRUD仕様・Client/WinUI・レシート・既存税計算の変更なし。実運用DB・実Windowsからの操作は未検証。
 
 科目CRUD APIに実HTTP/隔離SQLiteの108ケースを追加（構成API797件）。参加者の閲覧/家計簿Adminのみ更新・全体Adminとの分離、家計簿境界、正規化/UTF-16/無効科目の重複、収支/税区分/boolean/JSON/更新版入力、同時作成/再送/行更新、作成後の改名・削除と再送、RESTRICTと想定外DBエラー分類、独立した順序版、保存前/確定前の降格・除外・認証失効とロールバック、競合情報の失効後非公開、既存20/120回枠の共有を検証する。将来の取引参照はテスト専用FK表のみで再現し、改名時のJOIN表示と保存済み税区分/率の非更新を確認する。対象をローカルで確認し、ソース`684367bba852badcc809cafff8cc962231c4eaa4`の[CI 42361091410](https://github.com/k-o-a-b-c/monetail/actions/runs/42361091410)でAPI全797件・Node・Python、Dockerビルドと通常/server/配布アーカイブ起動検証が成功。影響のないClient/WinUI・旧版・性能テストは再実行していない。DBモデル/Migration・Client/WinUI・レシート・既存税計算は変更していない。基点main `92cab63`の[CI 42354526041](https://github.com/k-o-a-b-c/monetail/actions/runs/42354526041)成功を変更前の根拠とする。
 
