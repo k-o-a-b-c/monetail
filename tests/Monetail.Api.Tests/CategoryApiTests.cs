@@ -13,7 +13,7 @@ using Xunit;
 namespace Monetail.Api.Tests;
 
 /// <summary>実HTTP・共通認証・隔離SQLiteで科目CRUDと保存の原子性を検証する。</summary>
-public sealed class CategoryApiTests
+public sealed partial class CategoryApiTests
 {
     [Fact]
     public async Task CrudReplayNormalizationAndVersionsAreIndependent()
