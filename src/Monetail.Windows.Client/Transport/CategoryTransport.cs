@@ -6,7 +6,7 @@ using Monetail.Windows.Client.Ledgers;
 namespace Monetail.Windows.Client.Transport;
 
 public sealed record CategoryInfo(Guid CategoryId, string Name, string IncomeExpense, string TaxCategoryCode,
-    bool IsEnabled, int DisplayOrder, Guid Revision);
+    DateOnly? ValidFrom, DateOnly? ValidTo, int DisplayOrder, Guid Revision);
 public sealed record CategoriesInfo(CategoryInfo[] Categories, Guid OrderRevision, string CurrentRole)
 {
     /// <summary>表示用の判定。実際の参加・操作権限はAPIが最終検証する。</summary>
@@ -36,7 +36,7 @@ public sealed partial class MonetailApiClient
     public async Task<CategoryCreationInfo> CreateCategoryAsync(string access, Guid ledgerId, CategoryCreationDraft draft, CancellationToken token = default)
     {
         using var json = await SendCategoryAsync(HttpMethod.Post, CategoryPath(ledgerId), access,
-            new { draft.RequestId, draft.Input.Name, draft.Input.IncomeExpense, draft.Input.TaxCategoryCode }, token);
+            new { draft.RequestId, draft.Input.Name, draft.Input.IncomeExpense, draft.Input.TaxCategoryCode, draft.Input.ValidFrom, draft.Input.ValidTo }, token);
         var state = ReadCategories(json.RootElement); var id = ReadUuidProperty(json.RootElement, "categoryId");
         if (!state.Categories.Any(row => row.CategoryId == id)) throw new ApiConnectionException();
         return new(id, state);
@@ -101,17 +101,18 @@ public sealed partial class MonetailApiClient
             String(json, "currentRole") is not ("Admin" or "Editor" or "Viewer")) throw new ApiConnectionException();
         var categories = rows.EnumerateArray().Select(ReadCategory).ToArray();
         if (categories.Select(row => row.CategoryId).Distinct().Count() != categories.Length) throw new ApiConnectionException();
-        // API配列順・同順位・欠番・無効科目を保持し、絞り込みや独自ソートをしない。
+        // API配列順・同順位・欠番・有効期間外の科目を保持し、絞り込みや独自ソートをしない。
         return new(categories, ReadUuidProperty(json, "orderRevision"), String(json, "currentRole")!);
     }
     private static CategoryInfo ReadCategory(JsonElement json)
     {
         if (json.ValueKind != JsonValueKind.Object || String(json, "name") is not { Length: > 0 and <= 100 } name || string.IsNullOrWhiteSpace(name) ||
             !CategoryInput.IsIncomeExpense(String(json, "incomeExpense")) || !CategoryInput.IsTax(String(json, "taxCategoryCode")) ||
-            !json.TryGetProperty("isEnabled", out var enabled) || enabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False) ||
             !json.TryGetProperty("displayOrder", out var order) || order.ValueKind != JsonValueKind.Number || !order.TryGetInt32(out var position) || position < 0)
             throw new ApiConnectionException();
+        var from = ReadPersonDate(json, "validFrom"); var to = ReadPersonDate(json, "validTo");
+        if (from > to) throw new ApiConnectionException();
         return new(ReadUuidProperty(json, "categoryId"), name, String(json, "incomeExpense")!, String(json, "taxCategoryCode")!,
-            enabled.GetBoolean(), position, ReadUuidProperty(json, "revision"));
+            from, to, position, ReadUuidProperty(json, "revision"));
     }
 }

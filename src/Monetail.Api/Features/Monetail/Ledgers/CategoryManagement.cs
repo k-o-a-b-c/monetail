@@ -1,4 +1,4 @@
-using System.Text.Json;
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Monetail.Api.Authentication;
@@ -8,7 +8,7 @@ using Monetail.Api.Features.Monetail.Taxes;
 namespace Monetail.Api.Features.Monetail.Ledgers;
 
 public sealed record CategoryInfo(string CategoryId, string Name, string IncomeExpense, string TaxCategoryCode,
-    bool IsEnabled, int DisplayOrder, string Revision);
+    DateOnly? ValidFrom, DateOnly? ValidTo, int DisplayOrder, string Revision);
 public sealed record CategoriesResponse(CategoryInfo[] Categories, string OrderRevision, string CurrentRole);
 
 /// <summary>科目のCRUDを、共通の参加・認証再検証とSQLite書込トランザクション内で実行する。</summary>
@@ -16,7 +16,7 @@ public sealed partial class LedgerManagementService
 {
     private static bool CategoryAdmin(LedgerMember member) => member.Role == "Admin";
     private static CategoryInfo Category(LedgerCategory row) => new(row.Id, row.Name, row.IncomeExpense.ToString(),
-        row.TaxCategoryCode, row.IsEnabled, row.DisplayOrder, row.Revision);
+        row.TaxCategoryCode, row.ValidFrom, row.ValidTo, row.DisplayOrder, row.Revision);
 
     private async Task<CategoriesResponse> CategoriesAsync(string id, CurrentSession actor, CancellationToken token)
     {
@@ -36,8 +36,10 @@ public sealed partial class LedgerManagementService
             var name = CategoryName(input.Text("name"));
             var income = CategoryIncome(input.Text("incomeExpense"));
             var tax = CategoryTax(input.Text("taxCategoryCode"));
+            var from = input.Date("validFrom"); var to = input.Date("validTo");
+            CategoryPeriod(from, to);
             var request = input.Uuid("requestId");
-            var hash = OperationRequest.Hash(id, name, income.ToString(), tax);
+            var hash = OperationRequest.Hash(id, name, income.ToString(), tax, from?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), to?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             var previous = await PreviousAsync(request, "category.create", hash, actor, token);
             if (previous is not null)
             {
@@ -51,7 +53,7 @@ public sealed partial class LedgerManagementService
             if (last == int.MaxValue) throw LedgerPayload.Bad("表示順の上限に達しています。");
             await AdvanceCategoryOrderAsync(id, actor, token);
             var row = new LedgerCategory { LedgerId = id, Id = Version(), Name = name, IncomeExpense = income,
-                TaxCategoryCode = tax, IsEnabled = true, DisplayOrder = (last ?? -1) + 1, Revision = Version() };
+                TaxCategoryCode = tax, ValidFrom = from, ValidTo = to, DisplayOrder = (last ?? -1) + 1, Revision = Version() };
             context.Add(row);
             Record(request, "category.create", hash, row.Id, actor);
             await RequireMemberAsync(id, actor, CategoryAdmin, token);
@@ -66,12 +68,15 @@ public sealed partial class LedgerManagementService
         {
             var row = await CategoryRowAsync(id, key, token);
             var revision = input.Uuid("revision");
-            if (!input.Has("name") && !input.Has("taxCategoryCode") && !input.Has("isEnabled")) throw LedgerPayload.Bad("変更項目を指定してください。");
+            if (!input.Has("name") && !input.Has("taxCategoryCode") && !input.Has("incomeExpense") && !input.Has("validFrom") && !input.Has("validTo")) throw LedgerPayload.Bad("変更項目を指定してください。");
             if (row.Revision != revision) throw Conflict(Category(row));
             var name = input.Has("name") ? CategoryName(input.Text("name")) : row.Name;
             var tax = input.Has("taxCategoryCode") ? CategoryTax(input.Text("taxCategoryCode")) : row.TaxCategoryCode;
-            var enabled = input.Has("isEnabled") ? CategoryEnabled(input) : row.IsEnabled;
-            if (name != row.Name || tax != row.TaxCategoryCode || enabled != row.IsEnabled)
+            var income = input.Has("incomeExpense") ? CategoryIncome(input.Text("incomeExpense")) : row.IncomeExpense;
+            var from = input.Has("validFrom") ? input.Date("validFrom") : row.ValidFrom;
+            var to = input.Has("validTo") ? input.Date("validTo") : row.ValidTo;
+            CategoryPeriod(from, to);
+            if (name != row.Name || tax != row.TaxCategoryCode || income != row.IncomeExpense || from != row.ValidFrom || to != row.ValidTo)
             {
                 await UniqueCategoryNameAsync(id, key, name, token);
                 await RequireMemberAsync(id, actor, CategoryAdmin, token);
@@ -79,7 +84,8 @@ public sealed partial class LedgerManagementService
                 {
                     var count = await context.Set<LedgerCategory>().Where(p => p.LedgerId == id && p.Id == key && p.Revision == revision)
                         .ExecuteUpdateAsync(set => set.SetProperty(p => p.Name, name).SetProperty(p => p.TaxCategoryCode, tax)
-                            .SetProperty(p => p.IsEnabled, enabled).SetProperty(p => p.Revision, Version()), token);
+                            .SetProperty(p => p.IncomeExpense, income).SetProperty(p => p.ValidFrom, from)
+                            .SetProperty(p => p.ValidTo, to).SetProperty(p => p.Revision, Version()), token);
                     if (count != 1) throw Conflict(Category(await CategoryRowAsync(id, key, token)));
                 }
                 catch (SqliteException error) when (CategoryNameCollision(error)) { throw DuplicateCategoryName(); }
@@ -130,11 +136,10 @@ public sealed partial class LedgerManagementService
     };
     private static string CategoryTax(string value) => value is TaxCategory.Standard or TaxCategory.ReducedFood or TaxCategory.ReducedNewspaper or TaxCategory.Exempt
         ? value : throw LedgerPayload.Bad("税区分を選択してください。", "taxCategoryCode");
-    private static bool CategoryEnabled(LedgerPayload input) => input.Value("isEnabled").ValueKind switch
+    private static void CategoryPeriod(DateOnly? from, DateOnly? to)
     {
-        JsonValueKind.True => true, JsonValueKind.False => false,
-        _ => throw LedgerPayload.Bad("有効状態はtrueまたはfalseで指定してください。", "isEnabled")
-    };
+        if (from > to) throw LedgerPayload.Bad("有効開始日は有効終了日以前の日付にしてください。", "validTo");
+    }
     private static LedgerApiFault DuplicateCategoryName() => new(409, "duplicate_category_name", "この家計簿には同名の科目があります。", "name");
     private async Task UniqueCategoryNameAsync(string id, string? key, string name, CancellationToken token)
     {

@@ -22,7 +22,7 @@ public sealed partial class CategoryApiTests
     {
         await using var f = await Fixture.Create();
         var a = await f.Category("給与", "Income", "Exempt"); var b = await f.Category("食費", tax: "ReducedFood"); var c = await f.Category("新聞", tax: "ReducedNewspaper");
-        await f.Call("PATCH", new { revision = Revision(b), isEnabled = false }, suffix: Path(b));
+        await f.Call("PATCH", new { revision = Revision(b), validTo = "2000-01-01" }, suffix: Path(b));
         f.App.Database.Execute($"UPDATE ledger_categories SET display_order=7 WHERE category_id='{Id(a)}'; UPDATE ledger_categories SET display_order=7 WHERE category_id='{Id(b)}'; UPDATE ledger_categories SET display_order=12 WHERE category_id='{Id(c)}'");
         var other = (await Send(f.Client, "POST", "/ledgers", new { requestId = Guid.NewGuid(), name = "別家計簿" }, 201)).GetProperty("ledgerId").GetString()!;
         await Send(f.Client, "POST", $"/ledgers/{other}/categories", CreateInput("別科目"), 201);
@@ -40,7 +40,7 @@ public sealed partial class CategoryApiTests
         foreach (var row in result.GetProperty("categories").EnumerateArray())
         {
             var old = before.GetProperty("categories").EnumerateArray().Single(r => Id(r) == Id(row));
-            foreach (var field in new[] { "categoryId", "name", "incomeExpense", "taxCategoryCode", "isEnabled", "revision" })
+            foreach (var field in new[] { "categoryId", "name", "incomeExpense", "taxCategoryCode", "validFrom", "validTo", "revision" })
                 Assert.Equal(old.GetProperty(field).GetRawText(), row.GetProperty(field).GetRawText());
         }
         Assert.Equal(unrelated, f.App.Database.Snapshot(f.App.Database.Tables().Where(t => t is not "ledgers" and not "ledger_categories")));
@@ -134,7 +134,7 @@ public sealed partial class CategoryApiTests
     public async Task OrderStaleAfterCompositionChangeReturnsCompleteCurrentList(string change)
     {
         await using var f = await Fixture.Create(); var a = await f.Category("収入", "Income", "Exempt"); var b = await f.Category("支出"); var revision = f.Order();
-        await f.Call("PATCH", new { revision = Revision(a), name = "最新の収入", isEnabled = false, taxCategoryCode = "ReducedNewspaper" }, suffix: Path(a));
+        await f.Call("PATCH", new { revision = Revision(a), name = "最新の収入", validTo = "2000-01-01", taxCategoryCode = "ReducedNewspaper" }, suffix: Path(a));
         if (change == "add") await f.Category("追加", tax: "ReducedFood");
         else await f.Call("DELETE", new { revision = Revision(b) }, suffix: Path(b));
         var expected = await f.Call("GET"); var before = f.Snapshot();

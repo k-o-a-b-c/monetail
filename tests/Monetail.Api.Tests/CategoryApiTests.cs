@@ -24,21 +24,21 @@ public sealed partial class CategoryApiTests
         var requestId = Guid.NewGuid();
         var created = await f.Call("POST", new { requestId, name = "　食費　", incomeExpense = "Expense", taxCategoryCode = "ReducedFood" }, 201);
         var row = Row(created); Assert.Equal("食費", row.GetProperty("name").GetString());
-        Assert.True(row.GetProperty("isEnabled").GetBoolean()); Assert.Equal(0, row.GetProperty("displayOrder").GetInt32());
+        Assert.Equal(JsonValueKind.Null, row.GetProperty("validFrom").ValueKind); Assert.Equal(JsonValueKind.Null,row.GetProperty("validTo").ValueKind); Assert.Equal(0, row.GetProperty("displayOrder").GetInt32());
         AssertUuid(Id(row)); AssertUuid(Revision(row)); Assert.NotEqual(requestId.ToString("N"), Id(row));
         Assert.NotEqual(order, f.Order()); Assert.Equal(header, f.Header()); order = f.Order();
         var record = f.App.Database.Scalar("SELECT operation_type FROM operation_requests WHERE request_id='" + requestId.ToString("N") + "'");
         Assert.Equal("category.create", record);
         var replay = await f.Call("POST", new { requestId = requestId.ToString("N"), name = "食費", incomeExpense = "Expense", taxCategoryCode = "ReducedFood" });
         Assert.Equal(Id(row), replay.GetProperty("categoryId").GetString()); Assert.Equal(order, f.Order());
-        var updated = Row(await f.Call("PATCH", new { revision = Revision(row), name = "生活費", taxCategoryCode = "Exempt", isEnabled = false }, suffix: Path(row)));
+        var updated = Row(await f.Call("PATCH", new { revision = Revision(row), name = "生活費", taxCategoryCode = "Exempt", validTo = "2000-01-01" }, suffix: Path(row)));
         Assert.Equal("Expense", updated.GetProperty("incomeExpense").GetString()); Assert.Equal(Id(row), Id(updated));
-        Assert.Equal("Exempt", updated.GetProperty("taxCategoryCode").GetString()); Assert.False(updated.GetProperty("isEnabled").GetBoolean());
+        Assert.Equal("Exempt", updated.GetProperty("taxCategoryCode").GetString()); Assert.Equal("2000-01-01",updated.GetProperty("validTo").GetString());
         Assert.NotEqual(Revision(row), Revision(updated)); Assert.Equal(order, f.Order()); Assert.Equal(header, f.Header());
         var before = f.Snapshot();
-        var unchanged = await f.Call("PATCH", new { revision = Revision(updated), name = " 生活費 ", taxCategoryCode = "Exempt", isEnabled = false }, suffix: Path(row));
+        var unchanged = await f.Call("PATCH", new { revision = Revision(updated), name = " 生活費 ", taxCategoryCode = "Exempt", validTo = "2000-01-01" }, suffix: Path(row));
         Assert.Equal(Revision(updated), Revision(Row(unchanged))); Assert.Equal(before, f.Snapshot());
-        var restored = Row(await f.Call("PATCH", new { revision = Revision(updated), isEnabled = true }, suffix: Path(row)));
+        var restored = Row(await f.Call("PATCH", new { revision = Revision(updated), validTo = (string?)null }, suffix: Path(row)));
         Assert.Equal(0, restored.GetProperty("displayOrder").GetInt32()); Assert.Equal(order, f.Order());
         var currentReplay = await f.Call("POST", new { requestId, name = "食費", incomeExpense = "Expense", taxCategoryCode = "ReducedFood" });
         Assert.Equal("生活費", Row(currentReplay).GetProperty("name").GetString());
@@ -85,21 +85,21 @@ public sealed partial class CategoryApiTests
     public async Task ReadsIncludeDisabledRowsInCommonOrderWithIdTieBreak(string role)
     {
         await using var f = await Fixture.Create(); var a = await f.Category("A"); var b = await f.Category("B"); var c = await f.Category("C");
-        await f.Call("PATCH", new { revision = Revision(a), isEnabled = false }, suffix: Path(a));
+        await f.Call("PATCH", new { revision = Revision(a), validTo = "2000-01-01" }, suffix: Path(a));
         f.App.Database.Execute($"UPDATE ledger_categories SET category_id='00000000000040008000000000000003',display_order=0 WHERE category_id='{Id(a)}';" +
             $"UPDATE ledger_categories SET category_id='00000000000040008000000000000001',display_order=0 WHERE category_id='{Id(b)}';" +
             $"UPDATE ledger_categories SET category_id='00000000000040008000000000000002',display_order=7 WHERE category_id='{Id(c)}'");
         f.Role(role); var before = f.Snapshot(); var result = await f.Call("GET");
         Assert.Equal(role, result.GetProperty("currentRole").GetString()); Assert.Equal(f.Order(), result.GetProperty("orderRevision").GetString());
         Assert.Equal(new[] { "B", "A", "C" }, result.GetProperty("categories").EnumerateArray().Select(row => row.GetProperty("name").GetString()));
-        Assert.False(result.GetProperty("categories")[1].GetProperty("isEnabled").GetBoolean()); Assert.Equal(before, f.Snapshot());
+        Assert.Equal("2000-01-01",result.GetProperty("categories")[1].GetProperty("validTo").GetString()); Assert.Equal(before, f.Snapshot());
     }
 
     [Fact]
     public async Task NamesAreTrimmedOrdinalAndUniqueIncludingDisabledCategories()
     {
         await using var f = await Fixture.Create(); var row = await f.Category("A");
-        await f.Call("PATCH", new { revision = Revision(row), isEnabled = false }, suffix: Path(row));
+        await f.Call("PATCH", new { revision = Revision(row), validTo = "2000-01-01" }, suffix: Path(row));
         await f.Category("a"); await f.Category(new string('あ', 100)); await f.Category(string.Concat(Enumerable.Repeat("😀", 50)));
         var before = f.Snapshot(); var duplicate = await f.Call("POST", CreateInput("　A "), 409);
         Assert.Equal("duplicate_category_name", Code(duplicate)); Assert.Equal("name", duplicate.GetProperty("field").GetString()); Assert.Equal(before, f.Snapshot());
@@ -168,7 +168,7 @@ public sealed partial class CategoryApiTests
             case "enabledNull": input["isEnabled"] = null; break;
             case "enabledString": input["isEnabled"] = "true"; break;
             case "enabledNumber": input["isEnabled"] = 1; break;
-            default: input[kind] = kind == "incomeExpense" ? "Income" : 1; break;
+            default: input[kind] = kind == "incomeExpense" ? "Unknown" : 1; break;
         }
         Assert.Equal("invalid_input", Code(await f.Call("PATCH", input, 400, Path(row)))); Assert.Equal(before, f.Snapshot());
     }
@@ -241,7 +241,7 @@ public sealed partial class CategoryApiTests
     public async Task StaleRowVersionReturnsLatestAndWritesNothing(string method)
     {
         await using var f = await Fixture.Create(); var row = await f.Category();
-        var current = Row(await f.Call("PATCH", new { revision = Revision(row), name = "最新", taxCategoryCode = "Exempt", isEnabled = false }, suffix: Path(row)));
+        var current = Row(await f.Call("PATCH", new { revision = Revision(row), name = "最新", taxCategoryCode = "Exempt", validTo = "2000-01-01" }, suffix: Path(row)));
         var before = f.Snapshot();
         var result = await f.Call(method, method == "PATCH" ? new { revision = Revision(row), name = "古い入力" } : new { revision = Revision(row) }, 409, Path(row));
         Assert.Equal("revision_conflict", Code(result)); Assert.Equal(current.GetRawText(), result.GetProperty("latest").GetRawText()); Assert.Equal(before, f.Snapshot());
@@ -284,7 +284,7 @@ public sealed partial class CategoryApiTests
         var fixedData = f.App.Database.Snapshot(new[] { "ledger_people", "ledger_payment_methods", "tax_categories", "tax_rate_history" });
         var otherOrder = f.App.Database.Scalar($"SELECT category_order_revision FROM ledgers WHERE id='{other}'"); var header = f.Header();
         var first = await f.Category("先"); var disabled = await f.Category("無効");
-        await f.Call("PATCH", new { revision = Revision(disabled), isEnabled = false }, suffix: Path(disabled));
+        await f.Call("PATCH", new { revision = Revision(disabled), validTo = "2000-01-01" }, suffix: Path(disabled));
         f.App.Database.Execute($"UPDATE ledger_categories SET display_order=7 WHERE category_id='{Id(disabled)}'");
         await f.Call("DELETE", new { revision = Revision(first) }, suffix: Path(first));
         var next = await f.Category("後"); Assert.Equal(8, next.GetProperty("displayOrder").GetInt32());
@@ -367,8 +367,8 @@ public sealed partial class CategoryApiTests
         await using var f = await Fixture.Create(); var row = await f.Category();
         // 事前重複検証の後にDB側で衝突を発生させ、UNIQUE例外の分類も検証する。
         f.App.Database.Execute($"CREATE TRIGGER collide BEFORE {(method == "POST" ? "INSERT" : "UPDATE")} ON ledger_categories WHEN NEW.name='衝突' BEGIN " +
-            "INSERT INTO ledger_categories(ledger_id,category_id,name,is_enabled,display_order,tax_category_code,income_expense,revision) " +
-            "VALUES(NEW.ledger_id,lower(hex(randomblob(16))),NEW.name,1,99,'Standard','Expense',lower(hex(randomblob(16)))); END");
+            "INSERT INTO ledger_categories(ledger_id,category_id,name,valid_to,display_order,tax_category_code,income_expense,revision) " +
+            "VALUES(NEW.ledger_id,lower(hex(randomblob(16))),NEW.name,NULL,99,'Standard','Expense',lower(hex(randomblob(16)))); END");
         var before = f.Snapshot(); var error = await f.Call(method, method == "POST" ? CreateInput("衝突") : new { revision = Revision(row), name = "衝突" }, 409, method == "POST" ? "" : Path(row));
         Assert.Equal("duplicate_category_name", Code(error)); Assert.Equal(before, f.Snapshot());
     }

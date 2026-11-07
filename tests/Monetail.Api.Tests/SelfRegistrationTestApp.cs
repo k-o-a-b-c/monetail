@@ -21,7 +21,7 @@ internal sealed class SelfRegistrationTestApp : IAsyncDisposable
     public static async Task<SelfRegistrationTestApp> CreateAsync(string mode = "Public", Action<IWebHostBuilder>? configure = null)
     {
         var app = new SelfRegistrationTestApp();
-        await app.Database.MigrateAsync();
+        await app.Database.InitializeAsync();
         app.Factory = app.NewFactory(mode, configure);
         return app;
     }

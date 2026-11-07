@@ -6,7 +6,6 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
 using Monetail.Api.Persistence;
@@ -187,28 +186,13 @@ public sealed class EnrollmentLinkTests
     }
 
     [Fact]
-    public async Task MigrationRetiresUnusedLegacyTokensButKeepsConsumedHistoryAccountsAndKeys()
+    public async Task ReinitializationPreservesPendingConsumedAndRevokedLinksAccountsAndKeys()
     {
-        using var db = new AuthDatabaseFixture();
-        await using (var services = db.CreateServices())
-        await using (var scope = services.CreateAsyncScope())
-        {
-            var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
-            await context.GetService<IMigrator>().MigrateAsync("20261103221508_AddSelfRegistrationCompletions");
-            var users = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<AuthUser>>();
-            Assert.True((await users.CreateAsync(new AuthUser { Id = "pending", UserName = "pending" })).Succeeded);
-            context.EnrollmentCodes.AddRange(
-                new() { AuthUserId = "pending", Purpose = "passkey-enrollment", CodeHash = [1], CreatedAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10) },
-                new() { AuthUserId = "pending", Purpose = "passkey-enrollment", CodeHash = [2], CreatedAtUtc = DateTime.UtcNow, ExpiresAtUtc = DateTime.UtcNow, ConsumedAtUtc = DateTime.UtcNow });
-            await context.SaveChangesAsync();
-        }
-        // このテストは招待方式移行だけを検証し、人物を含む既存表をすべて比較する。
-        var names = db.Tables().Where(name => name is not "auth_enrollment_codes" and not "__MonetailMigrationsHistory");
-        var before = db.Snapshot(names);
-        await db.MigrateToAsync("20261104010000_RetireEnrollmentCodes");
-        Assert.Equal(before, db.Snapshot(names));
-        Assert.Equal(1L, db.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'01' AND RevokedAtUtc IS NOT NULL"));
-        Assert.Equal(1L, db.Scalar("SELECT COUNT(*) FROM auth_enrollment_codes WHERE CodeHash=X'02' AND ConsumedAtUtc IS NOT NULL AND RevokedAtUtc IS NULL"));
+        await using var app = await LoginTestApp.CreateAsync();
+        app.Database.Execute($"INSERT INTO auth_enrollment_codes(CodeHash,AuthUserId,Purpose,CreatedAtUtc,ExpiresAtUtc,ConsumedAtUtc) VALUES(X'01','{app.UserId}','passkey-invitation','2026-01-01','2027-01-01','2026-02-01'); INSERT INTO auth_enrollment_codes(CodeHash,AuthUserId,Purpose,CreatedAtUtc,ExpiresAtUtc,RevokedAtUtc) VALUES(X'02','{app.UserId}','passkey-recovery','2026-01-01','2027-01-01','2026-03-01')");
+        var before = app.Database.Snapshot(app.Database.Tables());
+        await app.Database.InitializeAsync();
+        Assert.Equal(before,app.Database.Snapshot(app.Database.Tables()));
     }
 
     [Theory]

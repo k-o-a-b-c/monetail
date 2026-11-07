@@ -113,10 +113,7 @@ if (isAuthCommand)
         if (command == "initialize-db")
         {
             await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(timeout.Token);
-            var database = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
-            foreach (var id in await database.Database.GetAppliedMigrationsAsync(timeout.Token))
-                Console.WriteLine($"適用済み移行ID: {id}");
-            Console.WriteLine("API用DBの初期設定・移行が完了しました。");
+            Console.WriteLine("API用DBの初期設定・構造検証が完了しました。");
         }
         else if (command is "revoke-account" or "reset-authentication")
         {

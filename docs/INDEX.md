@@ -26,7 +26,7 @@
 | 登録・ログイン・家計簿ホーム | [新規利用](ledger-onboarding.md) |
 | 家計簿への招待・参加 | [招待](ledger-invitations.md) |
 | Windows版の接続・画面遷移 | [Windows接続](ledger-windows.md) |
-| API起動・設定・移行・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
+| API起動・設定・DB初期化・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
 | 通信・認証・永続化・更新に関する配備共通要件 | [API配備・運用](deployment.md) |
 | Git不要のGHCR配布とDockerサーバーの具体的な接続手順 | [Docker配備例](deployment-examples/docker-tailscale.md) |
 | 構成の入口・旧見出しリンク | [04 構成](04-architecture.md) |

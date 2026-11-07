@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using System.Text;
@@ -15,7 +13,20 @@ namespace Monetail.Api.Tests;
 internal sealed class AuthDatabaseFixture : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(), "monetail-auth-tests-" + Guid.NewGuid().ToString("N"));
-    private readonly SqliteConnection? connection;
+    private SqliteConnection? connection;
+    private readonly object connectionGate = new();
+    private SqliteConnection Connection
+    {
+        get
+        {
+            lock (connectionGate)
+            {
+                if (connection is not null) return connection;
+                connection = new SqliteConnection(new SqliteConnectionStringBuilder(ConnectionString) { Mode = SqliteOpenMode.ReadWrite }.ToString());
+                connection.Open(); return connection;
+            }
+        }
+    }
     public string DatabasePath => Path.Combine(directory, "api.db");
     public string ConnectionString => new SqliteConnectionStringBuilder
     {
@@ -53,23 +64,15 @@ internal sealed class AuthDatabaseFixture : IDisposable
     }
 
     /// <summary>明示したAPI用DB初期化を新しいDIスコープで実行する。</summary>
-    public async Task MigrateAsync()
+    public async Task InitializeAsync()
     {
         await using var services = CreateServices();
         await using var scope = services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<DatabaseInitializer>().InitializeAsync(CancellationToken.None);
     }
 
-    /// <summary>過去のMigration単体を、後続のスキーマ変更と混同せず検証する。</summary>
-    public async Task MigrateToAsync(string target)
-    {
-        await using var services = CreateServices();
-        await using var scope = services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<ApiDbContext>().GetService<IMigrator>().MigrateAsync(target);
-    }
-
     /// <summary>認証接続とは独立した旧接続でSQLを実行する。</summary>
-    public void Execute(string sql) => Execute(connection!, sql);
+    public void Execute(string sql) => Execute(Connection, sql);
 
     public static void Execute(SqliteConnection connection, string sql)
     {
@@ -80,7 +83,7 @@ internal sealed class AuthDatabaseFixture : IDisposable
 
     public object? Scalar(string sql)
     {
-        using var command = connection!.CreateCommand();
+        using var command = Connection.CreateCommand();
         command.CommandText = sql;
         return command.ExecuteScalar();
     }
@@ -121,7 +124,7 @@ internal sealed class AuthDatabaseFixture : IDisposable
 
     private List<string?[]> Rows(string sql)
     {
-        using var command = connection!.CreateCommand();
+        using var command = Connection.CreateCommand();
         command.CommandText = sql;
         using var reader = command.ExecuteReader();
         var rows = new List<string?[]>();

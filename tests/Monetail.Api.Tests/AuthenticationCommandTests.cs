@@ -19,7 +19,8 @@ public class AuthenticationCommandTests
         using var fixture = new AuthDatabaseFixture(createFile: false);
         var initialized = await RunAsync(fixture.ConnectionString, ["initialize-db"]);
         Assert.Equal(0, initialized.ExitCode);
-        Assert.Contains("適用済み移行ID:", initialized.Output);
+        Assert.Contains("API用DBの初期設定・構造検証が完了しました。", initialized.Output);
+        Assert.DoesNotContain("適用済み移行ID:", initialized.Output);
         Assert.DoesNotContain("登録コード:", initialized.Output);
         Assert.DoesNotContain("Now listening", initialized.Output);
         var first = await RunAsync(fixture.ConnectionString, ["initialize-admin"]);
@@ -32,8 +33,10 @@ public class AuthenticationCommandTests
         Assert.Equal(0, repeated.ExitCode);
         Assert.Contains(id, repeated.Output);
         Assert.DoesNotContain("登録コード:", repeated.Output);
+        var before = fixture.Snapshot(fixture.Tables());
         var initializedAgain = await RunAsync(fixture.ConnectionString, ["initialize-db"]);
         Assert.Equal(0, initializedAgain.ExitCode);
+        Assert.Equal(before,fixture.Snapshot(fixture.Tables()));
     }
 
     [Theory]
@@ -72,7 +75,7 @@ public class AuthenticationCommandTests
     public async Task InvalidOperationOptionsFailWithoutChangingDatabase(string usage)
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var arguments = usage switch
         {
             "missing-target" => new[] { "revoke-account" },
@@ -95,7 +98,7 @@ public class AuthenticationCommandTests
     public async Task InitializeAdminNeedsNoPeopleAndReexecutionDoesNotIssueAnotherCode()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var tables = fixture.Tables().Where(table => !table.StartsWith("AspNet") && !table.StartsWith("auth_")).ToArray();
         var before = fixture.Snapshot(tables);
         var created = await RunAsync(fixture.ConnectionString, ["initialize-admin"]);
@@ -228,7 +231,7 @@ public class AuthenticationCommandTests
     public async Task LinkCommandsRequireFixedOriginAndNeverFallBackToCodes(string? origin)
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var before = fixture.Snapshot(fixture.Tables());
         foreach (var args in new[] { new[] { "initialize-admin" }, ["issue-recovery-link", "--account-id", "unknown"] })
         {
@@ -246,7 +249,7 @@ public class AuthenticationCommandTests
     public async Task RecoveryCommandRejectsUnregisteredAccountsWithoutChangingInvitation(bool initialAdmin)
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         await using var services = fixture.CreateServices();
         await using var scope = services.CreateAsyncScope();
         var provisioning = scope.ServiceProvider.GetRequiredService<AdminProvisioningService>();
