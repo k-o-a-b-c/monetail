@@ -24,7 +24,7 @@
 | --- | --- | --- |
 | `ledger_id` | TEXT NOT NULL | 家計簿ID、PKの一部 |
 | `receipt_id` | TEXT NOT NULL | UUID v7、PKの一部 |
-| `date` | TEXT NOT NULL | レシートの取引日時／日付。**日付のみか時刻も保持するか要確認**。税履歴照合は取引日で行う |
+| `date` | TEXT NOT NULL | **取引日時を時刻まで保持**。旧版のローカル日時をUTCへ読み替えず、日付部分を税率履歴・有効期間の照合に使う。具体的なTEXT書式と秒未満の精度はAPI契約で定める |
 | `shop_name` | TEXT NOT NULL | 店名。マスタFKは設けず、自由入力 |
 | `shop_location` | TEXT NULL | 店舗所在地 |
 | `payment_method_id` | TEXT NOT NULL | `(ledger_id, payment_method_id)`で支払方法FK |
@@ -46,7 +46,7 @@
 - `CHECK(tax_type IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total`が非NULLならInt32範囲内。
 - 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`recurrence_interval >= 1`かつ`recurrence_unit IN ('Week','Month','Year')`をDBとAPIの両方で検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
 - 周期がある場合、レシート内に`occurrence_type='Regular'`の明細が**1件以上必須**。周期なしでも定期明細を認める。これは行をまたぐためAPIの一括保存トランザクションで検証する。
-- 一覧・残高参照用の`(ledger_id,date,receipt_id)`、`(ledger_id,payment_method_id,date,receipt_id)`索引を提案する。日時形式は上記未決定に合わせて確定する。
+- 一覧・残高参照用の`(ledger_id,date,receipt_id)`、`(ledger_id,payment_method_id,date,receipt_id)`索引を提案する。日時TEXTは時系列で字句順が一致する正規化書式を使用し、API/DBで同一書式へ統一する（厳密な小数秒精度などは後続で確定）。
 - `revision`はレシート親のみ。明細・グループ単位の更新版は持たない。
 
 ## 3. `ledger_receipt_groups`（科目・税率グループ）
@@ -127,7 +127,7 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 
 | 論点 | 設計案・現状 | 確認が必要な理由 |
 | --- | --- | --- |
-| 取引日付の精度 | `date TEXT`。**時刻込みか日付のみか未確定** | 旧WinFormsの`DateTime`は時刻を保持。日付のみなら旧データ移行や同日並び順に影響する |
+| 取引日時の詳細書式 | **時刻まで保存すると確定**。`date TEXT NOT NULL` | ローカル日時を維持し、具体的なISO系文字列形式、小数秒の精度、API日時表現を後続で確定 |
 | `total`のNULL | DB上はNULL許容、新APIでは計算済み整数必須（提案） | 旧DBにはNULLの保存済み合計があり得る。新DBの移行方針と合わせる |
 | IDの横断的一意性 | 新テーブルのID単独UNIQUE（提案） | 既存マスタの複合PKはID単独の一意性を物理保証していない。UUID v7導入時の整合が必要 |
 | 監査ユーザーと削除 | 監査ユーザーIDにRESTRICT FK（提案） | 認証ユーザーの削除ルールと矛盾しないか確認 |
