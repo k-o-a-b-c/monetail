@@ -6,7 +6,7 @@ using Monetail.Api.Persistence;
 
 namespace Monetail.Api.Authentication;
 
-/// <summary>実行時・移行生成時・テストで同じ認証DB構成を登録する。</summary>
+/// <summary>実行時・初期化・テストで同じ認証DB構成を登録する。</summary>
 public static class AuthDatabaseServices
 {
     /// <summary>新規API構成の既存ファイルへの接続とパスキー対応のIdentityストアを登録する。</summary>

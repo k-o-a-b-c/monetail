@@ -410,16 +410,16 @@ public class DesktopOAuthTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task CurrentAccountRejectsUnreadyDatabaseForCookieAndBearerAndRecovers(bool unknownHistory)
+    public async Task CurrentAccountRejectsUnreadyDatabaseForCookieAndBearerAndRecovers(bool missingTrigger)
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var browser = app.Client();
         await app.LoginAsync(browser);
         using var native = Native(app);
         var tokens = await IssueAsync(app, browser, native);
-        app.Database.Execute(unknownHistory
-            ? "INSERT INTO __MonetailMigrationsHistory VALUES('99999999999999_Future','99.0.0')"
-            : "INSERT INTO __EFMigrationsLock VALUES(1,'2026-10-29')");
+        var objectName = missingTrigger ? "trg_tax_rate_history_overlap_update" : "UserNameIndex";
+        var definition = (string)app.Database.Scalar($"SELECT sql FROM sqlite_schema WHERE name='{objectName}'")!;
+        app.Database.Execute($"DROP {(missingTrigger ? "TRIGGER" : "INDEX")} {objectName}");
         var before = app.Database.Snapshot(app.Database.Tables());
         foreach (var client in new[] { browser, native })
         {
@@ -431,9 +431,7 @@ public class DesktopOAuthTests
             Assert.False(response.Headers.Contains("Set-Cookie"));
         }
         Assert.Equal(before, app.Database.Snapshot(app.Database.Tables()));
-        app.Database.Execute(unknownHistory
-            ? "DELETE FROM __MonetailMigrationsHistory WHERE MigrationId='99999999999999_Future'"
-            : "DELETE FROM __EFMigrationsLock");
+        app.Database.Execute(definition);
         foreach (var client in new[] { browser, native })
         {
             using var recovered = await client.GetAsync("/auth/me");

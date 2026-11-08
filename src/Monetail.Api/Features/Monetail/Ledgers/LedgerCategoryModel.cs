@@ -13,7 +13,7 @@ public static class LedgerCategoryModel
             category.ToTable("ledger_categories", table =>
             {
                 table.HasCheckConstraint("CK_ledger_categories_name", "length(name) BETWEEN 1 AND 100");
-                table.HasCheckConstraint("CK_ledger_categories_enabled", "is_enabled IN (0,1)");
+                table.HasCheckConstraint("CK_ledger_categories_period", "valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to");
                 table.HasCheckConstraint("CK_ledger_categories_order", "display_order >= 0");
                 table.HasCheckConstraint("CK_ledger_categories_income_expense", "income_expense IN ('Income','Expense')");
             });
@@ -21,7 +21,8 @@ public static class LedgerCategoryModel
             category.Property(row => row.LedgerId).HasColumnName("ledger_id");
             category.Property(row => row.Id).HasColumnName("category_id").ValueGeneratedNever();
             category.Property(row => row.Name).HasColumnName("name").HasMaxLength(LedgerCategory.NameMaxLength).IsRequired().UseCollation("BINARY");
-            category.Property(row => row.IsEnabled).HasColumnName("is_enabled");
+            category.Property(row => row.ValidFrom).HasColumnName("valid_from");
+            category.Property(row => row.ValidTo).HasColumnName("valid_to");
             category.Property(row => row.DisplayOrder).HasColumnName("display_order");
             category.Property(row => row.TaxCategoryCode).HasColumnName("tax_category_code").IsRequired();
             category.Property(row => row.IncomeExpense).HasColumnName("income_expense").HasConversion<string>().IsRequired();

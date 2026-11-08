@@ -21,7 +21,7 @@ public class AdminProvisioningTests
     public async Task BootstrapStoresOnlyHashWithThirtyMinuteExpiry()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var tables = fixture.Tables().Where(table => table.StartsWith("__")).ToArray();
         var before = fixture.Snapshot(tables);
         var logs = new CapturedLogs();
@@ -56,7 +56,7 @@ public class AdminProvisioningTests
     public async Task RepeatedBootstrapDoesNotRedisplayRotateOrDuplicateAnything()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         await Bootstrap(fixture);
         var before = fixture.Snapshot(fixture.Tables());
         Assert.Null(await Bootstrap(fixture));
@@ -67,7 +67,7 @@ public class AdminProvisioningTests
     public async Task ExplicitReissueRevokesOldCodeAndPreservesAccountRoles()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var old = Assert.IsType<IssuedEnrollmentInvitation>(await Bootstrap(fixture));
         var protectedTables = fixture.Tables().Where(table => table != "auth_enrollment_codes").ToArray();
         var before = fixture.Snapshot(protectedTables);
@@ -88,7 +88,7 @@ public class AdminProvisioningTests
     public async Task BootstrapFailureRollsBackAccountRoleAndCodeThenAllowsRetry()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         fixture.Execute("CREATE TRIGGER reject_code BEFORE INSERT ON auth_enrollment_codes BEGIN SELECT RAISE(ABORT,'injected'); END");
         var before = fixture.Snapshot(fixture.Tables());
         await Assert.ThrowsAsync<DbUpdateException>(() => Bootstrap(fixture));
@@ -101,7 +101,7 @@ public class AdminProvisioningTests
     public async Task ReissueFailurePreservesPreviouslyUsableCode()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         await Bootstrap(fixture);
         fixture.Execute("CREATE TRIGGER reject_code BEFORE INSERT ON auth_enrollment_codes BEGIN SELECT RAISE(ABORT,'injected'); END");
         var before = fixture.Snapshot(fixture.Tables());
@@ -118,7 +118,7 @@ public class AdminProvisioningTests
     public async Task ReissueRejectsEnabledAccountOrRemainingPasskeyWithoutChanges(bool enabled)
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         await Bootstrap(fixture);
         await using var services = Services(fixture);
         await using (var setup = services.CreateAsyncScope())
@@ -150,7 +150,7 @@ public class AdminProvisioningTests
         var original = fixture.Snapshot(fixture.Tables());
         await Assert.ThrowsAsync<InvalidOperationException>(() => Bootstrap(fixture));
         Assert.Equal(original, fixture.Snapshot(fixture.Tables()));
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var before = fixture.Snapshot(fixture.Tables());
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
@@ -165,7 +165,7 @@ public class AdminProvisioningTests
     public async Task ExistingGeneralAccountIsNotPromotedByBootstrap()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var general = new AuthUser { UserName = "general" };
         await using var services = Services(fixture);
         await using var scope = services.CreateAsyncScope();
@@ -181,7 +181,7 @@ public class AdminProvisioningTests
     public async Task ConcurrentInitializationsCreateOnlyOneAccountAndOneCode()
     {
         using var fixture = new AuthDatabaseFixture();
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         var results = await Task.WhenAll(Task.Run(() => Bootstrap(fixture)), Task.Run(() => Bootstrap(fixture)));
         Assert.Single(results, result => result != null);
         Assert.Equal(1L, fixture.Scalar("SELECT COUNT(*) FROM AspNetUsers"));

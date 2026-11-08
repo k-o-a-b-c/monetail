@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Authentication;
@@ -279,7 +278,7 @@ public class AdminAccountCreationTests
     }
 
     [Fact]
-    public async Task MissingExplicitMigrationIsRejectedWithoutCreatingTheTable()
+    public async Task MissingStorageIsRejectedWithoutCreatingTheTable()
     {
         await using var app = await LoginTestApp.CreateAsync();
         using var admin = app.Client();
