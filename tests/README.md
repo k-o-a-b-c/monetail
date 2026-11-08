@@ -7,13 +7,13 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 878 |
+| ASP.NET Core API | 910 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 53 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・補完） | 429 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 1576 |
+| 合計 | 1608 |
 
 ## 検証する範囲
 
@@ -32,6 +32,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+初期マスタの固定設定検証を32ケース追加。税区分4件のコード/正式名称、Windows OAuthのClientId/種別/ConsentType/秘密・鍵・個別Settings/リダイレクト/権限/PKCE要件、JSONの不正値・集合の過不足を検証する。配列の順序/書式/重複を変えた正常系と、ConcurrencyToken・表示名/翻訳・Properties等の運用値変更も確認し、再初期化と通常APIでDB不変・不一致時の拒否を確認。ローカルの対象34件（既存正常系2件を含む）と既存初期化/構造25件が成功。ソース`8617c5a8201d8ed702f1f4d15e2817922b0f0239`の[CI 42427632942](https://github.com/k-o-a-b-c/monetail/actions/runs/42427632942)でAPI全910件・Node/Python・Dockerビルドと通常/server/配布アーカイブ起動が成功。変更前の成功根拠は[CI 42384924696](https://github.com/k-o-a-b-c/monetail/actions/runs/42384924696)と、その製品検証元[CI 42383801568](https://github.com/k-o-a-b-c/monetail/actions/runs/42383801568)。Client/WinUI・Windows保存・旧版/性能は未変更の成功記録を再利用。API契約・科目仕様・EFモデル・外部ライブラリは変更せず、実DBは変更していない。
 
 現行モデルによるDB初期化・科目期間/収支編集は、ソース`b732021f2aba03ec8f36a02968078f909a47bc88`の[CI 42383801568](https://github.com/k-o-a-b-c/monetail/actions/runs/42383801568)でAPI全878件・Client全429件・Windows保存3件・WinUI製品/検証用ビルドと既存画面・Node・Python・Dockerビルド/通常/server/配布アーカイブ起動が成功。段階別Migration/Up-Downテストを、新規初期化/全表・PK/FK/UNIQUE/CHECK/索引/3トリガー/初期値の照合、再実行・同時実行、旧形式/欠損/参照破損/不正ファイルの拒否、失敗時の全体ロールバック、登録済み認証・各マスタ/税履歴/版の不変へ置換した。期間の両端・同日・省略/null・使用済み収支変更・期間を含む再送とClient DTO/認証再試行も確認。ローカルは影響対象247件、追加/CLI等51件、最終重点6件、Client102件と追加/重点13件が成功（重複あり）。基点main `b584cca865596e781068660b475d669a5c6790c0`の[CI 42373904027](https://github.com/k-o-a-b-c/monetail/actions/runs/42373904027)を変更前の根拠とし、未変更の旧Windows・計算/移行SQL・性能は成功記録を再利用。構成合計1576件を全件再実行した意味ではない。旧API DBの変換機能はなく、実DBの初期化・変更は行っていない。実NAS/実ブラウザー・新しい科目操作の実Windows手動確認は未実施。
 
