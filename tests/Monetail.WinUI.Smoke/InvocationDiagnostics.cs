@@ -29,10 +29,11 @@ public partial class App
             if (current is UIElement { Visibility: Visibility.Collapsed }) return false;
         return true;
     }
+    // UIA Invokeは座標クリックではないため、レイアウト前の寸法0だけでは拒否しない。
     private static bool InvokeTargetReady(Button button) =>
         Environment.CurrentManagedThreadId == uiThreadId && button.DispatcherQueue.HasThreadAccess &&
         button.IsLoaded && button.XamlRoot is { IsHostVisible: true } && button.IsEnabled &&
-        button.ActualWidth > 0 && button.ActualHeight > 0 && VisibleAncestors(button);
+        VisibleAncestors(button);
 
     private static void Invoke(Button button, [CallerFilePath] string caller = "", [CallerLineNumber] int line = 0)
     {
