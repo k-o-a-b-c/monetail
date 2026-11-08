@@ -31,7 +31,7 @@
 | `tax_type` | INTEGER NOT NULL | 0=税込、1=税抜（旧計算契約と同じ） |
 | `tax_rounding_mode` | TEXT NOT NULL | `floor` / `half_up` |
 | `memo` | TEXT NULL | レシート自由記述。旧`tag`相当 |
-| `total` | INTEGER NULL（提案） | 保存時の計算合計。通常の新規API登録では必須・Int32内。旧データのNULL取り込み余地を残す案 |
+| `total` | INTEGER NOT NULL（確定） | 保存時に計算した合計を必ず保持。符号付きInt32範囲内。旧版のNULL値は移行時に個別対応 |
 | `recurrence_interval` | INTEGER NULL | 周期間隔。設定時は1以上の正整数 |
 | `recurrence_unit` | TEXT NULL | `Week` / `Month` / `Year` |
 | `revision` | TEXT NOT NULL | レシート単位の楽観的更新版（UUID v4） |
@@ -43,7 +43,7 @@
 **制約／索引案**
 
 - `FK(ledger_id)→ledgers(id)`、`FK(ledger_id,payment_method_id)→ledger_payment_methods(ledger_id,payment_method_id)`、作成者・更新者→`AspNetUsers(Id)`のRESTRICT FKを提案する。監査情報がアカウント削除を阻害し得るため、認証アカウント削除運用とは整合性確認が必要。
-- `CHECK(tax_type IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total`が非NULLならInt32範囲内。
+- `CHECK(tax_type IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total`はNOT NULLかつ符号付きInt32範囲内。
 - 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`recurrence_interval >= 1`かつ`recurrence_unit IN ('Week','Month','Year')`をDBとAPIの両方で検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
 - 周期がある場合、レシート内に`occurrence_type='Regular'`の明細が**1件以上必須**。周期なしでも定期明細を認める。これは行をまたぐためAPIの一括保存トランザクションで検証する。
 - 一覧・残高参照用の`(ledger_id,date,receipt_id)`、`(ledger_id,payment_method_id,date,receipt_id)`索引を提案する。日時TEXTは時系列で字句順が一致する正規化書式を使用し、API/DBで同一書式へ統一する（厳密な小数秒精度などは後続で確定）。
@@ -128,7 +128,7 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 | 論点 | 設計案・現状 | 確認が必要な理由 |
 | --- | --- | --- |
 | 取引日時の詳細書式 | **時刻まで保存すると確定**。`date TEXT NOT NULL` | ローカル日時を維持し、具体的なISO系文字列形式、小数秒の精度、API日時表現を後続で確定 |
-| `total`のNULL | DB上はNULL許容、新APIでは計算済み整数必須（提案） | 旧DBにはNULLの保存済み合計があり得る。新DBの移行方針と合わせる |
+| 旧版の`total`がNULLのデータ | 新DBの`total`はINTEGER NOT NULLと確定 | 実データを調査して移行前に個別対応。NULLを自動的に0へ置き換えない |
 | IDの横断的一意性 | 新テーブルのID単独UNIQUE（提案） | 既存マスタの複合PKはID単独の一意性を物理保証していない。UUID v7導入時の整合が必要 |
 | 監査ユーザーと削除 | 監査ユーザーIDにRESTRICT FK（提案） | 認証ユーザーの削除ルールと矛盾しないか確認 |
 | 有効期間と再編集 | 取引日基準の参照条件をAPIでチェック（既存原則） | 過去データ編集時に期間や税率履歴が後変更された場合の扱いをAPI契約で詳細化 |
