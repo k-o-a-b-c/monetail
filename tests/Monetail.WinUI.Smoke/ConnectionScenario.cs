@@ -209,6 +209,7 @@ public partial class App
         var previous = window;
         window = new MainWindow(fixture.CreateConnection());
         var root = (FrameworkElement)window.Content;
+        ObserveDialogs(root);
         window.Activate();
         await Wait(() => root.IsLoaded);
         previous?.Close();

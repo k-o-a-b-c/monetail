@@ -131,7 +131,7 @@ public partial class App
                 "権限喪失後は管理画面から閉じて再入場不可");
         }
     }
-    private async Task CheckParticipantAuthenticationRecovery()
+    private async Task CheckParticipantAuthenticationRecovery(bool includeInvitation = true)
     {
         foreach (var sameAccount in new[] { true, false })
         {
@@ -145,8 +145,14 @@ public partial class App
             var revision = server.Other.Revision;
             fixture.RejectSession = true;
             await WaitParticipantDialogReady(root);
-            Invoke(ParticipantDialogAction(root, "ParticipantDialog", true));
+            var originalButton = ParticipantDialogAction(root, "ParticipantDialog", true);
+            Invoke(originalButton);
             await Wait(() => Visible(root, "LoginPage") && ParticipantEditorClosed(root));
+            await Wait(() => !InvokeTargetReady(originalButton));
+            var rejected = false;
+            try { Invoke(originalButton); }
+            catch (InvocationRejectedException error) { rejected = error.Reason == "not_ready"; }
+            Check(rejected, "閉鎖済みダイアログのButton参照はXamlRootが残っていてもPeerへ渡さない");
             if (!sameAccount) fixture.AccountId = Guid.NewGuid();
             fixture.RejectSession = false; fixture.CompleteLogin = true;
             Invoke(Find<Button>(root, "LoginButton"));
@@ -170,6 +176,7 @@ public partial class App
             }
             await fixture.CallbackTask!;
         }
+        if (!includeInvitation) return;
         using (var fixture = new SyntheticConnection(saved: true))
         {
             var server = new ParticipantsServer(fixture.AccountId); fixture.HasPreviousLedger = true; fixture.ParticipantsHandler = server.HandleAsync;
@@ -192,21 +199,25 @@ public partial class App
     private static bool ParticipantEditorClosed(FrameworkElement root) => Find<ScrollViewer>(root, "ParticipantEditorContent").Visibility == Visibility.Collapsed;
     private static async Task WaitParticipantDialogReady(FrameworkElement root) => await Wait(() => !ParticipantEditorClosed(root) &&
         Find<ContentDialog>(root, "ParticipantDialog").IsLoaded && Find<ContentControl>(root, "Operations").IsEnabled &&
-        All(Find<ContentDialog>(root, "ParticipantDialog")).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null &&
+        All(Find<ContentDialog>(root, "ParticipantDialog")).OfType<Button>().Any(b => InvokeTargetReady(b) &&
             Equals(b.Content, Find<ContentDialog>(root, "ParticipantDialog").PrimaryButtonText)));
     private static Button ParticipantDialogAction(FrameworkElement root, string name, bool primary)
     {
         var dialog = Find<ContentDialog>(root, name);
         var text = primary ? dialog.PrimaryButtonText : dialog.CloseButtonText;
-        return All(dialog).OfType<Button>().OrderByDescending(button => button.IsLoaded).First(button => Equals(button.Content, text));
+        var candidates = All(dialog).OfType<Button>().Where(button => Equals(button.Content, text)).ToArray();
+        // 旧First選択との差を観測し、内容や認証データを出力しない。
+        var selected = candidates.First(InvokeTargetReady);
+        TraceInvocation($"participantButtonCandidates={candidates.Length}; first={TargetState(candidates[0])}; selected={TargetState(selected)}");
+        return selected;
     }
     private static Button ParticipantActionButton(ListView list, Guid accountId, string label) =>
         All(list).OfType<Button>().First(button => button.Tag is MemberInfo member && member.AccountId == accountId && Equals(button.Content, label));
     private static async Task<Button> WaitInvitationActionButton(ListView list, Guid id, string label)
     {
         list.ScrollIntoView(list.Items.Cast<LedgerInvitationRow>().First(row => row.Invitation.InvitationId == id));
-        await Wait(() => All(list).OfType<Button>().Any(button => button.Tag is LedgerInvitationInfo invite && invite.InvitationId == id && Equals(button.Content, label)));
-        return All(list).OfType<Button>().First(button => button.Tag is LedgerInvitationInfo invite && invite.InvitationId == id && Equals(button.Content, label));
+        await Wait(() => All(list).OfType<Button>().Any(button => button.Tag is LedgerInvitationInfo invite && invite.InvitationId == id && Equals(button.Content, label) && InvokeTargetReady(button)));
+        return All(list).OfType<Button>().First(button => button.Tag is LedgerInvitationInfo invite && invite.InvitationId == id && Equals(button.Content, label) && InvokeTargetReady(button));
     }
 
     private sealed class ParticipantsServer

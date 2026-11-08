@@ -1,8 +1,6 @@
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -26,12 +24,14 @@ public partial class App : Application
         var capture = arguments.Contains("--capture");
         Directory.CreateDirectory(output);
         invokeTracePath = Path.Combine(output, "ui-invoke.txt");
+        uiThreadId = Environment.CurrentManagedThreadId;
         try
         {
             if (capture)
                 Resources["ContentControlThemeFontFamily"] = new FontFamily("ms-appx:///Assets/PreviewFont.otf#Noto Sans CJK JP");
             window = new MainWindow();
             var root = (FrameworkElement)window.Content;
+            ObserveDialogs(root);
             window.Activate();
             await Wait(() => root.IsLoaded);
             var today = DateOnly.FromDateTime(DateTime.Now);
@@ -80,6 +80,7 @@ public partial class App : Application
             await Settle();
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
             var rasterizationScale = root.XamlRoot.RasterizationScale;
+            await CheckInvocationGuards(root);
             await CheckCategories();
             await CheckPeopleFilter();
             await CheckConnectionFlow(output, capture);
@@ -89,7 +90,13 @@ public partial class App : Application
             await CheckPersonOrderReauthentication();
             await CheckPersonReauthentication();
             await CheckParticipantsAndInvitations();
-            await CheckParticipantAuthenticationRecovery();
+            // 全画面を繰り返さず、問題の認証復帰だけを同一ビルドで5回確認する。
+            for (var attempt = 1; attempt <= 5; attempt++)
+            {
+                TraceInvocation($"participantRecoveryAttempt={attempt}; phase=begin");
+                await CheckParticipantAuthenticationRecovery(includeInvitation: attempt == 1);
+                TraceInvocation($"participantRecoveryAttempt={attempt}; phase=passed");
+            }
             await CheckInputControls();
             await CheckPayments();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
@@ -133,13 +140,6 @@ public partial class App : Application
             yield return child;
             foreach (var nested in All(child)) yield return nested;
         }
-    }
-    private static void Invoke(Button button)
-    {
-        // ネイティブ異常の直前状態を残す。操作の置換・再送や成功扱いへの変更は行わない。
-        if (invokeTracePath is not null) File.AppendAllText(invokeTracePath, $"{DateTimeOffset.UtcNow:O} UI Invoke: {button.Name}; {button.Content}; loaded={button.IsLoaded}; root={button.XamlRoot is not null}{Environment.NewLine}");
-        var peer = FrameworkElementAutomationPeer.CreatePeerForElement(button);
-        ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)).Invoke();
     }
     private static async Task Wait(Func<bool> ready)
     {
