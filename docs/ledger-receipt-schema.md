@@ -1,6 +1,6 @@
 # レシートDBの物理設計案（未実装・レビュー用）
 
-更新: 2026-11-08。対象は**新APIのSQLite/EF Core**。旧VB/WinFormsの保存テーブルは変更しない。
+更新: 2026-11-09。対象は**新APIのSQLite/EF Core**。旧VB/WinFormsの保存テーブルは変更しない。
 確定済みの業務仕様と、実装前に確認する物理設計上の**提案**を区別する。本文の「提案」は利用者確認を経るまで確定仕様ではない。
 関連: [科目・税・権限](ledger-core-schema.md#category-receipt-handoff)、[計算・集計](12-calculation-contract.md)、[旧DB](02-database.md)、[既存の再送契約](ledger-operation-retries.md)。
 
@@ -9,12 +9,12 @@
 | テーブル | 粒度 | 主キー（確定） | 親 |
 | --- | --- | --- | --- |
 | `ledger_receipts` | レシート1件 | (`ledger_id`, `receipt_id`) | 家計簿・支払方法 |
-| `ledger_receipt_groups` | 科目と税率ごとのグループ | (`ledger_id`, `group_id`) | レシート・科目 |
+| `ledger_receipt_groups` | 科目ごとのグループ | (`ledger_id`, `group_id`) | レシート・科目 |
 | `ledger_receipt_details` | 購入・収支明細1行 | (`ledger_id`, `detail_id`) | グループ |
 | `ledger_receipt_detail_people` | 明細に対応する人物1人 | (`ledger_id`, `detail_id`, `person_id`) | 明細・人物 |
 
 - **確定方針:** 家計簿をまたぐ参照は禁止。業務IDはサーバー発行の**UUID v7**（32文字N形式）、更新版・クライアントの作成`requestId`はUUID v4。IDの採番順を一覧表示順に流用しない。現在のマスタAPIはv7化前のため、業務ID全体の切り替えは既存データ・既存認証との整合性を別途確認する。
-- **確定方針:** 既存マスタと同じく**`ledger_id`を含む複合PK**とし、レシート・グループ・明細の**ID単独にUNIQUE索引を追加しない**。UUID v7はサーバーが発行するが、DBで保証する一意性は各家計簿内の複合キー単位。これは既存の科目・人物・支払方法と同じ設計であり、家計簿をまたぐID単独の一意性をDB要件にしない。グループの「同科目・同税率」重複禁止の部分UNIQUE索引は別途必要であり維持する。
+- **確定方針:** 既存マスタと同じく**`ledger_id`を含む複合PK**とし、レシート・グループ・明細の**ID単独にUNIQUE索引を追加しない**。UUID v7はサーバーが発行するが、DBで保証する一意性は各家計簿内の複合キー単位。これは既存の科目・人物・支払方法と同じ設計であり、家計簿をまたぐID単独の一意性をDB要件にしない。グループの「同じレシート内に同科目を重複させない」複合UNIQUE索引は別途設ける。
 - 子テーブルには`ledger_id`を必ず持ち、すべてのFKは**同一家計簿内の複合FK**とする。親・マスタの削除はRESTRICT、レシート自身の削除だけ明細・対応人物・グループを**同一トランザクションで明示的に削除**する案（SQLite FKのCASCADEに依存しない）。
 - 新規レシートのヘッダーから明細・対象人物まで一括確定する。部分保存や親だけのコミットは行わない。
 
@@ -51,7 +51,9 @@
 - 一覧・残高参照用の`(ledger_id,transaction_at,receipt_id)`、`(ledger_id,payment_method_id,transaction_at,receipt_id)`索引を提案する。日時TEXTは時系列で字句順が一致する正規化書式を使用し、API/DBで同一書式へ統一する（厳密な小数秒精度などは後続で確定）。
 - `revision`はレシート親のみ。明細・グループ単位の更新版は持たない。
 
-## 3. `ledger_receipt_groups`（科目・税率グループ）
+## 3. `ledger_receipt_groups`（科目グループ）
+
+**税率は明細へ移動**し、グループは科目とメモのみを保持する。同じ科目内に異なる税率の明細を登録できる（DEC-155）。
 
 | 列 | SQLite型・NULL | 内容 |
 | --- | --- | --- |
@@ -59,30 +61,23 @@
 | `group_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `receipt_id` | TEXT NOT NULL | 同一家計簿レシートへのFK |
 | `category_id` | TEXT NOT NULL | 同一家計簿科目へのFK |
-| `tax_rate` | TEXT NULL | 実際の税率（%）をDecimal文字列で保存。**NULL=非課税、'0'=課税0%** |
 | `memo` | TEXT NULL | グループ自由記述 |
 
-- 同一レシート内の**同じ科目・同じ数値の税率は1グループだけ**。科目は同じで税率が違う場合だけ複数グループを認める。非課税も科目ごとに1件。
-- **SQLiteではNULLを含む通常UNIQUEでは非課税行が重複する。** 次の2本の部分UNIQUE索引で保護する案。
+- **同一レシート・同一科目のグループは1件**。率が異なってもグループを分割しない。
+- 重複禁止は通常の複合UNIQUE索引1本。`category_id`はNOT NULLであり、税率NULL用の部分UNIQUE索引2本は廃止する。
 
 ```sql
-CREATE UNIQUE INDEX ux_receipt_group_taxable
-  ON ledger_receipt_groups(ledger_id, receipt_id, category_id, tax_rate)
-  WHERE tax_rate IS NOT NULL;
-CREATE UNIQUE INDEX ux_receipt_group_exempt
-  ON ledger_receipt_groups(ledger_id, receipt_id, category_id)
-  WHERE tax_rate IS NULL;
+CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
+  ON ledger_receipt_groups(ledger_id, receipt_id, category_id);
 ```
 
-- 税率文字列はAPIでInvariantCultureの正規表記へ統一し、`8`・`8.0`・`08`を同じ値として保存・照合する。生SQLが非正規文字列を書き込む場合の防御は追加検討（SQLiteのTEXT UNIQUEだけでは数値同値を保証しない）。
-- 初期税率は科目の`tax_category_code`と取引日の履歴から選択するが、**グループには`tax_category_code`を保存しない**。選択肢は取引日に有効な全税区分の履歴の数値税率を重複排除したものと非課税。該当日付の税履歴がなければ勝手に代替しない。
-- **並び順列はなし**。表示は科目の`display_order ASC` → 同順位なら`category_id ASC` → 同科目では数値税率のDecimal値**降順** → **非課税を最後**。TEXTを辞書順でソートしない（`10`と`8`の誤順を避ける）。必要ならAPI/.NET側でDecimal比較して並び替える。
-- 課税対象フラグを明細に持たず、グループの`tax_rate`だけで扱う。既存の「レシート全体を**税率ごとに合算**してから端数処理」という計算契約は維持する。
-- 使用済み科目の`income_expense`の変更は拒否（同じトランザクションで使用有無を照合）。名前・初期税区分など他の編集は引き続き可能。参照中の科目削除はRESTRICT。
+- **グループの表示順列はなし**。科目の`display_order ASC, category_id ASC`に従う。グループ自体は税率で並べ替えない。
+- 科目の`tax_category_code`は明細作成時の税率初期選択だけに用いる。グループに税区分・税率・課税対象フラグを持たせない。
+- 使用済み科目の`income_expense`変更は拒否。名前・初期税区分など他の編集は可能。参照中の科目削除はRESTRICT。
 
 ## 4. `ledger_receipt_details`（明細）
 
-新版の `fee` → `unit_price`、`discount_fee` → `unit_discount_amount` に変更し、`display_order` を親キーの直後に置く。旧版の列名と計算・丸め規則は変更しない。
+旧版の `fee` → `unit_price`、`discount_fee` → `unit_discount_amount` に変更し、`display_order` を親キー直後に置く。実税率`tax_rate`は明細単位へ移す。旧Windows版の物理列・計算処理は変更しない。
 
 | 列 | SQLite型・NULL | 内容 |
 | --- | --- | --- |
@@ -95,16 +90,26 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 | `quantity` | INTEGER NOT NULL | 数量、1以上・Int32上限以下 |
 | `unit_discount_amount` | INTEGER NOT NULL | 1単位の値引額、符号付きInt32（旧版`discount_fee`） |
 | `discount_rate` | TEXT NOT NULL | 率値引（%）、Decimal、0～100、小数可 |
+| `tax_rate` | TEXT NULL | **実税率（%）、Decimal。NULL=非課税、'0'=課税0%** |
 | `expense_type` | TEXT NOT NULL | `Fixed` / `Variable` / `Excluded` |
 | `occurrence_type` | TEXT NOT NULL | `Regular` / `Irregular` / `Temporary` |
 | `memo` | TEXT NULL | 明細自由記述 |
 
-- 明細金額：`x=(unit_price-unit_discount_amount)*quantity`、`discount_by_rate=Ceiling(x*discount_rate/100)`、`net=x-discount_by_rate`。**Decimalで計算し、既存の計算/税端数処理を維持**。明細単価・値引額・数量・レシート合計等はInt32範囲を検証し、計算超過ならAPIで保存拒否。入力値の0・100への自動補正は行わない。
-- `discount_rate`は税率履歴と同じTEXT形式。APIは不変カルチャのDecimalとして厳密に解析・正規化し、0～100を検証。TEXTへのレキシカル比較で数値範囲を判定しない。
-- **費用区分の初期値・選択肢は科目の収支区分に依存**：収入科目は`Excluded`のみ（初期値も同じ）。支出科目は3種類すべて（初期値`Variable`）。`net`の正負では変更しない。API保存時にも整合性を検証。
-- 発生区分は全科目で3種類、初期値`Irregular`。発生周期は**明細に持たせない**。レシート周期と発生区分は片方向の関係（周期あり→少なくとも1明細がRegular）。
-- 明細は`display_order ASC, detail_id ASC`で表示する。順序は非負とし、同順序の一意性は付けず安定したタイブレークを設ける。
-- 詳細の名前文字数・メモの長さ等は既存UI仕様との整合後に確定。DB型のみ先行して示す。
+- 明細金額：`x=(unit_price-unit_discount_amount)*quantity`、`discount_by_rate=Ceiling(x*discount_rate/100)`、`net=x-discount_by_rate`。**Decimalで計算し、従来の値引と税端数の規則を維持**。単価・値引額・数量・合計等はInt32範囲を検証し、超過ならAPIで保存拒否。入力値の0・100への自動補正は行わない。
+- `discount_rate`と`tax_rate`はDecimal文字列のTEXT保存。APIはInvariantCultureで解析・正規化して数値を比較し、`8`・`8.0`・`08`を同じ値として扱う。非課税NULLと課税0%は別物。形式・数値範囲をAPIで検証する。TEXTの辞書順で税率を比較しない。
+- **明細の税率候補は取引日に有効な全税区分履歴から数値重複を除いたもの＋非課税**。新規明細では科目の`tax_category_code`と取引日から得た税率を初期選択する。履歴がなければ別区分・別日付から代用せず明示選択を要求。明細ごとに変更可能。同じグループに非課税・課税0%・複数税率を混在させられる。
+- **日付を変更した場合は明細ごとに税率の有効性を再検証**。新日付で有効なら維持、候補外なら利用者の再選択まで保存不可。API保存時も全明細を検証する。税履歴・科目初期区分の後変更で、保存済み取引の税率を自動更新しない。
+- **税込・税抜と端数方式はレシート単位のまま**。レシート合計は科目・グループをまたいで同じ数値税率の課税明細を合算・丸め、非課税分は別計上。課税0%と非課税は区別する。グループ・明細・人物の参考額の合計とレシート合計に差が生じ得る。**複数税率が同じグループに混在する場合のグループ参考額算式・表示は後続で検討**する。
+- **費用区分の初期値・選択肢は科目収支区分に依存**：収入科目は`Excluded`のみ、支出科目は`Fixed`/`Variable`/`Excluded`（初期値`Variable`）。`net`の正負に関係なくAPIでも検証する。
+- 発生区分は`Regular`/`Irregular`/`Temporary`、初期値`Irregular`。レシート周期ありなら少なくとも1明細がRegular。
+- 明細は`display_order ASC, detail_id ASC`で表示。順序は非負、同順序は許容しIDで安定ソートする。
+- 明細名やメモの長さ制約はUIとの整合後に確定。
+
+### 税率入力の支援方針（UI未実装）
+
+- **科目の初期税区分＋取引日で自動補完**し、通常は毎明細で税率を手入力しなくて済むようにする。税率は各明細で変更可能にする。
+- 同じ科目の連続明細で直前税率を引き継ぐ操作、明細複製、複数明細の一括変更、キーボード操作等はUI設計時に検討する。優先順位・部品は未確定。手入力・保存済み値を勝手に上書きしない。
+- レシートの流用時は各明細の保存済み税率を引き継ぐ。日付変更では各明細を検証し、候補外の率を黙って変更しない。
 
 ## 5. `ledger_receipt_detail_people`（対象人物）
 
@@ -121,11 +126,11 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 ## 6. FK・保存・読取の原則
 
 - 必須の複合FK：グループ→レシート、グループ→科目、明細→グループ、明細対象者→明細/人物、親→支払方法。いずれも`ledger_id`を含む。必要な親の`(ledger_id,id)`キーと子FK列索引を用意する。
-- 基本的な`CHECK`：各列の列挙値、Int32範囲、数量正値、周期2列のNULL一致、表示順非負。Decimalの解析、科目別費用区分、周期に対応する定期明細の有無、取引日に有効な税率・科目・支払方法・人物などの条件はAPIの保存トランザクションで検証する。
+- 基本的な`CHECK`：各列の列挙値、Int32範囲、数量正値、周期2列のNULL一致、表示順非負。Decimalの解析、**明細ごとの税率と取引日の適合性**、科目別費用区分、周期に対応する定期明細の有無、取引日に有効な科目・支払方法・人物などの条件はAPIの保存トランザクションで検証する。
 - 作成は既存`operation_requests`で`receipt.create`を識別して再送保護する案（再送記録の保持方式は取引件数増加も考慮して再確認）。修正/削除は親`revision`を必須とし、子階層まで**まとめて**保存・置換する案。成功時に新`revision`、`updated_by_auth_user_id`、`updated_at_utc`を更新する。
 - 操作権限：Adminは全レシート、Viewerは閲覧のみ、Editorは対応人物が所有する支払方法のレシートを操作。**支払方法を変更する編集では旧・新の両方の所有者を照合**。監査の作成者は権限制御に使わない。書込トランザクション中にも最新の参加・権限を照合する。
 - レシート削除は子の対応人物→明細→グループ→親の順に実施し、失敗時は全取消。読込だけでは保存済み合計・税率・明細・履歴を補正しない。
-- 同じ税率の課税明細は科目やグループが異なっても**レシート全体のその税率で合算**して税端数処理。グループ/明細/人別の参考額が親合計と1円以上ずれる場合があることを保持する。
+- 同じ数値税率の課税**明細**は科目やグループが異なってもレシート全体で合算し税端数処理。非課税は別集計し課税0%と区別する。グループ/明細/人別の参考額が親合計と1円以上ずれる場合があることを保持する。
 
 ## 7. 実装前に残る確認事項
 
@@ -137,10 +142,10 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 | 監査ユーザーと削除 | **作成者・更新者とも認証アカウントへのRESTRICT FKで確定** | アカウントの物理削除は未実装。将来の退会・削除機能は履歴保持方針と合わせて別途設計 |
 | 有効期間と再編集 | 取引日基準の参照条件をAPIでチェック（既存原則） | 過去データ編集時に期間や税率履歴が後変更された場合の扱いをAPI契約で詳細化 |
 | レシートのAPI形 | POST/PATCH/DELETEで子階層を含む一括保存を提案 | 部分更新や子ID保持、競合応答、再送ハッシュの具体形は別途API仕様で確定 |
-| 旧版データ引継ぎ | **実データ検査まで保留** | 同科目同税率の重複グループや明細ごとの課税フラグ混在があれば、移行前手動修正も可。自動統合は前提としない |
+| 旧版データ引継ぎ | **実データ検査まで保留** | 旧グループの税率と旧明細の課税対象フラグから新明細の税率を対応付け、同科目の旧グループを統合する必要がある。移行方法は別途確定 |
 
 ## 8. 今回の対象外
 
 - EF Coreモデル・Migration・DB表作成・API・Windows画面の実装。ここは**文書による物理モデル案**のみ。
-- 店舗マスタの必須化、明細への税率・税区分、別個のグループ表示順、明細の周期列、ポイント明細（旧`t_receipt_points`）。ポイント機能は別途検討。
+- 店舗マスタの必須化、明細への**税区分コード・別個の課税対象フラグ**、別個のグループ表示順、明細の周期列、ポイント明細（旧`t_receipt_points`）。明細の実税率は今回採用。ポイント機能は別途検討。
 - 「週・月・年」から次回の入力候補を計算する際の月末・曜日・営業日ルール。現時点では周期を**保存するだけ**。
