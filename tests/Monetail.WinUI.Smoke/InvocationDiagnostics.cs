@@ -54,6 +54,20 @@ public partial class App
         TraceInvocation($"invoke={sequence}; phase=returned");
     }
 
+    private static Task InvokeAsync(Func<Button> resolve, [CallerFilePath] string caller = "", [CallerLineNumber] int line = 0)
+    {
+        if (Environment.CurrentManagedThreadId != uiThreadId) throw new InvocationRejectedException("wrong_thread");
+        // 待機の各回で現在の対象を取得し、検証とInvokeを同じUIターンで実行する。
+        // 共通Waitの15秒上限は変えず、一度Invokeした操作を再送しない。
+        return Wait(() =>
+        {
+            var target = resolve();
+            if (!InvokeTargetReady(target)) return false;
+            Invoke(target, caller, line);
+            return true;
+        });
+    }
+
     private static void ObserveDialogs(FrameworkElement root)
     {
         foreach (var name in new[] { "PersonDialog", "PaymentDialog", "CategoryDialog", "ParticipantDialog", "InvitationCancelDialog" })

@@ -44,7 +44,7 @@ public partial class App : Application
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "ホームの表示");
             if (capture) await Capture(root, output, "01-home");
 
-            Invoke(Find<Button>(root, "SettingsButton"));
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Settle();
             var navigation = Find<NavigationView>(root, "ManagementNavigation");
             var people = Find<ListView>(root, "PeopleList");
@@ -76,7 +76,7 @@ public partial class App : Application
             if (capture) await Capture(root, output, "04-management-dark");
             root.RequestedTheme = ElementTheme.Default;
 
-            Invoke(Find<Button>(root, "ReturnButton"));
+            await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
             await Settle();
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
             var rasterizationScale = root.XamlRoot.RasterizationScale;

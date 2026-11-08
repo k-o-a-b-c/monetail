@@ -23,35 +23,35 @@ public partial class App
                 "速い起動は待機表示を出さず、完了後に遅れて表示しない");
             if (capture) await Capture(root, output, "05-connection");
             Find<TextBox>(root, "ServerUrl").Text = "http://invalid.example.test/";
-            Invoke(Find<Button>(root, "ConnectButton"));
+            await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
             await Settle();
             Check(fixture.Requests.Count == 0 && Find<InfoBar>(root, "ErrorNotice").IsOpen &&
                 Find<TextBox>(root, "ServerUrl").Text == "http://invalid.example.test/", "不正URLは送信せず入力を保持");
 
             Find<TextBox>(root, "ServerUrl").Text = SyntheticConnection.Endpoint.Value;
-            Invoke(Find<Button>(root, "ConnectButton"));
+            await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Requests.SequenceEqual(["/.well-known/openid-configuration"]) &&
                 fixture.Settings.Load()!.Equals(SyntheticConnection.Endpoint), "メタデータ1回で接続を確認して設定を保存");
             if (capture) await Capture(root, output, "06-login");
 
             fixture.FailBrowser = true;
-            Invoke(Find<Button>(root, "LoginButton"));
+            await InvokeAsync(() => Find<Button>(root, "LoginButton"));
             await Wait(() => Visible(root, "BrowserPage") && Find<InfoBar>(root, "ErrorNotice").IsOpen);
             var waitingUri = fixture.AuthorizationUri;
             fixture.FailBrowser = false;
-            Invoke(Find<Button>(root, "ReopenBrowserButton"));
+            await InvokeAsync(() => Find<Button>(root, "ReopenBrowserButton"));
             await Settle();
             Check(fixture.AuthorizationUri == waitingUri && fixture.BrowserOpens == 2,
                 "ブラウザー起動失敗でも同じ認証要求で開き直せる");
             if (capture) await Capture(root, output, "07-browser-wait");
-            Invoke(Find<Button>(root, "CancelLoginButton"));
+            await InvokeAsync(() => Find<Button>(root, "CancelLoginButton"));
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Tokens.Current is null, "ブラウザー認証のキャンセル後はログインで再試行可能");
 
             var previous = fixture.AuthorizationUri;
             fixture.CompleteLogin = true;
-            Invoke(Find<Button>(root, "LoginButton"));
+            await InvokeAsync(() => Find<Button>(root, "LoginButton"));
             await Wait(() => Visible(root, "LedgerCreatePage"));
             await fixture.CallbackTask!;
             Check(fixture.AuthorizationUri != previous && fixture.Tokens.Current is not null,
@@ -61,17 +61,17 @@ public partial class App
             if (capture) await Capture(root, output, "08-ledger-create");
 
             Find<TextBox>(root, "NewLedgerName").Text = new string('a', 101);
-            Invoke(Find<Button>(root, "CreateLedgerButton"));
+            await InvokeAsync(() => Find<Button>(root, "CreateLedgerButton"));
             await Settle();
             Check(fixture.Creations.Count == 0 && Find<InfoBar>(root, "ErrorNotice").IsOpen, "家計簿名の上限超過を送信前に表示");
             Find<TextBox>(root, "NewLedgerName").Text = "  家族の家計簿  ";
             fixture.FailCreation = true;
-            Invoke(Find<Button>(root, "CreateLedgerButton"));
+            await InvokeAsync(() => Find<Button>(root, "CreateLedgerButton"));
             await Wait(() => Find<InfoBar>(root, "ErrorNotice").IsOpen && fixture.Creations.Count == 1);
             Check(Visible(root, "LedgerCreatePage") && Find<TextBox>(root, "NewLedgerName").Text == "  家族の家計簿  ",
                 "作成の通信失敗でも名前と作成画面を保持");
             fixture.FailCreation = false;
-            Invoke(Find<Button>(root, "CreateLedgerButton"));
+            await InvokeAsync(() => Find<Button>(root, "CreateLedgerButton"));
             await Wait(() => Visible(root, "HomePage"));
             Check(fixture.Creations[0] == fixture.Creations[1] &&
                 !fixture.Requests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
@@ -80,7 +80,7 @@ public partial class App
                 !fixture.Requests.Any(path => path.EndsWith("/people", StringComparison.Ordinal)),
                 "ホームはAPIの家計簿名を表示し、未表示の人物一覧を先読みしない");
 
-            Invoke(Find<Button>(root, "SettingsButton"));
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
             Check(Visible(root, "ManagementPage") && ((PersonRow)Find<ListView>(root, "PeopleList").Items[0]).Name == "父（本人）",
                 "管理・設定の右側へAPIの人物一覧を表示");
@@ -113,7 +113,7 @@ public partial class App
                 "起動の通信失敗は認証を消さず再試行・接続先変更・終了を表示");
             fixture.FailConnection = false;
             fixture.HasPreviousLedger = true;
-            Invoke(Find<Button>(root, "RetryButton"));
+            await InvokeAsync(() => Find<Button>(root, "RetryButton"));
             await Wait(() => Visible(root, "HomePage"));
             Check(fixture.Requests.Count(path => path == "/ledgers/open-last") == 1 &&
                 !fixture.Requests.Contains("/ledgers") && !fixture.Requests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
@@ -128,7 +128,7 @@ public partial class App
             var choices = Find<ListView>(root, "LedgerChoices");
             Check(Visible(root, "LedgerChoicePage") && choices.Items.Count == 2, "履歴なしで複数所属なら家計簿選択");
             choices.SelectedIndex = 1;
-            Invoke(Find<Button>(root, "OpenLedgerButton"));
+            await InvokeAsync(() => Find<Button>(root, "OpenLedgerButton"));
             await Wait(() => Visible(root, "HomePage"));
             Check(Find<TextBlock>(root, "LedgerName").Text == "もう一つの家計簿", "選択した家計簿を1回で開く");
         }
@@ -147,12 +147,12 @@ public partial class App
             fixture.HasPreviousLedger = true;
             var root = await OpenSyntheticWindow(fixture);
             await window!.StartAsync();
-            Invoke(Find<Button>(root, "SettingsButton"));
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
             await Settle();
             Find<TextBox>(root, "SettingsServerUrl").Text = "https://other.example.test/";
-            Invoke(Find<Button>(root, "SettingsConnectButton"));
+            await InvokeAsync(() => Find<Button>(root, "SettingsConnectButton"));
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Tokens.Current is null && fixture.Settings.Load()!.Value == "https://other.example.test/" &&
                 fixture.OtherServerRequests.SequenceEqual(["/.well-known/openid-configuration"]),
@@ -198,7 +198,7 @@ public partial class App
             Check(Visible(root, "FailurePage") && Find<TextBlock>(root, "FailureMessage").Text.Contains("操作回数"),
                 "起動先を開けない場合も待機画面に取り残さず再試行を表示");
             fixture.RateLimitOpening = false;
-            Invoke(Find<Button>(root, "RetryButton"));
+            await InvokeAsync(() => Find<Button>(root, "RetryButton"));
             await Wait(() => Visible(root, "HomePage"));
             Check(fixture.Tokens.Current is not null, "起動先の失敗から本人の再試行で復帰");
         }

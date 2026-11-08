@@ -33,17 +33,17 @@ public partial class App
             }
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new PeopleInfo(rows, mine, "Admin", orderRevision)) };
         };
-        var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); Invoke(Find<Button>(root, "SettingsButton"));
+        var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         var list = Find<ListView>(root, "PeopleList"); await Wait(() => list.Items.Count == 2);
         Check(((PersonRow)list.Items[0]).Person.PersonId == mine && ((PersonRow)list.Items[1]).Name == "無期限", "人物初期表示は両端含む本日有効とNULL、本人を先頭");
         var include = Find<CheckBox>(root, "IncludeInactivePeople"); include.IsChecked = true;
         Check(list.Items.Count == 4 && reads == 1, "人物全件表示は取得済み情報だけで切替");
         list.SelectedItem = list.Items.Cast<PersonRow>().Single(r => r.Name == "終了済み"); include.IsChecked = false;
         Check(list.SelectedItem is null && !Find<Button>(root, "EditPersonButton").IsEnabled && writes.Count == 0, "隠れた人物の選択を解除し書込みなし");
-        Invoke(Find<Button>(root, "PersonOrderButton")); var order = Find<ListView>(root, "PersonOrderList");
+        await InvokeAsync(() => Find<Button>(root, "PersonOrderButton")); var order = Find<ListView>(root, "PersonOrderList");
         await Wait(() => order.IsLoaded && order.Items.Count == 4);
         Check(((PersonRow)order.Items[0]).Name == "無期限" && ((PersonRow)order.Items[1]).Person.PersonId == mine, "人物並び替えはフィルターと本人先頭を適用せず全員共通順");
-        order.SelectedIndex = 3; Invoke(Find<Button>(root, "MovePersonUpButton")); Invoke(Find<Button>(root, "SavePersonOrderButton"));
+        order.SelectedIndex = 3; await InvokeAsync(() => Find<Button>(root, "MovePersonUpButton")); await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
         await Wait(() => Find<Grid>(root, "PersonOrderContent").Visibility == Visibility.Collapsed);
         Check(list.Items.Count == 2 && ((PersonRow)list.Items[0]).Person.PersonId == mine && writes.Count == 1 && reads == 1, "人物保存応答も表示フィルター・本人先頭を維持、追加GETなし");
         // 本人自体が期間外でも、人物対応と本人編集権限は全件情報へ保持する。
