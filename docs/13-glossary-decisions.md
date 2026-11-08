@@ -213,6 +213,8 @@
 
 | DEC-152 | **利用者確認済み・レシート未実装（2026-11-09）** | レシートの作成者・更新者の認証アカウントFKをRESTRICTにする | `ledger_receipts.created_by_auth_user_id`と`updated_by_auth_user_id`は、それぞれ`AspNetUsers(Id)`へのRESTRICT FKを持つ。監査の参照があるアカウントの物理削除を禁止し、無効化では認証IDと取引履歴を残す。アカウントの物理削除・退会機能は現状未実装であり、将来の退会設計は別途扱う。[レシートDB設計案](ledger-receipt-schema.md)参照。 |
 
+| DEC-153 | **利用者確認済み・レシート未実装（2026-11-09）** | レシート4表のPKは家計簿IDを含む複合キーに統一する | レシート`(ledger_id,receipt_id)`、グループ`(ledger_id,group_id)`、明細`(ledger_id,detail_id)`、対象人物`(ledger_id,detail_id,person_id)`をPKとする。子テーブルの親・人物・科目などへのFKにも`ledger_id`を含めて家計簿横断参照を禁止。サーバー発行UUID v7は維持するが、レシート・グループ・明細のID単独UNIQUE索引は追加しない。グループの同科目・同税率禁止用の部分UNIQUE索引は別途維持する。[レシートDB設計案](ledger-receipt-schema.md)参照。 |
+
 ## 4. 仕様変更の原則（提案）
 
 1. **事実**（実DDL／ソースの現在動作）と**要件**（次にしたいこと）を別ファイル・別表で管理する。
