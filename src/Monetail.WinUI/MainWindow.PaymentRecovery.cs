@@ -47,7 +47,7 @@ public sealed partial class MainWindow
         DisplayLedger(ledger); paymentPeople = people; DisplayPayments(payments);
         if (denied is not null) paymentPermissions = denied;
         ShowPage(ManagementPage); ManagementNavigation.SelectedItem = PaymentsNavigation;
-        PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = AccountContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;
+        CategoriesContent.Visibility = PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = AccountContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;
         PaymentsContent.Visibility = Visibility.Visible; IncludeInactivePayments.IsChecked = draft.IncludeInactive;
         if (draft.Order is { } order)
         {

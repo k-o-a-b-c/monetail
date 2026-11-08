@@ -29,6 +29,7 @@ public sealed partial class MainWindow : Window
 
     private void DisplayLedger(LedgerInfo ledger)
     {
+        ResetCategories();
         ResetPayments();
         ResetPeople();
         ResetParticipants();
@@ -49,22 +50,32 @@ public sealed partial class MainWindow : Window
         peoplePermissions = new(people.CurrentRole, people.MyPersonId);
         missingPeople.Clear();
         RenderPeopleRows();
-        EmptyPeople.Text = "人物は登録されていません。";
-        EmptyPeople.Visibility = people.People.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         UpdatePeopleActions();
     }
 
     private void RenderPeopleRows()
     {
         if (peopleInfo is null) return;
-        PeopleList.ItemsSource = peopleInfo.People.OrderByDescending(person => person.PersonId == peoplePermissions?.MyPersonId)
+        var selectedId = (PeopleList.SelectedItem as PersonRow)?.Person.PersonId;
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var rows = peopleInfo.People.Where(person => IncludeInactivePeople.IsChecked == true ||
+                (person.ValidFrom is null || person.ValidFrom <= today) && (person.ValidTo is null || person.ValidTo >= today))
+            .OrderByDescending(person => person.PersonId == peoplePermissions?.MyPersonId)
             .ThenBy(person => person.DisplayOrder)
             .Select(person => new PersonRow(person, person.PersonId == peoplePermissions?.MyPersonId)).ToArray();
+        PeopleList.ItemsSource = rows;
+        PeopleList.SelectedItem = rows.FirstOrDefault(row => row.Person.PersonId == selectedId);
+        EmptyPeople.Text = "表示対象の人物はありません。";
+        EmptyPeople.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdatePeopleActions();
     }
+
+    private void FilterPeople(object sender, RoutedEventArgs args) => RenderPeopleRows();
 
     private void ShowRecord(object sender, RoutedEventArgs e)
     {
         if (busy || ManagementDialogOpen) return;
+        DropPendingCategoryEdit(); DiscardCategoryEditor(); DiscardCategoryOrder();
         DropPendingPaymentEdit(); DiscardPaymentEditor(); DiscardPaymentOrder();
         DropPendingPersonEdit();
         DiscardPersonEditor();
@@ -75,6 +86,7 @@ public sealed partial class MainWindow : Window
     private async void ShowManagement(object sender, RoutedEventArgs e)
     {
         if (busy || ManagementDialogOpen) return;
+        DiscardCategoryOrder(); CategoriesContent.Visibility = Visibility.Collapsed;
         DiscardPaymentOrder(); PaymentsContent.Visibility = Visibility.Collapsed;
         DiscardPersonOrder();
         ParticipantsContent.Visibility = InvitationsContent.Visibility = Visibility.Collapsed;

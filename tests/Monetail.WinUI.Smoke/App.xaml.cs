@@ -34,9 +34,10 @@ public partial class App : Application
             var root = (FrameworkElement)window.Content;
             window.Activate();
             await Wait(() => root.IsLoaded);
-            var mother = new PersonInfo(Guid.NewGuid(), "母", new(2026, 4, 1), null, 0, Guid.NewGuid());
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            var mother = new PersonInfo(Guid.NewGuid(), "母", today, null, 0, Guid.NewGuid());
             var father = new PersonInfo(Guid.NewGuid(), "父", null, null, 1, Guid.NewGuid());
-            var child = new PersonInfo(Guid.NewGuid(), "子供", null, new(2026, 9, 30), 2, Guid.NewGuid());
+            var child = new PersonInfo(Guid.NewGuid(), "子供", null, today.AddDays(-1), 2, Guid.NewGuid());
             window.DisplayWorkspace(new LedgerInfo(Guid.NewGuid(), "家族の家計簿", "Admin", Guid.NewGuid().ToString("N")),
                 new PeopleInfo([mother, father, child], father.PersonId, "Admin", Guid.NewGuid()));
             await Settle();
@@ -50,10 +51,12 @@ public partial class App : Application
             Check(Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible, "管理・設定への切替");
             Check(navigation.IsPaneOpen && ReferenceEquals(navigation.SelectedItem,
                 Find<NavigationViewItem>(root, "PeopleNavigation")), "左メニューを保持");
-            Check(people.Items.Count == 3, "右側に全員表示");
+            Check(people.Items.Count == 2, "人物の初期表示は本日有効な人物のみ");
+            Find<CheckBox>(root, "IncludeInactivePeople").IsChecked = true;
+            Check(people.Items.Count == 3, "期間外表示を選ぶと全員表示");
             Check(((PersonRow)people.Items[0]).Name == "父（本人）", "本人先頭");
-            Check(((PersonRow)people.Items[1]).ValidFrom == "2026/04/01" &&
-                ((PersonRow)people.Items[2]).ValidTo == "2026/09/30", "既存Clientの日付表示");
+            Check(((PersonRow)people.Items[1]).ValidFrom == today.ToString("yyyy/MM/dd") &&
+                ((PersonRow)people.Items[2]).ValidTo == today.AddDays(-1).ToString("yyyy/MM/dd"), "既存Clientの日付表示");
             Check(Find<TextBlock>(root, "LedgerContext").Text == "家族の家計簿", "家計簿名を表示");
             Check(!All(root).OfType<MenuBar>().Any(), "メニューバーなし");
             var paneBounds = navigation.PaneDisplayMode;
@@ -77,6 +80,8 @@ public partial class App : Application
             await Settle();
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
             var rasterizationScale = root.XamlRoot.RasterizationScale;
+            await CheckCategories();
+            await CheckPeopleFilter();
             await CheckConnectionFlow(output, capture);
             await CheckPeopleFlow(output, capture);
             await CheckPersonDeletion();

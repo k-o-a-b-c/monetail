@@ -79,6 +79,7 @@ public sealed partial class MainWindow
 
     private void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
     {
+        DropPendingCategoryEdit();
         DropPendingPaymentEdit();
         DropPendingPersonEdit();
         if (account is not null && currentLedger is not null)
@@ -170,6 +171,7 @@ public sealed partial class MainWindow
 
     private Task LogoutAsync() => RunAsync(async () =>
     {
+        DropPendingCategoryEdit();
         DropPendingPaymentEdit();
         DropPendingPersonEdit();
         pendingParticipantEdit = null;
@@ -189,12 +191,13 @@ public sealed partial class MainWindow
         catch (ObjectDisposedException) when (closed) { }
         catch (AuthenticationRejectedException)
         {
+            RememberCategoryEdit();
             RememberPaymentEdit();
             RememberPersonEdit();
             RememberParticipantEdit();
             ShowLogin("ログインを継続できません。もう一度ログインしてください。");
         }
-        catch (AuthenticationContextChangedException error) { pendingParticipantEdit = null; DropPendingPaymentEdit(); DropPendingPersonEdit(); ShowLogin(error.Message); }
+        catch (AuthenticationContextChangedException error) { pendingParticipantEdit = null; DropPendingCategoryEdit(); DropPendingPaymentEdit(); DropPendingPersonEdit(); ShowLogin(error.Message); }
         catch (LedgerRequestException error)
         {
             var message = error.StatusCode switch
@@ -205,6 +208,11 @@ public sealed partial class MainWindow
                 _ => "家計簿の操作を完了できませんでした。内容を確認して再試行してください。"
             };
             ReportFailure(message, repeat, connectionFailure);
+        }
+        catch (CategoryRequestException error)
+        {
+            ApplyCategoryFailureContext(error);
+            ReportFailure("科目一覧を取得できませんでした。参加状態と権限を確認してください。", repeat, connectionFailure);
         }
         catch (PaymentMethodRequestException error)
         {
@@ -244,6 +252,7 @@ public sealed partial class MainWindow
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
+        CategoryDialog.IsEnabled = enabled;
         PaymentDialog.IsEnabled = enabled;
         PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
         UpdatePeopleActions();
@@ -263,6 +272,8 @@ public sealed partial class MainWindow
 
     private void ShowError(string message)
     {
+        if (categoryDialogOpen && !categoryDialogClosing && !forceCategoryClose) { ShowCategoryError(null, message); return; }
+        if (orderedCategories is not null) { ShowCategoryOrderNotice(message); return; }
         if (paymentDialogOpen && !paymentDialogClosing && !forcePaymentClose) { ShowPaymentError(null, message); return; }
         if (orderedPayments is not null) { ShowPaymentOrderNotice(message); return; }
         if (participantDialogOpen && !forceParticipantClose) { ShowParticipantError(message); return; }
@@ -299,6 +310,7 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
+        DiscardCategoryEditor();
         DiscardPaymentEditor();
         DiscardPersonEditor();
         ResetParticipants();
