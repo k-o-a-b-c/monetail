@@ -20,6 +20,7 @@
 - Clientは合成HTTPと一時保存先を使う。接続確認、OAuth/ループバック、セッション復元、更新と失効、別プロセスの認証変更、設定/トークン保存、家計簿の起動先・作成・切替、人物のCRUD/順保存/競合/再送を確認する。日付・時刻は補完期間・世紀選択・空欄・不正入力・全角・区切り・地域設定を検証する。
 - StorageはWindowsのCurrentUser DPAPIを実際に使い、暗号化保存と新しいStoreでの復元、破損時の認証破棄と接続設定保持、平文の拒否を確認する。UIへの依存はない。
 - WinUI 3は製品EXEを起動し、同じMainWindowのXAML・各partial・ClientConnection・PersonRowを使う別のスモークAppで合成データを検証する。ホーム、左右の人物管理、リサイズとテーマに加え、接続設定・ブラウザー起動の失敗と再開・認証キャンセル・実ループバックからの合成認可応答・保存ログインの確認と失効・家計簿作成の再送と選択・接続先変更・ログアウト成功／失敗を1シナリオとして確認する。製品Appから起動時の接続・復元を開始し、遅い接続での同じWindow内の待機表示・完了後の停止・タイムアウトも確認する。実データや保存済みの接続先/トークンは使用しない。 人物の削除確認では参照拒否・競合・通信失敗/応答喪失・降格/除外・認証失効を確認する。人物編集では保存・再送・競合・権限喪失・ContentDialogの保存／取消と背後の移動抑止、同一アカウントの再ログイン後の入力/版/要求IDの復元、別アカウント・別APIへの非引継ぎも検証する。参加者の役割/人物対応・除外/競合/権限喪失と、家計簿招待の発行/再送/コピー/取消も同じ画面の実コントロールで検証する。入力部品は同じハンドラーと実コントロールのフォーカスで確認し、物理キー注入や実IME変換の検証とは区別する。
+- 科目画面は同じ合成HTTP/WinUIシナリオ内で、基本の一覧・作成・削除を先に確認し、期間フィルター/日本語名/入力初期値/部分編集/作成応答喪失の同一要求ID再送/近傍エラー/参照拒否/全項目競合/全件順の競合/権限/認証復帰を確認する。人物フィルターではNULL・境界日・開始前/終了後・非表示本人・選択解除・全件共通順と保存応答の本人先頭を確認し、表示切替で追加GET・書込しないことを検証する。
 - APIは実HTTP・合成アカウント・隔離SQLiteを使い、認証・現在の参加/役割・保存失敗の巻き戻し・同時操作・FK・再送・競合・招待の状態と消費・共有回数枠を検証する。CookieとWindows Bearerを区別する。
 - 匿名自己登録は実IdentityのWebAuthn検証、保存各段階とコミットの巻き戻し、同時登録・重複鍵、移動窓・容量・信頼済みIP、再起動／認証リセット、DB初期化と再実行時のデータ保持を確認する。登録後の通常ログイン、Bearerでも自己登録のOrigin・CSRFが必要なこと、招待登録を成功数へ含めないことも対象とする。
 - 全体AdminのWeb管理はHTML/JS/一覧/更新の権限、登録状態と招待用途の分離、メモ保存/初期化再実行/再送/ロールバック、画面内再認証と入力保持、五十音の安定順・URL破棄を対象とする。
@@ -32,6 +33,12 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+PR #133のInvoke調査では、失敗[42437180469](https://github.com/k-o-a-b-c/monetail/actions/runs/42437180469)のUIスレッド上で未接続（Loaded=False/Root=True）のButtonをUIAへ渡した記録を確認した。テスト基盤の未接続/非表示ボタン操作を修正したが、**元の0xC0000005のネイティブ原因・因果関係は未特定**。製品/API/Client/DBは変更しない。`InvokeAsync`は毎回現在の対象を取得し、UIスレッド・Loaded・XamlRoot/host・有効/可視状態の確認と、Peer→Invokeパターン→実行を同じUIターンで行う。待機時間/上限は変更せず、操作を再送しない。無効ボタンの読み取り検証と押下を区別し、人物削除後の再表示も実際に見える戻るボタンを経由する。診断は対象識別子・状態・スレッド・呼出箇所・各ネイティブ段階・ダイアログ開閉だけとし、Content/Tag/Text・HTTP本文・接続先・認証情報を記録しない。
+
+調査中の参加者認証復帰は[42441799329](https://github.com/k-o-a-b-c/monetail/actions/runs/42441799329)で5セット、[42442464782](https://github.com/k-o-a-b-c/monetail/actions/runs/42442464782)で5セット、[42442825873](https://github.com/k-o-a-b-c/monetail/actions/runs/42442825873)で通常1セット、最終で1セットの**計12セット（各セットに同一/別アカウントの2経路）**が通過し、0xC0000005は再現せず。前3実行は後続の別のテストで失敗したため全体成功とは扱わない。初回[42441556316](https://github.com/k-o-a-b-c/monetail/actions/runs/42441556316)はUIAに不要な寸法条件の拒否、[42442246317](https://github.com/k-o-a-b-c/monetail/actions/runs/42442246317)は非同期置換のビルドエラーで、参加者反復を実行していない。最終ソース`255f4bb98c3ff80e80858c7dc7ba46a1515ad6f6`の[CI 42443115034](https://github.com/k-o-a-b-c/monetail/actions/runs/42443115034)は両Releaseビルド・製品起動・全画面275確認が成功。331件のネイティブInvokeは全件復帰し、6件の意図的な不正対象（未接続・別スレッド・非表示・無効・閉鎖後2件）をPeer作成前に拒否。参加者では前回Closed前のOpenedを検出しなかった。過去のネイティブ故障箇所を確定するダンプはなく、根本解消とは扱わない。Windows x64 CI以外の実機/手動/IME/DPIは未検証。影響外はPR先端の[Tests 42437796915](https://github.com/k-o-a-b-c/monetail/actions/runs/42437796915)の成功記録を再利用し、API/Client/旧版/性能を再実行していない。
+
+科目管理と人物期間フィルター（DEC-142）はソース`0a1e172305680acc836158e5a6952ce5fe54fc14`の[CI 42437515048](https://github.com/k-o-a-b-c/monetail/actions/runs/42437515048)で、WinUI製品/検証用Releaseビルド・製品起動・新旧画面の合成HTTPシナリオ1件（270確認）が成功。ローカルでは既存の科目Client関連106件と差分検査が成功した。API/Client/DB/旧版は変更せず、基点main `8c073c2`の[push Tests 42430919394](https://github.com/k-o-a-b-c/monetail/actions/runs/42430919394)とCI判定の成功記録を変更前・影響外の根拠として再利用した。構成合計1608件を全件再実行した意味ではない。初回[42436823052](https://github.com/k-o-a-b-c/monetail/actions/runs/42436823052)はケース追加に伴い全体60秒で打切り、待機上限を120秒へ変更した（各条件15秒・検証項目/判定は維持）。次の[42437180469](https://github.com/k-o-a-b-c/monetail/actions/runs/42437180469)では既知の0xC0000005が参加者認証復帰のInvoke中に再発し、直前ボタンはLoaded=False/Root=True。参加者テストも表示済みボタンの選択/Loaded待機へ揃え、最終実行では再発なし。ネイティブ層の根本原因は未解決。実API・実Windows手動操作・実IME/物理キー・125/150/200%/モニター間DPI・ARM64は未検証。
 
 初期マスタの固定設定検証を32ケース追加。税区分4件のコード/正式名称、Windows OAuthのClientId/種別/ConsentType/秘密・鍵・個別Settings/リダイレクト/権限/PKCE要件、JSONの不正値・集合の過不足を検証する。配列の順序/書式/重複を変えた正常系と、ConcurrencyToken・表示名/翻訳・Properties等の運用値変更も確認し、再初期化と通常APIでDB不変・不一致時の拒否を確認。ローカルの対象34件（既存正常系2件を含む）と既存初期化/構造25件が成功。ソース`8617c5a8201d8ed702f1f4d15e2817922b0f0239`の[CI 42427632942](https://github.com/k-o-a-b-c/monetail/actions/runs/42427632942)でAPI全910件・Node/Python・Dockerビルドと通常/server/配布アーカイブ起動が成功。変更前の成功根拠は[CI 42384924696](https://github.com/k-o-a-b-c/monetail/actions/runs/42384924696)と、その製品検証元[CI 42383801568](https://github.com/k-o-a-b-c/monetail/actions/runs/42383801568)。Client/WinUI・Windows保存・旧版/性能は未変更の成功記録を再利用。API契約・科目仕様・EFモデル・外部ライブラリは変更せず、実DBは変更していない。
 
@@ -134,7 +141,7 @@ python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 ```
 
-WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIでは画像を取らない。撮影はActionsの「WinUI 3 foundation」を手動実行し、対象ブランチと`capture=true`を指定する。撮影専用ブランチへのpushは不要。
+WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIでは画像を取らない。撮影はActionsの「WinUI 3 foundation」を手動実行し、対象ブランチと`capture=true`を指定する。撮影専用ブランチへのpushは不要。 参加者の認証復帰だけを5回反復する調査は、Windowsで`run.ps1`へ`-RepeatParticipantRecovery`を指定する（検証用Appの`--repeat-participant-recovery`）。全画面を反復せず、通常CIは1セットとする。`ui-invoke.txt`の同じinvoke番号で`target/create_peer/get_pattern/invoke_provider/returned`を追跡し、ダイアログのOpened/Closing/Closedと照合する。Invoke方式は[公式のButtonAutomationPeer](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.automation.peers.buttonautomationpeer?view=windows-app-sdk-1.8)のInvokeパターンを使用する。
 
 旧Windowsでは`dotnet run --project tests/PersistenceTests/PersistenceTests.vbproj`で画面・実SQLiteを確認する。性能計測は同コマンドに`--measure-receipt-reads CSVのパス`を渡し、通常テストと区別する（[測定条件](../docs/34-receipt-read-performance.md)）。APIのDocker確認は[起動・運用](../docs/42-api-foundation.md)を参照する。
 
@@ -173,7 +180,7 @@ NuGetパッケージは[共通アクション](../.github/actions/nuget-cache/ac
 
 ## 新版Windowsの手動確認（未実施）
 
-製品起動から接続・ログイン復元・家計簿の行き先へ進む処理を画面へ接続した。人物追加・編集・削除確認・日付入力と共通Enter操作は接続済み。共通順の設定と同一アカウントでの認証後復元も接続済み。時刻入力のUIは未接続。実装後は[43](../docs/43-passkey-authentication-design.md)・[58](../docs/58-ledger-foundation-design.md)・[59](../docs/59-input-controls-design.md)の契約に沿って確認する。ARM64、100／125／150／200%の物理端末、モニター間移動・ハイコントラスト・日本語IME・実キー入力、実ブラウザーのパスキー、本番配備・実DB移行は未検証。
+製品起動から接続・ログイン復元・家計簿の行き先へ進む処理を画面へ接続した。人物・科目・支払方法の追加・編集・削除確認・日付入力と共通Enter操作は接続済み。共通順の設定と同一アカウントでの認証後復元も接続済み。時刻入力のUIは未接続。実装後は[43](../docs/43-passkey-authentication-design.md)・[58](../docs/58-ledger-foundation-design.md)・[59](../docs/59-input-controls-design.md)の契約に沿って確認する。ARM64、100／125／150／200%の物理端末、モニター間移動・ハイコントラスト・日本語IME・実キー入力、実ブラウザーのパスキー、本番配備・実DB移行は未検証。
 
 ## 旧Windowsで画面を手動確認する手順（利用者環境では未実施）
 

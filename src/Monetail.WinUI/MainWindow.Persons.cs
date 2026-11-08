@@ -28,7 +28,7 @@ public sealed partial class MainWindow
 
     private sealed record PersonEditSnapshot(Guid AccountId, string ApiOrigin, LedgerInfo Ledger, PeopleInfo People,
         PersonInfo? Person, PersonCreationDraft? Creation, bool IncludedPeriod, string Name, string From, string To,
-        PersonOrderDraft? Order = null);
+        PersonOrderDraft? Order = null, bool IncludeInactive = false);
 
     private bool IsPeopleAdmin => peoplePermissions?.CurrentRole == "Admin";
     private bool CanViewPeople => peoplePermissions is null || peoplePermissions.CurrentRole is not null;
@@ -41,6 +41,7 @@ public sealed partial class MainWindow
     {
         // 本体ごと標準Popupへ配置し、本文と標準ボタンを同じTab・キー処理範囲にする。
         InitializePayments();
+        InitializeCategories();
         WorkspaceRoot.Children.Remove(PersonDialog);
         WorkspaceRoot.Children.Remove(ParticipantDialog);
         WorkspaceRoot.Children.Remove(InvitationCancelDialog);
@@ -62,6 +63,7 @@ public sealed partial class MainWindow
         DiscardPersonEditor();
         DiscardPersonOrder();
         peopleInfo = null;
+        IncludeInactivePeople.IsChecked = false;
         peoplePermissions = null;
         missingPeople.Clear();
         PeopleList.ItemsSource = null;
@@ -73,6 +75,7 @@ public sealed partial class MainWindow
     private void UpdatePeopleActions()
     {
         UpdatePaymentActions();
+        UpdateCategoryActions();
         UpdateParticipantActions();
         AddPersonButton.IsEnabled = account is not null && IsPeopleAdmin;
         PersonOrderButton.IsEnabled = account is not null && IsPeopleAdmin && peopleInfo is not null;
@@ -322,10 +325,10 @@ public sealed partial class MainWindow
         if (account is null || currentLedger is null || peopleInfo is null) return;
         if (orderedPeople is not null)
             pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo,
-                null, null, false, "", "", "", new(personOrderRevision, orderedPeople.ToArray()));
+                null, null, false, "", "", "", new(personOrderRevision, orderedPeople.ToArray()), IncludeInactivePeople.IsChecked == true);
         else if (!isDeletingPerson && PersonEditorContent.Visibility == Visibility.Visible)
             pendingPersonEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, peopleInfo, editingPerson,
-                personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text);
+                personDraft, editingPeriod, PersonName.Text, PersonValidFrom.Text, PersonValidTo.Text, IncludeInactive: IncludeInactivePeople.IsChecked == true);
     }
 
     private void DropPendingPersonEdit()
@@ -371,6 +374,7 @@ public sealed partial class MainWindow
     {
         DisplayLedger(ledger);
         DisplayPeople(people);
+        IncludeInactivePeople.IsChecked = draft.IncludeInactive;
         ShowPage(ManagementPage);
         ManagementNavigation.SelectedItem = PeopleNavigation;
         if (permission is not null) peoplePermissions = permission;

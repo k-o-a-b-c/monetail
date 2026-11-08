@@ -1,8 +1,6 @@
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -26,34 +24,39 @@ public partial class App : Application
         var capture = arguments.Contains("--capture");
         Directory.CreateDirectory(output);
         invokeTracePath = Path.Combine(output, "ui-invoke.txt");
+        uiThreadId = Environment.CurrentManagedThreadId;
         try
         {
             if (capture)
                 Resources["ContentControlThemeFontFamily"] = new FontFamily("ms-appx:///Assets/PreviewFont.otf#Noto Sans CJK JP");
             window = new MainWindow();
             var root = (FrameworkElement)window.Content;
+            ObserveDialogs(root);
             window.Activate();
             await Wait(() => root.IsLoaded);
-            var mother = new PersonInfo(Guid.NewGuid(), "母", new(2026, 4, 1), null, 0, Guid.NewGuid());
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            var mother = new PersonInfo(Guid.NewGuid(), "母", today, null, 0, Guid.NewGuid());
             var father = new PersonInfo(Guid.NewGuid(), "父", null, null, 1, Guid.NewGuid());
-            var child = new PersonInfo(Guid.NewGuid(), "子供", null, new(2026, 9, 30), 2, Guid.NewGuid());
+            var child = new PersonInfo(Guid.NewGuid(), "子供", null, today.AddDays(-1), 2, Guid.NewGuid());
             window.DisplayWorkspace(new LedgerInfo(Guid.NewGuid(), "家族の家計簿", "Admin", Guid.NewGuid().ToString("N")),
                 new PeopleInfo([mother, father, child], father.PersonId, "Admin", Guid.NewGuid()));
             await Settle();
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "ホームの表示");
             if (capture) await Capture(root, output, "01-home");
 
-            Invoke(Find<Button>(root, "SettingsButton"));
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Settle();
             var navigation = Find<NavigationView>(root, "ManagementNavigation");
             var people = Find<ListView>(root, "PeopleList");
             Check(Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible, "管理・設定への切替");
             Check(navigation.IsPaneOpen && ReferenceEquals(navigation.SelectedItem,
                 Find<NavigationViewItem>(root, "PeopleNavigation")), "左メニューを保持");
-            Check(people.Items.Count == 3, "右側に全員表示");
+            Check(people.Items.Count == 2, "人物の初期表示は本日有効な人物のみ");
+            Find<CheckBox>(root, "IncludeInactivePeople").IsChecked = true;
+            Check(people.Items.Count == 3, "期間外表示を選ぶと全員表示");
             Check(((PersonRow)people.Items[0]).Name == "父（本人）", "本人先頭");
-            Check(((PersonRow)people.Items[1]).ValidFrom == "2026/04/01" &&
-                ((PersonRow)people.Items[2]).ValidTo == "2026/09/30", "既存Clientの日付表示");
+            Check(((PersonRow)people.Items[1]).ValidFrom == today.ToString("yyyy/MM/dd") &&
+                ((PersonRow)people.Items[2]).ValidTo == today.AddDays(-1).ToString("yyyy/MM/dd"), "既存Clientの日付表示");
             Check(Find<TextBlock>(root, "LedgerContext").Text == "家族の家計簿", "家計簿名を表示");
             Check(!All(root).OfType<MenuBar>().Any(), "メニューバーなし");
             var paneBounds = navigation.PaneDisplayMode;
@@ -73,10 +76,21 @@ public partial class App : Application
             if (capture) await Capture(root, output, "04-management-dark");
             root.RequestedTheme = ElementTheme.Default;
 
-            Invoke(Find<Button>(root, "ReturnButton"));
+            await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
             await Settle();
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
             var rasterizationScale = root.XamlRoot.RasterizationScale;
+            await CheckInvocationGuards(root);
+            // 調査時だけ対象の認証復帰を反復し、通常CIでは成功済みの確認を増やさない。
+            var recoveryAttempts = arguments.Contains("--repeat-participant-recovery") ? 5 : 1;
+            for (var attempt = 1; attempt <= recoveryAttempts; attempt++)
+            {
+                TraceInvocation($"participantRecoveryAttempt={attempt}; phase=begin");
+                await CheckParticipantAuthenticationRecovery(includeInvitation: attempt == 1);
+                TraceInvocation($"participantRecoveryAttempt={attempt}; phase=passed");
+            }
+            await CheckCategories();
+            await CheckPeopleFilter();
             await CheckConnectionFlow(output, capture);
             await CheckPeopleFlow(output, capture);
             await CheckPersonDeletion();
@@ -84,7 +98,6 @@ public partial class App : Application
             await CheckPersonOrderReauthentication();
             await CheckPersonReauthentication();
             await CheckParticipantsAndInvitations();
-            await CheckParticipantAuthenticationRecovery();
             await CheckInputControls();
             await CheckPayments();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
@@ -128,13 +141,6 @@ public partial class App : Application
             yield return child;
             foreach (var nested in All(child)) yield return nested;
         }
-    }
-    private static void Invoke(Button button)
-    {
-        // ネイティブ異常の直前状態を残す。操作の置換・再送や成功扱いへの変更は行わない。
-        if (invokeTracePath is not null) File.AppendAllText(invokeTracePath, $"{DateTimeOffset.UtcNow:O} UI Invoke: {button.Name}; {button.Content}; loaded={button.IsLoaded}; root={button.XamlRoot is not null}{Environment.NewLine}");
-        var peer = FrameworkElementAutomationPeer.CreatePeerForElement(button);
-        ((IInvokeProvider)peer.GetPattern(PatternInterface.Invoke)).Invoke();
     }
     private static async Task Wait(Func<bool> ready)
     {

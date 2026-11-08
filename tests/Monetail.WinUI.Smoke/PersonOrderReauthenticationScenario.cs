@@ -23,7 +23,7 @@ public partial class App
             Check(fixture.Requests.Count(path => path == "/ledgers/open-last") == 1 &&
                 fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1,
                 "並び順の復帰も元の家計簿を直接開き、既存の本人・権限確認を共用");
-            Invoke(Find<Button>(root, "SavePersonOrderButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => !OrderVisible(root));
             Check(server.Writes.Single().Body == rejected, "復元後の明示保存も元の全ID順と全体更新版を維持");
         }
@@ -38,7 +38,7 @@ public partial class App
             Check(list.Items.Cast<PersonRow>().Any(row => row.Name == "母") &&
                 !list.Items.Cast<PersonRow>().Any(row => row.Name == "子供") && server.Writes.Count == 0,
                 "認証待ちに人物が増減しても未保存のID順を黙って補正しない");
-            Invoke(Find<Button>(root, "SavePersonOrderButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => Find<InfoBar>(root, "PersonOrderNotice").IsOpen);
             Check(Find<InfoBar>(root, "PersonOrderNotice").Severity == InfoBarSeverity.Informational &&
                 ((PersonRow)list.Items[0]).Name == "子供" &&
@@ -80,7 +80,7 @@ public partial class App
             {
                 fixture.AccountId = Guid.NewGuid();
                 fixture.CompleteLogin = true;
-                Invoke(Find<Button>(root, "LoginButton"));
+                await InvokeAsync(() => Find<Button>(root, "LoginButton"));
                 await Wait(() => Visible(root, "HomePage"));
                 await fixture.CallbackTask!;
             }
@@ -97,9 +97,9 @@ public partial class App
     {
         var root = await OpenPersonOrderWindow(fixture, server);
         Find<ListView>(root, "PersonOrderList").SelectedIndex = 1;
-        Invoke(Find<Button>(root, "MovePersonUpButton"));
+        await InvokeAsync(() => Find<Button>(root, "MovePersonUpButton"));
         fixture.RejectSession = true;
-        Invoke(Find<Button>(root, "SavePersonOrderButton"));
+        await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
         await Wait(() => Visible(root, "LoginPage") && Find<Button>(root, "LoginButton").IsEnabled);
         return root;
     }
@@ -108,7 +108,7 @@ public partial class App
     {
         fixture.RejectSession = false;
         fixture.CompleteLogin = true;
-        Invoke(Find<Button>(root, "LoginButton"));
+        await InvokeAsync(() => Find<Button>(root, "LoginButton"));
         await Wait(() => OrderVisible(root) && Find<Button>(root, "CancelPersonOrderButton").IsEnabled);
         await fixture.CallbackTask!;
     }

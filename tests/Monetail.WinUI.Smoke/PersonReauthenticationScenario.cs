@@ -13,13 +13,13 @@ public partial class App
         {
             var server = new PeopleServer();
             var root = await OpenPersonWindow(fixture, server);
-            Invoke(Find<Button>(root, "AddPersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "  再ログイン後に登録  ";
             Find<DateInputBox>(root, "PersonValidFrom").Text = "20260401";
             fixture.RejectSession = true;
             await WaitPersonEditorReady(root);
-            Invoke(Find<Button>(root, "SavePersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             Check(server.Writes.Count == 0 && fixture.Tokens.Current is null, "人物保存中のログイン失効は保存せずログインへ戻る");
             var rejectedBody = fixture.RejectedPeopleBodies.Single();
@@ -32,7 +32,7 @@ public partial class App
                 fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1 && server.Reads == 2,
                 "編集復帰は元の家計簿を直接開き、現在の人物と権限を確認");
             await WaitPersonEditorReady(root);
-            Invoke(Find<Button>(root, "SavePersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => EditorClosed(root));
             Check(server.Writes.Single().Body == rejectedBody, "再ログイン後の明示的な登録も元の作成要求IDを維持");
         }
@@ -43,17 +43,17 @@ public partial class App
             var root = await OpenPersonWindow(fixture, server);
             var list = Find<ListView>(root, "PeopleList");
             list.SelectedIndex = 0;
-            Invoke(Find<Button>(root, "EditPersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "EditPersonButton"));
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "編集を継続する入力";
             fixture.RejectSession = true;
             await WaitPersonEditorReady(root);
-            Invoke(Find<Button>(root, "SavePersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             server.ChangeOwnPerson();
             await LoginAgain(fixture, root);
             await WaitPersonEditorReady(root);
-            Invoke(Find<Button>(root, "SavePersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Find<Border>(root, "PersonConflict").Visibility == Visibility.Visible);
             Check(Find<TextBox>(root, "PersonName").Text == "編集を継続する入力" && !Find<Button>(root, "SavePersonButton").IsEnabled,
                 "編集復帰でも元の更新版を維持し、他人の変更を上書きしない");
@@ -63,12 +63,12 @@ public partial class App
         {
             var server = new PeopleServer();
             var root = await OpenPersonWindow(fixture, server);
-            Invoke(Find<Button>(root, "AddPersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "別サーバーへ渡さない入力";
             fixture.RejectSession = true;
             await WaitPersonEditorReady(root);
-            Invoke(Find<Button>(root, "SavePersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             fixture.RejectSession = false;
             fixture.Settings.Save(ApiEndpoint.Parse("https://other.example.test/"));
@@ -84,17 +84,17 @@ public partial class App
         {
             var server = new PeopleServer();
             var root = await OpenPersonWindow(fixture, server);
-            Invoke(Find<Button>(root, "AddPersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "別アカウントへ渡さない入力";
             fixture.RejectSession = true;
             await WaitPersonEditorReady(root);
-            Invoke(Find<Button>(root, "SavePersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             fixture.AccountId = Guid.NewGuid();
             fixture.RejectSession = false;
             fixture.CompleteLogin = true;
-            Invoke(Find<Button>(root, "LoginButton"));
+            await InvokeAsync(() => Find<Button>(root, "LoginButton"));
             await Wait(() => Visible(root, "HomePage"));
             await fixture.CallbackTask!;
             Check(Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Collapsed &&
@@ -109,12 +109,12 @@ public partial class App
             var server = new PeopleServer();
             var root = await OpenPersonWindow(fixture, server);
             Find<ListView>(root, "PeopleList").SelectedIndex = 0;
-            Invoke(Find<Button>(root, "EditPersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "EditPersonButton"));
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "権限が変わっても入力は残す";
             fixture.RejectSession = true;
             await WaitPersonEditorReady(root);
-            Invoke(Find<Button>(root, "SavePersonButton"));
+            await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
             if (removed) fixture.CannotOpenLedger = true;
             else server.Role = "Viewer";
@@ -133,7 +133,7 @@ public partial class App
         fixture.PeopleHandler = server.HandleAsync;
         var root = await OpenSyntheticWindow(fixture);
         await window!.StartAsync();
-        Invoke(Find<Button>(root, "SettingsButton"));
+        await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 2 && Find<Button>(root, "AddPersonButton").IsLoaded);
         return root;
     }
@@ -142,7 +142,7 @@ public partial class App
     {
         fixture.RejectSession = false;
         fixture.CompleteLogin = true;
-        Invoke(Find<Button>(root, "LoginButton"));
+        await InvokeAsync(() => Find<Button>(root, "LoginButton"));
         await Wait(() => Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Visible);
         await fixture.CallbackTask!;
         await WaitPersonEditorReady(root);

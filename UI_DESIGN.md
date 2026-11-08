@@ -80,3 +80,7 @@
 
 ## 参考
 [Windows設計ガイドライン](https://learn.microsoft.com/ja-jp/windows/apps/design/guidelines-overview) ／ [WinUI 3](https://learn.microsoft.com/windows/apps/winui/winui3/) ／ [NavigationView](https://learn.microsoft.com/windows/apps/design/controls/navigationview)
+
+## 科目管理への適用
+
+科目管理も人物・支払方法と同じ右ペインの標準ListViewとContentDialogを使う。収支・税区分の選択は標準ComboBox、期間は共通DateInputBox、共通順の設定は右ペインの専用画面とする。表示・初期値・権限・競合・認証復帰は[科目管理の正本](docs/ledger-core-schema.md#科目管理画面)に従う。
