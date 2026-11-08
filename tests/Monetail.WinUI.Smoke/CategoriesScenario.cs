@@ -58,6 +58,14 @@ public partial class App
             Check(list.Items.Count == 2 && list.SelectedItem is null && !Find<Button>(root, "EditCategoryButton").IsEnabled && server.Writes.Count == 0, "フィルターで隠れた選択を解除し、科目を更新削除しない");
             await OpenCategoryDialog(root, "AddCategoryButton");
             Check(Equals(((ComboBoxItem)Find<ComboBox>(root, "CategoryIncome").SelectedItem).Tag, "Expense") && Equals(((ComboBoxItem)Find<ComboBox>(root, "CategoryTax").SelectedItem).Tag, "Standard") && Find<DateInputBox>(root, "CategoryFrom").Text == "" && Find<DateInputBox>(root, "CategoryTo").Text == "", "科目追加の初期値は支出・標準・期間空欄");
+            var keyboard = (FormKeyboard)typeof(MainWindow).GetField("categoryKeyboard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!;
+            Find<TextBox>(root, "CategoryName").Focus(FocusState.Programmatic); await keyboard.HandleEnter(false, false)!;
+            Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<ComboBox>(root, "CategoryIncome")) && server.Writes.Count == 0, "科目名のEnterは保存せず収支欄へ移動");
+            Find<ComboBox>(root, "CategoryIncome").IsDropDownOpen = true;
+            Check(keyboard.HandleEnter(true, false) is null && server.Writes.Count == 0, "科目ComboBox展開中のEnterは標準選択を優先して保存しない");
+            Find<ComboBox>(root, "CategoryIncome").IsDropDownOpen = false;
+            await Wait(() => FitsHorizontally(Find<DateInputBox>(root, "CategoryTo"), Find<ScrollViewer>(root, "CategoryEditorContent")));
+            Check(FitsHorizontally(Find<ComboBox>(root, "CategoryTax"), Find<ScrollViewer>(root, "CategoryEditorContent")), "科目の選択欄と日付欄は標準ダイアログ幅に収まる");
             Find<TextBox>(root, "CategoryName").Text = "  登録  "; Invoke(CategoryFooter(root, true)); await Wait(() => CategoryEditorClosed(root));
             Check(server.Rows.Count == 5 && list.Items.Count == 3 && server.Reads == 1, "科目作成は成功一覧を反映し追加GETなし");
             var created = server.Rows.Single(r => r.Name == "登録"); SelectCategoryRow(root, created.CategoryId);
@@ -137,6 +145,17 @@ public partial class App
             Check(!CategoryDialogFor(root).IsPrimaryButtonEnabled && Find<TextBox>(root, "CategoryName").Text == "保存不可でも残す" && server.Reads == 1, "科目権限喪失は入力保持・保存不可・再取得なし");
             Invoke(CategoryFooter(root, false)); await Wait(() => CategoryEditorClosed(root));
             Check(!Find<Button>(root, "AddCategoryButton").IsEnabled, "権限喪失後も変更不可");
+        }
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
+            var server = new CategoryServer(); var root = await OpenCategoriesWindow(fixture, server);
+            await OpenCategoryOrderScreen(root); var list = Find<ListView>(root, "CategoryOrderList");
+            list.SelectedIndex = 0; Invoke(Find<Button>(root, "MoveCategoryDownButton"));
+            var unsaved = list.Items.Cast<CategoryRow>().Select(r => r.Category.CategoryId).ToArray(); server.Deny = true;
+            Invoke(Find<Button>(root, "SaveCategoryOrderButton")); await Wait(() => Find<InfoBar>(root, "CategoryOrderNotice").IsOpen);
+            Check(!Find<Button>(root, "SaveCategoryOrderButton").IsEnabled && list.Items.Cast<CategoryRow>().Select(r => r.Category.CategoryId).SequenceEqual(unsaved) && server.Reads == 1,
+                "科目並び替え中の権限喪失は未保存順を保持して保存停止・追加GETなし");
+            Invoke(Find<Button>(root, "CancelCategoryOrderButton"));
         }
         await CheckCategoryRecovery();
     }
