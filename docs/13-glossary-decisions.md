@@ -211,6 +211,8 @@
 
 | DEC-151 | **利用者確認済み・レシート未実装（2026-11-09）** | 新版レシートの保存済み合計は`INTEGER NOT NULL`とする | `ledger_receipts.total`は保存時の計算済み合計を必須とし、符号付きInt32範囲内をDB/APIで検証する。旧版`total`にNULLがある場合は、実データ移行時に個別対応する。自動で0に置き換えない。[レシートDB設計案](ledger-receipt-schema.md)参照。 |
 
+| DEC-152 | **利用者確認済み・レシート未実装（2026-11-09）** | レシートの作成者・更新者の認証アカウントFKをRESTRICTにする | `ledger_receipts.created_by_auth_user_id`と`updated_by_auth_user_id`は、それぞれ`AspNetUsers(Id)`へのRESTRICT FKを持つ。監査の参照があるアカウントの物理削除を禁止し、無効化では認証IDと取引履歴を残す。アカウントの物理削除・退会機能は現状未実装であり、将来の退会設計は別途扱う。[レシートDB設計案](ledger-receipt-schema.md)参照。 |
+
 ## 4. 仕様変更の原則（提案）
 
 1. **事実**（実DDL／ソースの現在動作）と**要件**（次にしたいこと）を別ファイル・別表で管理する。
