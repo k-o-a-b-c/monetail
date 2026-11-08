@@ -215,6 +215,8 @@
 
 | DEC-153 | **利用者確認済み・レシート未実装（2026-11-09）** | レシート4表のPKは家計簿IDを含む複合キーに統一する | レシート`(ledger_id,receipt_id)`、グループ`(ledger_id,group_id)`、明細`(ledger_id,detail_id)`、対象人物`(ledger_id,detail_id,person_id)`をPKとする。子テーブルの親・人物・科目などへのFKにも`ledger_id`を含めて家計簿横断参照を禁止。サーバー発行UUID v7は維持するが、レシート・グループ・明細のID単独UNIQUE索引は追加しない。グループの同科目・同税率禁止用の部分UNIQUE索引は別途維持する。[レシートDB設計案](ledger-receipt-schema.md)参照。 |
 
+| DEC-154 | **利用者確認済み・レシート未実装（2026-11-09）** | 新版レシートの5列を意味が明確な名前へ変更し、列順を整理する | `ledger_receipts`の`date`→`transaction_at`、`tax_type`→`tax_inclusion_mode`、`total`→`total_amount`。`ledger_receipt_details`の`fee`→`unit_price`、`discount_fee`→`unit_discount_amount`。レシートの周期列・合計・メモ・監査を論理順に配置し、明細の`display_order`は親キーの直後に置く。グループ・明細対象人物の列順は維持。旧版テーブル・計算仕様・型・NULL条件は変更せず、物理テーブルはまだ未実装。[レシートDB設計案](ledger-receipt-schema.md)参照。 |
+
 ## 4. 仕様変更の原則（提案）
 
 1. **事実**（実DDL／ソースの現在動作）と**要件**（次にしたいこと）を別ファイル・別表で管理する。
