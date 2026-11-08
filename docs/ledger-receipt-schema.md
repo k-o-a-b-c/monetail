@@ -20,20 +20,22 @@
 
 ## 2. `ledger_receipts`（レシート親）
 
+列名は旧版の `date` → `transaction_at`、`tax_type` → `tax_inclusion_mode`、`total` → `total_amount` に整理した。**これは新テーブルの列名であり、旧版の列名・値・計算処理は変更しない。** 列順はキー → 取引内容 → 税・周期・金額 → メモ → 更新版・監査情報の順。
+
 | 列 | SQLite型・NULL | 内容 |
 | --- | --- | --- |
 | `ledger_id` | TEXT NOT NULL | 家計簿ID、PKの一部 |
 | `receipt_id` | TEXT NOT NULL | UUID v7、PKの一部 |
-| `date` | TEXT NOT NULL | **取引日時を時刻まで保持**。旧版のローカル日時をUTCへ読み替えず、日付部分を税率履歴・有効期間の照合に使う。具体的なTEXT書式と秒未満の精度はAPI契約で定める |
+| `transaction_at` | TEXT NOT NULL | **取引日時を時刻まで保持**。旧版のローカル日時をUTCへ読み替えず、日付部分を税率履歴・有効期間の照合に使う。具体的なTEXT書式と秒未満の精度はAPI契約で定める |
 | `shop_name` | TEXT NOT NULL | 店名。マスタFKは設けず、自由入力 |
 | `shop_location` | TEXT NULL | 店舗所在地 |
 | `payment_method_id` | TEXT NOT NULL | `(ledger_id, payment_method_id)`で支払方法FK |
-| `tax_type` | INTEGER NOT NULL | 0=税込、1=税抜（旧計算契約と同じ） |
+| `tax_inclusion_mode` | INTEGER NOT NULL | 0=税込、1=税抜（旧版`tax_type`の値と計算契約は維持） |
 | `tax_rounding_mode` | TEXT NOT NULL | `floor` / `half_up` |
-| `memo` | TEXT NULL | レシート自由記述。旧`tag`相当 |
-| `total` | INTEGER NOT NULL（確定） | 保存時に計算した合計を必ず保持。符号付きInt32範囲内。旧版のNULL値は移行時に個別対応 |
 | `recurrence_interval` | INTEGER NULL | 周期間隔。設定時は1以上の正整数 |
 | `recurrence_unit` | TEXT NULL | `Week` / `Month` / `Year` |
+| `total_amount` | INTEGER NOT NULL（確定） | 保存時に計算した合計を必ず保持。符号付きInt32範囲内。旧版のNULL値は移行時に個別対応 |
+| `memo` | TEXT NULL | レシート自由記述。旧`tag`相当 |
 | `revision` | TEXT NOT NULL | レシート単位の楽観的更新版（UUID v4） |
 | `created_by_auth_user_id` | TEXT NOT NULL | 作成した認証アカウントID |
 | `created_at_utc` | TEXT NOT NULL | 作成UTC日時 |
@@ -43,10 +45,10 @@
 **制約／索引案**
 
 - `FK(ledger_id)→ledgers(id)`、`FK(ledger_id,payment_method_id)→ledger_payment_methods(ledger_id,payment_method_id)`を設ける。**作成者・更新者の両IDはそれぞれ`AspNetUsers(Id)`へのRESTRICT FKを設定する（確定）**。レシート監査情報に参照されている認証アカウントは物理削除不可とし、無効化しても履歴と認証IDを残す。アカウント退会・削除機能は現時点で未実装であり、将来の退会仕様は別途検討する。
-- `CHECK(tax_type IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total`はNOT NULLかつ符号付きInt32範囲内。
+- `CHECK(tax_inclusion_mode IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total_amount`はNOT NULLかつ符号付きInt32範囲内。
 - 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`recurrence_interval >= 1`かつ`recurrence_unit IN ('Week','Month','Year')`をDBとAPIの両方で検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
 - 周期がある場合、レシート内に`occurrence_type='Regular'`の明細が**1件以上必須**。周期なしでも定期明細を認める。これは行をまたぐためAPIの一括保存トランザクションで検証する。
-- 一覧・残高参照用の`(ledger_id,date,receipt_id)`、`(ledger_id,payment_method_id,date,receipt_id)`索引を提案する。日時TEXTは時系列で字句順が一致する正規化書式を使用し、API/DBで同一書式へ統一する（厳密な小数秒精度などは後続で確定）。
+- 一覧・残高参照用の`(ledger_id,transaction_at,receipt_id)`、`(ledger_id,payment_method_id,transaction_at,receipt_id)`索引を提案する。日時TEXTは時系列で字句順が一致する正規化書式を使用し、API/DBで同一書式へ統一する（厳密な小数秒精度などは後続で確定）。
 - `revision`はレシート親のみ。明細・グループ単位の更新版は持たない。
 
 ## 3. `ledger_receipt_groups`（科目・税率グループ）
@@ -80,22 +82,24 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 
 ## 4. `ledger_receipt_details`（明細）
 
+新版の `fee` → `unit_price`、`discount_fee` → `unit_discount_amount` に変更し、`display_order` を親キーの直後に置く。旧版の列名と計算・丸め規則は変更しない。
+
 | 列 | SQLite型・NULL | 内容 |
 | --- | --- | --- |
 | `ledger_id` | TEXT NOT NULL | 家計簿ID、PKの一部 |
 | `detail_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `group_id` | TEXT NOT NULL | 同一家計簿グループへのFK |
+| `display_order` | INTEGER NOT NULL | グループ内の並び順、0以上 |
 | `name` | TEXT NOT NULL | 明細名 |
-| `fee` | INTEGER NOT NULL | 単価、符号付きInt32 |
+| `unit_price` | INTEGER NOT NULL | 単価、符号付きInt32（旧版`fee`） |
 | `quantity` | INTEGER NOT NULL | 数量、1以上・Int32上限以下 |
-| `discount_fee` | INTEGER NOT NULL | 1単位の値引額、符号付きInt32 |
+| `unit_discount_amount` | INTEGER NOT NULL | 1単位の値引額、符号付きInt32（旧版`discount_fee`） |
 | `discount_rate` | TEXT NOT NULL | 率値引（%）、Decimal、0～100、小数可 |
 | `expense_type` | TEXT NOT NULL | `Fixed` / `Variable` / `Excluded` |
 | `occurrence_type` | TEXT NOT NULL | `Regular` / `Irregular` / `Temporary` |
 | `memo` | TEXT NULL | 明細自由記述 |
-| `display_order` | INTEGER NOT NULL | グループ内の並び順、0以上 |
 
-- 明細金額：`x=(fee-discount_fee)*quantity`、`discount_by_rate=Ceiling(x*discount_rate/100)`、`net=x-discount_by_rate`。**Decimalで計算し、既存の計算/税端数処理を維持**。明細単価・値引額・数量・レシート合計等はInt32範囲を検証し、計算超過ならAPIで保存拒否。入力値の0・100への自動補正は行わない。
+- 明細金額：`x=(unit_price-unit_discount_amount)*quantity`、`discount_by_rate=Ceiling(x*discount_rate/100)`、`net=x-discount_by_rate`。**Decimalで計算し、既存の計算/税端数処理を維持**。明細単価・値引額・数量・レシート合計等はInt32範囲を検証し、計算超過ならAPIで保存拒否。入力値の0・100への自動補正は行わない。
 - `discount_rate`は税率履歴と同じTEXT形式。APIは不変カルチャのDecimalとして厳密に解析・正規化し、0～100を検証。TEXTへのレキシカル比較で数値範囲を判定しない。
 - **費用区分の初期値・選択肢は科目の収支区分に依存**：収入科目は`Excluded`のみ（初期値も同じ）。支出科目は3種類すべて（初期値`Variable`）。`net`の正負では変更しない。API保存時にも整合性を検証。
 - 発生区分は全科目で3種類、初期値`Irregular`。発生周期は**明細に持たせない**。レシート周期と発生区分は片方向の関係（周期あり→少なくとも1明細がRegular）。
@@ -127,8 +131,8 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 
 | 論点 | 設計案・現状 | 確認が必要な理由 |
 | --- | --- | --- |
-| 取引日時の詳細書式 | **時刻まで保存すると確定**。`date TEXT NOT NULL` | ローカル日時を維持し、具体的なISO系文字列形式、小数秒の精度、API日時表現を後続で確定 |
-| 旧版の`total`がNULLのデータ | 新DBの`total`はINTEGER NOT NULLと確定 | 実データを調査して移行前に個別対応。NULLを自動的に0へ置き換えない |
+| 取引日時の詳細書式 | **時刻まで保存すると確定**。`transaction_at TEXT NOT NULL` | ローカル日時を維持し、具体的なISO系文字列形式、小数秒の精度、API日時表現を後続で確定 |
+| 旧版の`total`がNULLのデータ | 新DBの`total_amount`はINTEGER NOT NULLと確定 | 実データを調査して移行前に個別対応。NULLを自動的に0へ置き換えない |
 | 主キーとID一意性 | **全4表とも`ledger_id`を含む複合PKで確定。レシート・グループ・明細のID単独UNIQUEは設けない** | 既存マスタと同じキー設計。家計簿間の参照禁止は複合FKで保護する |
 | 監査ユーザーと削除 | **作成者・更新者とも認証アカウントへのRESTRICT FKで確定** | アカウントの物理削除は未実装。将来の退会・削除機能は履歴保持方針と合わせて別途設計 |
 | 有効期間と再編集 | 取引日基準の参照条件をAPIでチェック（既存原則） | 過去データ編集時に期間や税率履歴が後変更された場合の扱いをAPI契約で詳細化 |
