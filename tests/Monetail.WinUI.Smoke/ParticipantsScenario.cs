@@ -207,7 +207,8 @@ public partial class App
         var text = primary ? dialog.PrimaryButtonText : dialog.CloseButtonText;
         var candidates = All(dialog).OfType<Button>().Where(button => Equals(button.Content, text)).ToArray();
         // 旧First選択との差を観測し、内容や認証データを出力しない。
-        var selected = candidates.First(InvokeTargetReady);
+        // 読み取り用途では無効な標準ボタンも返す。Invokeの可否は共通ヘルパーで検証する。
+        var selected = candidates.OrderByDescending(InvokeTargetReady).ThenByDescending(button => button.IsLoaded).First();
         TraceInvocation($"participantButtonCandidates={candidates.Length}; first={TargetState(candidates[0])}; selected={TargetState(selected)}");
         return selected;
     }
