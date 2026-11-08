@@ -13,6 +13,10 @@ const passkeyList = document.getElementById("passkey-list");
 const addPasskeyButton = document.getElementById("add-passkey");
 const person = document.getElementById("person");
 const message = document.getElementById("message");
+const nameDialog = document.getElementById("passkey-name-dialog");
+const nameInput = document.getElementById("passkey-name");
+const nameMessage = document.getElementById("passkey-name-message");
+let renamingKey = null, operationBusy = false;
 
 // WebAuthnのJSON表現を、ブラウザーに渡すバイト列へ変換する。
 // 認証済みアカウントの表示名と固定期限を表示し、セッション識別子をJavaScriptで保持しない。
@@ -78,6 +82,7 @@ logoutButton.addEventListener("click", async () => {
 
 // 認証や鍵の変更中は、同じ画面の操作が重ならないようにする。
 function setBusy(busy) {
+    operationBusy = busy;
     for (const button of document.querySelectorAll("button"))
         button.disabled = busy || button.dataset.lastPasskey === "true";
 }
@@ -97,7 +102,18 @@ async function refreshPasskeys() {
         button.dataset.lastPasskey = String(keys.length <= 1);
         button.disabled = keys.length <= 1 || addPasskeyButton.disabled;
         button.addEventListener("click", () => removePasskey(key.id));
-        item.append(label, button);
+        const rename = document.createElement("button");
+        rename.type = "button";
+        rename.textContent = "名前変更";
+        rename.disabled = addPasskeyButton.disabled;
+        rename.addEventListener("click", () => {
+            renamingKey = key;
+            nameInput.value = key.name;
+            nameMessage.textContent = "";
+            nameDialog.showModal();
+            nameInput.focus();
+        });
+        item.append(label, rename, button);
         passkeyList.append(item);
     }
 }
@@ -144,3 +160,44 @@ async function removePasskey(id) {
 }
 
 refresh().catch(error => { message.textContent = error.message; });
+
+
+// 名前はMonetail内の表示用。保存先の認証器や資格情報そのものは変更しない。
+document.getElementById("passkey-name-form").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (operationBusy || !renamingKey) return;
+    const name = nameInput.value.trim();
+    if (!name || name.length > 100) {
+        nameMessage.textContent = "パスキー名は1〜100文字で入力してください。";
+        nameInput.focus();
+        return;
+    }
+    setBusy(true);
+    try {
+        await send(`/auth/passkeys/${encodeURIComponent(renamingKey.id)}`, { name }, "PATCH");
+        nameDialog.close();
+        await refresh();
+        message.textContent += "\nパスキー名を変更しました。";
+    } catch (error) {
+        (nameDialog.open ? nameMessage : message).textContent = error.status === 401
+            ? "ログインが失効しました。別タブで同じアカウントにログインし直してから再試行してください。入力は保持しています。"
+            : error.message;
+    }
+    finally { setBusy(false); }
+});
+document.getElementById("passkey-name-verify").addEventListener("click", async () => {
+    if (operationBusy) return;
+    setBusy(true);
+    nameMessage.textContent = "端末でパスキーを選んで本人確認を行ってください。";
+    try {
+        await authenticate("/auth/reauthentication", {});
+        await refresh();
+        nameMessage.textContent = "本人確認が完了しました。名前を確認して保存してください。";
+    } catch (error) {
+        nameMessage.textContent = error.name === "NotAllowedError" || error.name === "AbortError"
+            ? "本人確認を中止しました。入力は保持しています。" : error.message;
+    } finally { setBusy(false); }
+});
+document.getElementById("passkey-name-cancel").addEventListener("click", () => { if (!operationBusy) nameDialog.close(); });
+nameDialog.addEventListener("cancel", event => { if (operationBusy) event.preventDefault(); });
+nameDialog.addEventListener("close", () => { renamingKey = null; nameInput.value = ""; nameMessage.textContent = ""; });

@@ -19,6 +19,7 @@
     <EmbeddedResource Include="Pages/AdminAccounts.js" />
     <EmbeddedResource Include="Pages/LedgerInvitation.html" />
     <EmbeddedResource Include="Pages/LedgerInvitation.js" />
+    <Content Include="Authentication/PasskeyNames.NOTICE" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="Pages/Login.html" />
     <EmbeddedResource Include="Pages/Login.js" />
     <EmbeddedResource Include="Pages/PasskeyClient.js" />

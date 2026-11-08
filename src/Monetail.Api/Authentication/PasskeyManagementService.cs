@@ -13,10 +13,12 @@ public sealed record PasskeySummary(string Id, string Name, DateTimeOffset Creat
 /// <summary>本人によるパスキー削除の結果をHTTP受付へ渡す。</summary>
 public enum PasskeyRemovalResult { Removed, NotFound, LastPasskey, AuthenticationChanged }
 
-/// <summary>現在の本人のパスキーを一覧・追加・削除し、削除時は全セッションを失効させる。</summary>
+public enum PasskeyRenameResult { Renamed, NotFound, AuthenticationChanged }
+
+/// <summary>現在の本人のパスキーを一覧・追加・名前変更・削除し、削除時は全セッションを失効させる。</summary>
 public sealed class PasskeyManagementService(ApiDbContext context, UserManager<AuthUser> users,
     IPasskeyHandler<AuthUser> passkeys, PasskeyAdditionChallenges challenges, TimeProvider time,
-    ILogger<PasskeyManagementService> logger)
+    ILogger<PasskeyManagementService> logger, IUserStore<AuthUser> store)
 {
     /// <summary>現在の本人のパスキーだけを、公開鍵や検証用データを含めず返す。</summary>
     public async Task<PasskeySummary[]> ListAsync(HttpContext http, CancellationToken token)
@@ -63,13 +65,38 @@ public sealed class PasskeyManagementService(ApiDbContext context, UserManager<A
             HttpContext = http, CredentialJson = credentialJson, AttestationState = challenge.AttestationState
         });
         if (!result.Succeeded || result.UserEntity.Id != user.Id || challenge.ExpiresAtUtc <= time.GetUtcNow()) return false;
-        result.Passkey.Name = "パスキー";
+        result.Passkey.Name = PasskeyNames.ForVerifiedRegistration(result.Passkey);
         if (!(await users.AddOrUpdatePasskeyAsync(user, result.Passkey)).Succeeded)
             throw new InvalidOperationException("パスキーを保存できません。");
         if (challenge.ExpiresAtUtc <= time.GetUtcNow() || await FindCurrentUserAsync(current, token) is null) return false;
         await transaction.CommitAsync(token);
         logger.LogInformation("パスキーを追加しました。認証ID={AuthUserId} 日時={OccurredAtUtc} 結果=成功", user.Id, time.GetUtcNow());
         return true;
+    }
+
+    /// <summary>SQLite書込トランザクション内で現在の本人の鍵を読み、表示名だけを変更する。</summary>
+    public async Task<PasskeyRenameResult> RenameAsync(string id, string name, HttpContext http, CancellationToken token)
+    {
+        var credentialId = DecodeId(id);
+        if (credentialId is null) return PasskeyRenameResult.NotFound;
+        var current = (CurrentSession)http.Items[typeof(CurrentSession)]!;
+        await using var transaction = await context.Database.BeginTransactionAsync(token);
+        var user = await FindCurrentUserAsync(current, token);
+        if (user is null) return PasskeyRenameResult.AuthenticationChanged;
+        var key = (await users.GetPasskeysAsync(user)).SingleOrDefault(key => key.CredentialId.AsSpan().SequenceEqual(credentialId));
+        if (key is null) return PasskeyRenameResult.NotFound;
+        if (key.Name != name)
+        {
+            key.Name = name;
+            // UserManagerの更新はアカウント全体も保存するため、名前変更では鍵ストアだけを使う。
+            if (store is not IUserPasskeyStore<AuthUser> keyStore)
+                throw new InvalidOperationException("パスキー保存先を確認できません。");
+            await keyStore.AddOrUpdatePasskeyAsync(user, key, token);
+            await context.SaveChangesAsync(token);
+        }
+        if (await FindCurrentUserAsync(current, token) is null) return PasskeyRenameResult.AuthenticationChanged;
+        await transaction.CommitAsync(token);
+        return PasskeyRenameResult.Renamed;
     }
 
     /// <summary>最後の鍵を残して本人の鍵を削除し、全セッションを同時に失効させる。</summary>

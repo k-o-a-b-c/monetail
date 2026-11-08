@@ -174,3 +174,5 @@ for (const globalAdmin of [false, true]) test(`ログイン後の管理入口は
 });
 
 require("./ledger-invitation-ui.cases.js");
+
+require("./passkey-management-ui.cases.js");

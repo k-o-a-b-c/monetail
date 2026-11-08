@@ -68,7 +68,7 @@ public sealed class SelfRegistrationService(ApiDbContext context, UserManager<Au
             return new(SelfRegistrationStatus.Invalid);
         var user = new AuthUser { Id = challenge.AuthUserId, UserName = challenge.AuthUserId, DisplayName = challenge.DisplayName };
         RequireSuccess(await users.CreateAsync(user));
-        result.Passkey.Name = "パスキー";
+        result.Passkey.Name = PasskeyNames.ForVerifiedRegistration(result.Passkey);
         RequireSuccess(await users.AddOrUpdatePasskeyAsync(user, result.Passkey));
         user.IsEnabled = true;
         RequireSuccess(await users.UpdateAsync(user));
