@@ -14,6 +14,7 @@
 | 家計簿共通設計の入口・旧見出し | [共通仕様](ledger-foundation-core.md) |
 | 家計簿の前提・確定済みの基本ルール | [共通前提](ledger-core-principles.md) |
 | 業務モデル・家計簿DBの構成 | [DB・モデル](ledger-core-schema.md) |
+| レシート4表の物理設計案・未確定事項 | [レシートDB設計案](ledger-receipt-schema.md) |
 | 家計簿の作成・参照・回数制限 | [家計簿API](ledger-core-api.md) |
 | 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
 | 科目のDB・API・管理画面 | [科目管理](ledger-core-schema.md#category-master) |
