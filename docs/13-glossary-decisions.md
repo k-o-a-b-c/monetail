@@ -217,6 +217,8 @@
 
 | DEC-154 | **利用者確認済み・レシート未実装（2026-11-09）** | 新版レシートの5列を意味が明確な名前へ変更し、列順を整理する | `ledger_receipts`の`date`→`transaction_at`、`tax_type`→`tax_inclusion_mode`、`total`→`total_amount`。`ledger_receipt_details`の`fee`→`unit_price`、`discount_fee`→`unit_discount_amount`。レシートの周期列・合計・メモ・監査を論理順に配置し、明細の`display_order`は親キーの直後に置く。グループ・明細対象人物の列順は維持。旧版テーブル・計算仕様・型・NULL条件は変更せず、物理テーブルはまだ未実装。[レシートDB設計案](ledger-receipt-schema.md)参照。 |
 
+| DEC-155 | **利用者確認済み・レシート未実装（2026-11-09）** | 実税率をグループから明細へ移し、税率入力をUIで支援する | **DEC-146・149・153のグループ税率前提を置き換える**。`ledger_receipt_groups`から`tax_rate`を除去し、`ledger_receipt_details.tax_rate`をTEXT NULLで追加（非課税=NULL、課税0%=`'0'`）。同一レシート・同一科目のグループは1件とし、税率が違う明細も同一グループに保持。グループのUNIQUEは`(ledger_id,receipt_id,category_id)`一本とし、税率別部分UNIQUE索引を廃止。科目の初期税区分＋取引日で新規明細の率を自動補完し、手動変更可能。連続入力/複製/複数行一括変更はUI検討事項。日付変更時は明細単位に候補の有効性を検証して再選択を要求、流用時は保存済み率を引き継ぐ。レシート全体で同税率を合算して端数処理する規則と旧Windows版の実装は維持。複数率を含むグループの参考額算式・表示は後続設計。[業務仕様](ledger-core-schema.md#category-receipt-handoff)・[物理設計案](ledger-receipt-schema.md)を正本とする。 |
+
 ## 4. 仕様変更の原則（提案）
 
 1. **事実**（実DDL／ソースの現在動作）と**要件**（次にしたいこと）を別ファイル・別表で管理する。
