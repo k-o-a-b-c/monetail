@@ -16,6 +16,7 @@
 | 業務モデル・家計簿DBの構成 | [DB・モデル](ledger-core-schema.md) |
 | 家計簿の作成・参照・回数制限 | [家計簿API](ledger-core-api.md) |
 | 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
+| 科目のDB・API・管理画面 | [科目管理](ledger-core-schema.md#category-master) |
 | 人物仕様・人物画面 | [人物管理](ledger-persons.md) |
 | 参加者・人物対応 | [参加者管理](ledger-participants.md) |
 | 人物管理API・DBの入口・旧リンク | [人物API](ledger-person-api.md) |

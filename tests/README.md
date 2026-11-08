@@ -34,6 +34,8 @@
 
 ## 採用結果
 
+科目管理と人物期間フィルター（DEC-142）はソース`0a1e172305680acc836158e5a6952ce5fe54fc14`の[CI 42437515048](https://github.com/k-o-a-b-c/monetail/actions/runs/42437515048)で、WinUI製品/検証用Releaseビルド・製品起動・新旧画面の合成HTTPシナリオ1件（270確認）が成功。ローカルでは既存の科目Client関連106件と差分検査が成功した。API/Client/DB/旧版は変更せず、基点main `8c073c2`の[push Tests 42430919394](https://github.com/k-o-a-b-c/monetail/actions/runs/42430919394)とCI判定の成功記録を変更前・影響外の根拠として再利用した。構成合計1608件を全件再実行した意味ではない。初回[42436823052](https://github.com/k-o-a-b-c/monetail/actions/runs/42436823052)はケース追加に伴い全体60秒で打切り、待機上限を120秒へ変更した（各条件15秒・検証項目/判定は維持）。次の[42437180469](https://github.com/k-o-a-b-c/monetail/actions/runs/42437180469)では既知の0xC0000005が参加者認証復帰のInvoke中に再発し、直前ボタンはLoaded=False/Root=True。参加者テストも表示済みボタンの選択/Loaded待機へ揃え、最終実行では再発なし。ネイティブ層の根本原因は未解決。実API・実Windows手動操作・実IME/物理キー・125/150/200%/モニター間DPI・ARM64は未検証。
+
 初期マスタの固定設定検証を32ケース追加。税区分4件のコード/正式名称、Windows OAuthのClientId/種別/ConsentType/秘密・鍵・個別Settings/リダイレクト/権限/PKCE要件、JSONの不正値・集合の過不足を検証する。配列の順序/書式/重複を変えた正常系と、ConcurrencyToken・表示名/翻訳・Properties等の運用値変更も確認し、再初期化と通常APIでDB不変・不一致時の拒否を確認。ローカルの対象34件（既存正常系2件を含む）と既存初期化/構造25件が成功。ソース`8617c5a8201d8ed702f1f4d15e2817922b0f0239`の[CI 42427632942](https://github.com/k-o-a-b-c/monetail/actions/runs/42427632942)でAPI全910件・Node/Python・Dockerビルドと通常/server/配布アーカイブ起動が成功。変更前の成功根拠は[CI 42384924696](https://github.com/k-o-a-b-c/monetail/actions/runs/42384924696)と、その製品検証元[CI 42383801568](https://github.com/k-o-a-b-c/monetail/actions/runs/42383801568)。Client/WinUI・Windows保存・旧版/性能は未変更の成功記録を再利用。API契約・科目仕様・EFモデル・外部ライブラリは変更せず、実DBは変更していない。
 
 現行モデルによるDB初期化・科目期間/収支編集は、ソース`b732021f2aba03ec8f36a02968078f909a47bc88`の[CI 42383801568](https://github.com/k-o-a-b-c/monetail/actions/runs/42383801568)でAPI全878件・Client全429件・Windows保存3件・WinUI製品/検証用ビルドと既存画面・Node・Python・Dockerビルド/通常/server/配布アーカイブ起動が成功。段階別Migration/Up-Downテストを、新規初期化/全表・PK/FK/UNIQUE/CHECK/索引/3トリガー/初期値の照合、再実行・同時実行、旧形式/欠損/参照破損/不正ファイルの拒否、失敗時の全体ロールバック、登録済み認証・各マスタ/税履歴/版の不変へ置換した。期間の両端・同日・省略/null・使用済み収支変更・期間を含む再送とClient DTO/認証再試行も確認。ローカルは影響対象247件、追加/CLI等51件、最終重点6件、Client102件と追加/重点13件が成功（重複あり）。基点main `b584cca865596e781068660b475d669a5c6790c0`の[CI 42373904027](https://github.com/k-o-a-b-c/monetail/actions/runs/42373904027)を変更前の根拠とし、未変更の旧Windows・計算/移行SQL・性能は成功記録を再利用。構成合計1576件を全件再実行した意味ではない。旧API DBの変換機能はなく、実DBの初期化・変更は行っていない。実NAS/実ブラウザー・新しい科目操作の実Windows手動確認は未実施。
@@ -174,7 +176,7 @@ NuGetパッケージは[共通アクション](../.github/actions/nuget-cache/ac
 
 ## 新版Windowsの手動確認（未実施）
 
-製品起動から接続・ログイン復元・家計簿の行き先へ進む処理を画面へ接続した。人物追加・編集・削除確認・日付入力と共通Enter操作は接続済み。共通順の設定と同一アカウントでの認証後復元も接続済み。時刻入力のUIは未接続。実装後は[43](../docs/43-passkey-authentication-design.md)・[58](../docs/58-ledger-foundation-design.md)・[59](../docs/59-input-controls-design.md)の契約に沿って確認する。ARM64、100／125／150／200%の物理端末、モニター間移動・ハイコントラスト・日本語IME・実キー入力、実ブラウザーのパスキー、本番配備・実DB移行は未検証。
+製品起動から接続・ログイン復元・家計簿の行き先へ進む処理を画面へ接続した。人物・科目・支払方法の追加・編集・削除確認・日付入力と共通Enter操作は接続済み。共通順の設定と同一アカウントでの認証後復元も接続済み。時刻入力のUIは未接続。実装後は[43](../docs/43-passkey-authentication-design.md)・[58](../docs/58-ledger-foundation-design.md)・[59](../docs/59-input-controls-design.md)の契約に沿って確認する。ARM64、100／125／150／200%の物理端末、モニター間移動・ハイコントラスト・日本語IME・実キー入力、実ブラウザーのパスキー、本番配備・実DB移行は未検証。
 
 ## 旧Windowsで画面を手動確認する手順（利用者環境では未実施）
 
