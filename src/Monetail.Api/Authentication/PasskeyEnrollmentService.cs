@@ -53,7 +53,7 @@ public sealed class PasskeyEnrollmentService(ApiDbContext context, UserManager<A
         });
         if (!result.Succeeded || result.UserEntity.Id != challenge.AuthUserId ||
             !IsUsable(code) || challenge.ExpiresAtUtc <= time.GetUtcNow()) return false;
-        result.Passkey.Name = "パスキー";
+        result.Passkey.Name = PasskeyNames.ForVerifiedRegistration(result.Passkey);
         var user = target;
         if (!(await users.AddOrUpdatePasskeyAsync(user, result.Passkey)).Succeeded)
             throw new InvalidOperationException("パスキーの保存に失敗しました。");

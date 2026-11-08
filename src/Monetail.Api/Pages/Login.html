@@ -23,9 +23,21 @@
     <section id="passkeys" hidden>
       <h2>登録済みパスキー</h2>
       <ul id="passkey-list"></ul>
-      <p>追加・削除には直近5分以内の本人確認が必要です。最後のパスキーは削除できません。</p>
+      <p>追加・削除・名前変更には直近5分以内の本人確認が必要です。最後のパスキーは削除できません。</p>
       <button id="add-passkey" type="button">パスキーを追加する</button>
     </section>
+    <dialog id="passkey-name-dialog" aria-labelledby="passkey-name-title">
+      <form id="passkey-name-form">
+        <h2 id="passkey-name-title">パスキーの名前変更</h2>
+        <p>Monetail内の表示名です。保存先の名前は変更しません。</p>
+        <label for="passkey-name">名前</label>
+        <input id="passkey-name" type="text" autocomplete="off">
+        <p id="passkey-name-message" role="status" aria-live="polite"></p>
+        <button type="submit">保存</button>
+        <button id="passkey-name-verify" type="button">本人確認をやり直す</button>
+        <button id="passkey-name-cancel" type="button">キャンセル</button>
+      </form>
+    </dialog>
     <button id="logout" type="button" hidden>ログアウト</button>
     <p id="message" role="status" aria-live="polite"></p>
     <noscript>ログインにはJavaScriptが必要です。</noscript>

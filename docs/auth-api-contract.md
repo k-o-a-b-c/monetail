@@ -15,6 +15,7 @@
 | `POST /auth/reauthentication/options` / `verify` | 有効セッションの本人を再確認。期限は延ばさない |
 | `GET /auth/passkeys` | 本人の鍵メタデータだけを返す |
 | `POST /auth/passkeys/options` / `verify` | 直近本人確認後に本人へ鍵を追加 |
+| `PATCH /auth/passkeys/{id}` | 本人の鍵の表示名だけを変更。直近本人確認・CSRFを要求し、セッションは保持 |
 | `DELETE /auth/passkeys/{id}` | 最後の鍵を拒否し、削除成功時は全セッションを失効 |
 | `GET /admin/accounts` | 全体Admin専用。アカウントID順。DEC-115の管理用DTOを返す。人物行は含めない |
 | `POST /admin/accounts` | 全体Admin・直近本人確認・CSRFが必要。`requestId`と任意の`adminNote`を受け取り、新規一般アカウントと招待リンクを発行 |
@@ -26,6 +27,14 @@
 <a id="自己登録apidec-110未実装の設計案"></a>
 
 <a id="招待リンクapicliの目標契約dec-113未実装"></a>
+
+## パスキー名変更API
+
+`PATCH /auth/passkeys/{id}`は`{"name":"自宅のパスキー"}`だけを受け付ける。`id`はGET一覧で返す正規のbase64url資格情報ID。名前はTrim後1〜100 UTF-16単位、同名可。欠落・null・文字列以外・空白のみ・上限超過・余計な項目・重複項目は400。成功は204、同じ現在名の再保存も204。セッション/Cookieを発行・失効させない。
+
+- ログイン・現在の本人・直近5分未満の確認・既存のHTTPS/Origin/CSRFを要求し、認証共通20回/分/IP枠を共有する。最後の鍵も変更可能。
+- 未認証/認証失効は401、本人確認期限切れ/Origin拒否/保存途中の認証変更は403、CSRF不正は400。存在しない/不正なIDと他人の鍵は同じ404とし、対象情報を含めない。回数上限429、DB障害503。
+- SQLiteトランザクション内で本人の鍵を読んで更新する。認証変更や保存失敗は名前更新もロールバック。署名カウンターの並行更新を古い値で上書きしない。名前以外の保持条件・自動命名・画面と対応表の保守は[パスキー仕様](auth-passkeys.md#パスキーの表示名dec-143実装済み)を参照する。
 
 ## 招待リンクAPI・CLI（DEC-113・実装済み）
 

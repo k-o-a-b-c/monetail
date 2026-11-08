@@ -45,6 +45,23 @@ public class PasskeyEnrollmentTests
     }
 
     [Theory]
+    [InlineData("bada5566-a7aa-401f-bd96-45619a55120d", "1Password")]
+    [InlineData("00000000-0000-0000-0000-000000000000", "パスキー")]
+    public async Task InitialRegistrationNamesOnlyTheVerifiedKey(string aaguid, string expected)
+    {
+        await using var app = await EnrollmentApp.CreateAsync();
+        using var client = app.Client(); var options = await app.BeginAsync(client);
+        using var response = await app.VerifyAsync(client, Credential(options, aaguid: Guid.Parse(aaguid)));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = app.Factory.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AuthUser>>();
+        var key = Assert.Single(await users.GetPasskeysAsync((await users.FindByIdAsync(app.Code.AuthUserId))!));
+        Assert.Equal(expected, key.Name);
+        using var me = await client.GetAsync("/auth/me");
+        Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
+    }
+
+    [Theory]
     [InlineData("missing")]
     [InlineData("expired")]
     [InlineData("revoked")]
@@ -300,7 +317,7 @@ public class PasskeyEnrollmentTests
     }
 
     /// <summary>合成EC公開鍵のWebAuthn応答を作り、本番と同じIdentity検証へ渡す。</summary>
-    internal static object Credential(JsonElement options, string? corruption = null, byte[]? id = null, ECParameters? publicParameters = null)
+    internal static object Credential(JsonElement options, string? corruption = null, byte[]? id = null, ECParameters? publicParameters = null, Guid? aaguid = null)
     {
         using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var point = publicParameters?.Q ?? key.ExportParameters(false).Q;
@@ -316,7 +333,7 @@ public class PasskeyEnrollmentTests
         byte[] publicKey = [0xA5, 0x01, 0x02, 0x03, 0x26, 0x20, 0x01, 0x21, 0x58, 0x20,
             .. point.X!, 0x22, 0x58, 0x20, .. point.Y!];
         byte[] authData = [.. SHA256.HashData(Encoding.UTF8.GetBytes(corruption == "rp" ? "other.example.test" : "monetail.example.test")),
-            corruption == "uv" ? (byte)0x41 : (byte)0x45, 0, 0, 0, 0, .. new byte[16], 0, 32, .. id, .. publicKey];
+            corruption == "uv" ? (byte)0x41 : (byte)0x45, 0, 0, 0, 0, .. (aaguid?.ToByteArray(bigEndian: true) ?? new byte[16]), 0, 32, .. id, .. publicKey];
         // CBORマップのfmt=noneは、端末証明書を要求しない標準の登録応答。
         byte[] attestation = [0xA3, 0x63, (byte)'f', (byte)'m', (byte)'t', 0x64, (byte)'n', (byte)'o', (byte)'n', (byte)'e',
             0x67, .. Encoding.ASCII.GetBytes("attStmt"), 0xA0,
