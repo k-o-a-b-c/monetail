@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory)][string]$AppPath,
     [Parameter(Mandatory)][string]$SmokePath,
     [Parameter(Mandatory)][string]$OutputPath,
-    [switch]$Capture
+    [switch]$Capture,
+    [switch]$RepeatParticipantRecovery
 )
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
@@ -27,6 +28,7 @@ try {
 
 $arguments = @('--output', ('"' + $OutputPath + '"'))
 if ($Capture) { $arguments += '--capture' }
+if ($RepeatParticipantRecovery) { $arguments += '--repeat-participant-recovery' }
 $smoke = Start-Process -FilePath $SmokePath -ArgumentList $arguments -PassThru -RedirectStandardError "$OutputPath/runtime-error.txt"
 # 科目と人物フィルターを含む全画面を省略せず検証するための全体待機上限。
 if (-not $smoke.WaitForExit(120000)) {

@@ -81,8 +81,9 @@ public partial class App : Application
             Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
             var rasterizationScale = root.XamlRoot.RasterizationScale;
             await CheckInvocationGuards(root);
-            // 全画面を繰り返さず、問題の認証復帰だけを同一ビルドで5回確認する。
-            for (var attempt = 1; attempt <= 5; attempt++)
+            // 調査時だけ対象の認証復帰を反復し、通常CIでは成功済みの確認を増やさない。
+            var recoveryAttempts = arguments.Contains("--repeat-participant-recovery") ? 5 : 1;
+            for (var attempt = 1; attempt <= recoveryAttempts; attempt++)
             {
                 TraceInvocation($"participantRecoveryAttempt={attempt}; phase=begin");
                 await CheckParticipantAuthenticationRecovery(includeInvitation: attempt == 1);

@@ -105,6 +105,7 @@ public partial class App
             await Wait(() => EditorClosed(root));
             Check(!Find<Button>(root, "DeletePersonButton").IsEnabled && server.Reads == 1,
                 "削除済みの404は再取得せず説明し、閉じた後は同じ対象へ再入場させない");
+            await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
             Check(server.Reads == 2, "明示的に人物一覧を開き直すとサーバーの削除結果を確認できる");
