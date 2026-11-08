@@ -144,6 +144,7 @@ public partial class App
             Find<ComboBox>(root, "ParticipantRole").SelectedIndex = 2;
             var revision = server.Other.Revision;
             fixture.RejectSession = true;
+            await WaitParticipantDialogReady(root);
             Invoke(ParticipantDialogAction(root, "ParticipantDialog", true));
             await Wait(() => Visible(root, "LoginPage") && ParticipantEditorClosed(root));
             if (!sameAccount) fixture.AccountId = Guid.NewGuid();
@@ -155,6 +156,7 @@ public partial class App
                 Check(Find<ComboBox>(root, "ParticipantRole").SelectedIndex == 2 && server.LastRevision == Guid.Empty,
                     "同じ本人の再ログインで参加者の未保存入力を復元し自動保存しない");
                 server.Conflict = true;
+                await WaitParticipantDialogReady(root);
                 Invoke(ParticipantDialogAction(root, "ParticipantDialog", true));
                 await Wait(() => Find<Border>(root, "ParticipantConflict").Visibility == Visibility.Visible);
                 Check(server.LastRevision == revision && Find<ComboBox>(root, "ParticipantRole").SelectedIndex == 2,
@@ -188,11 +190,15 @@ public partial class App
         }
     }
     private static bool ParticipantEditorClosed(FrameworkElement root) => Find<ScrollViewer>(root, "ParticipantEditorContent").Visibility == Visibility.Collapsed;
+    private static async Task WaitParticipantDialogReady(FrameworkElement root) => await Wait(() => !ParticipantEditorClosed(root) &&
+        Find<ContentDialog>(root, "ParticipantDialog").IsLoaded && Find<ContentControl>(root, "Operations").IsEnabled &&
+        All(Find<ContentDialog>(root, "ParticipantDialog")).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null &&
+            Equals(b.Content, Find<ContentDialog>(root, "ParticipantDialog").PrimaryButtonText)));
     private static Button ParticipantDialogAction(FrameworkElement root, string name, bool primary)
     {
         var dialog = Find<ContentDialog>(root, name);
         var text = primary ? dialog.PrimaryButtonText : dialog.CloseButtonText;
-        return All(dialog).OfType<Button>().First(button => Equals(button.Content, text));
+        return All(dialog).OfType<Button>().OrderByDescending(button => button.IsLoaded).First(button => Equals(button.Content, text));
     }
     private static Button ParticipantActionButton(ListView list, Guid accountId, string label) =>
         All(list).OfType<Button>().First(button => button.Tag is MemberInfo member && member.AccountId == accountId && Equals(button.Content, label));
