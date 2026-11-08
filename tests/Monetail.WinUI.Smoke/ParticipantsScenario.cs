@@ -91,7 +91,7 @@ public partial class App
                 "招待は別Windowやダイアログではなく右ペインの専用画面");
             Check(((LedgerInvitationRow)invitations.Items[0]).Invitation.CreatedAtUtc > ((LedgerInvitationRow)invitations.Items[1]).Invitation.CreatedAtUtc, "招待は新しい発行を上に表示");
             var newest = ((LedgerInvitationRow)invitations.Items[0]).Invitation;
-            await InvokeAsync(() => await WaitInvitationActionButton(invitations, newest.InvitationId, "コピー"));
+            await InvokeInvitationActionButton(invitations, newest.InvitationId, "コピー");
             Check(await Clipboard.GetContent().GetTextAsync() == newest.Url, "既存招待URLを明示操作でクリップボードにコピー");
             var inviteReads = server.InvitationReads;
             server.LoseCreation = true;
@@ -105,7 +105,7 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "IssueInvitationButton")); await Wait(() => invitations.Items.Count == 4);
             Check(server.CreateRequests[2] != server.CreateRequests[1], "次の新規招待発行は新しい要求ID");
             newest = ((LedgerInvitationRow)invitations.Items[0]).Invitation;
-            await InvokeAsync(() => await WaitInvitationActionButton(invitations, newest.InvitationId, "取消"));
+            await InvokeInvitationActionButton(invitations, newest.InvitationId, "取消");
             await Wait(() => Find<StackPanel>(root, "InvitationCancelContent").Visibility == Visibility.Visible); await Settle();
             Check(server.CancelCount == 0, "招待取消は確認するまでAPIを呼ばない");
             await InvokeAsync(() => ParticipantDialogAction(root, "InvitationCancelDialog", true));
@@ -213,11 +213,11 @@ public partial class App
     }
     private static Button ParticipantActionButton(ListView list, Guid accountId, string label) =>
         All(list).OfType<Button>().First(button => button.Tag is MemberInfo member && member.AccountId == accountId && Equals(button.Content, label));
-    private static async Task<Button> WaitInvitationActionButton(ListView list, Guid id, string label)
+    private static async Task InvokeInvitationActionButton(ListView list, Guid id, string label)
     {
         list.ScrollIntoView(list.Items.Cast<LedgerInvitationRow>().First(row => row.Invitation.InvitationId == id));
         await Wait(() => All(list).OfType<Button>().Any(button => button.Tag is LedgerInvitationInfo invite && invite.InvitationId == id && Equals(button.Content, label) && InvokeTargetReady(button)));
-        return All(list).OfType<Button>().First(button => button.Tag is LedgerInvitationInfo invite && invite.InvitationId == id && Equals(button.Content, label) && InvokeTargetReady(button));
+        await InvokeAsync(() => All(list).OfType<Button>().First(button => button.Tag is LedgerInvitationInfo invite && invite.InvitationId == id && Equals(button.Content, label) && InvokeTargetReady(button)));
     }
 
     private sealed class ParticipantsServer
