@@ -42,7 +42,7 @@
 
 **制約／索引案**
 
-- `FK(ledger_id)→ledgers(id)`、`FK(ledger_id,payment_method_id)→ledger_payment_methods(ledger_id,payment_method_id)`、作成者・更新者→`AspNetUsers(Id)`のRESTRICT FKを提案する。監査情報がアカウント削除を阻害し得るため、認証アカウント削除運用とは整合性確認が必要。
+- `FK(ledger_id)→ledgers(id)`、`FK(ledger_id,payment_method_id)→ledger_payment_methods(ledger_id,payment_method_id)`を設ける。**作成者・更新者の両IDはそれぞれ`AspNetUsers(Id)`へのRESTRICT FKを設定する（確定）**。レシート監査情報に参照されている認証アカウントは物理削除不可とし、無効化しても履歴と認証IDを残す。アカウント退会・削除機能は現時点で未実装であり、将来の退会仕様は別途検討する。
 - `CHECK(tax_type IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total`はNOT NULLかつ符号付きInt32範囲内。
 - 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`recurrence_interval >= 1`かつ`recurrence_unit IN ('Week','Month','Year')`をDBとAPIの両方で検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
 - 周期がある場合、レシート内に`occurrence_type='Regular'`の明細が**1件以上必須**。周期なしでも定期明細を認める。これは行をまたぐためAPIの一括保存トランザクションで検証する。
@@ -130,7 +130,7 @@ CREATE UNIQUE INDEX ux_receipt_group_exempt
 | 取引日時の詳細書式 | **時刻まで保存すると確定**。`date TEXT NOT NULL` | ローカル日時を維持し、具体的なISO系文字列形式、小数秒の精度、API日時表現を後続で確定 |
 | 旧版の`total`がNULLのデータ | 新DBの`total`はINTEGER NOT NULLと確定 | 実データを調査して移行前に個別対応。NULLを自動的に0へ置き換えない |
 | IDの横断的一意性 | 新テーブルのID単独UNIQUE（提案） | 既存マスタの複合PKはID単独の一意性を物理保証していない。UUID v7導入時の整合が必要 |
-| 監査ユーザーと削除 | 監査ユーザーIDにRESTRICT FK（提案） | 認証ユーザーの削除ルールと矛盾しないか確認 |
+| 監査ユーザーと削除 | **作成者・更新者とも認証アカウントへのRESTRICT FKで確定** | アカウントの物理削除は未実装。将来の退会・削除機能は履歴保持方針と合わせて別途設計 |
 | 有効期間と再編集 | 取引日基準の参照条件をAPIでチェック（既存原則） | 過去データ編集時に期間や税率履歴が後変更された場合の扱いをAPI契約で詳細化 |
 | レシートのAPI形 | POST/PATCH/DELETEで子階層を含む一括保存を提案 | 部分更新や子ID保持、競合応答、再送ハッシュの具体形は別途API仕様で確定 |
 | 旧版データ引継ぎ | **実データ検査まで保留** | 同科目同税率の重複グループや明細ごとの課税フラグ混在があれば、移行前手動修正も可。自動統合は前提としない |
