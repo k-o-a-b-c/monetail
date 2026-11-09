@@ -367,6 +367,8 @@
 
 | DEC-228 | **利用者確認済み・レシート保存API／UI未実装（2026-11-10）** | レシート新規・更新・削除の成功応答は本文なしとし、IDや更新版は次回編集時にGETで取得 | 保存完了後は一覧に戻るため、**保存成功応答にレシート全体や`receiptId`・新`revision`・新規グループ／明細IDを含めない**。新規`POST /ledgers/{ledgerId}/receipts`は**201 Created（本文なし、`Location`に新規リソースURLを付与可）**、全体更新`PUT /ledgers/{ledgerId}/receipts/{receiptId}`と削除`DELETE /ledgers/{ledgerId}/receipts/{receiptId}`は**204 No Content**とする。次の編集開始時にはGETで保存済みレシートと最新の`revision`を取得する。**旧DEC-227の採番ID返却規定を変更**し、ID省略送信・サーバー側UUID v7採番の規則は維持。POSTは`requestId`で二重作成を防ぎ、PUT／DELETEは従来どおり要求内の`revision`で競合検出（DEC-224）。不明な通信結果は成功と見なさず、再送時の同一性など詳細は後続設計。一時保存・自動保存は追加しない。DB・API・UI未実装。[レシート保存設計](ledger-receipt-schema.md#6-fk保存読取の原則)参照。 |
 
+| DEC-229 | **利用者確認済み・レシート取得API／UI未実装（2026-11-10）** | レシート取得は一覧用の要約GETと編集用の全階層詳細GETに分ける | **`GET /ledgers/{ledgerId}/receipts`**は一覧表示に必要な`receiptId`・取引日時・店名・支払方法・保存済み合計などの**レシート親情報の要約**を返し、明細の全階層は返さない。**`GET /ledgers/{ledgerId}/receipts/{receiptId}`**は指定1レシートの親情報・科目グループ・明細・対象人物・現在の親`revision`をすべて返し、既存グループ／明細IDを維持した次回PUTの編集元とする（DEC-224～228）。保存成功後は一覧に戻り、次に編集を開く際に詳細GETで保存済み内容と最新の更新版を取得する。両APIは現在の家計簿参加と参照権限を検証し、GETで保存内容を変更しない。**一覧検索条件・ソート・ページング、厳密なJSONレスポンス、エラーは後続検討**。DB・API・UI未実装。[レシートの取得／保存設計](ledger-receipt-schema.md#6-fk保存読取の原則)参照。 |
+
 ## 4. 仕様変更の原則（提案）
 
 1. **事実**（実DDL／ソースの現在動作）と**要件**（次にしたいこと）を別ファイル・別表で管理する。
