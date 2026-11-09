@@ -6,7 +6,7 @@
 
 - 業務仕様・画面遷移・権限・保存・競合は[58](docs/58-ledger-foundation-design.md)、認証は[43](docs/43-passkey-authentication-design.md)、入力形式・キー操作・補完は[59](docs/59-input-controls-design.md)が正本。構成は[04](docs/architecture-winui.md#新版windows版の構成)、検証は[tests/README](tests/README.md)を参照する。これらの契約を本書に複製しない。
 - 見た目を理由に業務処理・通信単位・認証・保存・削除・失敗時の動作を変えない。未決定事項は[AGENTS.md](AGENTS.md)に従って確認する。
-- 標準のWindow、NavigationView、Grid、StackPanel、ListView、TextBox、ContentDialog、XAMLスタイル、ThemeResourceを優先する。装飾目的だけの外部UIライブラリ・独自描画・P/Invokeは導入しない。
+- 標準のWindow、NavigationView、Grid、StackPanel、ListView、TextBox、AutoSuggestBox、ContentDialog、XAMLスタイル、ThemeResourceを優先する。**標準コントロールの表示位置・スクロール・キーボード操作・フォーカス挙動を先に実画面で確認**し、業務仕様との差分がある場合だけ必要最小限のイベント処理・テンプレート調整を行う。標準動作を再実装するための独自位置計算・ホイール処理は原則加えない。装飾目的だけの外部UIライブラリ・独自描画・P/Invokeは導入しない。
 - 機能画面は単一Window内で切り替え、メニューバーや機能画面用の別Windowを使わない。確認用ContentDialogや家計簿切替ポップアップは別扱い。
 
 ## 2. 共通UI基準
