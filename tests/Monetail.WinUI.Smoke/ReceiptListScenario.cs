@@ -38,6 +38,8 @@ public partial class App
         Check(requests[^1].Query.Contains("month=" + current) && !requests[^1].Query.Contains(Uri.EscapeDataString("入力途中")) && month.Text == "2026-12" && shop.Text == "入力途中", "選択変更は確定済み条件を使用し年月と店名の下書きを保持");
         count = 101; await InvokeAsync(() => Find<Button>(root, "ReceiptSearchButton")); await Wait(() => window.ReceiptHomeReady && list.Items.Count == 100);
         Check(requests[^1].Query.Contains("month=2026-12") && requests[^1].Query.Contains(Uri.EscapeDataString("入力途中")), "検索ボタンで年月と店名を一括確定");
+        await Wait(() => All(list).OfType<TextBlock>().Any(t => t.Text == "店0"));
+        Check(All(list).OfType<TextBlock>().Any(t => t.Text == "2026/11/10 12:34:56") && All(list).OfType<TextBlock>().Any(t => t.Text == (-12345).ToString("N0", CultureInfo.CurrentCulture)), "一覧の実TextBlockへ日時・保存済み額をバインド");
         var first = (ReceiptRow)list.Items[0]; list.SelectedItem = first;
         Check(first.TransactionAt == "2026/11/10 12:34:56" && first.TotalAmount == (-12345).ToString("N0", CultureInfo.CurrentCulture) && first.ShopLocation == "" && first.Memo == "", "ローカル秒精度・NULLと保存済み合計額を表示し再計算しない");
         Check(first.PaymentName == "本日有効" && ((ReceiptRow)list.Items[1]).PaymentName == "終了済み", "過去の期間外支払方法も名称表示できる");

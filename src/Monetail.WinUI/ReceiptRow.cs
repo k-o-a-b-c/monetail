@@ -4,6 +4,7 @@ using Monetail.Windows.Client.Transport;
 
 namespace Monetail.WinUI;
 
+[Microsoft.UI.Xaml.Data.Bindable]
 public sealed class ReceiptRow(ReceiptSummaryInfo receipt, Func<Guid, string> paymentName) : INotifyPropertyChanged
 {
     public ReceiptSummaryInfo Receipt { get; } = receipt;
@@ -17,4 +18,5 @@ public sealed class ReceiptRow(ReceiptSummaryInfo receipt, Func<Guid, string> pa
     public void RefreshName() => PropertyChanged?.Invoke(this, new(nameof(PaymentName)));
 }
 
+[Microsoft.UI.Xaml.Data.Bindable]
 public sealed record ReceiptFilterChoice(Guid? Id, string Name);
