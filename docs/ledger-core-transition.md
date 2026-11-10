@@ -36,6 +36,6 @@
 
 ## 科目・税DB基盤の後続
 
-[科目と共通税履歴](ledger-core-schema.md#category-master)の現行モデル・新規DB初期化、科目CRUD・並び替えAPI/Clientは実装済み。次はWinUI管理画面、確定した税履歴の投入・管理運用を別々に実装する。API契約は[科目CRUD](ledger-core-schema.md#category-crud-api)・[並び替え](ledger-core-schema.md#category-order-api)を正本とする。レシート実装前に、科目固有の収支区分と既存の金額符号の整合性、科目収支変更が既存取引へ与える意味を確認する（科目自体は使用済みでも変更可能）。明細の費用・発生区分・周期は正本の初期値と流用方針に従い、UIは未決定。実データの旧版移行は行わず、税率改定を保存済み取引の更新に使わない。詳細仕様と保存構成はリンク先のみを正本とする。
+[科目と共通税履歴](ledger-core-schema.md#category-master)の現行モデル・新規DB初期化、科目CRUD・並び替えAPI/Clientは実装済み。科目管理のWinUI画面も実装済み。税率履歴の投入・管理運用は当面CLIとし、具体的なコマンドと実行権限は別途設計する。API契約は[科目CRUD](ledger-core-schema.md#category-crud-api)・[並び替え](ledger-core-schema.md#category-order-api)を正本とする。レシートの金額符号と科目収支分類の独立、支払方法所有者に基づく操作権限、**明細ごとの税率保存**、取引日に有効な税率候補と日付変更時の**各明細の再選択**は確認済み。**レシート4表のDB物理設計は[レビュー用の設計案](ledger-receipt-schema.md)として整理済みであり、未承認の列・制約およびAPI詳細は引き続き未確定**。[レシートの業務ルール](ledger-core-schema.md#category-receipt-handoff)と区別して後続で確定する。明細の費用・発生区分、レシートの繰り返し周期は正本の初期値と流用方針に従う。新規明細の税率は科目と取引日で自動補完する方針だが、連続入力・複製・一括変更などの具体的なUIは未決定。実データの旧版移行は行わず、税率改定を保存済み取引の更新に使わない。詳細仕様と保存構成はリンク先のみを正本とする。
 
 APIのMigrationはDEC-141で廃止。旧形式のDBを自動修復・変換せず、[DB初期化の現行手順](42-api-foundation.md#db初期化登録復旧コマンド)に従う。実DBの変換・初期化は本変更では行わない。
