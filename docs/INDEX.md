@@ -14,7 +14,11 @@
 | 家計簿共通設計の入口・旧見出し | [共通仕様](ledger-foundation-core.md) |
 | 家計簿の前提・確定済みの基本ルール | [共通前提](ledger-core-principles.md) |
 | 業務モデル・家計簿DBの構成 | [DB・モデル](ledger-core-schema.md) |
-| レシート4表の物理設計案・未確定事項 | [レシートDB設計案](ledger-receipt-schema.md) |
+| レシート4表の列・複合FK・CHECK・索引 | [レシートDB](ledger-receipt-schema.md) |
+| レシート一覧・詳細・書込・競合・再送API | [レシートAPI](ledger-receipt-api.md) |
+| レシート専用入力・一覧・保存不可時のWinUI | [レシート画面](ledger-receipt-ui.md) |
+| 履歴候補検索・店名補完と候補UI | [レシート履歴候補](ledger-receipt-suggestions.md) |
+| Codex向け実装工程・参照文書・受入確認 | [レシート実装の入口](ledger-receipt-implementation.md) |
 | 家計簿の作成・参照・回数制限 | [家計簿API](ledger-core-api.md) |
 | 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
 | 科目のDB・API・管理画面 | [科目管理](ledger-core-schema.md#category-master) |
