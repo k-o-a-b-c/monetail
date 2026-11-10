@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Net;
-using Microsoft.UI.Dispatching;
+using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -108,8 +108,14 @@ public sealed partial class MainWindow
         ReceiptNextNotice.Visibility = state.IsContinuationLoading ? Visibility.Visible : Visibility.Collapsed;
         ReceiptNextFailure.Visibility = state.IsContinuationFailure ? Visibility.Visible : Visibility.Collapsed;
         ReceiptContinue.Visibility = state.CanContinue ? Visibility.Visible : Visibility.Collapsed;
-        ReceiptInitialError.Text = state.Failure is ReceiptRequestException { StatusCode: HttpStatusCode.NotFound }
-            ? "この家計簿は開けません。参加状態を確認してください。" : "レシートを取得できませんでした";
+        ReceiptInitialError.Text = state.Failure switch
+        {
+            ReceiptRequestException { StatusCode: HttpStatusCode.NotFound } => "この家計簿は開けません。参加状態を確認してください。",
+            ReceiptRequestException { StatusCode: HttpStatusCode.Forbidden } => "この操作を行う権限がありません。",
+            ReceiptRequestException { StatusCode: HttpStatusCode.TooManyRequests } => "操作回数の上限に達しました。しばらく待って再試行してください。",
+            PeopleRequestException or PaymentMethodRequestException => "マスタ情報を取得できませんでした。参加状態と権限を確認してください。",
+            _ => "レシートを取得できませんでした"
+        };
         ReceiptMonthError.Text = receiptSearch?.MonthError ?? "";
         ReceiptMonthError.Visibility = receiptSearch?.MonthError is null ? Visibility.Collapsed : Visibility.Visible;
         if (receiptSearch is { } search)

@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
 using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transport;
@@ -81,7 +83,8 @@ public sealed class ReceiptListState(Func<ReceiptListQuery, CancellationToken, T
         }
         catch (OperationCanceledException) when (epoch != generation || ct.IsCancellationRequested) { }
         catch (Exception error) when (error is ApiConnectionException or ReceiptRequestException or AuthenticationRejectedException or AuthenticationContextChangedException
-            or PeopleRequestException or PaymentMethodRequestException or CategoryRequestException or IOException or HttpRequestException)
+            or PeopleRequestException or PaymentMethodRequestException or CategoryRequestException or IOException or HttpRequestException
+            or OperationCanceledException or UnauthorizedAccessException or CryptographicException or SocketException)
         { if (epoch == generation && !ct.IsCancellationRequested) Failure = error; }
         finally { if (epoch == generation) { IsLoading = false; Changed?.Invoke(); } }
     }

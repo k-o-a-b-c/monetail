@@ -84,6 +84,16 @@ public sealed class ReceiptPagingTests
         await state.ResumeAsync(); Assert.Equal(2, calls);
     }
 
+    [Fact]
+    public async Task TransportTimeoutIsAnErrorButNavigationCancellationIsNot()
+    {
+        using var timeout = new ReceiptListState((_, _) => Task.FromException<ReceiptListInfo>(new TaskCanceledException("synthetic timeout")));
+        await timeout.StartAsync(new("all")); Assert.True(timeout.IsInitialFailure); Assert.IsType<TaskCanceledException>(timeout.Failure);
+        var ready = new TaskCompletionSource();
+        using var cancel = new ReceiptListState(async (_, ct) => { ready.SetResult(); await Task.Delay(Timeout.Infinite, ct); return new([], null); });
+        var read = cancel.StartAsync(new("all")); await ready.Task; cancel.Suspend(); await read; Assert.Null(cancel.Failure); Assert.False(cancel.IsLoading);
+    }
+
     [Theory]
     [InlineData("2026-12", 1, "2027-01")] [InlineData("2027-01", -1, "2026-12")]
     [InlineData("2024-02", 1, "2024-03")]
