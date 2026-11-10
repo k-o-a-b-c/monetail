@@ -1,6 +1,8 @@
-# レシートAPI契約（HTTP未実装・計算/検証基盤実装済み）
+# レシートAPI契約（詳細GET・書込・計算/検証実装済み）
 
 対象: ASP.NET Core API。レシートの読取・全体保存・入力検証・競合・再送の契約。物理列・FKは[DB定義](ledger-receipt-schema.md)、WinUIの状態遷移は[画面仕様](ledger-receipt-ui.md)、履歴候補GETは[候補API仕様](ledger-receipt-suggestions.md)を参照。日付・税額の計算は[計算契約](12-calculation-contract.md)。本書にある「未確定」「提案」は確定済みAPI契約へ昇格させない。
+
+**実装状態：** 詳細GET・POST/PUT/DELETEは既存の認証/CSRF/Origin、参照120回・書込20回、SQLiteトランザクションと共通再送記録へ接続済み。一覧GET・履歴候補・WinUIは未実装。新規のレシート/グループ/明細はUUID v7、親更新版はUUID v4。既存子IDは差分更新で維持し、同じレシート内での明細のグループ移動もIDを変えない。無変更PUTは親をUPDATEせず、版一致を条件とした成功記録INSERTのみを行う。成功本文は常に空。POSTのLocationは詳細リソースのD形式URLとする。マスタの有効期間・所属・税率と参加/権限を確定前にも再検証し、競合latestも返却前にアクセスを確認する。
 
 ## 保存・取得・一覧の基本契約（DEC-224〜254）
 
@@ -109,6 +111,7 @@ POST／PUTは詳細GETと同じ**親→`groups[]`→`details[]`→`personIds[]`�
 ### 権限・エラー（DEC-260）
 - 版競合`409 revision_conflict`の本文は**`{"code":"revision_conflict","latest":{...}}`**とし、`latest`は詳細GETと同じ全階層の最新レシート。画面側の未保存入力保護・選択肢は[WinUI仕様](ledger-receipt-ui.md)（DEC-264・265）に従う。競合後の読み取り専用・再読込はDEC-265。削除済みレシートは`404 not_found`（同一DELETE成功要求の再送は204）。権限不足`403 forbidden`、非参加404。Editorが支払方法を変更する場合、変更前と変更後の双方の権限を検証する。
 - 入力やマスタの有効期間不一致は`400 invalid_input`、問題の`field`を返す。マスタの変更が原因の場合に限り`reason:"master_changed"`を付加し、WinUIは**該当マスタだけ**再取得。入力・選択中科目は変えず自動保存もしない。
+- **`master_changed`の判定（DEC-273）**：POSTは常に通常の`400 invalid_input`。PUTは取引日の日付部分と該当する参照値/設定値が保存済みデータと同じで、現行マスタとの不整合を確認できる場合だけ`reason:"master_changed"`を付ける。該当値を変更した場合・判断できない場合は通常の400。fieldは従来どおり返す。認証・権限エラーには付けない。要求JSONへマスタ版を追加しない。
 - `field`は0始まりの配列パスに対応（例：`paymentMethodId`、`groups[1].categoryId`、`groups[0].details[2].taxRate`、`groups[0].details[2].personIds[0]`）。複数の入力エラーは**親→グループ→明細、各配列の先頭から最初の1件のみ**返す。
 
 ### 科目・明細の保存必須条件（DEC-262）

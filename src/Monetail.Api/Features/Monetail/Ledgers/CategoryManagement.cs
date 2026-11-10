@@ -73,6 +73,9 @@ public sealed partial class LedgerManagementService
             var name = input.Has("name") ? CategoryName(input.Text("name")) : row.Name;
             var tax = input.Has("taxCategoryCode") ? CategoryTax(input.Text("taxCategoryCode")) : row.TaxCategoryCode;
             var income = input.Has("incomeExpense") ? CategoryIncome(input.Text("incomeExpense")) : row.IncomeExpense;
+            if (income != row.IncomeExpense && await context.Set<global::Monetail.Api.Features.Monetail.Receipts.LedgerReceiptGroup>()
+                .AnyAsync(group => group.LedgerId == id && group.CategoryId == key, token))
+                throw LedgerPayload.Bad("使用済み科目の収支区分は変更できません。", "incomeExpense");
             var from = input.Has("validFrom") ? input.Date("validFrom") : row.ValidFrom;
             var to = input.Has("validTo") ? input.Date("validTo") : row.ValidTo;
             CategoryPeriod(from, to);

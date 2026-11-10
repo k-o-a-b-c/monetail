@@ -10,13 +10,15 @@ namespace Monetail.Api.Features.Monetail.Ledgers;
 
 /// <summary>利用者へ公開できる業務エラーだけをHTTP境界へ渡す。</summary>
 public sealed class LedgerApiFault(int status, string code, string message, string? fieldName = null, object? latest = null,
-    LedgerPermissions? permissions = null)
+    LedgerPermissions? permissions = null, string? reason = null)
     : Exception(message)
 {
     public int Status { get; } = status;
     public bool HasLatest => latest is not null;
     public LedgerPermissions? Permissions { get; private set; } = permissions;
-    public object Body => new { code, message = Message, field = fieldName, latest, permissions = Permissions };
+    public object Body => reason is null
+        ? new { code, message = Message, field = fieldName, latest, permissions = Permissions }
+        : (object)new { code, message = Message, field = fieldName, latest, permissions = Permissions, reason };
     public LedgerApiFault WithPermissions(LedgerPermissions current)
     {
         Permissions = current;

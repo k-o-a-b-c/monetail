@@ -68,6 +68,8 @@ public sealed partial class LedgerManagementService
             var name = input.Has("name") ? PaymentName(input.Text("name")) : row.Name;
             var from = input.Has("validFrom") ? input.Date("validFrom") : row.ValidFrom;
             var to = input.Has("validTo") ? input.Date("validTo") : row.ValidTo; Period(from, to);
+            await CheckReceiptPeriodAsync(context.Set<global::Monetail.Api.Features.Monetail.Receipts.LedgerReceipt>()
+                .Where(receipt => receipt.LedgerId == id && receipt.PaymentMethodId == key), from, to, token);
             if (name != row.Name || from != row.ValidFrom || to != row.ValidTo)
             {
                 await UniquePaymentNameAsync(id, row.OwnerPersonId, key, name, token);
