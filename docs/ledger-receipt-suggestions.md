@@ -2,7 +2,7 @@
 
 対象: 店名・所在地・品名の履歴検索、候補入力の操作、店名確定後の親項目補完。本書は履歴候補GET・自動補完GETの唯一の仕様入口とする。画面全般は[レシート画面](ledger-receipt-ui.md)、通常の一覧／保存GET・POSTは[レシートAPI](ledger-receipt-api.md)、DBは[レシートDB](ledger-receipt-schema.md)。**見出しにある未承認の性能・SQL実装案は採用済み契約と区別し、承認なく固定しない**。
 
-**実装状態：** `receipt-suggestions`と`receipt-autofill`を既存の認証/参加照合・共有参照120回枠へ接続済み。DBモデル・初期化・Migration・保存列/集約テーブル・外部ライブラリは変更しない。WinUI/Clientと下記の候補入力UIは未実装。APIの検索・NULL・状態変更・SQL計画の実装境界は後半を参照。
+**実装状態：** `receipt-suggestions`と`receipt-autofill`を既存の認証/参加照合・共有参照120回枠へ接続済み。DBモデル・初期化・Migration・保存列/集約テーブル・外部ライブラリは変更しない。Windows Clientの読取接続は[工程6-A](architecture-winui.md#レシートのclient読取接続工程6-a)で実装済み。WinUIと下記の候補入力UIは未実装。APIの検索・NULL・状態変更・SQL計画の実装境界は後半を参照。
 
 ## 候補入力と自動補完のUI（DEC-185〜204）
 
