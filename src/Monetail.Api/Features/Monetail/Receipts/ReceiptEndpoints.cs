@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Monetail.Ledgers;
 
@@ -20,6 +21,9 @@ public static class ReceiptEndpoints
                     throw;
                 }
             });
+        routes.MapGet("", async (string ledgerId, HttpContext http, LedgerManagementService service, IDataProtectionProvider protection) =>
+            Results.Ok(await service.ListReceiptsAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), http.Request.Query, protection, Current(http), http.RequestAborted)))
+            .RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         routes.MapGet("/{receiptId}", async (string ledgerId, string receiptId, HttpContext http, LedgerManagementService service) =>
             Results.Ok(await service.GetReceiptAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(receiptId, "receiptId"), Current(http), http.RequestAborted)))
             .RequireRateLimiting(LedgerRateLimits.ReadPolicy);
