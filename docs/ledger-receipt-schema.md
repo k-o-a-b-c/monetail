@@ -601,55 +601,55 @@ GET /ledgers/{ledgerId}/receipt-autofill?shopName=スーパー&transactionDate=2
 - 他端末の変更の反映は次の取得時まで遅れ得る。マスタ由来の保存エラーだけは例外的に該当マスタを再取得し、レシート入力の自動変更・自動再保存は行わない。APIの権限・有効期間・参照整合性チェックは省略しない。
 
 ### 一覧GET：要約7フィールド（DEC-256）
-\`GET /ledgers/{ledgerId}/receipts\`の200応答は**トップレベルに\`receipts\`・\`nextCursor\`のみ**（DEC-246）。各要約の返却キーは**次の7つだけ**。NULL可の2フィールドも省略せず\`null\`を返す。
+`GET /ledgers/{ledgerId}/receipts`の200応答は**トップレベルに`receipts`・`nextCursor`のみ**（DEC-246）。各要約の返却キーは**次の7つだけ**。NULL可の2フィールドも省略せず`null`を返す。
 
 | キー | JSON型 | NULL |
 | --- | --- | --- |
-| \`receiptId\` | UUID D形式の文字列 | 不可 |
-| \`transactionAt\` | \`yyyy-MM-ddTHH:mm:ss\`の日時文字列（オフセットなし） | 不可 |
-| \`shopName\` | 文字列 | 不可 |
-| \`shopLocation\` | 文字列 | 可 |
-| \`paymentMethodId\` | UUID D形式の文字列 | 不可 |
-| \`totalAmount\` | 保存済み合計のJSON整数（Int32） | 不可 |
-| \`memo\` | レシートメモの文字列（旧タグ相当） | 可 |
+| `receiptId` | UUID D形式の文字列 | 不可 |
+| `transactionAt` | `yyyy-MM-ddTHH:mm:ss`の日時文字列（オフセットなし） | 不可 |
+| `shopName` | 文字列 | 不可 |
+| `shopLocation` | 文字列 | 可 |
+| `paymentMethodId` | UUID D形式の文字列 | 不可 |
+| `totalAmount` | 保存済み合計のJSON整数（Int32） | 不可 |
+| `memo` | レシートメモの文字列（旧タグ相当） | 可 |
 
-**\`paymentMethodName\`・\`ownerPersonId\`・\`ownerPersonName\`・\`isMyPaymentMethod\`は返さない。** WinUIが支払方法キャッシュと人物キャッシュから名称・所有人物・本人対応人物IDを取得し、本人なら支払方法名のみ、本人以外なら\`（人物名）支払方法名\`で表示。本人の人物対応がなければすべて括弧付き（DEC-249）。必要なマスタが未取得なら初回取得。検索・並び順・100件カーソル取得・\`nextCursor\`は変更しない。グループ・明細・監査・更新版は一覧に含めない。
+**`paymentMethodName`・`ownerPersonId`・`ownerPersonName`・`isMyPaymentMethod`は返さない。** WinUIが支払方法キャッシュと人物キャッシュから名称・所有人物・本人対応人物IDを取得し、本人なら支払方法名のみ、本人以外なら`（人物名）支払方法名`で表示。本人の人物対応がなければすべて括弧付き（DEC-249）。必要なマスタが未取得なら初回取得。検索・並び順・100件カーソル取得・`nextCursor`は変更しない。グループ・明細・監査・更新版は一覧に含めない。
 
 ### 詳細GET：階層、型、エラー（DEC-257）
-\`GET /ledgers/{ledgerId}/receipts/{receiptId}\`は**200 OKでレシートJSONオブジェクトを直返し**し、\`receipt\`などの外側ラッパーは設けない。
+`GET /ledgers/{ledgerId}/receipts/{receiptId}`は**200 OKでレシートJSONオブジェクトを直返し**し、`receipt`などの外側ラッパーは設けない。
 
-- 親は**11フィールド**：\`receiptId\`、\`transactionAt\`、\`shopName\`、\`shopLocation\`、\`paymentMethodId\`、\`taxInclusionMode\`、\`taxRoundingMode\`、\`recurrenceInterval\`、\`recurrenceUnit\`、\`memo\`、\`revision\`。さらに\`groups\`配列を返す。**\`totalAmount\`、ポイント、監査情報、マスタの名称は返さない**。画面は明細から合計を計算。
-- 各\`groups[]\`の**4フィールド**：\`groupId\`、\`categoryId\`、\`memo\`、\`details\`配列。グループの表示順は科目マスタ順、税率は明細単位。
-- 各\`details[]\`の**12フィールド**：\`detailId\`、\`displayOrder\`、\`name\`、\`unitPrice\`、\`quantity\`、\`unitDiscountAmount\`、\`discountRate\`、\`taxRate\`、\`expenseType\`、\`occurrenceType\`、\`memo\`、\`personIds\`配列。
-- \`discountRate\`はDecimalの**JSON文字列**（例\`"12.5"\`）、\`taxRate\`もDecimal文字列または\`null\`（非課税）。\`"0"\`は課税0%で非課税と区別。単価・数量・値引額・表示順はJSON整数。UUIDはD形式、取引日時はDEC-253。
-- \`taxInclusionMode\`は整数\`0\`税込／\`1\`税抜。\`taxRoundingMode\`は\`floor\`／\`half_up\`。\`recurrenceUnit\`は\`Week\`／\`Month\`／\`Year\`／\`null\`。\`expenseType\`は\`Fixed\`／\`Variable\`／\`Excluded\`、\`occurrenceType\`は\`Regular\`／\`Irregular\`／\`Temporary\`。周期なしでは\`recurrenceInterval\`・\`recurrenceUnit\`の両方が\`null\`、周期ありでは間隔は正整数・単位は非NULL。
-- \`shopLocation\`、親／グループ／明細の\`memo\`、\`taxRate\`、周期2項目のみNULL可。NULLはキー省略せず明示する。\`groups\`・\`details\`・\`personIds\`は常に配列で空なら\`[]\`。人物IDは重複なし・配列順に意味なし、表示はマスタ順。
+- 親は**11フィールド**：`receiptId`、`transactionAt`、`shopName`、`shopLocation`、`paymentMethodId`、`taxInclusionMode`、`taxRoundingMode`、`recurrenceInterval`、`recurrenceUnit`、`memo`、`revision`。さらに`groups`配列を返す。**`totalAmount`、ポイント、監査情報、マスタの名称は返さない**。画面は明細から合計を計算。
+- 各`groups[]`の**4フィールド**：`groupId`、`categoryId`、`memo`、`details`配列。グループの表示順は科目マスタ順、税率は明細単位。
+- 各`details[]`の**12フィールド**：`detailId`、`displayOrder`、`name`、`unitPrice`、`quantity`、`unitDiscountAmount`、`discountRate`、`taxRate`、`expenseType`、`occurrenceType`、`memo`、`personIds`配列。
+- `discountRate`はDecimalの**JSON文字列**（例`"12.5"`）、`taxRate`もDecimal文字列または`null`（非課税）。`"0"`は課税0%で非課税と区別。単価・数量・値引額・表示順はJSON整数。UUIDはD形式、取引日時はDEC-253。
+- `taxInclusionMode`は整数`0`税込／`1`税抜。`taxRoundingMode`は`floor`／`half_up`。`recurrenceUnit`は`Week`／`Month`／`Year`／`null`。`expenseType`は`Fixed`／`Variable`／`Excluded`、`occurrenceType`は`Regular`／`Irregular`／`Temporary`。周期なしでは`recurrenceInterval`・`recurrenceUnit`の両方が`null`、周期ありでは間隔は正整数・単位は非NULL。
+- `shopLocation`、親／グループ／明細の`memo`、`taxRate`、周期2項目のみNULL可。NULLはキー省略せず明示する。`groups`・`details`・`personIds`は常に配列で空なら`[]`。人物IDは重複なし・配列順に意味なし、表示はマスタ順。
 - 未認証401、家計簿非参加／対象不存在／別家計簿のIDは404、ID形式不正は400。Reader・Editor・Adminは詳細を参照可。編集権限は書込み時に検証する。
 
 ### 保存リクエストと無変更PUT（DEC-258）
-POST／PUTは詳細GETと同じ**親→\`groups[]\`→\`details[]\`→\`personIds[]\`階層**の全体スナップショット。ただし取得専用項目を除外し、\`totalAmount\`・マスタ名称・ポイント・監査情報は送らない。**合計はAPIで再計算し\`total_amount\`へ保存**。
-- POST：トップレベルに\`requestId\`必須、\`receiptId\`と\`revision\`は送らない。PUT：レシートIDはURLで指定、本文トップレベルに**\`requestId\`と\`revision\`必須**。既存のグループ／明細はIDを送信、新規グループ／明細はID省略でサーバー採番（DEC-225〜228）。
-- DELETEの本文は**\`{"requestId":"UUID-D","revision":"UUID-D"}\`**の2項目を必須とする。
-- WinUIは無変更ならPUTせず一覧へ戻る。APIは無変更のPUTでも**権限・更新版・全項目の入力検証を先に行う**。古い版なら409。正規化した親・グループ・明細の値が実質同一なら204、**revision・監査日時は更新しない**が再送成功記録は残す。\`discountRate\`の\`"8"\`と\`"8.0"\`は同一、\`personIds\`順は無視、\`displayOrder\`は比較する。\`requestId\`・\`revision\`・監査情報は同値判定対象外。
+POST／PUTは詳細GETと同じ**親→`groups[]`→`details[]`→`personIds[]`階層**の全体スナップショット。ただし取得専用項目を除外し、`totalAmount`・マスタ名称・ポイント・監査情報は送らない。**合計はAPIで再計算し`total_amount`へ保存**。
+- POST：トップレベルに`requestId`必須、`receiptId`と`revision`は送らない。PUT：レシートIDはURLで指定、本文トップレベルに**`requestId`と`revision`必須**。既存のグループ／明細はIDを送信、新規グループ／明細はID省略でサーバー採番（DEC-225〜228）。
+- DELETEの本文は**`{"requestId":"UUID-D","revision":"UUID-D"}`**の2項目を必須とする。
+- WinUIは無変更ならPUTせず一覧へ戻る。APIは無変更のPUTでも**権限・更新版・全項目の入力検証を先に行う**。古い版なら409。正規化した親・グループ・明細の値が実質同一なら204、**revision・監査日時は更新しない**が再送成功記録は残す。`discountRate`の`"8"`と`"8.0"`は同一、`personIds`順は無視、`displayOrder`は比較する。`requestId`・`revision`・監査情報は同値判定対象外。
 
 ### requestIdによる再送保証（DEC-259）
-- **POST・PUT・DELETEのすべてで操作ごとに新しい\`requestId\`を必須**とする。既存\`operation_requests\`の6列を共用し、操作種別（\`receipt.create\`／\`receipt.update\`／\`receipt.delete\`等）、操作者、家計簿・対象レシート・版と入力の正規化ハッシュを照合。成功時（無変更PUTを含む）に業務データと同一トランザクションで記録。**自動削除せず無期限保持**。
-- 最初に**現在の認証・家計簿参加と権限**を確認。同じ要求IDの成功記録があり、同一操作者・操作・内容なら業務処理・版検証を再実行せず前回の成功ステータスを返す（POST 201、PUT・DELETE 204、本文なし）。別の操作・操作者・内容なら\`409 request_conflict\`。記録がなければ通常の権限・更新版チェックを行う。参加喪失後には成功応答を返さない。
+- **POST・PUT・DELETEのすべてで操作ごとに新しい`requestId`を必須**とする。既存`operation_requests`の6列を共用し、操作種別（`receipt.create`／`receipt.update`／`receipt.delete`等）、操作者、家計簿・対象レシート・版と入力の正規化ハッシュを照合。成功時（無変更PUTを含む）に業務データと同一トランザクションで記録。**自動削除せず無期限保持**。
+- 最初に**現在の認証・家計簿参加と権限**を確認。同じ要求IDの成功記録があり、同一操作者・操作・内容なら業務処理・版検証を再実行せず前回の成功ステータスを返す（POST 201、PUT・DELETE 204、本文なし）。別の操作・操作者・内容なら`409 request_conflict`。記録がなければ通常の権限・更新版チェックを行う。参加喪失後には成功応答を返さない。
 - 自分のDELETE成功後、対象行がなくても同じ要求の再送は204とする。ただし**削除済み行の旧所有者に関する現在の権限を既存6列でどう再確認するかは実装前の未解決事項**。再送記録の存在自体を権限として扱わない。
 - 通信失敗など結果不明時は**同じ要求ID・送信内容**を再送。確定400等を修正して次の保存を行う場合は新しい要求IDを作り、revisionは勝手に変えない。
 
 ### 権限・エラー（DEC-260）
-- 版競合\`409 revision_conflict\`には**最新レシート全体**を含め、WinUIは入力を保持して明示的な切替を選べるようにする。自動上書き・自動統合・追加GETなし。削除済みレシートは\`404 not_found\`（同じDELETE成功要求の再送は204）。権限不足\`403 forbidden\`、非参加404。Editorが支払方法を変更する場合、変更前と変更後の双方の権限を検証する。
-- 入力やマスタの有効期間不一致は\`400 invalid_input\`、問題の\`field\`を返す。マスタの変更が原因の場合に限り\`reason:"master_changed"\`を付加し、WinUIは**該当マスタだけ**再取得。入力・選択中科目は変えず自動保存もしない。
-- \`field\`は0始まりの配列パスに対応（例：\`paymentMethodId\`、\`groups[1].categoryId\`、\`groups[0].details[2].taxRate\`、\`groups[0].details[2].personIds[0]\`）。複数の入力エラーは**親→グループ→明細、各配列の先頭から最初の1件のみ**返す。
+- 版競合`409 revision_conflict`には**最新レシート全体**を含め、WinUIは入力を保持して明示的な切替を選べるようにする。自動上書き・自動統合・追加GETなし。削除済みレシートは`404 not_found`（同じDELETE成功要求の再送は204）。権限不足`403 forbidden`、非参加404。Editorが支払方法を変更する場合、変更前と変更後の双方の権限を検証する。
+- 入力やマスタの有効期間不一致は`400 invalid_input`、問題の`field`を返す。マスタの変更が原因の場合に限り`reason:"master_changed"`を付加し、WinUIは**該当マスタだけ**再取得。入力・選択中科目は変えず自動保存もしない。
+- `field`は0始まりの配列パスに対応（例：`paymentMethodId`、`groups[1].categoryId`、`groups[0].details[2].taxRate`、`groups[0].details[2].personIds[0]`）。複数の入力エラーは**親→グループ→明細、各配列の先頭から最初の1件のみ**返す。
 
 ### 結果不明時のWinUI画面（DEC-261）
-- 保存・削除の開始時に\`requestId\`と**同じ送信スナップショット**をメモリ内に保持。通信失敗など結果不明時は「保存結果を確認できませんでした」と表示し、入力を保持しながら**編集・新たな保存／削除を禁止**。［再試行］は同一内容を手動再送し、送信中はボタン無効＋標準\`ProgressRing\`、自動で無制限に再試行しない。成功後に一覧へ戻る。確定エラー時は通常編集へ戻す。
+- 保存・削除の開始時に`requestId`と**同じ送信スナップショット**をメモリ内に保持。通信失敗など結果不明時は「保存結果を確認できませんでした」と表示し、入力を保持しながら**編集・新たな保存／削除を禁止**。［再試行］は同一内容を手動再送し、送信中はボタン無効＋標準`ProgressRing`、自動で無制限に再試行しない。成功後に一覧へ戻る。確定エラー時は通常編集へ戻す。
 - 結果不明中に画面を離れる場合は、［結果の確認に戻る］を既定、［結果未確認のまま離れる］で保留中のクライアント再送情報を破棄して離脱可能。サーバー側の処理は取り消さない。次回は詳細GETで最新状態を取得する。アプリ再起動後の自動復元なし。
 
 ### 科目・明細の必須条件（DEC-262）
-- **レシートに科目グループ1件以上、すべてのグループに明細1件以上が必須**。明細の対象人物0人（\`personIds:[]\`）は許容。旧Windows版では全体で明細1件以上なら空グループも可だったが、新版は空グループを禁止する。
-- **編集中は空の科目を一時的に保持できる**。科目追加直後や最後の明細を削除した後も自動で科目を削除しない。保存時にWinUI・API双方で検証し、違反は\`400 invalid_input\`、\`field:"groups"\`（科目0件）または\`field:"groups[i].details"\`（空の科目）。入力を保持し修正を求める。周期ありで定期明細が1件以上必要という既存制約も維持する。
+- **レシートに科目グループ1件以上、すべてのグループに明細1件以上が必須**。明細の対象人物0人（`personIds:[]`）は許容。旧Windows版では全体で明細1件以上なら空グループも可だったが、新版は空グループを禁止する。
+- **編集中は空の科目を一時的に保持できる**。科目追加直後や最後の明細を削除した後も自動で科目を削除しない。保存時にWinUI・API双方で検証し、違反は`400 invalid_input`、`field:"groups"`（科目0件）または`field:"groups[i].details"`（空の科目）。入力を保持し修正を求める。周期ありで定期明細が1件以上必要という既存制約も維持する。
 
 ## 7. 実装前に残る確認事項
 
