@@ -83,8 +83,15 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
         return new TokenSet(accessToken, string.IsNullOrEmpty(refresh) ? null : refresh, requestedAt.AddSeconds(seconds));
     }
 
-    private async Task<byte[]> SendAsync(HttpMethod method, string path, string? bearer,
+    private Task<byte[]> SendAsync(HttpMethod method, string path, string? bearer,
         Dictionary<string, string>? form, bool tokenExchange, CancellationToken cancellationToken, HttpContent? body = null,
+        Func<HttpStatusCode, byte[], Exception>? failure = null, bool includeStoreFailure = false) =>
+        SendResponseAsync(method, path, bearer, form, tokenExchange, cancellationToken, ReadBoundedAsync, body, failure, includeStoreFailure);
+
+    // 送信/認証/エラー境界は共用し、成功本文の読取方式だけを選ぶ。既存APIは引き続き64KiB以内。
+    private async Task<T> SendResponseAsync<T>(HttpMethod method, string path, string? bearer,
+        Dictionary<string, string>? form, bool tokenExchange, CancellationToken cancellationToken,
+        Func<HttpContent, CancellationToken, Task<T>> readSuccess, HttpContent? body = null,
         Func<HttpStatusCode, byte[], Exception>? failure = null, bool includeStoreFailure = false)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -99,6 +106,7 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
             if (response.StatusCode == HttpStatusCode.Unauthorized && bearer is not null) throw new AuthenticationRejectedException();
             // 方向転換先へ認証情報を持ち出さない。生成用HttpClientでは自動転送も無効にする。
             if ((int)response.StatusCode is >= 300 and < 400) throw new ApiConnectionException();
+            if (response.IsSuccessStatusCode) return await readSuccess(response.Content, timeout.Token);
             var bytes = await ReadBoundedAsync(response.Content, timeout.Token);
             if (failure is not null && (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden or
                 HttpStatusCode.NotFound or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests ||
@@ -112,8 +120,7 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
                 using var error = Parse(bytes);
                 if (String(error.RootElement, "error") == "invalid_grant") throw new AuthenticationRejectedException();
             }
-            if (!response.IsSuccessStatusCode) throw new ApiConnectionException();
-            return bytes;
+            throw new ApiConnectionException();
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new ApiConnectionException(); }
         catch (HttpRequestException) { throw new ApiConnectionException(); }

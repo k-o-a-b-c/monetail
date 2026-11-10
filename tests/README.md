@@ -9,11 +9,11 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 1444 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・補完） | 429 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取・補完） | 528 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 2152 |
+| 合計 | 2251 |
 
 ## 検証する範囲
 
@@ -33,6 +33,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+レシート工程6-AはClient読取99ケースを実検出。一覧5条件/7項目/0・100件/nextCursor、詳細全階層/ローカル秒精度/JSON整数/Decimal文字列/非課税null・課税0%、候補3種/補完NULL、型付き400/invalid_cursor/403/404/429/503、認証更新/別アカウント/通信失敗/キャンセルを確認する。最小3件成功後、境界/共通Transport73件は71件成功・2件がテストJSONのPascalCase誤生成で失敗したためcamelCaseへ修正。新規91件とClient全520件、最後に追加した不正JSON/補完正常値/整数・Decimal境界8件が成功。既存テストの削除/判定緩和なし。64KiB超の100件をContent-Length有無の両方で読み、100,000文字メモ/150明細も切り捨てず取得する。一覧/詳細成功だけ逐次読取、候補/補完/エラー/既存APIの64KiBは維持。基点main `b29a1c9`の[push Tests 42907167596](https://github.com/k-o-a-b-c/monetail/actions/runs/42907167596)は成功。ソース`8fa8aa682e5249c9302da53cc65daba2db71436d`の[CI 42914258440](https://github.com/k-o-a-b-c/monetail/actions/runs/42914258440)でClient全528件・Windows実DPAPI3件（失敗/skipなし）、WinUI製品/スモークのReleaseビルド（警告/エラー0）・製品起動・既存画面スモークが成功。API/Docker/旧版等の非変更範囲は基点mainと成功記録を再利用した。実API接続/実Windows手動操作/大規模な実運用データは未検証。DB/外部依存・WinUI・書込・画面キャッシュ・下書き変更なし。
 
 レシート工程5は新規96ケースを実際に検出。候補3種/空条件/0・100・101件/全履歴/元文字列重複/UTF-8 BINARY順/親更新UTC/正規化と完全一致スコープ、本人所有/両有効期間/保存ロール/人物未対応の補完、DEC-274の取得中変更12通り、入力・401/404/429/503・家計簿分離・並行要求を対象とする。最小3件→機能51件→権限/入力等55件（既存税率履歴11件を含む）→初回性能1件→計画見直し後の関連24件→既存一覧/詳細GET3件が成功。基点main `f0646c0`の[push Tests 42897073557](https://github.com/k-o-a-b-c/monetail/actions/runs/42897073557)は成功。ソース`3f12982d32354f32ffa7b6f3357034d9c6275166`の[CI 42900968012](https://github.com/k-o-a-b-c/monetail/actions/runs/42900968012)で全API1444件（失敗/skipなし）・Node63件・CI選択検証・Dockerビルドと通常/server/配布アーカイブの起動・永続化検証が成功。全APIのローカル重複実行は避け、非変更範囲の成功記録を再利用した。文書リンク・差分検査も成功。
 
