@@ -18,7 +18,7 @@ public partial class App
             fixture.HasPreviousLedger = true;
             fixture.ParticipantsHandler = server.HandleAsync;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Settle();
             var navigation = Find<NavigationView>(root, "ManagementNavigation");
@@ -117,7 +117,7 @@ public partial class App
         using (var fixture = new SyntheticConnection(saved: true))
         {
             var server = new ParticipantsServer(fixture.AccountId); fixture.HasPreviousLedger = true; fixture.ParticipantsHandler = server.HandleAsync;
-            var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Settle();
+            var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Settle();
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ParticipantsNavigation");
             var list = Find<ListView>(root, "ParticipantsList"); await Wait(() => list.Items.Count == 2); await Settle();
             await InvokeAsync(() => ParticipantActionButton(list, server.Other.AccountId, "編集")); await Wait(() => !ParticipantEditorClosed(root)); await Settle();
@@ -137,7 +137,7 @@ public partial class App
         {
             using var fixture = new SyntheticConnection(saved: true);
             var server = new ParticipantsServer(fixture.AccountId); fixture.HasPreviousLedger = true; fixture.ParticipantsHandler = server.HandleAsync;
-            var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Settle();
+            var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Settle();
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ParticipantsNavigation");
             var list = Find<ListView>(root, "ParticipantsList"); await Wait(() => list.Items.Count == 2); await Settle();
             await InvokeAsync(() => ParticipantActionButton(list, server.Other.AccountId, "編集")); await Wait(() => !ParticipantEditorClosed(root)); await Settle();
@@ -180,7 +180,7 @@ public partial class App
         using (var fixture = new SyntheticConnection(saved: true))
         {
             var server = new ParticipantsServer(fixture.AccountId); fixture.HasPreviousLedger = true; fixture.ParticipantsHandler = server.HandleAsync;
-            var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Settle();
+            var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Settle();
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ParticipantsNavigation");
             await Wait(() => Find<ListView>(root, "ParticipantsList").Items.Count == 2);
             await InvokeAsync(() => Find<Button>(root, "OpenInvitationsButton")); await Wait(() => Find<ListView>(root, "InvitationsList").Items.Count == 2);

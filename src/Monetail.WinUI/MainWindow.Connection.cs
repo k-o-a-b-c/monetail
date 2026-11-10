@@ -263,11 +263,18 @@ public sealed partial class MainWindow
 
     private void ShowPage(FrameworkElement page)
     {
+        if (!ReferenceEquals(page, HomePage)) receiptState?.Suspend();
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
+        if (ReferenceEquals(page, HomePage)) DispatcherQueue.TryEnqueue(async () =>
+        {
+            if (closed || HomePage.Visibility != Visibility.Visible) return;
+            if (receiptState is null) StartReceiptHome();
+            else { await receiptState.ResumeAsync(lifetime.Token); ScheduleReceiptViewport(false); }
+        });
     }
 
     private void ShowError(string message)
@@ -310,6 +317,8 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
+        receiptState?.Dispose();
+        connection.Masters.Changed -= ReceiptMasterChanged;
         DiscardCategoryEditor();
         DiscardPaymentEditor();
         DiscardPersonEditor();

@@ -50,6 +50,7 @@ public sealed partial class MainWindow
         {
             var people = await new PeopleWorkspace(connection.Api, connection.Session, currentLedger.LedgerId).ListAsync(lifetime.Token);
             var payments = await Payments.ListAsync(lifetime.Token);
+            connection.Masters.UpdatePeople(currentLedger.LedgerId, people);
             paymentPeople = people; DisplayPayments(payments);
         }
         catch (PeopleRequestException error)
@@ -60,6 +61,7 @@ public sealed partial class MainWindow
     }, LoadPaymentsAsync);
     private void DisplayPayments(PaymentMethodsInfo info)
     {
+        if (currentLedger is { } ledger) connection.Masters.UpdatePayments(ledger.LedgerId, info);
         paymentInfo = info; paymentPermissions = new(info.CurrentRole, info.MyPersonId); peoplePermissions = paymentPermissions;
         missingPayments.Clear(); RenderPayments(); UpdatePeopleActions();
     }

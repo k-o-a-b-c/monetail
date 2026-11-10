@@ -29,7 +29,7 @@ public partial class App
                 Find<TextBlock>(root, "PersonRestoredNotice").Visibility == Visibility.Visible && server.Writes.Count == 0,
                 "同じアカウントで再ログイン後に入力を復元し、自動保存しない");
             Check(fixture.Requests.Count(path => path == "/ledgers/open-last") == 1 &&
-                fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1 && server.Reads == 2,
+                fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1 && server.Reads == 3,
                 "編集復帰は元の家計簿を直接開き、現在の人物と権限を確認");
             await WaitPersonEditorReady(root);
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
@@ -74,7 +74,7 @@ public partial class App
             fixture.Settings.Save(ApiEndpoint.Parse("https://other.example.test/"));
             // 別の起動が変更先でログイン済みの状態。IDが同じでも接続先を区別する。
             fixture.Tokens.Current = new("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             Check(Visible(root, "HomePage") && Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0 &&
                 !fixture.OtherServerRequests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
                 "同じアカウントIDでも別のAPI接続先へ入力を引き継がない");
@@ -123,7 +123,7 @@ public partial class App
                 !Find<Button>(root, "SavePersonButton").IsEnabled && server.Writes.Count == 0,
                 removed ? "再ログイン後に未参加なら入力だけ残し、保存と最新一覧の取得をしない" :
                     "再ログイン後に期間編集権限がなければ入力を黙って部分保存しない");
-            if (removed) Check(server.Reads == 1, "未参加の編集復帰で人物一覧を取得しない");
+            if (removed) Check(server.Reads == 2, "未参加の編集復帰で人物一覧を取得しない");
         }
     }
 
@@ -132,7 +132,7 @@ public partial class App
         fixture.HasPreviousLedger = true;
         fixture.PeopleHandler = server.HandleAsync;
         var root = await OpenSyntheticWindow(fixture);
-        await window!.StartAsync();
+        await StartSyntheticAsync();
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 2 && Find<Button>(root, "AddPersonButton").IsLoaded);
         return root;

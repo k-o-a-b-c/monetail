@@ -33,7 +33,7 @@ public partial class App
             }
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new PeopleInfo(rows, mine, "Admin", orderRevision)) };
         };
-        var root = await OpenSyntheticWindow(fixture); await window!.StartAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         var list = Find<ListView>(root, "PeopleList"); await Wait(() => list.Items.Count == 2);
         Check(((PersonRow)list.Items[0]).Person.PersonId == mine && ((PersonRow)list.Items[1]).Name == "無期限", "人物初期表示は両端含む本日有効とNULL、本人を先頭");
         var include = Find<CheckBox>(root, "IncludeInactivePeople"); include.IsChecked = true;

@@ -44,7 +44,7 @@ public sealed partial class MainWindow
         { denied = e.Permissions ?? new(null, null); failure = "現在の権限では操作できません。未保存の入力は残しています。"; }
         catch (PaymentMethodRequestException e) when (e.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         { denied = e.Permissions ?? new(null, null); failure = "現在の権限では操作できません。未保存の入力は残しています。"; }
-        DisplayLedger(ledger); paymentPeople = people; DisplayPayments(payments);
+        DisplayLedger(ledger); connection.Masters.UpdatePeople(ledger.LedgerId, people); paymentPeople = people; DisplayPayments(payments);
         if (denied is not null) paymentPermissions = denied;
         ShowPage(ManagementPage); ManagementNavigation.SelectedItem = PaymentsNavigation;
         CategoriesContent.Visibility = PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = AccountContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;

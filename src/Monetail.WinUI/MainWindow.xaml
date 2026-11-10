@@ -159,8 +159,76 @@
                                     AutomationProperties.Name="レシートの登録" />
                         </Grid>
                         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
-                        <TextBlock Grid.Row="2" Text="レシートの一覧・入力機能は今後追加します。"
-                                   Style="{StaticResource Description}" />
+                        <Grid Grid.Row="2" RowSpacing="12">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                            <StackPanel x:Name="ReceiptFilters" Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="ReceiptPrevious" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom"/>
+                                    <TextBox x:Name="ReceiptMonth" Header="年月" PlaceholderText="YYYY-MM" Width="112"
+                                             TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown"/>
+                                    <Button x:Name="ReceiptNextMonth" Content="翌月" Click="MoveReceiptMonth" VerticalAlignment="Bottom"/>
+                                    <CheckBox x:Name="ReceiptAllPeriods" Content="全期間" Checked="ReceiptPeriodChanged" Unchecked="ReceiptPeriodChanged" VerticalAlignment="Bottom"/>
+                                </StackPanel>
+                                <TextBlock x:Name="ReceiptMonthError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                                <TextBlock x:Name="ReceiptAppliedMonth" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="ReceiptOwner" Header="支払者" DisplayMemberPath="Name" SelectionChanged="ReceiptOwnerChanged" HorizontalAlignment="Stretch"/>
+                                    <ComboBox x:Name="ReceiptPayment" Grid.Column="1" Header="支払方法" DisplayMemberPath="Name" SelectionChanged="ReceiptPaymentChanged" HorizontalAlignment="Stretch"/>
+                                </Grid>
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown"/>
+                                    <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Click="ApplyReceiptText" VerticalAlignment="Bottom"/>
+                                </Grid>
+                            </StackPanel>
+                            <Grid Grid.Row="1">
+                                <ListView x:Name="ReceiptList" SelectionMode="Single" SelectionChanged="ReceiptSelected" Loaded="ReceiptListLoaded" LayoutUpdated="ReceiptLayoutChanged"
+                                          HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                          AutomationProperties.Name="レシート一覧">
+                                    <ListView.Header>
+                                        <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="日時"/><TextBlock Grid.Column="1" Text="店名"/><TextBlock Grid.Column="2" Text="所在地"/>
+                                            <TextBlock Grid.Column="3" Text="支払方法"/><TextBlock Grid.Column="4" Text="合計額" HorizontalAlignment="Right"/><TextBlock Grid.Column="5" Text="メモ"/>
+                                        </Grid>
+                                    </ListView.Header>
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="local:ReceiptRow">
+                                            <Grid MinWidth="1000" Padding="12,12" ColumnSpacing="12">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <TextBlock Text="{x:Bind TransactionAt}"/>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind ShopName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ShopName}"/>
+                                                <TextBlock Grid.Column="2" Text="{x:Bind ShopLocation}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ShopLocation}"/>
+                                                <TextBlock Grid.Column="3" Text="{x:Bind PaymentName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind PaymentName, Mode=OneWay}"/>
+                                                <TextBlock Grid.Column="4" Text="{x:Bind TotalAmount}" HorizontalAlignment="Right"/>
+                                                <TextBlock Grid.Column="5" Text="{x:Bind Memo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Memo}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                    <ListView.Footer>
+                                        <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="12">
+                                            <StackPanel x:Name="ReceiptNextNotice" Visibility="Collapsed" Orientation="Horizontal" Spacing="8">
+                                                <ProgressRing x:Name="ReceiptNextProgress" IsActive="False" Width="20" Height="20"/><TextBlock Text="読み込み中…" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel x:Name="ReceiptNextFailure" Visibility="Collapsed" Spacing="8">
+                                                <TextBlock Text="読み込みに失敗しました" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                                <Button x:Name="ReceiptNextRetry" Content="再試行" Click="RetryReceipt"/>
+                                            </StackPanel>
+                                            <Button x:Name="ReceiptContinue" Content="続きを読み込む" Visibility="Collapsed" Click="ContinueReceipt"/>
+                                        </StackPanel>
+                                    </ListView.Footer>
+                                </ListView>
+                                <StackPanel x:Name="ReceiptInitialNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                                    <ProgressRing x:Name="ReceiptInitialProgress" IsActive="False" Width="32" Height="32"/><TextBlock Text="読み込み中…"/>
+                                </StackPanel>
+                                <TextBlock x:Name="ReceiptEmpty" Text="該当するレシートがありません" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                <StackPanel x:Name="ReceiptInitialFailure" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                                    <TextBlock x:Name="ReceiptInitialError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                    <Button x:Name="ReceiptInitialRetry" Content="再試行" Click="RetryReceipt"/>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
                     </Grid>
                 </Border>
                 <Border Grid.Column="1" Style="{StaticResource Card}">

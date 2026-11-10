@@ -44,6 +44,7 @@ public sealed partial class MainWindow
     }, LoadCategoriesAsync);
     private void DisplayCategories(CategoriesInfo info)
     {
+        if (currentLedger is { } ledger) connection.Masters.UpdateCategories(ledger.LedgerId, info);
         categoryInfo = info; categoryPermissions = new(info.CurrentRole, null);
         missingCategories.Clear(); RenderCategories();
     }

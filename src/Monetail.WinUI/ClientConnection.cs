@@ -10,6 +10,7 @@ namespace Monetail.WinUI;
 internal sealed class ClientConnection(ClientSettingsStore settings, ITokenStore tokens, HttpClient http,
     Func<Uri, Task<bool>> openBrowser) : IDisposable
 {
+    public LedgerMasterCache Masters { get; } = new();
     public ApiEndpoint? Endpoint { get; private set; }
     public MonetailApiClient Api { get; private set; } = null!;
     public ClientSession Session { get; private set; } = null!;
@@ -43,11 +44,12 @@ internal sealed class ClientConnection(ClientSettingsStore settings, ITokenStore
 
     private void SetEndpoint(ApiEndpoint endpoint)
     {
+        Masters.Clear();
         Endpoint = endpoint;
         Api = new(endpoint, http);
         Session = new(Api, endpoint, tokens);
         Ledgers = new(Api, Session);
     }
 
-    public void Dispose() => http.Dispose();
+    public void Dispose() { Masters.Clear(); http.Dispose(); }
 }

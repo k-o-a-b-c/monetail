@@ -17,6 +17,7 @@ public sealed partial class MainWindow : Window
         AppWindow.Resize(new SizeInt32(1100, 780));
         Closed += CloseConnection;
         InitializeInput();
+        InitializeReceipts();
         ShowPage(StartupPage);
     }
 
@@ -29,6 +30,7 @@ public sealed partial class MainWindow : Window
 
     private void DisplayLedger(LedgerInfo ledger)
     {
+        ResetReceipts();
         ResetCategories();
         ResetPayments();
         ResetPeople();
@@ -46,6 +48,7 @@ public sealed partial class MainWindow : Window
 
     private void DisplayPeople(PeopleInfo people)
     {
+        if (currentLedger is { } ledger) connection.Masters.UpdatePeople(ledger.LedgerId, people);
         peopleInfo = people;
         peoplePermissions = new(people.CurrentRole, people.MyPersonId);
         missingPeople.Clear();

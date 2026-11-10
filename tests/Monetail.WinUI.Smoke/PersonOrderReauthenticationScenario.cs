@@ -18,7 +18,7 @@ public partial class App
             await LoginAgainPersonOrder(fixture, root);
             Check(Find<TextBlock>(root, "PersonOrderRestoredNotice").Visibility == Visibility.Visible &&
                 ((PersonRow)Find<ListView>(root, "PersonOrderList").Items[0]).Name == "父・認証待ち中の変更（本人）" &&
-                server.Writes.Count == 0 && server.Reads == 2,
+                server.Writes.Count == 0 && server.Reads == 3,
                 "同じ本人の再ログインで未保存順を復元し、表示名だけ最新へ更新して自動保存しない");
             Check(fixture.Requests.Count(path => path == "/ledgers/open-last") == 1 &&
                 fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1,
@@ -42,7 +42,7 @@ public partial class App
             await Wait(() => Find<InfoBar>(root, "PersonOrderNotice").IsOpen);
             Check(Find<InfoBar>(root, "PersonOrderNotice").Severity == InfoBarSeverity.Informational &&
                 ((PersonRow)list.Items[0]).Name == "子供" &&
-                server.Writes.Single().Body == fixture.RejectedPeopleBodies.Single() && server.Reads == 2,
+                server.Writes.Single().Body == fixture.RejectedPeopleBodies.Single() && server.Reads == 3,
                 "復元した古い全体版は保存時に競合し、追加GETなしで最新順へ置き換える");
         }
 
@@ -61,7 +61,7 @@ public partial class App
             Check(list.Items.Cast<PersonRow>().Select(row => row.Person.PersonId).SequenceEqual(ids) &&
                 !Find<Button>(root, "SavePersonOrderButton").IsEnabled && !Find<Button>(root, "MovePersonDownButton").IsEnabled &&
                 server.Writes.Count == 0, removed ? "除外されても未保存順を残すが保存不可" : "降格されても未保存順を残すが保存不可");
-            Check(server.Reads == (removed ? 1 : 2), "並び順の認証復帰では未参加の家計簿の人物一覧を取得しない");
+            Check(server.Reads == (removed ? 2 : 3), "並び順の認証復帰では未参加の家計簿の人物一覧を取得しない");
         }
 
         foreach (var changedServer in new[] { false, true })
@@ -74,7 +74,7 @@ public partial class App
             {
                 fixture.Settings.Save(ApiEndpoint.Parse("https://other.example.test/"));
                 fixture.Tokens.Current = new("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
-                await window!.StartAsync();
+                await StartSyntheticAsync();
             }
             else
             {

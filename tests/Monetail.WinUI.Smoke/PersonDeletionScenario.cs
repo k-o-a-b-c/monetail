@@ -27,7 +27,7 @@ public partial class App
                 "人物名を含む削除確認で、既定操作はキャンセル、編集欄は表示しない");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonButton"));
             await Wait(() => EditorClosed(root));
-            Check(server.Writes.Count == 0 && server.Reads == 1, "削除のキャンセルは通信を増やさない");
+            Check(server.Writes.Count == 0 && server.Reads == 2, "削除のキャンセルは通信を増やさない");
 
             list.SelectedIndex = 0;
             await InvokeAsync(() => delete);
@@ -48,7 +48,7 @@ public partial class App
             Check(!Find<Button>(root, "SavePersonButton").IsEnabled &&
                 Find<TextBlock>(root, "LatestPersonName").Text == "母・最新" &&
                 Find<TextBlock>(root, "LatestPersonFrom").Text == "2020/01/01" &&
-                Find<TextBlock>(root, "LatestPersonTo").Text == "2030/12/31" && server.Reads == 1,
+                Find<TextBlock>(root, "LatestPersonTo").Text == "2030/12/31" && server.Reads == 2,
                 "削除の競合も全最新項目を追加GETなしで表示し、古い版では再削除しない");
             var oldBody = server.Writes[^1].Body;
             await InvokeAsync(() => Find<Button>(root, "UseLatestPersonButton"));
@@ -70,7 +70,7 @@ public partial class App
             using var sent = JsonDocument.Parse(server.Writes[^1].Body);
             Check(server.Writes[^1].Method == HttpMethod.Delete &&
                 sent.RootElement.GetProperty("revision").GetGuid() != previous.RootElement.GetProperty("revision").GetGuid() &&
-                list.Items.Count == 1 && server.Reads == 1,
+                list.Items.Count == 1 && server.Reads == 2,
                 "確認した新しい版で削除し、成功応答だけから一覧を更新");
         }
 
@@ -82,10 +82,10 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Find<TextBlock>(root, "PersonSaveError").Visibility == Visibility.Visible);
             var failedBody = server.Writes.Single().Body;
-            Check(!EditorClosed(root) && server.Reads == 1, "削除の通信失敗は確認対象を残し再取得しない");
+            Check(!EditorClosed(root) && server.Reads == 2, "削除の通信失敗は確認対象を残し再取得しない");
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => EditorClosed(root));
-            Check(server.Writes[^1].Body == failedBody && Find<ListView>(root, "PeopleList").Items.Count == 1 && server.Reads == 1,
+            Check(server.Writes[^1].Body == failedBody && Find<ListView>(root, "PeopleList").Items.Count == 1 && server.Reads == 2,
                 "削除の再試行は同じ人物と更新版を送り、応答の一覧へ戻る");
         }
 
@@ -96,19 +96,19 @@ public partial class App
             server.LoseDeleteResponse = true;
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Find<TextBlock>(root, "PersonSaveError").Visibility == Visibility.Visible);
-            Check(Find<ListView>(root, "PeopleList").Items.Count == 2 && server.Reads == 1,
+            Check(Find<ListView>(root, "PeopleList").Items.Count == 2 && server.Reads == 2,
                 "削除の応答喪失では一覧から勝手に消さず確認対象を保持");
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => !Find<Button>(root, "SavePersonButton").IsEnabled);
             await Wait(() => Find<TextBlock>(root, "PersonSaveError").Text.Contains("削除されている"));
             await InvokeAsync(() => Find<Button>(root, "CancelPersonButton"));
             await Wait(() => EditorClosed(root));
-            Check(!Find<Button>(root, "DeletePersonButton").IsEnabled && server.Reads == 1,
+            Check(!Find<Button>(root, "DeletePersonButton").IsEnabled && server.Reads == 2,
                 "削除済みの404は再取得せず説明し、閉じた後は同じ対象へ再入場させない");
             await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
-            Check(server.Reads == 2, "明示的に人物一覧を開き直すとサーバーの削除結果を確認できる");
+            Check(server.Reads == 3, "明示的に人物一覧を開き直すとサーバーの削除結果を確認できる");
         }
 
         foreach (var removed in new[] { false, true })
@@ -120,7 +120,7 @@ public partial class App
             else server.Role = "Viewer";
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => Find<TextBlock>(root, "PersonSaveError").Visibility == Visibility.Visible);
-            Check(!Find<Button>(root, "SavePersonButton").IsEnabled && server.Reads == 1 && !EditorClosed(root),
+            Check(!Find<Button>(root, "SavePersonButton").IsEnabled && server.Reads == 2 && !EditorClosed(root),
                 removed ? "除外後の削除は確認内で拒否し追加GETしない" : "降格後の削除は確認内で拒否し追加GETしない");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonButton"));
             await Wait(() => EditorClosed(root));
