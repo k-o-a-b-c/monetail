@@ -40,6 +40,7 @@ public sealed partial class LedgerManagementService
             if (old is null)
             {
                 var parsed = ReceiptValidation.Parse(input.Calculation);
+                var createdAt = Now;
                 context.Add(new LedgerReceipt
                 {
                     LedgerId = ledger, Id = key, TransactionAt = parsed.TransactionAt, ShopName = input.Calculation.ShopName,
@@ -48,7 +49,7 @@ public sealed partial class LedgerManagementService
                     RecurrenceInterval = (int?)input.Calculation.RecurrenceInterval, RecurrenceUnit = input.Calculation.RecurrenceUnit,
                     TotalAmount = amounts.TotalAmount, Memo = input.Memo, Revision = Version(),
                     CreatedByAuthUserId = actor.Session.AuthUserId, UpdatedByAuthUserId = actor.Session.AuthUserId,
-                    CreatedAtUtc = Now, UpdatedAtUtc = Now
+                    CreatedAtUtc = createdAt, UpdatedAtUtc = createdAt
                 });
                 await context.SaveChangesAsync(token);
             }
