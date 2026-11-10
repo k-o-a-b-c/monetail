@@ -14,22 +14,7 @@ public static class ReceiptValidation
 
     internal static ParsedReceipt Parse(ReceiptCalculationInput input, ReceiptMasterData? masters = null)
     {
-        ArgumentNullException.ThrowIfNull(input);
-        if (input.TransactionAt is null || input.TransactionAt.Length != 19 ||
-            !DateTime.TryParseExact(input.TransactionAt, "yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var at))
-            throw Invalid("transactionAt", "有効なローカル日時を秒まで指定してください。");
-        Text(input.ShopName, "shopName", required: true, nonEmpty: true);
-        Text(input.ShopLocation, "shopLocation", required: false);
-        if (input.TaxInclusionMode is not (0 or 1)) throw Invalid("taxInclusionMode", "税込または税抜を指定してください。");
-        if (input.TaxRoundingMode is not ("floor" or "half_up")) throw Invalid("taxRoundingMode", "税端数方式を指定してください。");
-        if (input.RecurrenceInterval is long interval && (interval < 1 || interval > int.MaxValue))
-            throw Invalid("recurrenceInterval", "周期の間隔は1以上のInt32整数を指定してください。");
-        if (input.RecurrenceInterval is null && input.RecurrenceUnit is not null || input.RecurrenceInterval is not null && input.RecurrenceUnit is null)
-            throw Invalid("recurrenceUnit", "周期の間隔と単位を両方指定するか、両方未設定にしてください。");
-        if (input.RecurrenceUnit is not (null or "Week" or "Month" or "Year"))
-            throw Invalid("recurrenceUnit", "週・月・年のいずれかを指定してください。");
-        if (input.Groups is null || input.Groups.Count == 0) throw Invalid("groups", "科目を1件以上指定してください。");
+        var at = ParseHeader(input);
         var day = DateOnly.FromDateTime(at);
         var rates = masters?.TaxPeriods.Where(period => period.ValidFrom <= day && (period.ValidTo is null || day <= period.ValidTo))
             .Where(period => period.Rate is not null).Select(period => period.Rate!.Value).ToHashSet();
@@ -79,6 +64,27 @@ public static class ReceiptValidation
         return new(at, input.TaxInclusionMode, input.TaxRoundingMode, groups.AsReadOnly());
     }
 
+    internal static DateTime ParseHeader(ReceiptCalculationInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.TransactionAt is null || input.TransactionAt.Length != 19 ||
+            !DateTime.TryParseExact(input.TransactionAt, "yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var at))
+            throw Invalid("transactionAt", "有効なローカル日時を秒まで指定してください。");
+        Text(input.ShopName, "shopName", required: true, nonEmpty: true);
+        Text(input.ShopLocation, "shopLocation", required: false);
+        if (input.TaxInclusionMode is not (0 or 1)) throw Invalid("taxInclusionMode", "税込または税抜を指定してください。");
+        if (input.TaxRoundingMode is not ("floor" or "half_up")) throw Invalid("taxRoundingMode", "税端数方式を指定してください。");
+        if (input.RecurrenceInterval is long interval && (interval < 1 || interval > int.MaxValue))
+            throw Invalid("recurrenceInterval", "周期の間隔は1以上のInt32整数を指定してください。");
+        if (input.RecurrenceInterval is null && input.RecurrenceUnit is not null || input.RecurrenceInterval is not null && input.RecurrenceUnit is null)
+            throw Invalid("recurrenceUnit", "周期の間隔と単位を両方指定するか、両方未設定にしてください。");
+        if (input.RecurrenceUnit is not (null or "Week" or "Month" or "Year"))
+            throw Invalid("recurrenceUnit", "週・月・年のいずれかを指定してください。");
+        if (input.Groups is null || input.Groups.Count == 0) throw Invalid("groups", "科目を1件以上指定してください。");
+        return at;
+    }
+
     private static void Text(string? value, string field, bool required, bool nonEmpty = false)
     {
         if (required && value is null || nonEmpty && value?.Length == 0 || value?.Length > 100)
@@ -93,7 +99,7 @@ public static class ReceiptValidation
         return (int)value;
     }
 
-    private static decimal DecimalValue(string? value, string field)
+    internal static decimal DecimalValue(string? value, string field)
     {
         const NumberStyles style = NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
         if (value is null || !decimal.TryParse(value, style, CultureInfo.InvariantCulture, out var parsed) ||

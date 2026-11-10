@@ -7,6 +7,7 @@ public static class LedgerManagementEndpoints
 {
     public static void MapLedgerManagement(this WebApplication app)
     {
+        global::Monetail.Api.Features.Monetail.Receipts.ReceiptEndpoints.Map(app);
         var routes = app.MapGroup("/ledgers/{ledgerId:guid}").RequireAuthorization()
             .AddEndpointFilter<AuthRequestFilter>().AddEndpointFilter<LedgerApiFilter>();
         routes.MapGet("/categories", async (Guid ledgerId, HttpContext http, LedgerManagementService service) =>

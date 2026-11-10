@@ -56,7 +56,7 @@ public sealed partial class LedgerManagementService
             var to = input.Has("validTo") ? input.Date("validTo") : person.ValidTo;
             Period(from, to);
             await UniqueNameAsync(id, personId, name, token);
-            // 業務の参照日付は、レシート等のモデル追加時に同じ書込処理で検証する。
+            await CheckPersonReceiptsAsync(id, personId, from, to, token);
             if (person.Name != name || person.ValidFrom != from || person.ValidTo != to)
             {
                 person.Name = name; person.ValidFrom = from; person.ValidTo = to; person.Revision = Version();

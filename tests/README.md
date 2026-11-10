@@ -7,13 +7,13 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1156 |
+| ASP.NET Core API | 1277 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・補完） | 429 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 1864 |
+| 合計 | 1985 |
 
 ## 検証する範囲
 
@@ -33,6 +33,8 @@
 `RegistrationSettingsTests` の13ケースは、既定招待制・有効値・不正値・通常API起動時の設定固定・不正値の起動拒否・DB非初期化を対象とする。追加時のPR #101単独の[CI 41644938668](https://github.com/k-o-a-b-c/monetail/actions/runs/41644938668)は成功。これらは下記の自己登録API回帰にも含め、未設定で自己登録を403にすることも確認した。
 
 ## 採用結果
+
+レシート工程3は`ReceiptApiTests`の実HTTPケース121件を追加。詳細の全階層/NULL/配列/UUID/順序、本文なし201/204、子ID維持/移動/差分削除、無変更PUTの親書込なし、POST/PUT/DELETE再送/操作者/現在ロール/内容衝突、版CAS/同時保存、master_changedの24通り、全階層/操作記録の障害ロールバック、保存/競合情報取得後の権限・本人対応・認証再検証、共有回数枠、マスタ期間と使用済み科目の保護を対象とする。最小3件成功後、基本57件、重点32件が成功。計算を含む関連231件の初回は230件成功し、重複JSONテストの生成がUnicodeエスケープで一致しない1件を補正した。既存の科目/支払方法を含む回帰279件と最終重点5件は成功。監査日時を新規時に同値へ固定した後の最小3件も成功。ソース`0478aff916eb363418a9128b80ab0beae79ae315`の[CI 42823947462](https://github.com/k-o-a-b-c/monetail/actions/runs/42823947462)で全API1277件（失敗/skipなし）・Node・CI選択検証・Dockerビルドと通常/server/配布アーカイブの起動・永続化検証が成功。全APIのローカル重複実行は避け、影響外は基点main `01a8ba4`の[push Tests 42815233196](https://github.com/k-o-a-b-c/monetail/actions/runs/42815233196)と成功記録を再利用した。DBモデル/初期化/Migrationの変更なし。実運用DB/実Windows/実NAS/実パスキー端末は未検証。
 
 レシート工程2は計算/検証113ケースを追加。Decimalの値引Ceiling・税込/税抜・正負・floor/half_up・税率別会計合計・グループ/明細参考額・非課税NULL/課税0%、Int32境界/相殺/Decimalオーバーフロー、数量/率/日時/UTF-16長/周期、科目別費用区分、取引日税率/期間端/空白期間/履歴削除を固定値で確認する。初回最小3件成功後に拡張し、関連195件（新規112＋既存DB83）と、マスタ未取得ガード追加後の新規113件が成功。入力・マスタを自動補正/保存せず、人物按分の最終端数は未実装。ソース`569f6f055a92e1ffd08d43fc21212ff395942d63`の[CI 42811307085](https://github.com/k-o-a-b-c/monetail/actions/runs/42811307085)で全API・Node・CI選択検証・Dockerビルドと通常/server/配布アーカイブの起動・永続化検証が成功。全APIのローカル重複実行は行わず、影響外は基点main `c12a262`の[push Tests 42808134892](https://github.com/k-o-a-b-c/monetail/actions/runs/42808134892)と成功記録を再利用した。文書リンク・差分検査も成功。実API接続/実Windows/実運用DBは未検証。
 
