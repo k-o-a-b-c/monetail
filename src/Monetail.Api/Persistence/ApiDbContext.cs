@@ -24,6 +24,7 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
         DesktopOAuthModel.Configure(builder);
         LedgerModel.Configure(builder);
         LedgerCategoryModel.Configure(builder);
+        Monetail.Api.Features.Monetail.Receipts.LedgerReceiptModel.Configure(builder);
         Monetail.Api.Features.Monetail.Taxes.TaxModel.Configure(builder);
         builder.Entity<SelfRegistrationCompletion>(completion =>
         {
