@@ -52,6 +52,17 @@ jobs:
         run: |
           $capture = $env:WINUI_CAPTURE -eq 'true'
           & tests/Monetail.WinUI.Smoke/run.ps1 -AppPath "$env:RUNNER_TEMP/winui-app/Monetail.WinUI.exe" -SmokePath "$env:RUNNER_TEMP/winui-smoke/Monetail.WinUI.Smoke.exe" -OutputPath "$env:RUNNER_TEMP/winui-results" -Capture:$capture
+      - name: XAML compiler failure diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          # 生成コードと診断だけを収集し、MSBuildの環境変数/認証情報は出力しない。
+          foreach ($directory in @('src/Monetail.WinUI/obj', 'tests/Monetail.WinUI.Smoke/obj')) {
+            Get-ChildItem $directory -Recurse -Filter output.json -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Output $_.FullName
+              Get-Content $_.FullName
+            }
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:

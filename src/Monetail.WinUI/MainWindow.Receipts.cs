@@ -27,7 +27,6 @@ public sealed partial class MainWindow
     private FormKeyboard receiptKeyboard = null!;
     private bool receiptFiltersUpdating, receiptViewportQueued, receiptScrollIntent;
     private double receiptPreviousOffset;
-    public sealed record ReceiptFilterChoice(Guid? Id, string Name);
     internal bool ReceiptHomeReady => account is null || receiptState is { HasLoaded: true } or { Failure: not null };
 
     private void InitializeReceipts()
@@ -136,6 +135,7 @@ public sealed partial class MainWindow
     private async void ReceiptTextKeyDown(object sender, KeyRoutedEventArgs args)
     {
         if (args.Key != VirtualKey.Enter || receiptKeyboard.IsComposing ||
+            InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down) ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down)) return;
         args.Handled = true; await ApplyReceiptTextAsync();
@@ -177,7 +177,7 @@ public sealed partial class MainWindow
         }
         ScheduleReceiptViewport(false);
     }
-    private void ReceiptManipulationStarted(object sender, object args) => receiptScrollIntent = receiptScroller?.ScrollableHeight > 0;
+    private void ReceiptManipulationStarted(object? sender, object args) => receiptScrollIntent = receiptScroller?.ScrollableHeight > 0;
     private void ReceiptViewChanged(object? sender, ScrollViewerViewChangedEventArgs args)
     {
         if (receiptScroller is null) return;

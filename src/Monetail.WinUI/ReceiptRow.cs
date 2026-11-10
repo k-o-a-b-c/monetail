@@ -16,3 +16,5 @@ public sealed class ReceiptRow(ReceiptSummaryInfo receipt, Func<Guid, string> pa
     public event PropertyChangedEventHandler? PropertyChanged;
     public void RefreshName() => PropertyChanged?.Invoke(this, new(nameof(PaymentName)));
 }
+
+public sealed record ReceiptFilterChoice(Guid? Id, string Name);

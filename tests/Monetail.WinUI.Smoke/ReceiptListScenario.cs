@@ -13,7 +13,7 @@ public partial class App
     private async Task CheckReceiptList()
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true, ChoiceCount = 2 };
-        var masters = new PaymentServer(); var requests = new List<Uri>(); var fail = false; var count = 0;
+        var masters = new PaymentServer(); var ownPayment = masters.ActiveId; var expiredPayment = masters.ExpiredId; var otherPayment = masters.OtherActiveId; var requests = new List<Uri>(); var fail = false; var count = 0;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
         fixture.PaymentsHandler = masters.HandleAsync;
         fixture.ReceiptsHandler = (request, _) =>
@@ -23,7 +23,7 @@ public partial class App
             var offset = request.RequestUri!.Query.Contains("cursor=next", StringComparison.Ordinal) ? 100 : 0;
             var rows = Enumerable.Range(offset, Math.Min(100, Math.Max(0, count - offset))).Select(i => new ReceiptSummaryInfo(
                 Guid.Parse((i + 1).ToString("x32")), new(2026, 11, 10, 12, 34, 56), "店" + i, i == 0 ? null : "所在地",
-                i % 2 == 0 ? masters.ActiveId : masters.ExpiredId, -12345, null)).ToArray();
+                i % 3 == 0 ? ownPayment : i % 3 == 1 ? expiredPayment : otherPayment, -12345, null)).ToArray();
             return Task.FromResult(PaymentServer.Json(new ReceiptListInfo(rows, count > offset + 100 ? "next" : null)));
         };
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await Wait(() => window.ReceiptHomeReady);
@@ -41,6 +41,7 @@ public partial class App
         var first = (ReceiptRow)list.Items[0]; list.SelectedItem = first;
         Check(first.TransactionAt == "2026/11/10 12:34:56" && first.TotalAmount == (-12345).ToString("N0", CultureInfo.CurrentCulture) && first.ShopLocation == "" && first.Memo == "", "ローカル秒精度・NULLと保存済み合計額を表示し再計算しない");
         Check(first.PaymentName == "本日有効" && ((ReceiptRow)list.Items[1]).PaymentName == "終了済み", "過去の期間外支払方法も名称表示できる");
+        Check(((ReceiptRow)list.Items[2]).PaymentName == "（母）母の現金", "他人物所有は元の正式名称に人物名を付けて表示");
         var state = (ReceiptListState)typeof(MainWindow).GetField("receiptState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
         list.ScrollIntoView(list.Items[99]); await Settle();
         await state.ObserveViewportAsync(99, true, true); await Wait(() => list.Items.Count == 101);

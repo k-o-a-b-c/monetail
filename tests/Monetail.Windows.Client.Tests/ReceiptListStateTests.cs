@@ -25,6 +25,8 @@ public sealed class ReceiptListStateTests
         await state.ObserveViewportAsync(99, false, false); await state.ObserveViewportAsync(199, false, false);
         Assert.Equal(300, state.Rows.Count); Assert.True(state.CanContinue);
         await state.ObserveViewportAsync(299, false, false); Assert.Equal(3, calls);
+        await state.ObserveViewportAsync(299, true, false); Assert.False(state.CanContinue); Assert.Equal(3, calls);
+        await state.ObserveViewportAsync(299, false, false); Assert.True(state.CanContinue); Assert.Equal(3, calls);
         await state.ContinueAsync(); Assert.Equal(400, state.Rows.Count); Assert.True(state.CanContinue);
         await state.ObserveViewportAsync(399, false, false); Assert.Equal(4, calls);
         await state.ObserveViewportAsync(399, true, true); Assert.Equal(500, state.Rows.Count); Assert.Equal(selected, state.SelectedReceiptId);
