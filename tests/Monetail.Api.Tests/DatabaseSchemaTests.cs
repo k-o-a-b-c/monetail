@@ -58,7 +58,7 @@ public sealed class DatabaseSchemaTests
         using var client=app.Client(); await LoginTestApp.CsrfAsync(client);
         app.Database.Execute("""
             DROP TABLE ledger_categories;
-            CREATE TABLE ledger_categories(ledger_id TEXT,category_id TEXT,name TEXT,is_enabled INTEGER,display_order INTEGER,tax_category_code TEXT,income_expense TEXT,revision TEXT);
+            CREATE TABLE ledger_categories(ledger_id TEXT,category_id TEXT,name TEXT,is_enabled INTEGER,display_order INTEGER,tax_category_code TEXT,income_expense TEXT,revision TEXT,PRIMARY KEY(ledger_id,category_id));
             INSERT INTO ledger_categories VALUES('old-ledger','old-category','保持する旧科目',0,7,'Standard','Expense','old-revision');
             CREATE TABLE __MonetailMigrationsHistory(MigrationId TEXT PRIMARY KEY,ProductVersion TEXT);
             INSERT INTO __MonetailMigrationsHistory VALUES('20261106204316_AddLedgerCategoriesAndTaxHistory','10.0.13');
