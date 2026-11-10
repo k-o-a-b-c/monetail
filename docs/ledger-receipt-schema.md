@@ -4,7 +4,7 @@
 本書は**承認済みの業務・保存要件**と、**実装前に確認する物理列・索引・制約の設計案**を区別する。表に示す列や索引のうち明示的に確定していない物理仕様は、設計候補のまま扱う（Codexが独断で採用しない）。採用状況は[実装ガイド](ledger-receipt-implementation.md#db実装の判断境界)を参照。
 関連: [科目・税・権限](ledger-core-schema.md#category-receipt-handoff)、[計算・集計](12-calculation-contract.md)、[旧DB](02-database.md)、[既存の再送契約](ledger-operation-retries.md)。
 
-**実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと必要な索引を実装した。`ApiDbContext`から既存の`DatabaseSchema`を通じて新規DBへ作成し、初期化・通常利用時の構造照合にも含める。既存DBの自動更新・Migration追加は行わない。[工程2の共通計算・検証](ledger-receipt-api.md#工程2の実装と工程3への接続)も実装済み。詳細GET/書込APIと、保存トランザクション内のマスタ照会・有効期間/所属・使用済み科目の収支変更拒否への接続も実装済み。一覧GETも既存索引を利用して実装済み。候補・WinUIは後続工程。本工程ではDBスキーマ・初期化方式を変更しない。
+**実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと必要な索引を実装した。`ApiDbContext`から既存の`DatabaseSchema`を通じて新規DBへ作成し、初期化・通常利用時の構造照合にも含める。既存DBの自動更新・Migration追加は行わない。[工程2の共通計算・検証](ledger-receipt-api.md#工程2の実装と工程3への接続)も実装済み。詳細GET/書込APIと、保存トランザクション内のマスタ照会・有効期間/所属・使用済み科目の収支変更拒否への接続も実装済み。一覧GETも既存索引を利用して実装済み。履歴候補・自動補完もAPI実装済み。WinUIは後続工程。本工程ではDBスキーマ・初期化方式を変更しない。
 
 実装上の選択は、取引日時を`DateTime`と固定書式のTEXT変換（読込時は`Unspecified`）で保持し、監査日時は既存家計簿と同じUTC用`DateTime`とした。FKは親子もRESTRICTとし、必要なFK列索引はEFの規約と複合PK/索引の先頭列を利用する。一覧の必須索引は昇順B-treeの逆走査で日時・IDのBINARY降順を処理できることを実行計画で検証した。追加候補の支払方法・日時複合索引は今回追加していない。
 

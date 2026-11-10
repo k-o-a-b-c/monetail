@@ -2,7 +2,7 @@
 
 対象: ASP.NET Core API。レシートの読取・全体保存・入力検証・競合・再送の契約。物理列・FKは[DB定義](ledger-receipt-schema.md)、WinUIの状態遷移は[画面仕様](ledger-receipt-ui.md)、履歴候補GETは[候補API仕様](ledger-receipt-suggestions.md)を参照。日付・税額の計算は[計算契約](12-calculation-contract.md)。本書にある「未確定」「提案」は確定済みAPI契約へ昇格させない。
 
-**実装状態：** 詳細GET・POST/PUT/DELETEは既存の認証/CSRF/Origin、参照120回・書込20回、SQLiteトランザクションと共通再送記録へ接続済み。一覧GETも実装済み（下記の内部方式を参照）。履歴候補・WinUIは未実装。新規のレシート/グループ/明細はUUID v7、親更新版はUUID v4。既存子IDは差分更新で維持し、同じレシート内での明細のグループ移動もIDを変えない。無変更PUTは親をUPDATEせず、版一致を条件とした成功記録INSERTのみを行う。成功本文は常に空。POSTのLocationは詳細リソースのD形式URLとする。マスタの有効期間・所属・税率と参加/権限を確定前にも再検証し、競合latestも返却前にアクセスを確認する。
+**実装状態：** 詳細GET・POST/PUT/DELETEは既存の認証/CSRF/Origin、参照120回・書込20回、SQLiteトランザクションと共通再送記録へ接続済み。一覧GETも実装済み（下記の内部方式を参照）。[履歴候補・自動補完API](ledger-receipt-suggestions.md)も実装済み。WinUIは未実装。新規のレシート/グループ/明細はUUID v7、親更新版はUUID v4。既存子IDは差分更新で維持し、同じレシート内での明細のグループ移動もIDを変えない。無変更PUTは親をUPDATEせず、版一致を条件とした成功記録INSERTのみを行う。成功本文は常に空。POSTのLocationは詳細リソースのD形式URLとする。マスタの有効期間・所属・税率と参加/権限を確定前にも再検証し、競合latestも返却前にアクセスを確認する。
 
 ## 保存・取得・一覧の基本契約（DEC-224〜254）
 
