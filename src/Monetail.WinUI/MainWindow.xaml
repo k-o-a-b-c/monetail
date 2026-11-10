@@ -198,11 +198,11 @@
                                             <Grid MinWidth="1000" Padding="12,12" ColumnSpacing="12">
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                 <TextBlock Text="{x:Bind TransactionAt}"/>
-                                                <TextBlock Grid.Column="1" Text="{x:Bind ShopName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ShopName}"/>
-                                                <TextBlock Grid.Column="2" Text="{x:Bind ShopLocation}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ShopLocation}"/>
-                                                <TextBlock Grid.Column="3" Text="{x:Bind PaymentName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind PaymentName, Mode=OneWay}"/>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind ShopName}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding ShopName}"/>
+                                                <TextBlock Grid.Column="2" Text="{x:Bind ShopLocation}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding ShopLocation}"/>
+                                                <TextBlock Grid.Column="3" Text="{x:Bind PaymentName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding PaymentName}"/>
                                                 <TextBlock Grid.Column="4" Text="{x:Bind TotalAmount}" HorizontalAlignment="Right"/>
-                                                <TextBlock Grid.Column="5" Text="{x:Bind Memo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Memo}"/>
+                                                <TextBlock Grid.Column="5" Text="{x:Bind Memo}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Memo}"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
