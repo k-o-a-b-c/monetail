@@ -26,7 +26,7 @@ public static class LedgerReceiptModel
                 table.HasCheckConstraint("CK_ledger_receipts_recurrence",
                     "(recurrence_interval IS NULL AND recurrence_unit IS NULL) OR " +
                     "(recurrence_interval IS NOT NULL AND recurrence_unit IS NOT NULL AND " +
-                    "typeof(recurrence_interval) = 'integer' AND recurrence_interval >= 1 AND recurrence_unit IN ('Week','Month','Year'))");
+                    "typeof(recurrence_interval) = 'integer' AND recurrence_interval BETWEEN 1 AND 2147483647 AND recurrence_unit IN ('Week','Month','Year'))");
             });
             receipt.HasKey(row => new { row.LedgerId, row.Id });
             receipt.Property(row => row.LedgerId).HasColumnName("ledger_id");
@@ -71,7 +71,7 @@ public static class LedgerReceiptModel
         {
             detail.ToTable("ledger_receipt_details", table =>
             {
-                table.HasCheckConstraint("CK_ledger_receipt_details_order", "display_order >= 0");
+                table.HasCheckConstraint("CK_ledger_receipt_details_order", "typeof(display_order) = 'integer' AND display_order BETWEEN 0 AND 2147483647");
                 table.HasCheckConstraint("CK_ledger_receipt_details_price", Int32("unit_price"));
                 table.HasCheckConstraint("CK_ledger_receipt_details_discount_amount", Int32("unit_discount_amount"));
                 table.HasCheckConstraint("CK_ledger_receipt_details_quantity", "typeof(quantity) = 'integer' AND quantity BETWEEN 1 AND 2147483647");

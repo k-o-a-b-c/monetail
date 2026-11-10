@@ -138,16 +138,29 @@ public sealed class ReceiptSchemaTests
     [InlineData("0", "'Week'")]
     [InlineData("-1", "'Month'")]
     [InlineData("1.5", "'Month'")]
+    [InlineData("0.5", "'Week'")]
+    [InlineData("2147483648", "'Month'")]
+    [InlineData("9223372036854775807", "'Year'")]
+    [InlineData("'not-an-integer'", "'Week'")]
+    [InlineData("X'01'", "'Week'")]
     [InlineData("1", "'Day'")]
     public async Task RecurrenceRejectsUnpairedNullsInvalidIntervalsAndUnknownUnits(string interval, string unit)
     {
         using var db = new AuthDatabaseFixture(); var seed = await SeedAsync(db);
         using var connection = db.OpenForeignKeyConnection(); InsertReceipt(connection, seed, seed.Ledger, Id());
+        var before = db.Snapshot(db.Tables());
         Constraint(() => Execute(connection, $"UPDATE ledger_receipts SET recurrence_interval={interval},recurrence_unit={unit}"));
+        Assert.Equal(before, db.Snapshot(db.Tables()));
     }
 
     [Theory]
     [InlineData("display_order", "-1")]
+    [InlineData("display_order", "0.5")]
+    [InlineData("display_order", "2147483648")]
+    [InlineData("display_order", "9223372036854775807")]
+    [InlineData("display_order", "'not-an-integer'")]
+    [InlineData("display_order", "X'01'")]
+    [InlineData("display_order", "NULL")]
     [InlineData("unit_price", "2147483648")]
     [InlineData("unit_price", "-2147483649")]
     [InlineData("unit_price", "0.5")]
@@ -163,7 +176,35 @@ public sealed class ReceiptSchemaTests
     {
         using var db = new AuthDatabaseFixture(); var seed = await SeedAsync(db);
         using var connection = db.OpenForeignKeyConnection(); InsertTree(connection, seed);
+        var before = db.Snapshot(db.Tables());
         Constraint(() => Execute(connection, $"UPDATE ledger_receipt_details SET {column}={value}"));
+        Assert.Equal(before, db.Snapshot(db.Tables()));
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 2147483647)]
+    [InlineData(2147483647, 2147483647)]
+    public async Task DisplayOrderAndRecurrenceInt32BoundariesRoundTripWithoutChangingOtherValues(int order, int interval)
+    {
+        using var db = new AuthDatabaseFixture(); var seed = await SeedAsync(db);
+        using var connection = db.OpenForeignKeyConnection(); InsertTree(connection, seed);
+        var revision = db.Scalar("SELECT revision FROM ledger_receipts");
+        Execute(connection, "UPDATE ledger_receipt_details SET display_order=$order", ("$order", order));
+        foreach (var unit in new[] { "Week", "Month", "Year" })
+        {
+            Execute(connection, "UPDATE ledger_receipts SET recurrence_interval=$interval,recurrence_unit=$unit", ("$interval", interval), ("$unit", unit));
+            await using var services = db.CreateServices(); await using var scope = services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>();
+            Assert.Equal(order, (await context.Set<LedgerReceiptDetail>().SingleAsync()).DisplayOrder);
+            var receipt = await context.Set<LedgerReceipt>().SingleAsync();
+            Assert.Equal(interval, receipt.RecurrenceInterval); Assert.Equal(unit, receipt.RecurrenceUnit);
+            Assert.Equal(revision, receipt.Revision);
+        }
+        Execute(connection, "UPDATE ledger_receipts SET recurrence_interval=NULL,recurrence_unit=NULL");
+        var before = db.Snapshot(db.Tables());
+        await db.InitializeAsync();
+        Assert.Equal(before, db.Snapshot(db.Tables()));
     }
 
     [Fact]
@@ -264,7 +305,9 @@ public sealed class ReceiptSchemaTests
     [InlineData("DROP INDEX ix_ledger_receipt_details_order")]
     [InlineData("DROP TABLE ledger_receipt_detail_people")]
     [InlineData("PRAGMA writable_schema=ON; UPDATE sqlite_master SET sql=replace(sql, 'ON DELETE RESTRICT', 'ON DELETE CASCADE') WHERE name='ledger_receipts'; PRAGMA writable_schema=OFF;")]
-    [InlineData("PRAGMA writable_schema=ON; UPDATE sqlite_master SET sql=replace(sql, 'display_order >= 0', 'display_order >= -1') WHERE name='ledger_receipt_details'; PRAGMA writable_schema=OFF;")]
+    [InlineData("PRAGMA writable_schema=ON; UPDATE sqlite_master SET sql=replace(sql, 'display_order BETWEEN 0 AND 2147483647', 'display_order BETWEEN -1 AND 2147483647') WHERE name='ledger_receipt_details'; PRAGMA writable_schema=OFF;")]
+    [InlineData("PRAGMA writable_schema=ON; UPDATE sqlite_master SET sql=replace(sql, 'typeof(display_order) = ''integer'' AND display_order BETWEEN 0 AND 2147483647', 'display_order >= 0') WHERE name='ledger_receipt_details'; PRAGMA writable_schema=OFF;")]
+    [InlineData("PRAGMA writable_schema=ON; UPDATE sqlite_master SET sql=replace(sql, 'recurrence_interval BETWEEN 1 AND 2147483647', 'recurrence_interval >= 1') WHERE name='ledger_receipts'; PRAGMA writable_schema=OFF;")]
     public async Task MissingOrChangedReceiptStructureIsRefusedWithoutRepairOnInitializationAndNormalUse(string damage)
     {
         using var db = new AuthDatabaseFixture(); var seed = await SeedAsync(db);

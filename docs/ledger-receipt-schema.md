@@ -36,7 +36,7 @@
 | `payment_method_id` | TEXT NOT NULL | `(ledger_id, payment_method_id)`で支払方法FK |
 | `tax_inclusion_mode` | INTEGER NOT NULL | 0=税込、1=税抜（旧版`tax_type`の値と計算契約は維持） |
 | `tax_rounding_mode` | TEXT NOT NULL | `floor` / `half_up` |
-| `recurrence_interval` | INTEGER NULL | 周期間隔。設定時は1以上の正整数 |
+| `recurrence_interval` | INTEGER NULL | 周期間隔。設定時は整数、1〜2,147,483,647（Int32） |
 | `recurrence_unit` | TEXT NULL | `Week` / `Month` / `Year` |
 | `total_amount` | INTEGER NOT NULL（確定） | 保存時に計算した合計を必ず保持。符号付きInt32範囲内。旧版のNULL値は移行時に個別対応 |
 | `memo` | TEXT NULL | レシート自由記述。旧`tag`相当 |
@@ -50,7 +50,7 @@
 
 - `FK(ledger_id)→ledgers(id)`、`FK(ledger_id,payment_method_id)→ledger_payment_methods(ledger_id,payment_method_id)`を設ける。**作成者・更新者の両IDはそれぞれ`AspNetUsers(Id)`へのRESTRICT FKを設定する（確定）**。レシート監査情報に参照されている認証アカウントは物理削除不可とし、無効化しても履歴と認証IDを残す。アカウント退会・削除機能は現時点で未実装であり、将来の退会仕様は別途検討する。
 - `CHECK(tax_inclusion_mode IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total_amount`はNOT NULLかつ符号付きInt32範囲内。
-- 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`recurrence_interval >= 1`かつ`recurrence_unit IN ('Week','Month','Year')`をDBとAPIの両方で検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
+- 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`typeof(recurrence_interval) = 'integer'`かつ`recurrence_interval BETWEEN 1 AND 2147483647`、`recurrence_unit IN ('Week','Month','Year')`をDBで検証し、APIでも同じ値域を検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
 - 周期がある場合、レシート内に`occurrence_type='Regular'`の明細が**1件以上必須**。周期なしでも定期明細を認める。これは行をまたぐためAPIの一括保存トランザクションで検証する。
 - **一覧GETのキーセットページングに用いる索引**：`(ledger_id, transaction_at, receipt_id)`はDEC-231で参照する検索順序に合わせて整備する（時刻降順・IDのBINARY降順を検証）。**追加最適化の候補**：支払方法絞り込み用の`(ledger_id, payment_method_id, transaction_at, receipt_id)`は、検索の実行計画・計測で必要性を確認して採否を判断する。両者を無条件に「確定済み索引2本」と扱わない。日時TEXTは**DEC-253の`yyyy-MM-ddTHH:mm:ss`（小数秒なし・オフセットなし）**に統一し、字句順が時系列順と一致する。
 - `revision`はレシート親のみ。明細・グループ単位の更新版は持たない。
@@ -88,7 +88,7 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 | `ledger_id` | TEXT NOT NULL | 家計簿ID、PKの一部 |
 | `detail_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `group_id` | TEXT NOT NULL | 同一家計簿グループへのFK |
-| `display_order` | INTEGER NOT NULL | グループ内の並び順、0以上 |
+| `display_order` | INTEGER NOT NULL | グループ内の並び順。`typeof()`で整数かつ0〜2,147,483,647（Int32）を検証 |
 | `name` | TEXT NOT NULL | 明細名。**上限100 UTF-16コード単位（DEC-211）** |
 | `unit_price` | INTEGER NOT NULL | 単価、符号付きInt32（旧版`fee`） |
 | `quantity` | INTEGER NOT NULL | 数量、1以上・Int32上限以下 |
