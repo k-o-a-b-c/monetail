@@ -18,7 +18,7 @@ public partial class App
             fixture.HasPreviousLedger = true;
             fixture.PeopleHandler = server.HandleAsync;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 2);
             var list = Find<ListView>(root, "PeopleList");
@@ -168,7 +168,7 @@ public partial class App
             fixture.HasPreviousLedger = true;
             fixture.PeopleHandler = server.HandleAsync;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 2);
             await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
@@ -178,14 +178,14 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
             await Settle();
             Check(!EditorClosed(root) && Find<TextBox>(root, "PersonName").Text == "破棄する編集" &&
-                Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible && server.Reads == 1,
+                Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible && server.Reads == 2,
                 "人物ダイアログを開いている間は背後の移動で入力を破棄しない");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonButton"));
             await Wait(() => EditorClosed(root));
             navigation.SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
             await Settle();
             navigation.SelectedItem = Find<NavigationViewItem>(root, "PeopleNavigation");
-            await Wait(() => server.Reads == 2);
+            await Wait(() => server.Reads == 3);
             await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
             await Settle();
             Check(Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0,

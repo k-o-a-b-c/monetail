@@ -15,7 +15,7 @@ public partial class App
         using (var fixture = new SyntheticConnection())
         {
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             Check(Visible(root, "ConnectionPage"), "未設定なら同じWindowで接続先を入力");
             await Task.Delay(TimeSpan.FromMilliseconds(1100));
             Check(Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed &&
@@ -108,7 +108,7 @@ public partial class App
         {
             fixture.FailConnection = true;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             Check(Visible(root, "FailurePage") && fixture.Tokens.Current is not null,
                 "起動の通信失敗は認証を消さず再試行・接続先変更・終了を表示");
             fixture.FailConnection = false;
@@ -124,7 +124,7 @@ public partial class App
         {
             fixture.ChoiceCount = 2;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             var choices = Find<ListView>(root, "LedgerChoices");
             Check(Visible(root, "LedgerChoicePage") && choices.Items.Count == 2, "履歴なしで複数所属なら家計簿選択");
             choices.SelectedIndex = 1;
@@ -137,7 +137,7 @@ public partial class App
         {
             fixture.RejectAuthentication = true;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             Check(Visible(root, "LoginPage") && fixture.Tokens.Current is null && fixture.Settings.Load() is not null,
                 "失効した保存ログインは認証だけを破棄し接続設定を残す");
         }
@@ -146,7 +146,7 @@ public partial class App
         {
             fixture.HasPreviousLedger = true;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
@@ -183,7 +183,7 @@ public partial class App
         {
             fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             Check(fixture.ConnectionCancelled && Visible(root, "FailurePage") && fixture.Tokens.Current is not null &&
                 !Find<ProgressRing>(root, "StartupProgress").IsActive,
                 "起動接続が10秒でタイムアウトしたら認証を残してエラー表示へ進む");
@@ -194,7 +194,7 @@ public partial class App
             fixture.HasPreviousLedger = true;
             fixture.RateLimitOpening = true;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
             Check(Visible(root, "FailurePage") && Find<TextBlock>(root, "FailureMessage").Text.Contains("操作回数"),
                 "起動先を開けない場合も待機画面に取り残さず再試行を表示");
             fixture.RateLimitOpening = false;
@@ -202,6 +202,12 @@ public partial class App
             await Wait(() => Visible(root, "HomePage"));
             Check(fixture.Tokens.Current is not null, "起動先の失敗から本人の再試行で復帰");
         }
+    }
+
+    private async Task StartSyntheticAsync()
+    {
+        await window!.StartAsync();
+        if (Visible((FrameworkElement)window.Content, "HomePage")) await Wait(() => window.ReceiptHomeReady);
     }
 
     private async Task<FrameworkElement> OpenSyntheticWindow(SyntheticConnection fixture)
@@ -244,6 +250,7 @@ public partial class App
         internal Uri? AuthorizationUri;
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
+        internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ReceiptsHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PeopleHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PaymentsHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? CategoriesHandler;
@@ -334,6 +341,9 @@ public partial class App
             }
             if (path == $"/ledgers/{second.LedgerId:N}/open") return Json(second);
             if (path == $"/ledgers/{first.LedgerId:N}/open") return CannotOpenLedger ? new(HttpStatusCode.NotFound) : Json(first);
+            if (path.EndsWith("/receipts", StringComparison.Ordinal))
+                return ReceiptsHandler is not null ? await ReceiptsHandler(request, token) : Json(new ReceiptListInfo([], null));
+            if (path.EndsWith("/payment-methods", StringComparison.Ordinal) && PaymentsHandler is null) return Json(new PaymentMethodsInfo([], [], null, "Admin"));
             if (ParticipantsHandler is not null && (path.Contains("/members", StringComparison.Ordinal) || path.Contains("/invitations", StringComparison.Ordinal)))
                 return await ParticipantsHandler(request, token);
             if (CategoriesHandler is not null && path.Contains("/categories", StringComparison.Ordinal))
@@ -342,7 +352,7 @@ public partial class App
                 return await PaymentsHandler(request, token);
             if (PeopleHandler is not null && path.Contains("/people", StringComparison.Ordinal))
                 return await PeopleHandler(request, token);
-            if (path == $"/ledgers/{first.LedgerId:N}/people") return Json(new PeopleInfo(
+            if (path.EndsWith("/people", StringComparison.Ordinal)) return Json(new PeopleInfo(
                 [new(person, "父", null, null, 0, Guid.NewGuid())], person, "Admin", Guid.NewGuid()));
             throw new InvalidOperationException("想定しない合成API要求: " + path);
         }

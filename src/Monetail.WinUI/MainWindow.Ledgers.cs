@@ -33,6 +33,7 @@ public sealed partial class MainWindow
 
     private void ClearLedger()
     {
+        ResetReceipts();
         currentLedger = null;
         ResetParticipants();
         ResetCategories();

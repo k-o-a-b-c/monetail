@@ -49,6 +49,7 @@ public sealed partial class MainWindow
 
     private void DisplayMembers(MembersInfo info)
     {
+        if (currentLedger is { } ledger) connection.Masters.UpdateIdentity(ledger.LedgerId, info.Members.FirstOrDefault(row => row.AccountId == info.CurrentAccountId)?.PersonId);
         membersInfo = info;
         peoplePermissions = new(info.CurrentRole, info.Members.FirstOrDefault(row => row.AccountId == info.CurrentAccountId)?.PersonId);
         ParticipantsList.ItemsSource = info.Members.Select(member => new ParticipantRow(member, member.AccountId == info.CurrentAccountId)).ToArray();

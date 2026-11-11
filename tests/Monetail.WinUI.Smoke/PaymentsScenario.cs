@@ -22,11 +22,12 @@ public partial class App
         fixture.HasPreviousLedger = true;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(server.People()));
         fixture.PaymentsHandler = server.HandleAsync;
-        var root = await OpenSyntheticWindow(fixture); await window!.StartAsync();
+        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
+        await Wait(() => window!.ReceiptHomeReady);
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 3);
         Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "PaymentsNavigation");
-        await Wait(() => server.Reads == 1 && Find<ListView>(root, "PaymentsList").Items.Count == 2 && Find<ListView>(root, "PaymentsList").IsLoaded);
+        await Wait(() => server.Reads == 2 && Find<ListView>(root, "PaymentsList").Items.Count == 2 && Find<ListView>(root, "PaymentsList").IsLoaded);
         await Settle(); return root;
     }
     private static async Task OpenPaymentDialog(FrameworkElement root, string button)
@@ -58,7 +59,7 @@ public partial class App
                 "本日両端を含む有効期間で絞り込み、将来開始と終了済みを初期表示から除く");
             Check(!All(list).OfType<TextBlock>().Any(t => t.Text == "空人物"), "表示0件の人物見出しは非表示");
             Find<CheckBox>(root, "IncludeInactivePayments").IsChecked = true;
-            Check(list.Items.Count == 4 && server.Reads == 1, "有効期間外表示は保持した全件を使い、追加通信しない");
+            Check(list.Items.Count == 4 && server.Reads == 2, "有効期間外表示は保持した全件を使い、追加通信しない");
             Check(!Find<Button>(root, "EditPaymentButton").IsEnabled && !Find<Button>(root, "DeletePaymentButton").IsEnabled, "未選択の編集と削除は無効");
             window!.AppWindow.ResizeClient(new global::Windows.Graphics.SizeInt32(900, 620)); await Settle();
             Check(list.ActualHeight > 0 && list.ActualWidth > 0, "支払方法一覧は狭いウィンドウでもスクロール領域を保持");
@@ -81,7 +82,7 @@ public partial class App
             await Wait(() => Find<TextBlock>(root, "PaymentSaveError").Visibility == Visibility.Visible);
             Check(Find<TextBox>(root, "PaymentName").Text == "  登録  " && Find<DateInputBox>(root, "PaymentFrom").Text == "", "通信失敗は入力を保持し、不正な任意日付は空欄へ補完");
             await InvokeAsync(() => PaymentFooter(root, true)); await Wait(() => PaymentEditorClosed(root));
-            Check(server.Writes.Count == 2 && server.Writes[0].Body == server.Writes[1].Body && server.Reads == 1,
+            Check(server.Writes.Count == 2 && server.Writes[0].Body == server.Writes[1].Body && server.Reads == 2,
                 "作成の通信再試行は同じrequestIdと本文を維持し、成功応答だけで一覧を更新");
             SelectPaymentRow(root, server.ActiveId); await OpenPaymentDialog(root, "EditPaymentButton");
             Check(Find<ComboBox>(root, "PaymentOwnerChoice").Visibility == Visibility.Collapsed && Find<TextBlock>(root, "PaymentOwnerName").Text == "父",
@@ -103,7 +104,7 @@ public partial class App
             var createdId = server.Rows.Single(r => r.Name == "登録").PaymentMethodId;
             SelectPaymentRow(root, createdId); await OpenPaymentDialog(root, "DeletePaymentButton");
             await InvokeAsync(() => PaymentFooter(root, true)); await Wait(() => PaymentEditorClosed(root));
-            Check(!list.Items.Cast<PaymentRow>().Any(r => r.Payment.PaymentMethodId == createdId) && server.Reads == 1,
+            Check(!list.Items.Cast<PaymentRow>().Any(r => r.Payment.PaymentMethodId == createdId) && server.Reads == 2,
                 "未使用の削除成功は応答だけで一覧へ反映");
             var reads = server.Reads;
             await OpenOrderFor(root, server.Mine);

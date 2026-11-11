@@ -20,7 +20,7 @@ public partial class App
     private async Task<FrameworkElement> OpenCategoriesWindow(SyntheticConnection fixture, CategoryServer server)
     {
         fixture.HasPreviousLedger = true; fixture.CategoriesHandler = server.HandleAsync;
-        var root = await OpenSyntheticWindow(fixture); await window!.StartAsync();
+        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
         Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "CategoriesNavigation");
