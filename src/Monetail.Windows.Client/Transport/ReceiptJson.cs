@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace Monetail.Windows.Client.Transport;
 
-/// <summary>レシート成功本文だけを型付きで逐次読み込む。既存API/エラーの64KiB上限は維持する。</summary>
+/// <summary>レシート階層と専用409を逐次読み込む。他APIと他エラーの64KiB上限は維持する。</summary>
 internal static class ReceiptJson
 {
     private static readonly JsonSerializerOptions Options = new()
@@ -15,6 +15,7 @@ internal static class ReceiptJson
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow, AllowDuplicateProperties = false,
         Converters = { new Identifier(), new LocalTimestamp(), new DecimalString() }
     };
+    internal static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Options);
     internal static async Task<T> ReadAsync<T>(HttpContent content, CancellationToken token) where T : class
     {
         try

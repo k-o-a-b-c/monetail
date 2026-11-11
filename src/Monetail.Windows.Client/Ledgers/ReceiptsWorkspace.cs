@@ -69,9 +69,20 @@ internal static class ReceiptQueries
     internal static string Encode(params (string Key, string? Value)[] fields) => string.Join("&", fields.Where(f => f.Value is not null).Select(f => f.Key + "=" + Uri.EscapeDataString(f.Value!)));
 }
 
-/// <summary>認証更新を共用する読取窓口。再取得・自動業務再試行・キャッシュ更新はしない。</summary>
+/// <summary>認証更新を共用する窓口。再取得・自動業務再試行・キャッシュ更新はしない。</summary>
 public sealed class ReceiptsWorkspace(MonetailApiClient api, ClientSession session, Guid ledgerId)
 {
+    public Task CreateAsync(ReceiptWriteRequest request, CancellationToken token = default) => WriteAsync(request, ReceiptWriteOperation.Create, token);
+    public Task UpdateAsync(ReceiptWriteRequest request, CancellationToken token = default) => WriteAsync(request, ReceiptWriteOperation.Update, token);
+    public Task DeleteAsync(ReceiptWriteRequest request, CancellationToken token = default) => WriteAsync(request, ReceiptWriteOperation.Delete, token);
+    private Task WriteAsync(ReceiptWriteRequest request, ReceiptWriteOperation operation, CancellationToken token)
+    {
+        request.CheckTarget(ledgerId, operation);
+        return session.ExecuteAuthenticatedAsync(async (access, ct) =>
+        {
+            await api.WriteReceiptAsync(access, request, ct); return true;
+        }, token);
+    }
     public Task<ReceiptListInfo> ListAsync(ReceiptListQuery query, CancellationToken token = default) =>
         session.ExecuteAuthenticatedAsync((access, ct) => api.ListReceiptsAsync(access, ledgerId, query, ct), token);
     public Task<ReceiptInfo> GetAsync(Guid receiptId, CancellationToken token = default) =>

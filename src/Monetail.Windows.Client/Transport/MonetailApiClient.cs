@@ -92,7 +92,9 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
     private async Task<T> SendResponseAsync<T>(HttpMethod method, string path, string? bearer,
         Dictionary<string, string>? form, bool tokenExchange, CancellationToken cancellationToken,
         Func<HttpContent, CancellationToken, Task<T>> readSuccess, HttpContent? body = null,
-        Func<HttpStatusCode, byte[], Exception>? failure = null, bool includeStoreFailure = false)
+        Func<HttpStatusCode, byte[], Exception>? failure = null, bool includeStoreFailure = false,
+        HttpStatusCode? successStatus = null, Func<HttpResponseMessage, CancellationToken, Task<Exception>>? readFailure = null,
+        Func<Exception, Exception>? connectionFailure = null)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ConnectionTimeout);
@@ -106,7 +108,12 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
             if (response.StatusCode == HttpStatusCode.Unauthorized && bearer is not null) throw new AuthenticationRejectedException();
             // 方向転換先へ認証情報を持ち出さない。生成用HttpClientでは自動転送も無効にする。
             if ((int)response.StatusCode is >= 300 and < 400) throw new ApiConnectionException();
-            if (response.IsSuccessStatusCode) return await readSuccess(response.Content, timeout.Token);
+            if (response.IsSuccessStatusCode)
+            {
+                if (successStatus is not null && response.StatusCode != successStatus) throw new ApiConnectionException();
+                return await readSuccess(response.Content, timeout.Token);
+            }
+            if (readFailure is not null) throw await readFailure(response, timeout.Token);
             var bytes = await ReadBoundedAsync(response.Content, timeout.Token);
             if (failure is not null && (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Forbidden or
                 HttpStatusCode.NotFound or HttpStatusCode.Conflict or HttpStatusCode.TooManyRequests ||
@@ -122,10 +129,10 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
             }
             throw new ApiConnectionException();
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { throw new ApiConnectionException(); }
-        catch (HttpRequestException) { throw new ApiConnectionException(); }
-        catch (IOException) { throw new ApiConnectionException(); }
-        catch (FormatException) { throw new ApiConnectionException(); }
+        catch (OperationCanceledException error) when (!cancellationToken.IsCancellationRequested) { throw connectionFailure?.Invoke(error) ?? new ApiConnectionException(); }
+        catch (HttpRequestException error) { throw connectionFailure?.Invoke(error) ?? new ApiConnectionException(); }
+        catch (IOException error) { throw connectionFailure?.Invoke(error) ?? new ApiConnectionException(); }
+        catch (FormatException error) { throw connectionFailure?.Invoke(error) ?? new ApiConnectionException(); }
     }
 
     private static async Task<byte[]> ReadBoundedAsync(HttpContent content, CancellationToken cancellationToken)
