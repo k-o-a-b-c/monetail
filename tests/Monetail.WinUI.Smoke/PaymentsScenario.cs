@@ -23,7 +23,7 @@ public partial class App
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(server.People()));
         fixture.PaymentsHandler = server.HandleAsync;
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
-        await Wait(() => window.ReceiptHomeReady);
+        await Wait(() => window!.ReceiptHomeReady);
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 3);
         Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "PaymentsNavigation");

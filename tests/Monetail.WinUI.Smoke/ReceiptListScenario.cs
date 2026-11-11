@@ -26,7 +26,7 @@ public partial class App
                 i % 3 == 0 ? ownPayment : i % 3 == 1 ? expiredPayment : otherPayment, -12345, null)).ToArray();
             return Task.FromResult(PaymentServer.Json(new ReceiptListInfo(rows, count > offset + 100 ? "next" : null)));
         };
-        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await Wait(() => window.ReceiptHomeReady);
+        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await Wait(() => window!.ReceiptHomeReady);
         var list = Find<ListView>(root, "ReceiptList");
         Check(Find<TextBlock>(root, "ReceiptEmpty").Visibility == Visibility.Visible && requests.Count == 1, "0件は中央表示で追加要求しない");
         var month = Find<TextBox>(root, "ReceiptMonth"); var shop = Find<TextBox>(root, "ReceiptShop");
@@ -34,9 +34,9 @@ public partial class App
         month.Text = "invalid"; shop.Text = "入力途中"; await InvokeAsync(() => Find<Button>(root, "ReceiptSearchButton"));
         Check(requests.Count == 1 && Find<TextBlock>(root, "ReceiptMonthError").Visibility == Visibility.Visible, "不正年月はAPIを呼ばず入力欄で案内");
         month.Text = "2026-12";
-        Find<ComboBox>(root, "ReceiptOwner").SelectedIndex = 1; await Wait(() => window.ReceiptHomeReady && requests.Count == 2);
+        Find<ComboBox>(root, "ReceiptOwner").SelectedIndex = 1; await Wait(() => window!.ReceiptHomeReady && requests.Count == 2);
         Check(requests[^1].Query.Contains("month=" + current) && !requests[^1].Query.Contains(Uri.EscapeDataString("入力途中")) && month.Text == "2026-12" && shop.Text == "入力途中", "選択変更は確定済み条件を使用し年月と店名の下書きを保持");
-        count = 101; await InvokeAsync(() => Find<Button>(root, "ReceiptSearchButton")); await Wait(() => window.ReceiptHomeReady && list.Items.Count == 100);
+        count = 101; await InvokeAsync(() => Find<Button>(root, "ReceiptSearchButton")); await Wait(() => window!.ReceiptHomeReady && list.Items.Count == 100);
         Check(requests[^1].Query.Contains("month=2026-12") && requests[^1].Query.Contains(Uri.EscapeDataString("入力途中")), "検索ボタンで年月と店名を一括確定");
         await Wait(() => All(list).OfType<TextBlock>().Any(t => t.Text == "店0"));
         Check(All(list).OfType<TextBlock>().Any(t => t.Text == "2026/11/10 12:34:56") && All(list).OfType<TextBlock>().Any(t => t.Text == (-12345).ToString("N0", CultureInfo.CurrentCulture)), "一覧の実TextBlockへ日時・保存済み額をバインド");
@@ -62,7 +62,7 @@ public partial class App
         fail = true; await InvokeAsync(() => Find<Button>(root, "ReceiptSearchButton"));
         await Wait(() => Find<StackPanel>(root, "ReceiptInitialFailure").Visibility == Visibility.Visible);
         var failedReads = requests.Count; await Settle(); Check(requests.Count == failedReads && Find<Button>(root, "SettingsButton").IsEnabled, "初回エラーは自動再試行せず他操作を妨げない");
-        count = 1; await InvokeAsync(() => Find<Button>(root, "ReceiptInitialRetry")); await Wait(() => list.Items.Count == 1 && window.ReceiptHomeReady);
+        count = 1; await InvokeAsync(() => Find<Button>(root, "ReceiptInitialRetry")); await Wait(() => list.Items.Count == 1 && window!.ReceiptHomeReady);
         Check(Find<StackPanel>(root, "ReceiptInitialFailure").Visibility == Visibility.Collapsed, "明示再試行で初回エラーから復帰");
         // 本人・接続先を変える操作は既存の実画面操作を通し、旧キャッシュが残らないことを確認する。
         await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Wait(() => Find<ContentControl>(root, "Operations").IsEnabled);
