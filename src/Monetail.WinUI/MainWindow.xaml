@@ -333,7 +333,7 @@
                                     <ComboBox x:Name="ReceiptCategoryChoice" Header="追加する科目" IsTextSearchEnabled="True" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptCategoryChoiceChanged"/>
                                     <Button x:Name="ReceiptCategoryAdd" Grid.Column="1" Content="追加" Click="AddReceiptCategory" IsEnabled="False" VerticalAlignment="Bottom"/>
                                 </Grid>
-                                <ListView x:Name="ReceiptCategories" SelectionMode="Single" SingleSelectionFollowsFocus="False" IsItemClickEnabled="True" ItemClick="ReceiptCategoryClicked" KeyDown="ReceiptCategoryKeyDown" MaxHeight="260" MinHeight="100" AutomationProperties.Name="追加済み科目">
+                                <ListView x:Name="ReceiptCategories" SelectionChanged="ReceiptGroupSelectionChanged" SelectionMode="Single" SingleSelectionFollowsFocus="False" IsItemClickEnabled="True" ItemClick="ReceiptCategoryClicked" KeyDown="ReceiptCategoryKeyDown" MaxHeight="260" MinHeight="100" AutomationProperties.Name="追加済み科目">
                                     <ListView.ItemTemplate><DataTemplate x:DataType="local:ReceiptCategoryRow">
                                         <Grid Padding="4,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                             <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/>
@@ -344,12 +344,71 @@
                                 <TextBox x:Name="ReceiptCategoryMemo" Header="科目メモ" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="ReceiptGroupMemoChanged" IsEnabled="False"/>
                                 <Button x:Name="ReceiptCategoryRemove" Content="科目を削除" Click="RemoveReceiptCategory" IsEnabled="False"/>
                             </StackPanel>
-                            <Border x:Name="ReceiptDetailsArea" Grid.Column="1" Padding="16" BorderThickness="1" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" CornerRadius="8" MinHeight="220">
-                                <StackPanel Spacing="12">
-                                    <TextBlock Text="明細" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                    <TextBlock Text="明細の入力・一覧は後続工程で追加します。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <StackPanel x:Name="ReceiptDetailsArea" Grid.Column="1" Spacing="8" MinHeight="220" KeyDown="ReceiptDetailKeyDown">
+                                <TextBlock Text="明細" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                <Grid x:Name="ReceiptDetailForm" ColumnSpacing="16" RowSpacing="8" SizeChanged="ReceiptDetailFormSizeChanged">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <StackPanel Spacing="8">
+                                        <TextBox x:Name="ReceiptItemName" Header="品名" TextChanged="ReceiptDetailTextChanged"/>
+                                        <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                            <TextBox x:Name="ReceiptItemPrice" Header="単価" TextChanged="ReceiptDetailTextChanged"/>
+                                            <TextBox x:Name="ReceiptItemQuantity" Grid.Column="1" Header="数量" TextChanged="ReceiptDetailTextChanged"/>
+                                        </Grid>
+                                        <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                            <TextBox x:Name="ReceiptItemDiscount" Header="単価値引（円）" TextChanged="ReceiptDetailTextChanged"/>
+                                            <TextBox x:Name="ReceiptItemRateDiscount" Grid.Column="1" Header="率値引（%）" TextChanged="ReceiptDetailTextChanged"/>
+                                        </Grid>
+                                        <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="ReceiptItemTax" Header="税率" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged"/>
+                                            <ComboBox x:Name="ReceiptItemExpense" Grid.Column="1" Header="費用区分" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged">
+                                                <ComboBoxItem Content="固定費" Tag="Fixed"/><ComboBoxItem Content="変動費" Tag="Variable"/><ComboBoxItem Content="対象外" Tag="Excluded"/>
+                                            </ComboBox>
+                                        </Grid>
+                                        <ComboBox x:Name="ReceiptItemOccurrence" Header="発生区分" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged">
+                                            <ComboBoxItem Content="定期" Tag="Regular"/><ComboBoxItem Content="不定期" Tag="Irregular"/><ComboBoxItem Content="臨時" Tag="Temporary"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel x:Name="ReceiptDetailPeoplePane" Grid.Column="1" Spacing="4">
+                                        <TextBlock Text="対象人物"/>
+                                        <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsTabStop="False">
+                                            <StackPanel x:Name="ReceiptDetailPeople" KeyDown="ReceiptPeopleKeyDown"/>
+                                        </ScrollViewer>
+                                        <TextBlock Text="0人でも追加できます" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="税率履歴は未接続です。新規の課税税率は未選択のままです。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBox x:Name="ReceiptItemMemo" Header="明細メモ" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="ReceiptDetailTextChanged"/>
+                                <TextBlock x:Name="ReceiptDetailError" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                <Button x:Name="ReceiptDetailApply" Content="追加" HorizontalAlignment="Right" Click="ApplyReceiptDetail" IsEnabled="False"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="ReceiptDetailReuse" Content="流用" Click="ReuseReceiptDetail" IsEnabled="False"/>
+                                    <Button x:Name="ReceiptDetailDelete" Content="削除" Click="DeleteReceiptDetail" IsEnabled="False"/>
+                                    <Button x:Name="ReceiptDetailUp" Content="↑" AutomationProperties.Name="明細を上へ" Click="MoveReceiptDetailUp" IsEnabled="False"/>
+                                    <Button x:Name="ReceiptDetailDown" Content="↓" AutomationProperties.Name="明細を下へ" Click="MoveReceiptDetailDown" IsEnabled="False"/>
                                 </StackPanel>
-                            </Border>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" IsTabStop="False">
+                                    <StackPanel MinWidth="620">
+                                        <Grid ColumnSpacing="8" Padding="12,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="60"/><ColumnDefinition Width="140"/><ColumnDefinition Width="75"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="品名"/><TextBlock Grid.Column="1" Text="単価" HorizontalAlignment="Right"/><TextBlock Grid.Column="2" Text="数量" HorizontalAlignment="Right"/>
+                                            <TextBlock Grid.Column="3" Text="値引" HorizontalAlignment="Right"/><TextBlock Grid.Column="4" Text="税率" HorizontalAlignment="Right"/><TextBlock Grid.Column="5" Text="参考額" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                        <ListView x:Name="ReceiptDetailsList" SelectionMode="Single" SelectionChanged="ReceiptDetailSelected" KeyDown="ReceiptDetailListKeyDown" MaxHeight="350" AutomationProperties.Name="選択中科目の明細">
+                                            <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
+                                            <ListView.ItemTemplate><DataTemplate x:DataType="local:ReceiptDetailRow">
+                                                <Grid ColumnSpacing="8" Padding="0,6">
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="60"/><ColumnDefinition Width="140"/><ColumnDefinition Width="75"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}"/>
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind Price}" HorizontalAlignment="Right"/><TextBlock Grid.Column="2" Text="{x:Bind Quantity}" HorizontalAlignment="Right"/>
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind Discount}" HorizontalAlignment="Right"/><TextBlock Grid.Column="4" Text="{x:Bind Tax}" HorizontalAlignment="Right"/>
+                                                    <TextBlock Grid.Column="5" Text="未計算" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                            </DataTemplate></ListView.ItemTemplate>
+                                        </ListView>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </StackPanel>
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>

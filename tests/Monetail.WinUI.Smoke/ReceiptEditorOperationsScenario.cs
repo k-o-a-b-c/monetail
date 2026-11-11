@@ -55,7 +55,7 @@ public partial class App
         Check(time.Text == "09:15:00" && date.Text == "2026/04/01", "日付・時刻は既存Client補完とローカル秒精度で反映");
         window.AppWindow.ResizeClient(new SizeInt32(780, 650)); await Settle();
         Check(Grid.GetRow(Find<TimeInputBox>(root, "ReceiptTime")) == 1 && Grid.GetRow(Find<TextBox>(root, "ReceiptMemo")) == 1 &&
-            Grid.GetRow(Find<Border>(root, "ReceiptDetailsArea")) == 1, "狭幅では親項目・科目/明細領域を縦積みし項目を隠さない");
+            Grid.GetRow(Find<StackPanel>(root, "ReceiptDetailsArea")) == 1, "狭幅では親項目・科目/明細領域を縦積みし項目を隠さない");
         // 入力途中の日付を、管理画面へ移るキャンセルで補正・破棄しない。
         date.Focus(FocusState.Programmatic); date.Text = "途中";
         await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await ConfirmReceipt(root, false);
