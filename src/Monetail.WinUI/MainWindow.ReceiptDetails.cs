@@ -94,9 +94,9 @@ public sealed partial class MainWindow
             try { input.ApplyTo(draft); } catch (ReceiptInputException) { }
 
     }
-    private bool ApplyReceiptDetailCore(bool focus)
+    private bool ApplyReceiptDetailCore(bool focus, bool resolving = false)
     {
-        if (receiptDetailTransition && !receiptDialogOpen || receiptEditor?.Draft is not { } draft || receiptDetailInput is null) return false;
+        if (!resolving && (receiptDetailTransition || receiptDialogOpen) || receiptEditor?.Draft is not { } draft || receiptDetailInput is null) return false;
         SyncReceiptDetailInput();
         try
         {
@@ -178,7 +178,7 @@ public sealed partial class MainWindow
         {
             var result = await dialog.ShowAsync();
             if (!ReferenceEquals(state, receiptEditor)) return false;
-            if (result == ContentDialogResult.Primary) return ApplyReceiptDetailCore(false);
+            if (result == ContentDialogResult.Primary) return ApplyReceiptDetailCore(false, resolving: true);
             if (result == ContentDialogResult.Secondary) { state.DiscardDraft(); LoadReceiptDetailForm(); return true; }
             return false;
         }
@@ -186,7 +186,7 @@ public sealed partial class MainWindow
     }
     private void ReceiptDetailListKeyDown(object sender, KeyRoutedEventArgs args)
     {
-        if (args.Key == VirtualKey.Enter && !receiptEditorKeyboard.IsComposing && !ReceiptModifier(VirtualKey.Control) && !ReceiptModifier(VirtualKey.Menu))
+        if (receiptEditor?.SelectedDetailKey is not null && args.Key == VirtualKey.Enter && !receiptEditorKeyboard.IsComposing && !ReceiptModifier(VirtualKey.Control) && !ReceiptModifier(VirtualKey.Menu))
         { ReceiptItemName.Focus(FocusState.Keyboard); args.Handled = true; }
     }
     private void ReceiptDetailKeyDown(object sender, KeyRoutedEventArgs args)

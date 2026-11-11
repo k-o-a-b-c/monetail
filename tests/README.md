@@ -9,11 +9,21 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 1444 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取/書込・補完・編集モデル） | 691 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取/書込・補完・編集モデル） | 714 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 2414 |
+| 合計 | 2437 |
+
+## 工程6-D3：レシート明細フォーム・一覧
+
+Clientへ23ケースを追加（入力文字列18・費用区分5）。新規/復元時の未変更、値戻し、整数式の優先順位・Int32上下限/途中オーバーフロー、無効文字列の保持と原子的な下書き反映、Decimalの暗黙丸め拒否、税率3状態・人物コピー、支出の3費用区分/収入の対象外限定を確認する。ローカルReleaseは最小23件、関連63件、最終Client全714件が成功。最初のコンパイルでは例外のnamespace参照不足を修正した。既存テストの削除・判定緩和なし。
+
+WinUI合成ケースを追加し、新規/既存のフォーム・6列表示、追加/更新/流用/削除/上下移動、既存ID/版/期限外人物、値戻し、別明細/科目切替/科目追加/削除前の3択、取消/不正入力/連続削除/フォーム維持、Enter/Shift+Enter・Alt+Enter・Ctrl+Enter抑止、人物の上下/Space/Tab、一覧の上下/Enterを検証対象とした。IMEは共通ヘルパーの合成状態を確認する方式で、実IME操作を検証済みとは扱わない。初期化済みの実UIが使えることを待つ既存ヘルパーを使用し、待機上限は延長しない。
+
+変更元main `0492c30f2612f9444e2cf625ed5b9e90b7fe839e`のpush [Tests 43095856177](https://github.com/k-o-a-b-c/monetail/actions/runs/43095856177)と本PRの[Tests 43098107981](https://github.com/k-o-a-b-c/monetail/actions/runs/43098107981)は、確認時点でジョブ未作成のキュー待ち。変更前のWinUI353確認の成功根拠は統合済みPR #146の[Tests 43021712671](https://github.com/k-o-a-b-c/monetail/actions/runs/43021712671)、Client691件・実DPAPI3件は同PRの[Tests 43017415753](https://github.com/k-o-a-b-c/monetail/actions/runs/43017415753)。本変更後のWindows Releaseビルド/起動/既存回帰の成功は未確認で、過去の`0xC0000005`の再発有無も未判定。API/Docker/旧Windows/性能等は未変更で、CIのfingerprintによる成功記録再利用の対象とする。
+
+税率履歴の正式取得経路と正式計算のWinUI接続は未整備。新規税率は未選択、参考額・合計は未計算とし、保存済みの非課税/課税0%等は維持する。全体保存ボタンは無効で書込APIを呼ばない。実API接続、実Windowsの人手/IME/高DPI/複数モニター/ARM64は未検証。API・DB・Migration・外部ライブラリの変更なし。
 
 ## 工程6-D2：WinUIレシート基本入力
 

@@ -372,7 +372,7 @@
                                     <StackPanel x:Name="ReceiptDetailPeoplePane" Grid.Column="1" Spacing="4">
                                         <TextBlock Text="対象人物"/>
                                         <ScrollViewer MaxHeight="300" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" IsTabStop="False">
-                                            <StackPanel x:Name="ReceiptDetailPeople" KeyDown="ReceiptPeopleKeyDown"/>
+                                            <StackPanel x:Name="ReceiptDetailPeople" PreviewKeyDown="ReceiptPeopleKeyDown"/>
                                         </ScrollViewer>
                                         <TextBlock Text="0人でも追加できます" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </StackPanel>
@@ -394,7 +394,7 @@
                                             <TextBlock Text="品名"/><TextBlock Grid.Column="1" Text="単価" HorizontalAlignment="Right"/><TextBlock Grid.Column="2" Text="数量" HorizontalAlignment="Right"/>
                                             <TextBlock Grid.Column="3" Text="値引" HorizontalAlignment="Right"/><TextBlock Grid.Column="4" Text="税率" HorizontalAlignment="Right"/><TextBlock Grid.Column="5" Text="参考額" HorizontalAlignment="Right"/>
                                         </Grid>
-                                        <ListView x:Name="ReceiptDetailsList" SelectionMode="Single" SelectionChanged="ReceiptDetailSelected" KeyDown="ReceiptDetailListKeyDown" MaxHeight="350" AutomationProperties.Name="選択中科目の明細">
+                                        <ListView x:Name="ReceiptDetailsList" SelectionMode="Single" SelectionChanged="ReceiptDetailSelected" PreviewKeyDown="ReceiptDetailListKeyDown" MaxHeight="350" AutomationProperties.Name="選択中科目の明細">
                                             <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
                                             <ListView.ItemTemplate><DataTemplate x:DataType="local:ReceiptDetailRow">
                                                 <Grid ColumnSpacing="8" Padding="0,6">
