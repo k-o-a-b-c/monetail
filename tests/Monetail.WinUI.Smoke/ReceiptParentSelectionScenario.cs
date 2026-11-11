@@ -19,14 +19,21 @@ public partial class App
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), radio));
         }
         if (Environment.CurrentManagedThreadId != uiThreadId || radio.XamlRoot?.IsHostVisible != true) throw new InvalidOperationException("RadioButtonの操作準備ができていません。");
-        var clicked = false; RoutedEventHandler observed = (_, _) => clicked = true; radio.Click += observed;
+        var clicked = false; var pointerPressed = false; var pointerReleased = false;
+        RoutedEventHandler observed = (_, _) => clicked = true; radio.Click += observed;
+        PointerEventHandler pressed = (_, _) => pointerPressed = true, released = (_, _) => pointerReleased = true;
+        radio.AddHandler(UIElement.PointerPressedEvent, pressed, true); radio.AddHandler(UIElement.PointerReleasedEvent, released, true);
         try
         {
             if (keyboard) await PressReceiptRadioSpaceAsync(radio);
             else await ClickReceiptRadioAsync(radio);
             await Wait(() => clicked && radio.IsChecked == true);
         }
-        finally { radio.Click -= observed; }
+        finally
+        {
+            TraceInvocation($"radio={name}; keyboard={keyboard}; clicked={clicked}; pointerPressed={pointerPressed}; pointerReleased={pointerReleased}");
+            radio.Click -= observed; radio.RemoveHandler(UIElement.PointerPressedEvent, pressed); radio.RemoveHandler(UIElement.PointerReleasedEvent, released);
+        }
     }
     private async Task CheckReceiptParentSelection()
     {

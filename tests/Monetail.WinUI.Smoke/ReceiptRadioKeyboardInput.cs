@@ -45,7 +45,11 @@ public partial class App
         radio.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
         var peer = FrameworkElementAutomationPeer.CreatePeerForElement(radio)!;
         await Wait(() => !peer.IsOffscreen());
-        var bounds = peer.GetBoundingRectangle();
+        // RadioButton全体の余白ではなく、標準テンプレートのラベルをクリックする。
+        await Wait(() => All(radio).OfType<TextBlock>().Any(t => Equals(t.Text, radio.Content) && t.ActualWidth > 0));
+        var label = All(radio).OfType<TextBlock>().First(t => Equals(t.Text, radio.Content) && t.ActualWidth > 0);
+        var bounds = FrameworkElementAutomationPeer.CreatePeerForElement(label)!.GetBoundingRectangle();
+        TraceInvocation($"radio={radio.Name}; mouseBounds={bounds.X},{bounds.Y},{bounds.Width},{bounds.Height}");
         if (bounds.Width <= 0 || bounds.Height <= 0) throw new InvalidOperationException("RadioButtonの表示位置を取得できません。");
         if (!SetCursorPos((int)(bounds.X + bounds.Width / 2), (int)(bounds.Y + bounds.Height / 2))) throw new Win32Exception(Marshal.GetLastWin32Error());
         var inputs = new[] {
