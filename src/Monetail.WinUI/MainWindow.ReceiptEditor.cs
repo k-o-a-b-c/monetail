@@ -24,14 +24,17 @@ public sealed partial class MainWindow
     private bool receiptEditorRendering, receiptDialogOpen, receiptLeaving, receiptCloseApproved, receiptRestorePending;
     private double receiptReturnOffset;
     private string? receiptInitialLocation, receiptInitialMemo;
+    private string receiptInitialMemoText = "";
     private readonly Dictionary<Guid, string?> receiptInitialGroupMemos = [];
+    private readonly Dictionary<Guid, string> receiptInitialGroupMemoTexts = [];
     private FormKeyboard receiptEditorKeyboard = null!;
 
     private void InitializeReceiptEditor()
     {
         WorkspaceRoot.Children.Remove(ReceiptConfirmationDialog);
         receiptEditorKeyboard = new FormKeyboard(ReceiptEditorPage, null, null, ReceiptDate, ReceiptTime, ReceiptShopName,
-            ReceiptShopLocation, ReceiptInterval, ReceiptMemo, ReceiptCategoryMemo);
+            ReceiptShopLocation, ReceiptInterval, ReceiptMemo, ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity,
+            ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo);
         ReceiptDate.IsCancellationTarget = ReceiptTime.IsCancellationTarget = IsReceiptLeaveTarget;
         AppWindow.Closing += async (_, args) =>
         {
@@ -110,7 +113,7 @@ public sealed partial class MainWindow
     }
     private void ResetReceiptEditor()
     {
-        CancelReceiptOpening(); receiptEditor = null; receiptParentInput = null; receiptInitialGroupMemos.Clear();
+        CancelReceiptOpening(); receiptEditor = null; receiptParentInput = null; receiptDetailInput = null; receiptInitialGroupMemos.Clear(); receiptInitialGroupMemoTexts.Clear();
         ReceiptEditorPage.Visibility = Visibility.Collapsed; RecordContent.Visibility = Visibility.Visible;
     }
     private void PopulateReceiptEditor()
@@ -122,6 +125,7 @@ public sealed partial class MainWindow
         ReceiptDate.Text = DateTimeInput.FormatDate(header.TransactionAt is DateTime at ? DateOnly.FromDateTime(at) : null);
         ReceiptTime.Text = DateTimeInput.FormatTime(header.TransactionAt is DateTime time ? TimeOnly.FromDateTime(time) : null);
         ReceiptShopName.Text = header.ShopName; ReceiptShopLocation.Text = header.ShopLocation ?? ""; ReceiptMemo.Text = header.Memo ?? "";
+        receiptInitialMemoText = ReceiptMemo.Text;
         RenderReceiptTaxValues();
         ReceiptIntervalError.Visibility = Visibility.Collapsed;
         ReceiptInterval.Text = header.RecurrenceInterval?.ToString(CultureInfo.InvariantCulture) ?? ""; SetReceiptChoice(ReceiptUnit, header.RecurrenceUnit ?? "Month");
@@ -161,7 +165,7 @@ public sealed partial class MainWindow
             TimeOnly.TryParseExact(ReceiptTime.Text, "HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)) header.TransactionAt = date.ToDateTime(time);
         header.ShopName = ReceiptShopName.Text;
         header.ShopLocation = ReceiptOptionalText(ReceiptShopLocation.Text, receiptInitialLocation);
-        header.Memo = ReceiptOptionalText(ReceiptMemo.Text, receiptInitialMemo);
+        header.Memo = ReceiptOptionalText(ReceiptMemo.Text, receiptInitialMemo, receiptInitialMemoText);
         if (ReceiptEditorPayment.SelectedItem is ReceiptFilterChoice payment) header.PaymentMethodId = payment.Id;
         header.TaxInclusionMode = ReceiptTaxIncluded.IsChecked == true ? 0 : ReceiptTaxExcluded.IsChecked == true ? 1 : null;
         header.TaxRoundingMode = ReceiptTaxFloor.IsChecked == true ? "floor" : ReceiptTaxHalfUp.IsChecked == true ? "half_up" : null;
@@ -171,9 +175,10 @@ public sealed partial class MainWindow
         ReceiptIntervalError.Visibility = recurrence.IsValid ? Visibility.Collapsed : Visibility.Visible;
         if (previousDate != header.TransactionAt?.Date || previousPayment != header.PaymentMethodId) RefreshReceiptEditorChoices();
     }
-    // 空欄へ戻したときも、読込時のNULL/空文字の違いを維持して不要な変更を作らない。
-    private static string? ReceiptOptionalText(string text, string? initial) => text == (initial ?? "") ? initial : text;
-    private bool ReceiptEditorDirty => receiptEditor is { } state && (state.NeedsLeaveConfirmation ||
+    // 表示時の改行正規化やNULL/空文字の差を、利用者の変更とみなさない。元の表示へ戻した場合も保存値を復元する。
+    private static string? ReceiptOptionalText(string text, string? initial, string? initialDisplay = null) =>
+        text == (initialDisplay ?? initial ?? "") ? initial : text;
+    private bool ReceiptEditorDirty => receiptEditor is { } state && (state.NeedsLeaveConfirmation || receiptDetailInput?.HasChanges == true ||
         ReceiptDate.Text != DateTimeInput.FormatDate(state.Header.TransactionAt is DateTime at ? DateOnly.FromDateTime(at) : null) ||
         ReceiptTime.Text != DateTimeInput.FormatTime(state.Header.TransactionAt is DateTime time ? TimeOnly.FromDateTime(time) : null) ||
         !ReceiptRecurrenceInput.Parse(ReceiptInterval.Text, ReceiptChoice(ReceiptUnit)).IsValid);
@@ -217,24 +222,43 @@ public sealed partial class MainWindow
         ReceiptCategories.SelectedItem = ReceiptCategories.Items.OfType<ReceiptCategoryRow>().FirstOrDefault(c => c.Key == state.SelectedGroupKey);
         ReceiptCategoryMemo.IsEnabled = ReceiptCategoryRemove.IsEnabled = state.SelectedGroup is not null;
         ReceiptCategoryMemo.Text = state.SelectedGroup?.Memo ?? "";
-        receiptEditorRendering = false; UpdateReceiptCategoryActions();
+        if (state.SelectedGroupKey is Guid groupKey) receiptInitialGroupMemoTexts.TryAdd(groupKey, ReceiptCategoryMemo.Text);
+        receiptEditorRendering = false; UpdateReceiptCategoryActions(); LoadReceiptDetailForm();
+    }
+    private void ReceiptGroupSelectionChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (receiptEditorRendering) return;
+        receiptEditorRendering = true;
+        ReceiptCategories.SelectedItem = ReceiptCategories.Items.OfType<ReceiptCategoryRow>().FirstOrDefault(c => c.Key == receiptEditor?.SelectedGroupKey);
+        receiptEditorRendering = false;
     }
     private void ReceiptCategoryChoiceChanged(object sender, SelectionChangedEventArgs args) => UpdateReceiptCategoryActions();
     private void UpdateReceiptCategoryActions() => ReceiptCategoryAdd.IsEnabled = receiptEditor is { } state &&
         ReceiptCategoryChoice.SelectedItem is ReceiptFilterChoice { Id: Guid id } && state.Groups.All(g => g.CategoryId != id);
-    private void AddReceiptCategory(object sender, RoutedEventArgs args)
+    private async void AddReceiptCategory(object sender, RoutedEventArgs args)
     {
-        if (receiptEditor is not { } state || ReceiptCategoryChoice.SelectedItem is not ReceiptFilterChoice { Id: Guid id } || !ReceiptCategoryAdd.IsEnabled) return;
-        SyncReceiptGroupMemo(); state.AddCategory(id); RenderReceiptGroups();
+        if (receiptDialogOpen || receiptDetailTransition || receiptEditor is not { } state || ReceiptCategoryChoice.SelectedItem is not ReceiptFilterChoice { Id: Guid id } || !ReceiptCategoryAdd.IsEnabled) return;
+        receiptDetailTransition = true;
+        try
+        {
+            SyncReceiptGroupMemo(); if (!await ResolveReceiptDetailAsync()) return;
+            state.AddCategory(id); RenderReceiptGroups(); ReceiptItemName.Focus(FocusState.Programmatic);
+        }
+        finally { receiptDetailTransition = false; }
     }
     private void ReceiptCategoryClicked(object sender, ItemClickEventArgs args)
     { if (args.ClickedItem is ReceiptCategoryRow row) ActivateReceiptCategory(row.Key); }
-    internal void ActivateReceiptCategory(Guid key)
+    internal async void ActivateReceiptCategory(Guid key)
     {
-        SyncReceiptGroupMemo();
-        try { receiptEditor?.SelectGroup(key); }
+        if (receiptDialogOpen || receiptDetailTransition || receiptEditor?.SelectedGroupKey == key) return;
+        receiptDetailTransition = true;
+        try
+        {
+            SyncReceiptGroupMemo(); if (!await ResolveReceiptDetailAsync()) return;
+            receiptEditor?.SelectGroup(key); SelectReceiptGroupPresentation(); ReceiptItemName.Focus(FocusState.Programmatic);
+        }
         catch (ReceiptInputException) { ShowError("科目情報を確認できないため切り替えできません。入力は保持しています。"); }
-        SelectReceiptGroupPresentation();
+        finally { receiptDetailTransition = false; }
     }
     private void ReceiptCategoryKeyDown(object sender, KeyRoutedEventArgs args)
     {
@@ -253,18 +277,22 @@ public sealed partial class MainWindow
     {
         if (!receiptEditorRendering && receiptEditor is { SelectedGroup: { } group } state)
         {
-            var value = ReceiptOptionalText(ReceiptCategoryMemo.Text, receiptInitialGroupMemos.GetValueOrDefault(group.Key));
+            var value = ReceiptOptionalText(ReceiptCategoryMemo.Text, receiptInitialGroupMemos.GetValueOrDefault(group.Key), receiptInitialGroupMemoTexts.GetValueOrDefault(group.Key));
             if (value != group.Memo) state.SetGroupMemo(value);
         }
     }
     private async void RemoveReceiptCategory(object sender, RoutedEventArgs args)
     {
-        if (receiptDialogOpen || receiptEditor is not { SelectedGroup: { } group } state) return;
+        if (receiptDialogOpen || receiptDetailTransition || receiptEditor is not { SelectedGroup: { } group } state) return;
+        receiptDetailTransition = true;
+        try
+        {
+        if (!await ResolveReceiptDetailAsync()) return;
         var row = ReceiptCategories.Items.OfType<ReceiptCategoryRow>().Single(c => c.Key == group.Key);
         SyncReceiptGroupMemo();
         var dialog = ReceiptConfirmationDialog; dialog.XamlRoot = WorkspaceRoot.XamlRoot;
         dialog.Title = "科目を削除"; dialog.Content = $"「{row.Name}」と明細{group.Details.Count}件を削除しますか？";
-        dialog.PrimaryButtonText = "削除"; dialog.CloseButtonText = "キャンセル";
+        dialog.SecondaryButtonText = ""; dialog.PrimaryButtonText = "削除"; dialog.CloseButtonText = "キャンセル";
         receiptDialogOpen = true;
         try
         {
@@ -272,6 +300,8 @@ public sealed partial class MainWindow
             { state.RemoveSelectedGroup(true); RenderReceiptGroups(); ReceiptCategoryChoice.Focus(FocusState.Programmatic); }
         }
         finally { receiptDialogOpen = false; }
+        }
+        finally { receiptDetailTransition = false; }
     }
     private async void BackFromReceiptEditor(object sender, RoutedEventArgs args)
     {
@@ -280,10 +310,10 @@ public sealed partial class MainWindow
     }
     private async Task<bool> LeaveReceiptEditorAsync()
     {
-        if (receiptLeaving || receiptDialogOpen) return false;
+        if (receiptLeaving || receiptDialogOpen || receiptDetailTransition) return false;
         if (receiptEditor is null) { CancelReceiptOpening(); return true; }
         // TextChangedの通知を待たず、離脱直前のコントロール値を必ず保護対象にする。
-        SyncReceiptHeader(); SyncReceiptGroupMemo();
+        SyncReceiptHeader(); SyncReceiptGroupMemo(); SyncReceiptDetailInput();
         receiptLeaving = true;
         // ダイアログの既定ボタンへのフォーカス移動も取消操作の一部であり、日時を補正しない。
         ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = true;
@@ -293,7 +323,7 @@ public sealed partial class MainWindow
             {
                 var dialog = ReceiptConfirmationDialog; dialog.XamlRoot = WorkspaceRoot.XamlRoot;
                 dialog.Title = "未保存の内容があります"; dialog.Content = "保存はまだ利用できません。入力内容を破棄して移動しますか？";
-                dialog.PrimaryButtonText = "破棄して移動"; dialog.CloseButtonText = "編集に戻る";
+                dialog.SecondaryButtonText = ""; dialog.PrimaryButtonText = "破棄して移動"; dialog.CloseButtonText = "編集に戻る";
                 receiptDialogOpen = true;
                 try { if (await dialog.ShowAsync() != ContentDialogResult.Primary) return false; }
                 finally { receiptDialogOpen = false; }

@@ -119,7 +119,7 @@ public sealed class ReceiptEditorState
         var id = group.Rows.FirstOrDefault(d => d.Key == SelectedDetailKey)?.DetailId;
         var row = draft.Snapshot(id, 0, "detailDraft"); ReceiptWriteRequest.ValidateDetail(row, "detailDraft");
         var income = defaults(group.CategoryId, Header.TransactionAt).IncomeExpense;
-        if (income == "Income" && row.ExpenseType != "Excluded" || income == "Expense" && row.ExpenseType is not ("Fixed" or "Variable"))
+        if (income == "Income" && row.ExpenseType != "Excluded")
             throw new ReceiptInputException("detailDraft.expenseType", "科目の収支区分に合う費用区分を選択してください。");
         validateDetail?.Invoke(row); return draft;
     }
