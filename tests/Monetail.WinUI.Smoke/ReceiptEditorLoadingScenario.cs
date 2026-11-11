@@ -85,12 +85,15 @@ public partial class App
         var old = window.OpenReceiptEditorAsync(summaries[1].ReceiptId); await Wait(() => reads.Count == failedReads + 1);
         await window.OpenReceiptEditorAsync(summaries[2].ReceiptId);
         Check(reads.Count == failedReads + 1 && Find<ProgressRing>(root, "ReceiptOpenProgress").IsActive, "詳細GET中の二重起動は追加要求を送らない");
-        await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Wait(() => Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
+        await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Wait(() => Visible(root, "ManagementPage"));
         Check(cancelled && !Find<ProgressRing>(root, "ReceiptOpenProgress").IsActive, "詳細GETの画面離脱は要求を中断しリング停止");
+        // 既存ClientSessionは操作を直列化する。取消を無視する合成応答を解放してから、次の認証操作完了を待つ。
+        pending.SetResult(true); await old;
+        await Wait(() => Find<ContentControl>(root, "Operations").IsEnabled);
+        Check(ReceiptEditing is null && Visible(root, "ManagementPage"), "中断要求の遅延応答は離脱後に編集画面を開かない");
         await InvokeAsync(() => Find<Button>(root, "ReturnButton")); await Wait(() => Visible(root, "HomePage"));
         await window.OpenReceiptEditorAsync(summaries[2].ReceiptId); await Wait(() => ReceiptEditing is not null);
-        var newer = ReceiptEditing; pending.SetResult(true); await old;
-        Check(ReferenceEquals(newer, ReceiptEditing) && ReceiptEditing!.ReceiptId == summaries[2].ReceiptId, "中断要求の遅延応答は新しい編集画面を上書きしない");
+        Check(ReceiptEditing!.ReceiptId == summaries[2].ReceiptId, "中断要求の終了後は別レシートを明示的に開ける");
         await Wait(() => Find<Button>(root, "ReceiptBack").ActualWidth > 0); await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
         await Wait(() => ReceiptEditing is null);
         fixture.RejectSession = true; await window.OpenReceiptEditorAsync(summaries[0].ReceiptId);
