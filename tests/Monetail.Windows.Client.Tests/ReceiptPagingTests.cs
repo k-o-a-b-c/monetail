@@ -85,6 +85,32 @@ public sealed class ReceiptPagingTests
     }
 
     [Fact]
+    public async Task NavigationDuringAutomaticFillDoesNotExposeContinueBefore300OrPreventResumption()
+    {
+        var pending = new TaskCompletionSource<ReceiptListInfo>(); var calls = 0;
+        using var state = new ReceiptListState((_, _) => ++calls == 3 ? pending.Task : Task.FromResult(new ReceiptListInfo(ReceiptListStateTests.Rows((calls - 1) * 100, 100), "next")));
+        await state.StartAsync(new("all")); await state.ObserveViewportAsync(99, false, false);
+        var read = state.ObserveViewportAsync(199, false, false); state.Suspend(); pending.SetResult(new(ReceiptListStateTests.Rows(200, 100), "old")); await read;
+        Assert.Equal(200, state.Rows.Count); Assert.Equal(1, state.AutomaticFillCount); Assert.False(state.CanContinue);
+        await state.ResumeAsync(); await state.ObserveViewportAsync(199, false, false);
+        Assert.Equal(300, state.Rows.Count); Assert.Equal(2, state.AutomaticFillCount); Assert.True(state.CanContinue); Assert.Equal(4, calls);
+    }
+
+    [Fact]
+    public async Task CursorRecoveryStartsANewAutomaticFillBudget()
+    {
+        var calls = 0;
+        using var state = new ReceiptListState((_, _) => ++calls == 2
+            ? Task.FromException<ReceiptListInfo>(new ReceiptRequestException(HttpStatusCode.BadRequest, "invalid_cursor", null))
+            : Task.FromResult(new ReceiptListInfo(ReceiptListStateTests.Rows(calls * 100, 100), "next")));
+        await state.StartAsync(new("all")); await state.ObserveViewportAsync(99, false, false);
+        Assert.Equal(100, state.Rows.Count); Assert.Equal(0, state.AutomaticFillCount);
+        await state.ObserveViewportAsync(99, false, false); await state.ObserveViewportAsync(199, false, false);
+        Assert.Equal(300, state.Rows.Count); Assert.Equal(2, state.AutomaticFillCount); Assert.True(state.CanContinue);
+        await state.ObserveViewportAsync(299, false, false); Assert.Equal(5, calls);
+    }
+
+    [Fact]
     public async Task TransportTimeoutIsAnErrorButNavigationCancellationIsNot()
     {
         using var timeout = new ReceiptListState((_, _) => Task.FromException<ReceiptListInfo>(new TaskCanceledException("synthetic timeout")));

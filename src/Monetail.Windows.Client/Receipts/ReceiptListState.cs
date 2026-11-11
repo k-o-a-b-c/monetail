@@ -24,7 +24,7 @@ public sealed class ReceiptListState(Func<ReceiptListQuery, CancellationToken, T
     public string? NextCursor { get; private set; }
     public int AutomaticFillCount { get; private set; }
     public bool ViewportFilled { get; private set; }
-    public bool CanContinue => HasLoaded && !IsLoading && Failure is null && NextCursor is not null && !ViewportFilled && (Rows.Count >= 300 || AutomaticFillCount >= 2);
+    public bool CanContinue => HasLoaded && !IsLoading && Failure is null && NextCursor is not null && !ViewportFilled && Rows.Count >= 300;
     private ReceiptListQuery? conditions;
     private CancellationTokenSource? cancellation;
     private long generation;
@@ -49,7 +49,12 @@ public sealed class ReceiptListState(Func<ReceiptListQuery, CancellationToken, T
             if (lastVisible >= 0 && Rows.Count - 1 - lastVisible <= 20) await ReadAsync(true, token);
         }
         else if (!filled && AutomaticFillCount < 2 && Rows.Count < 300)
-        { AutomaticFillCount++; await ReadAsync(true, token); }
+        {
+            var epoch = generation; var cursorWasRecovered = recoveredCursor;
+            await ReadAsync(true, token);
+            // 画面移動で中断した要求は補充済みページとして数えない。
+            if (epoch == generation && Failure is null && !token.IsCancellationRequested && cursorWasRecovered == recoveredCursor) { AutomaticFillCount++; Changed?.Invoke(); }
+        }
     }
     public Task ContinueAsync(CancellationToken token = default) => CanContinue ? ReadAsync(true, token) : Task.CompletedTask;
     public Task RetryAsync(CancellationToken token = default) => Failure is not null ? ReadAsync(HasLoaded, token) : Task.CompletedTask;

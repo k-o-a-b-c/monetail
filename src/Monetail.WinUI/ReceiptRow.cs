@@ -19,4 +19,8 @@ public sealed class ReceiptRow(ReceiptSummaryInfo receipt, Func<Guid, string> pa
 }
 
 [Microsoft.UI.Xaml.Data.Bindable]
-public sealed record ReceiptFilterChoice(Guid? Id, string Name);
+public sealed class ReceiptFilterChoice(Guid? id, string name)
+{
+    public Guid? Id { get; } = id;
+    public string Name { get; } = name;
+}
