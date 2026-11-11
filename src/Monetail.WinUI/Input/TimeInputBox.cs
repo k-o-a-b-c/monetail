@@ -8,12 +8,13 @@ namespace Monetail.WinUI.Input;
 public sealed class TimeInputBox : TextBox
 {
     public bool AllowEmpty { get; set; }
+    public bool SuppressCompletion { get; set; }
     public Func<DependencyObject?, bool>? IsCancellationTarget { get; set; }
     private bool leavingForCancellation;
     public TimeInputBox()
     {
         LosingFocus += (_, args) => leavingForCancellation = IsCancellationTarget?.Invoke(args.NewFocusedElement) == true;
-        LostFocus += (_, _) => { if (!IsReadOnly && IsEnabled && !leavingForCancellation) Complete(); };
+        LostFocus += (_, _) => { if (!SuppressCompletion && !IsReadOnly && IsEnabled && !leavingForCancellation) Complete(); };
     }
     public TimeOnly? Complete()
     {

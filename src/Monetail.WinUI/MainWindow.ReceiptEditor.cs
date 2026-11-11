@@ -12,6 +12,7 @@ using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Receipts;
 using Monetail.Windows.Client.Transport;
 using Windows.System;
+using Windows.UI.Core;
 
 namespace Monetail.WinUI;
 
@@ -119,6 +120,7 @@ public sealed partial class MainWindow
         SetReceiptChoice(ReceiptTaxInclusion, header.TaxInclusionMode?.ToString(CultureInfo.InvariantCulture)); SetReceiptChoice(ReceiptTaxRounding, header.TaxRoundingMode);
         ReceiptRepeats.IsChecked = header.RecurrenceInterval is not null || header.RecurrenceUnit is not null;
         ReceiptInterval.IsEnabled = ReceiptUnit.IsEnabled = ReceiptRepeats.IsChecked == true;
+        ReceiptIntervalError.Visibility = Visibility.Collapsed;
         ReceiptInterval.Text = header.RecurrenceInterval?.ToString(CultureInfo.InvariantCulture) ?? ""; SetReceiptChoice(ReceiptUnit, header.RecurrenceUnit);
         ReceiptRegister.Visibility = state.ReceiptId is null ? Visibility.Visible : Visibility.Collapsed;
         ReceiptUpdate.Visibility = ReceiptReuse.Visibility = state.ReceiptId is null ? Visibility.Collapsed : Visibility.Visible;
@@ -216,7 +218,7 @@ public sealed partial class MainWindow
     private void ReceiptCategoryKeyDown(object sender, KeyRoutedEventArgs args)
     {
         if (args.Key != VirtualKey.Enter || receiptEditorKeyboard.IsComposing ||
-            new[] { VirtualKey.Control, VirtualKey.Menu, VirtualKey.Shift }.Any(key => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))) return;
+            new[] { VirtualKey.Control, VirtualKey.Menu, VirtualKey.Shift }.Any(key => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down))) return;
         args.Handled = ActivateFocusedReceiptCategory();
     }
     internal bool ActivateFocusedReceiptCategory()
@@ -259,6 +261,8 @@ public sealed partial class MainWindow
         // TextChangedの通知を待たず、離脱直前のコントロール値を必ず保護対象にする。
         SyncReceiptHeader(); SyncReceiptGroupMemo();
         receiptLeaving = true;
+        // ダイアログの既定ボタンへのフォーカス移動も取消操作の一部であり、日時を補正しない。
+        ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = true;
         try
         {
             if (ReceiptEditorDirty)
@@ -272,7 +276,7 @@ public sealed partial class MainWindow
             }
             ResetReceiptEditor(); receiptRestorePending = true; return true;
         }
-        finally { receiptLeaving = false; }
+        finally { ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = false; receiptLeaving = false; }
     }
     private void RestoreReceiptListPosition() => DispatcherQueue.TryEnqueue(() =>
     { if (!closed && receiptEditor is null && HomePage.Visibility == Visibility.Visible) receiptScroller?.ChangeView(null, receiptReturnOffset, null, true); });

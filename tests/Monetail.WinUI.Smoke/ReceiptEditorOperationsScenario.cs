@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Receipts;
+using Windows.Graphics;
 
 namespace Monetail.WinUI.Smoke;
 
@@ -52,7 +53,7 @@ public partial class App
         var date = Find<DateInputBox>(root, "ReceiptDate"); date.Text = "20260401"; date.Complete();
         await Wait(() => editor.Header.TransactionAt == new DateTime(2026, 4, 1, 9, 15, 0));
         Check(time.Text == "09:15:00" && date.Text == "2026/04/01", "日付・時刻は既存Client補完とローカル秒精度で反映");
-        window.AppWindow.ResizeClient(new Windows.Graphics.SizeInt32(780, 650)); await Settle();
+        window.AppWindow.ResizeClient(new SizeInt32(780, 650)); await Settle();
         Check(Grid.GetRow(Find<TimeInputBox>(root, "ReceiptTime")) == 1 && Grid.GetRow(Find<TextBox>(root, "ReceiptMemo")) == 1 &&
             Grid.GetRow(Find<Border>(root, "ReceiptDetailsArea")) == 1, "狭幅では親項目・科目/明細領域を縦積みし項目を隠さない");
         // 入力途中の日付を、管理画面へ移るキャンセルで補正・破棄しない。
