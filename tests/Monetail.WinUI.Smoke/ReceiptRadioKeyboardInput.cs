@@ -29,6 +29,11 @@ public partial class App
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr window);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ReceiptScreenPoint { public int X, Y; }
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ClientToScreen(IntPtr window, ref ReceiptScreenPoint point);
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetCursorPos(int x, int y);
@@ -41,17 +46,19 @@ public partial class App
     private async Task ClickReceiptRadioAsync(RadioButton radio)
     {
         await ActivateReceiptInputWindowAsync();
-        // 標準UI Automationの画面座標を使い、独自のDPI/配置計算は行わない。
+        // 標準のレイアウト変換と実際の倍率を使ってHWNDのクライアント座標へ変換する。
         radio.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
         var peer = FrameworkElementAutomationPeer.CreatePeerForElement(radio)!;
         await Wait(() => !peer.IsOffscreen());
         // RadioButton全体の余白ではなく、標準テンプレートのラベルをクリックする。
         await Wait(() => All(radio).OfType<TextBlock>().Any(t => Equals(t.Text, radio.Content) && t.ActualWidth > 0));
         var label = All(radio).OfType<TextBlock>().First(t => Equals(t.Text, radio.Content) && t.ActualWidth > 0);
-        var bounds = FrameworkElementAutomationPeer.CreatePeerForElement(label)!.GetBoundingRectangle();
-        TraceInvocation($"radio={radio.Name}; mouseBounds={bounds.X},{bounds.Y},{bounds.Width},{bounds.Height}");
-        if (bounds.Width <= 0 || bounds.Height <= 0) throw new InvalidOperationException("RadioButtonの表示位置を取得できません。");
-        if (!SetCursorPos((int)(bounds.X + bounds.Width / 2), (int)(bounds.Y + bounds.Height / 2))) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var logical = label.TransformToVisual(radio.XamlRoot.Content).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2));
+        var scale = radio.XamlRoot.RasterizationScale;
+        var point = new ReceiptScreenPoint { X = (int)Math.Round(logical.X * scale), Y = (int)Math.Round(logical.Y * scale) };
+        if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(window!), ref point)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        TraceInvocation($"radio={radio.Name}; mouseScreenPoint={point.X},{point.Y}; scale={scale}");
+        if (!SetCursorPos(point.X, point.Y)) throw new Win32Exception(Marshal.GetLastWin32Error());
         var inputs = new[] {
             new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = 2 } } },
             new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = 4 } } }
