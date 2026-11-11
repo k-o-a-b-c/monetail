@@ -9,11 +9,21 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 1444 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取・補完） | 562 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取/書込・補完） | 635 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 2285 |
+| 合計 | 2358 |
+
+## 工程6-C：レシート保存・削除Client
+
+65ケースを追加。本文なし201/204と不正成功応答、POST/PUT/DELETEの全階層、Decimal文字列/整数/NULL、ローカル秒精度と地域設定、既存ID維持/新規ID省略、入力配列変更後も固定した本文/requestId/revisionの再送、操作/家計簿の分離を確認する。認証更新・別アカウント変更・失効、入力不正/field/master_changed、403/404の権限情報・非公開latest非参照、429/503、結果不明の通信/タイムアウト/不正応答、利用者キャンセルも検証する。PUT/DELETEの64KiB超409は既知長/分割ストリーム双方で詳細GETと同じ全階層検証を通し、他ステータスと既存APIの上限を維持する。
+
+ローカルReleaseは最小3件、再送/大きな競合8件、関連58件、最終Client全627件が成功（途中は重複あり）。ソース`ac752f5895afd46214e9e2307cc2a293786798d2`の[Tests 42947354570](https://github.com/k-o-a-b-c/monetail/actions/runs/42947354570)でClient全627件・実DPAPI3件、WinUI製品/検証用Releaseビルド（警告・エラー0）、製品起動、既存画面298確認が成功。今回`0xC0000005`は再発していないが、過去の原因解決とは扱わない。変更前main `fe04f10cfcbad61e6f8bd5bd9dbe5867ba8d5d97`の[push Tests 42944222522](https://github.com/k-o-a-b-c/monetail/actions/runs/42944222522)成功を基準にし、API/Docker/旧Windows/性能の成功結果はCIのfingerprintで再利用した。
+
+409共通エラー形式の追修正は、`LedgerApiFault.Body`のcode/message/field/latest/permissions（NULLを含む）と同じ構成で8ケースを追加（累計73件）。初回の簡略応答では未検証だった共通項目を受理し、message/409のpermissionsは破棄、fieldは保持する。修正前の最小3件でrequest_conflictが結果不明へ誤分類されることを再現し、修正後の関連24件・Client全635件がローカルで成功。大きな409と不正latestの既存テストも実形式へ変更し、判定を維持した。ソース`ff3236dd62db95347010570c73959678e4cb0f51`の[Tests 42954346851](https://github.com/k-o-a-b-c/monetail/actions/runs/42954346851)でClient635件・実DPAPI3件・両WinUI Releaseビルド（警告・エラー0）・製品起動・既存298確認が成功。変更前のPR先端`8e73899`の[Tests 42948052120](https://github.com/k-o-a-b-c/monetail/actions/runs/42948052120)成功を基準に、非変更部分は成功記録を再利用した。
+
+API・DB・Migration・WinUI画面・外部ライブラリは変更しない。書込は合成HTTPでの検証であり、実APIへの保存/削除、実Windowsでの新規入力・結果不明/競合/再認証の手動操作は未検証/後続工程。
 
 ## 工程6-B：レシート一覧とマスタキャッシュ
 

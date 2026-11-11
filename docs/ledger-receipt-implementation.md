@@ -25,9 +25,10 @@
 | 5. 履歴候補・補完API | `receipt-suggestions`・`receipt-autofill` | 店名完全一致／候補部分一致の区別、表記ゆれ、更新UTC順、入力・権限・エラー |
 | 6-A. Windows Client読取 | 一覧/詳細/候補/親情報補完のTransport・Workspace・型付きDTO | NULL/Decimal/整数/ローカル日時、検索条件とカーソル保持、認証更新/別アカウント、64KiB超の100件 |
 | 6-B. WinUI一覧・キャッシュ | 記録ホームの実API一覧、複合検索、追加読込、家計簿別マスタキャッシュ | 0件/エラー/300件上限と明示続行、旧応答破棄、管理画面更新の反映 |
-| 6の後続. 書込Client・WinUI入力 | 入力/下書き、書込、候補UI、保存不可・認証復帰 | キーボード操作、未保存保護、競合、再ログイン、無効カーソルからの先頭再取得 |
+| 6-C. Windows Client書込 | POST/PUT/DELETE、不変要求・再送、空成功本文、型付きエラー/大きな409 | 同一requestId/本文/版、認証更新、全階層latest、NULL/Decimal/整数、通信結果不明 |
+| 6の後続. WinUI入力 | 入力/下書き、保存操作、候補UI、保存不可・認証復帰 | キーボード操作、未保存保護、競合、再ログイン、無効カーソルからの先頭再取得 |
 
-**実装状態：工程1〜5（DB・共通計算/検証・読取/書込・履歴候補/自動補完API）は実装済み。** [API契約](ledger-receipt-api.md)を参照。未確定の人物按分最終端数・人物別期間合計は未実装。工程6-AのWindows Client読取接続も実装済み（[構成](architecture-winui.md#レシートのclient読取接続工程6-a)）。工程6-BのWinUI一覧・画面用キャッシュ基盤も実装済み。書込Client/下書き/WinUI入力・候補UIは後続。履歴候補・自動補完は[候補API契約](ledger-receipt-suggestions.md)を参照。
+**実装状態：工程1〜5（DB・共通計算/検証・読取/書込・履歴候補/自動補完API）は実装済み。** [API契約](ledger-receipt-api.md)を参照。未確定の人物按分最終端数・人物別期間合計は未実装。工程6-AのWindows Client読取接続も実装済み（[構成](architecture-winui.md#レシートのclient読取接続工程6-a)）。工程6-BのWinUI一覧・画面用キャッシュ基盤も実装済み。工程6-Cの書込Clientも実装済み（[構成と要求の保持](architecture-winui.md#レシートのclient書込接続工程6-c)）。下書き/WinUI入力・候補UIは後続。履歴候補・自動補完は[候補API契約](ledger-receipt-suggestions.md)を参照。
 
 作業をまとめて1PRにせず、**既存実装のDI/DB初期化/権限構造に合わせて、工程ごとの最小テストを通してから次へ進む**。具体的な実装ファイルやテスト実行範囲は[tests/README](../tests/README.md)を参照。CI成功と実Windows画面・実運用DBでの検証は区別する。
 

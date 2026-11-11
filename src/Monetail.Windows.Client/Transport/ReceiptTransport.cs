@@ -13,13 +13,15 @@ public sealed record ReceiptDetailInfo(Guid DetailId, int DisplayOrder, string N
 public sealed record ReceiptSuggestionsInfo(string[] Suggestions, bool HasMore);
 public sealed record ReceiptAutofillInfo(Guid? PaymentMethodId, int? TaxInclusionMode, string? TaxRoundingMode);
 
-public sealed class ReceiptRequestException(HttpStatusCode status, string? code, string? field, PeoplePermissions? permissions = null)
-    : Exception("レシート情報を取得できませんでした。")
+public sealed class ReceiptRequestException(HttpStatusCode status, string? code, string? field, PeoplePermissions? permissions = null, string? reason = null, ReceiptInfo? latestReceipt = null)
+    : Exception("レシートの操作を完了できませんでした。")
 {
     public HttpStatusCode StatusCode { get; } = status;
     public string? Code { get; } = code;
     public string? Field { get; } = field;
     public PeoplePermissions? Permissions { get; } = permissions;
+    public string? Reason { get; } = reason;
+    public ReceiptInfo? LatestReceipt { get; } = latestReceipt;
 }
 
 public sealed partial class MonetailApiClient
@@ -35,6 +37,10 @@ public sealed partial class MonetailApiClient
     {
         ReceiptQueries.Id(receiptId, "receiptId");
         var receipt = await SendReceiptAsync<ReceiptInfo>($"{ReceiptPath(ledgerId)}/receipts/{receiptId:D}", access, token, stream: true);
+        return ValidateReceipt(receipt, receiptId);
+    }
+    private static ReceiptInfo ValidateReceipt(ReceiptInfo receipt, Guid receiptId)
+    {
         if (receipt.ReceiptId != receiptId || receipt.Groups is null || receipt.Groups.Any(g => g is null || g.Details is null) ||
             receipt.Groups.Select(g => g.GroupId).Distinct().Count() != receipt.Groups.Length ||
             receipt.Groups.Select(g => g.CategoryId).Distinct().Count() != receipt.Groups.Length) throw new ApiConnectionException();
@@ -86,6 +92,7 @@ public sealed partial class MonetailApiClient
         }
         if (bytes.Length == 0) return new(status, null, null);
         using var json = Parse(bytes);
-        return new(status, String(json.RootElement, "code"), String(json.RootElement, "field"));
+        return new(status, String(json.RootElement, "code"), String(json.RootElement, "field"),
+            reason: status == HttpStatusCode.BadRequest ? String(json.RootElement, "reason") : null);
     }
 }
