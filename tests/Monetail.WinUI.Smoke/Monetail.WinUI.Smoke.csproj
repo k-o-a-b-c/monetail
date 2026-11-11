@@ -18,6 +18,8 @@
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/ReceiptRow.cs" Link="ReceiptRow.cs" />
+    <Compile Include="../../src/Monetail.WinUI/ReceiptCategoryRow.cs" Link="ReceiptCategoryRow.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptEditor.cs" Link="MainWindow.ReceiptEditor.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Receipts.cs" Link="MainWindow.Receipts.cs" />
     <Compile Include="../../src/Monetail.WinUI/PaymentRow.cs" Link="PaymentRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Payments.cs" Link="MainWindow.Payments.cs" />

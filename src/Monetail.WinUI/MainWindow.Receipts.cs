@@ -45,6 +45,7 @@ public sealed partial class MainWindow
     }
     private void ResetReceipts()
     {
+        ResetReceiptEditor(); receiptRestorePending = false;
         receiptState?.Dispose(); receiptState = null; receiptSearch = null;
         connection.Masters.Clear(); receiptRows.Clear(); receiptScrollIntent = false;
     }
@@ -75,6 +76,7 @@ public sealed partial class MainWindow
     private void ReceiptMasterChanged(Guid ledger)
     {
         if (currentLedger?.LedgerId != ledger || closed) return;
+        RefreshReceiptEditorChoices();
         RefreshReceiptChoices(); foreach (var row in receiptRows) row.RefreshName();
     }
     private void RefreshReceiptChoices()
@@ -97,7 +99,7 @@ public sealed partial class MainWindow
     private void RenderReceiptState()
     {
         if (closed || receiptState is not { } state) return;
-        if (state.Failure is AuthenticationRejectedException or AuthenticationContextChangedException)
+        if (receiptEditor is null && state.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
         { ShowLogin("ログインを継続できません。もう一度ログインしてください。"); return; }
         ReceiptInitialProgress.IsActive = state.IsInitialLoading;
         ReceiptInitialNotice.Visibility = state.IsInitialLoading ? Visibility.Visible : Visibility.Collapsed;
@@ -190,12 +192,12 @@ public sealed partial class MainWindow
     private void ScheduleReceiptViewport(bool user)
     {
         receiptQueuedUserScroll |= user;
-        if (receiptViewportQueued || closed || HomePage.Visibility != Visibility.Visible || receiptState is null) return;
+        if (receiptViewportQueued || closed || HomePage.Visibility != Visibility.Visible || receiptEditor is not null || receiptState is null) return;
         receiptViewportQueued = true;
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, async () =>
         {
             receiptViewportQueued = false; var scrolled = receiptQueuedUserScroll; receiptQueuedUserScroll = false;
-            if (closed || HomePage.Visibility != Visibility.Visible || receiptState is not { } state || receiptScroller is null) return;
+            if (closed || HomePage.Visibility != Visibility.Visible || receiptEditor is not null || receiptState is not { } state || receiptScroller is null) return;
             var panel = ReceiptList.ItemsPanelRoot as ItemsStackPanel;
             await state.ObserveViewportAsync(panel?.LastVisibleIndex ?? -1, receiptScroller.ScrollableHeight > 0, scrolled, lifetime.Token);
         });

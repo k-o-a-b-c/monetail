@@ -77,8 +77,9 @@ public sealed partial class MainWindow
         else await OpenDestinationAsync(token);
     }
 
-    private void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
+    private async void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
     {
+        if (!await LeaveReceiptEditorAsync()) return;
         DropPendingCategoryEdit();
         DropPendingPaymentEdit();
         DropPendingPersonEdit();
@@ -105,12 +106,16 @@ public sealed partial class MainWindow
         await ConnectAsync(candidate);
     }
 
-    private Task ConnectAsync(ApiEndpoint candidate) => RunAsync(async () =>
+    private async Task ConnectAsync(ApiEndpoint candidate)
+    {
+        if (!await LeaveReceiptEditorAsync()) return;
+        await RunAsync(async () =>
     {
         using var timeout = ConnectionTimeout();
         await connection.ConnectAsync(candidate, timeout.Token);
         await RestoreAndOpenAsync(timeout.Token);
     }, () => ConnectAsync(candidate), true);
+    }
 
     private async void CancelConnection(object sender, RoutedEventArgs args) => await StartAsync();
 
@@ -169,7 +174,10 @@ public sealed partial class MainWindow
     private async void ReopenBrowser(object sender, RoutedEventArgs args) => await OpenBrowserAsync();
     private void CancelLogin(object sender, RoutedEventArgs args) => browserCancellation?.Cancel();
 
-    private Task LogoutAsync() => RunAsync(async () =>
+    private async Task LogoutAsync()
+    {
+        if (!await LeaveReceiptEditorAsync()) return;
+        await RunAsync(async () =>
     {
         DropPendingCategoryEdit();
         DropPendingPaymentEdit();
@@ -178,6 +186,7 @@ public sealed partial class MainWindow
         await connection.Session.LogoutAsync(lifetime.Token);
         ShowLogin();
     }, LogoutAsync);
+    }
 
     private async Task RunAsync(Func<Task> action, Func<Task> repeat, bool connectionFailure = false)
     {
@@ -263,7 +272,9 @@ public sealed partial class MainWindow
 
     private void ShowPage(FrameworkElement page)
     {
-        if (!ReferenceEquals(page, HomePage)) receiptState?.Suspend();
+        // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
+        if (receiptEditor is not null && !ReferenceEquals(page, HomePage)) return;
+        if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); receiptState?.Suspend(); }
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
@@ -273,7 +284,8 @@ public sealed partial class MainWindow
         {
             if (closed || HomePage.Visibility != Visibility.Visible) return;
             if (receiptState is null) StartReceiptHome();
-            else { await receiptState.ResumeAsync(lifetime.Token); ScheduleReceiptViewport(false); }
+            else if (receiptEditor is null) { await receiptState.ResumeAsync(lifetime.Token); ScheduleReceiptViewport(false); }
+            if (receiptRestorePending) { receiptRestorePending = false; RestoreReceiptListPosition(); }
         });
     }
 
@@ -318,6 +330,7 @@ public sealed partial class MainWindow
     {
         closed = true;
         receiptState?.Dispose();
+        CancelReceiptOpening();
         connection.Masters.Changed -= ReceiptMasterChanged;
         DiscardCategoryEditor();
         DiscardPaymentEditor();
