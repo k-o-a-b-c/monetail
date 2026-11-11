@@ -95,6 +95,8 @@ public partial class App
         window.ActivateReceiptCategory(group.Key); await Wait(() => editor.SelectedGroupKey == group.Key);
         await CheckReceiptDetailKeyboard(root);
         Check(writes == 0 && !Find<Button>(root, "ReceiptRegister").IsEnabled, "全体保存APIは呼ばず保存ボタンも無効");
+        await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, true);
+        await Wait(() => ReceiptEditing is null);
     }
     private async Task ChooseReceiptDetailDraft(FrameworkElement root, ContentDialogResult choice)
     {

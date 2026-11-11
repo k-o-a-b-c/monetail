@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Client.Receipts;
 
@@ -43,8 +44,11 @@ public partial class App
             "有効期間外の対象人物も維持し、開いて選択しただけでは未変更");
         var rows = list.Items.OfType<ReceiptDetailRow>().ToArray();
         Check(rows[0].Price == 1234.ToString("N0") && rows[0].Discount == "10円 / 2.5%" && rows[0].Tax == "0%" && rows[1].Tax == "非課税" && rows[1].Discount == "—", "一覧の3桁区切り・値引単位・非課税/0%を区別");
-        Find<TextBox>(root, "ReceiptItemName").Text = "一時変更"; await Wait(() => editor.Draft!.Name == "一時変更");
-        Find<TextBox>(root, "ReceiptItemName").Text = "既存0%"; await Wait(() => editor.Draft!.Name == "既存0%");
+        var itemName = Find<TextBox>(root, "ReceiptItemName");
+        await Wait(() => itemName.IsLoaded && itemName.ActualWidth > 0); await ActivateReceiptInputWindowAsync(); itemName.Focus(FocusState.Keyboard);
+        await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), itemName));
+        Find<TextBox>(root, "ReceiptItemName").Text = "一時変更"; await WaitForReceiptInput(root, "ReceiptItemName", () => editor.Draft!.Name == "一時変更");
+        Find<TextBox>(root, "ReceiptItemName").Text = "既存0%"; await WaitForReceiptInput(root, "ReceiptItemName", () => editor.Draft!.Name == "既存0%");
         Check(!editor.NeedsLeaveConfirmation, "フォーム値を元に戻すと未反映変更を解消");
         await InvokeAsync(() => Find<Button>(root, "ReceiptDetailApply"));
         Check(editor.ReceiptId == id && editor.Revision == revision && group.GroupId == groupId && group.Details[0].DetailId == detailId && !editor.HasUnsavedChanges,
@@ -52,10 +56,13 @@ public partial class App
         list.SelectedIndex = 0; await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         Find<TextBox>(root, "ReceiptItemQuantity").Text = "0"; await InvokeAsync(() => Find<Button>(root, "ReceiptDetailApply"));
         Check(group.Details[0].Values.Quantity == 2 && Find<TextBox>(root, "ReceiptItemQuantity").Text == "0", "検証失敗でも保存済み明細と不正数量を保持");
-        Find<TextBox>(root, "ReceiptItemQuantity").Text = "2"; await Wait(() => editor.Draft!.Quantity == 2);
+        var quantity = Find<TextBox>(root, "ReceiptItemQuantity"); quantity.Focus(FocusState.Keyboard);
+        await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), quantity));
+        quantity.Text = "2"; await WaitForReceiptInput(root, "ReceiptItemQuantity", () => editor.Draft!.Quantity == 2);
         Check(!editor.NeedsLeaveConfirmation, "検証失敗後も値を元に戻すと未変更へ戻る");
         list.SelectedIndex = 1; await Wait(() => editor.SelectedDetailKey == group.Details[1].Key);
         Check(editor.Draft!.Tax == ReceiptTaxSelection.Exempt && !Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded, "変更のない別行選択は確認なしで非課税を復元");
         Check(writes == 0, "既存編集も全体保存APIを呼ばない");
+        await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await Wait(() => ReceiptEditing is null);
     }
 }

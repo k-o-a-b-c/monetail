@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Monetail.WinUI.Input;
+using Monetail.Windows.Client.Receipts;
+using Monetail.Windows.Client.Ledgers;
 
 namespace Monetail.WinUI.Smoke;
 
@@ -48,8 +50,10 @@ public partial class App
             var memo = memos[index]; var initialText = memo.Text;
             Check(!memo.AcceptsReturn && memo.TextWrapping == TextWrapping.NoWrap && memo.ReadLocalValue(FrameworkElement.MinHeightProperty) == DependencyProperty.UnsetValue,
                 $"{memo.Name}は複数行用の高さを持たない標準1行TextBox");
+            await ActivateReceiptInputWindowAsync(); memo.Focus(FocusState.Keyboard);
+            await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
             memo.Text = "入力" + index;
-            await Wait(() => (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == "入力" + index);
+            await WaitForReceiptInput(root, memo.Name, () => (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == "入力" + index);
             Check(Dirty() && (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == "入力" + index,
                 $"{memo.Name}の入力を対応するモデルと未保存判定へ反映");
             await ActivateReceiptInputWindowAsync(); memo.Focus(FocusState.Keyboard);
@@ -75,7 +79,7 @@ public partial class App
             memo.Focus(FocusState.Keyboard);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
             memo.Text = initialText;
-            await Wait(() => (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == (index == 0 ? parentMemo : index == 1 ? groupMemo : detailMemo));
+            await WaitForReceiptInput(root, memo.Name, () => (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == (index == 0 ? parentMemo : index == 1 ? groupMemo : detailMemo));
             Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
                 $"{memo.Name}を表示時の値へ戻すと保存済み文字列と未変更判定を復元");
         }
@@ -92,5 +96,23 @@ public partial class App
         Check(group.Details.Count == 1 && group.Details[0].DetailId == detailId && editor.Revision == revision && writes == 0 &&
             ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<TextBox>(root, "ReceiptItemName")),
             "明細メモのAlt+Enterは既存の画面内更新だけ実行し、ID/版と全体保存禁止を維持");
+        await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, true);
+        await Wait(() => ReceiptEditing is null);
     }
+    private async Task WaitForReceiptInput(FrameworkElement root, string name, Func<bool> ready)
+    {
+        try { await Wait(ready); }
+        catch (OperationCanceledException error)
+        {
+            var flags = BindingFlags.NonPublic | BindingFlags.Instance;
+            var input = (ReceiptDetailInput?)typeof(MainWindow).GetField("receiptDetailInput", flags)!.GetValue(window);
+            var rendering = (bool)typeof(MainWindow).GetField("receiptDetailRendering", flags)!.GetValue(window)!;
+            var box = Find<TextBox>(root, name); var parsed = "none";
+            try { if (input is not null) { input.Read(); parsed = "valid"; } }
+            catch (ReceiptInputException invalid) { parsed = invalid.Field; }
+            // 操作状態だけを記録し、入力文字列やアカウント/家計簿情報は出力しない。
+            throw new InvalidOperationException($"Receipt input not reflected: control={name}; loaded={box.IsLoaded}; enabled={box.IsEnabled}; rendering={rendering}; parsing={parsed}", error);
+        }
+    }
+
 }
