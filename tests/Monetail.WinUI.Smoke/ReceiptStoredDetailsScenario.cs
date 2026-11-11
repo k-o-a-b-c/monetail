@@ -24,7 +24,7 @@ public partial class App
                 receiptId = id, transactionAt = DateTime.Today.ToString("yyyy-MM-dd") + "T00:00:00", shopName = "既存", shopLocation = (string?)null,
                 paymentMethodId = payments.ActiveId, taxInclusionMode = 0, taxRoundingMode = "floor", recurrenceInterval = (int?)null, recurrenceUnit = (string?)null,
                 memo = (string?)null, revision, groups = new[] { new { groupId, categoryId = categories.Rows[0].CategoryId, memo = (string?)null, details = new[] {
-                    new { detailId, displayOrder = 4, name = "既存0%", unitPrice = 1234, quantity = 2, unitDiscountAmount = 10, discountRate = "2.5", taxRate = "0",
+                    new { detailId, displayOrder = 4, name = "既存0%", unitPrice = 1234, quantity = 2, unitDiscountAmount = 10, discountRate = "2.5", taxRate = (string?)"0",
                         expenseType = "Excluded", occurrenceType = "Temporary", memo = (string?)null, personIds = new[] { payments.Other } },
                     new { detailId = Guid.NewGuid(), displayOrder = 9, name = "既存非課税", unitPrice = -30, quantity = 1, unitDiscountAmount = 0, discountRate = "0", taxRate = (string?)null,
                         expenseType = "Variable", occurrenceType = "Irregular", memo = (string?)null, personIds = Array.Empty<Guid>() }
