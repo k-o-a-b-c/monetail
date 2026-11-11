@@ -117,7 +117,7 @@ POST／PUTは詳細GETと同じ**親→`groups[]`→`details[]`→`personIds[]`�
 - 通信失敗など結果不明時は**同じ要求ID・送信内容**を再送。確定400等を修正して次の保存を行う場合は新しい要求IDを作り、revisionは勝手に変えない。
 
 ### 権限・エラー（DEC-260）
-- 版競合`409 revision_conflict`の本文は**`{"code":"revision_conflict","latest":{...}}`**とし、`latest`は詳細GETと同じ全階層の最新レシート。画面側の未保存入力保護・選択肢は[WinUI仕様](ledger-receipt-ui.md)（DEC-264・265）に従う。競合後の読み取り専用・再読込はDEC-265。削除済みレシートは`404 not_found`（同一DELETE成功要求の再送は204）。権限不足`403 forbidden`、非参加404。Editorが支払方法を変更する場合、変更前と変更後の双方の権限を検証する。
+- 版競合`409 revision_conflict`の業務項目は**`code`と`latest`**とし、共通エラー項目を含む実本文はDEC-264を参照。`latest`は詳細GETと同じ全階層の最新レシート。画面側の未保存入力保護・選択肢は[WinUI仕様](ledger-receipt-ui.md)（DEC-264・265）に従う。競合後の読み取り専用・再読込はDEC-265。削除済みレシートは`404 not_found`（同一DELETE成功要求の再送は204）。権限不足`403 forbidden`、非参加404。Editorが支払方法を変更する場合、変更前と変更後の双方の権限を検証する。
 - 入力やマスタの有効期間不一致は`400 invalid_input`、問題の`field`を返す。マスタの変更が原因の場合に限り`reason:"master_changed"`を付加し、WinUIは**該当マスタだけ**再取得。入力・選択中科目は変えず自動保存もしない。
 - **`master_changed`の判定（DEC-273）**：POSTは常に通常の`400 invalid_input`。PUTは取引日の日付部分と該当する参照値/設定値が保存済みデータと同じで、現行マスタとの不整合を確認できる場合だけ`reason:"master_changed"`を付ける。該当値を変更した場合・判断できない場合は通常の400。fieldは従来どおり返す。認証・権限エラーには付けない。要求JSONへマスタ版を追加しない。
 - `field`は0始まりの配列パスに対応（例：`paymentMethodId`、`groups[1].categoryId`、`groups[0].details[2].taxRate`、`groups[0].details[2].personIds[0]`）。複数の入力エラーは**親→グループ→明細、各配列の先頭から最初の1件のみ**返す。
@@ -134,7 +134,7 @@ POST／PUTは詳細GETと同じ**親→`groups[]`→`details[]`→`personIds[]`�
 - 条件を満たせば過去の成功結果`204 No Content`を返す。削除済みのため**支払方法の所有人物単位の編集権限は再検証しない**。現在のロールがReaderなら`403 forbidden`、家計簿非参加なら`404`。再送でDBのレシートを変更しない。**新規DELETEおよび通常のPUTは通常の厳密な権限検証**を維持する。
 
 ### 409応答・競合後の2択（DEC-264）
-- 既存レシートの版競合はHTTP`409`、本文は`{"code":"revision_conflict","latest":{...}}`で、`latest`はDEC-257の**詳細GETと同じ全項目・全階層**（親11フィールド＋`groups`）とする。上記は省略例であり実際の`latest`は全フィールドを持つ。
+- 既存レシートの版競合はHTTP`409`。`LedgerApiFault.Body`の共通形式に従い、本文は`{"code":"revision_conflict","message":"…","field":null,"latest":{...},"permissions":null}`の5項目（NULLも省略しない）。`latest`はDEC-257の**詳細GETと同じ全項目・全階層**（親11フィールド＋`groups`）。上記latestは省略例であり実際は全フィールドを持つ。`request_conflict`も同じ共通形式で`latest:null`となる。Clientはサーバーのmessageを無条件に表示せず、409のpermissionsで画面権限を自動更新しない。
 - WinUIはこの`latest`をメモリに保持し、自分の未保存入力は破棄しない。競合を通知し**「最新を読み込む」「編集画面に戻る」**の2択のみ。比較専用画面・差分強調・「自分の内容で上書き保存」は設けない。前者は入力破棄の確認を行い、後者はDEC-265の保存不可・読み取り専用状態となる。
 
 ## 不正カーソル（DEC-270）
