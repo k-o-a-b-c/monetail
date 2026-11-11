@@ -30,7 +30,7 @@ public sealed class ReceiptWriteRequest
         ReceiptQueries.Id(ledgerId, "ledgerId");
         if (receiptId is Guid id) ReceiptQueries.Id(id, "receiptId");
         if (revision is Guid version) ReceiptQueries.Id(version, "revision");
-        if (snapshot is not null) Validate(snapshot);
+        if (snapshot is not null) ValidateSnapshot(snapshot);
         LedgerId = ledgerId; ReceiptId = receiptId; Revision = revision; Operation = operation;
         var body = new Dictionary<string, object?> { ["requestId"] = RequestId };
         if (revision is not null) body["revision"] = revision;
@@ -50,7 +50,7 @@ public sealed class ReceiptWriteRequest
     {
         if (LedgerId != ledger || Operation != operation) throw new ReceiptInputException("requestId", "元の家計簿・操作の要求を使用してください。");
     }
-    private static void Validate(ReceiptSnapshot snapshot)
+    internal static void ValidateSnapshot(ReceiptSnapshot snapshot)
     {
         static void Check(bool valid, string field) { if (!valid) throw new ReceiptInputException(field, "入力内容を確認してください。"); }
         Check(snapshot.TransactionAt.Ticks % TimeSpan.TicksPerSecond == 0, "transactionAt");
@@ -71,14 +71,20 @@ public sealed class ReceiptWriteRequest
             {
                 var row = group.Details[j]; var field = $"{path}.details[{j}]"; Check(row is not null, field);
                 if (row!.DetailId is Guid detailId) { ReceiptQueries.Id(detailId, field + ".detailId"); Check(details.Add(detailId), field + ".detailId"); }
-                Check(row.DisplayOrder >= 0, field + ".displayOrder"); Check(row.Name is { Length: <= 100 }, field + ".name");
-                Check(row.Quantity > 0, field + ".quantity"); Check(row.DiscountRate is >= 0 and <= 100, field + ".discountRate");
-                Check(row.ExpenseType is "Fixed" or "Variable" or "Excluded", field + ".expenseType");
-                Check(row.OccurrenceType is "Regular" or "Irregular" or "Temporary", field + ".occurrenceType"); regular |= row.OccurrenceType == "Regular";
-                Check(row.PersonIds is not null, field + ".personIds"); var people = new HashSet<Guid>();
-                for (var k = 0; k < row.PersonIds!.Count; k++) { var person = row.PersonIds[k]; ReceiptQueries.Id(person, field + $".personIds[{k}]"); Check(people.Add(person), field + $".personIds[{k}]"); }
+                ValidateDetail(row, field); regular |= row.OccurrenceType == "Regular";
             }
         }
         Check(snapshot.RecurrenceInterval is null || regular, "groups");
     }
+    internal static void ValidateDetail(ReceiptDetailSnapshot row, string field)
+    {
+        static void Check(bool valid, string field) { if (!valid) throw new ReceiptInputException(field, "入力内容を確認してください。"); }
+        Check(row.DisplayOrder >= 0, field + ".displayOrder"); Check(row.Name is { Length: <= 100 }, field + ".name");
+        Check(row.Quantity > 0, field + ".quantity"); Check(row.DiscountRate is >= 0 and <= 100, field + ".discountRate");
+        Check(row.ExpenseType is "Fixed" or "Variable" or "Excluded", field + ".expenseType");
+        Check(row.OccurrenceType is "Regular" or "Irregular" or "Temporary", field + ".occurrenceType");
+        Check(row.PersonIds is not null, field + ".personIds"); var people = new HashSet<Guid>();
+        for (var k = 0; k < row.PersonIds!.Count; k++) { var person = row.PersonIds[k]; ReceiptQueries.Id(person, field + $".personIds[{k}]"); Check(people.Add(person), field + $".personIds[{k}]"); }
+    }
+
 }
