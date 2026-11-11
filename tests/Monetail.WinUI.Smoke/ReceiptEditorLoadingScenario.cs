@@ -14,7 +14,7 @@ public partial class App
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
         var payments = new PaymentServer(); fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(payments.People())); fixture.PaymentsHandler = payments.HandleAsync;
-        var date = DateTime.Today.AddDays(-1).AddHours(13).AddMinutes(24).AddSeconds(35);
+        var date = DateTime.SpecifyKind(DateTime.Today.AddDays(-1).AddHours(13).AddMinutes(24).AddSeconds(35), DateTimeKind.Unspecified);
         var summaries = Enumerable.Range(1, 100).Select(i => new ReceiptSummaryInfo(Guid.Parse(i.ToString("x32")), date, "保存店" + i, null, payments.ExpiredId, i, null)).ToArray();
         ReceiptInfo Detail(Guid id) => new(id, date, "保存店", "保存所在地", payments.ExpiredId, 1, "floor", 2, "Month", null, Guid.NewGuid(), [
             new(Guid.NewGuid(), categories.Rows[1].CategoryId, null, [new(Guid.NewGuid(), 0, "保存明細", 100, 1, 0, 0, null, "Excluded", "Regular", null, [])]),
@@ -26,12 +26,14 @@ public partial class App
             if (request.Method != HttpMethod.Get) throw new InvalidOperationException("保存APIを呼んではいけません。");
             if (request.RequestUri!.AbsolutePath.EndsWith("/receipts")) { listReads++; return PaymentServer.Json(new ReceiptListInfo(summaries, null)); }
             var id = Guid.Parse(request.RequestUri.Segments[^1]); reads.Add(id);
-            if (gate is { } pending) { gate = null; using var registration = token.Register(() => cancelled = true); await pending.Task; }
+            if (gate is { } waiting) { gate = null; using var registration = token.Register(() => cancelled = true); await waiting.Task; }
             if (fail) { fail = false; return new(HttpStatusCode.ServiceUnavailable); }
             return PaymentServer.Json(Detail(id));
         };
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
-        var list = Find<ListView>(root, "ReceiptList"); var selected = list.Items[79]; list.SelectedItem = selected;
+        var list = Find<ListView>(root, "ReceiptList");
+        await Wait(() => list.Items.Count == 100);
+        var selected = list.Items[79]; list.SelectedItem = selected;
         list.ScrollIntoView(selected); await Settle(); var scroll = All(list).OfType<ScrollViewer>().First(); var offset = scroll.VerticalOffset;
         Check(reads.Count == 0 && offset > 0, "一覧の単一選択は詳細GETを行わず、非先頭の表示位置を保持");
         // ダブルクリックのイベントと同じ共通入口を使用（物理ポインター操作とは区別）。
