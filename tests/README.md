@@ -21,7 +21,11 @@ Clientへ23ケースを追加（入力文字列18・費用区分5）。新規/�
 
 WinUI合成ケースを追加し、新規/既存のフォーム・6列表示、追加/更新/流用/削除/上下移動、既存ID/版/期限外人物、値戻し、別明細/科目切替/科目追加/削除前の3択、取消/不正入力/連続削除/フォーム維持、Enter/Shift+Enter・Alt+Enter・Ctrl+Enter抑止、人物の上下/Space/Tab、一覧の上下/Enterを検証対象とした。IMEは共通ヘルパーの合成状態を確認する方式で、実IME操作を検証済みとは扱わない。初期化済みの実UIが使えることを待つ既存ヘルパーを使用し、待機上限は延長しない。
 
-変更元main `0492c30f2612f9444e2cf625ed5b9e90b7fe839e`のpush [Tests 43095856177](https://github.com/k-o-a-b-c/monetail/actions/runs/43095856177)と本PRの[Tests 43098107981](https://github.com/k-o-a-b-c/monetail/actions/runs/43098107981)は、確認時点でジョブ未作成のキュー待ち。変更前のWinUI353確認の成功根拠は統合済みPR #146の[Tests 43021712671](https://github.com/k-o-a-b-c/monetail/actions/runs/43021712671)、Client691件・実DPAPI3件は同PRの[Tests 43017415753](https://github.com/k-o-a-b-c/monetail/actions/runs/43017415753)。本変更後のWindows Releaseビルド/起動/既存回帰の成功は未確認で、過去の`0xC0000005`の再発有無も未判定。API/Docker/旧Windows/性能等は未変更で、CIのfingerprintによる成功記録再利用の対象とする。
+ソース`73bc16df54c8bdbb9ca6958259da663dd40f4c47`の[Tests 43114978800](https://github.com/k-o-a-b-c/monetail/actions/runs/43114978800)で、WinUI製品/検証用Releaseビルド（警告・エラー0）・製品起動・既存を含む416確認が成功。メモ3欄の追修正は21確認で、標準1行/高さ指定なし、入力反映、Enter/Shift+Enterと追加/更新の非実行、合成IME中/変換終了直後の移動抑止、値戻し、改行を含む保存済み文字列の保持、他項目変更/再描画、明細メモからのAlt+Enterを確認した。共通FormKeyboardを変更せず、入力前の実際のLoaded/レイアウト/フォーカスとTextChangedの反映を観測する。
+
+実行開始後に判明した、Grid.IsEnabled参照・テストの名前空間不足・TextBlockをGridとして検索する不備・合成税率のnullable警告を修正。行選択でItemsSourceを作り直してフォーカスを失う問題は、選択時に既存コンテナーを保持する修正と実キー試験で確認した。明示的な編集終了でテスト間を分離し、入力値を出力しない状態/解析診断を加えた。既存の判定条件と15秒/全体120秒の待機上限は維持する。今回`0xC0000005`は再発していないが、過去の原因解決とは扱わない。
+
+変更前main `0492c30f2612f9444e2cf625ed5b9e90b7fe839e`のpush CIは当初キュー待ちだったため、統合済みPR #146の[WinUI353確認](https://github.com/k-o-a-b-c/monetail/actions/runs/43021712671)と[Client/実DPAPI](https://github.com/k-o-a-b-c/monetail/actions/runs/43017415753)の成功を基準にした。Clientは本PRの[Tests 43110323133](https://github.com/k-o-a-b-c/monetail/actions/runs/43110323133)の成功ジョブ、実DPAPIは[Tests 43110484224](https://github.com/k-o-a-b-c/monetail/actions/runs/43110484224)の成功ジョブを以後のCIで再利用（各実行全体の中断/失敗を成功とは扱わない）。API/Docker/旧Windows/性能等も未変更部分のfingerprintに従って再利用し、修正ごとのClient全件・影響外検証は追加実行していない。
 
 税率履歴の正式取得経路と正式計算のWinUI接続は未整備。新規税率は未選択、参考額・合計は未計算とし、保存済みの非課税/課税0%等は維持する。全体保存ボタンは無効で書込APIを呼ばない。実API接続、実Windowsの人手/IME/高DPI/複数モニター/ARM64は未検証。API・DB・Migration・外部ライブラリの変更なし。
 
