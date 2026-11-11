@@ -18,6 +18,7 @@ public sealed partial class MainWindow : Window
         Closed += CloseConnection;
         InitializeInput();
         InitializeReceipts();
+        InitializeReceiptEditor();
         ShowPage(StartupPage);
     }
 
@@ -75,9 +76,9 @@ public sealed partial class MainWindow : Window
 
     private void FilterPeople(object sender, RoutedEventArgs args) => RenderPeopleRows();
 
-    private void ShowRecord(object sender, RoutedEventArgs e)
+    private async void ShowRecord(object sender, RoutedEventArgs e)
     {
-        if (busy || ManagementDialogOpen) return;
+        if (busy || ManagementDialogOpen || !await LeaveReceiptEditorAsync()) return;
         DropPendingCategoryEdit(); DiscardCategoryEditor(); DiscardCategoryOrder();
         DropPendingPaymentEdit(); DiscardPaymentEditor(); DiscardPaymentOrder();
         DropPendingPersonEdit();
@@ -88,7 +89,7 @@ public sealed partial class MainWindow : Window
 
     private async void ShowManagement(object sender, RoutedEventArgs e)
     {
-        if (busy || ManagementDialogOpen) return;
+        if (busy || ManagementDialogOpen || !await LeaveReceiptEditorAsync()) return;
         DiscardCategoryOrder(); CategoriesContent.Visibility = Visibility.Collapsed;
         DiscardPaymentOrder(); PaymentsContent.Visibility = Visibility.Collapsed;
         DiscardPersonOrder();

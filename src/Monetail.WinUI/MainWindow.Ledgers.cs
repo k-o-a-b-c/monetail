@@ -90,7 +90,10 @@ public sealed partial class MainWindow
         if (LedgerChoices.SelectedItem is LedgerInfo selected) await OpenLedgerAsync(selected.LedgerId);
     }
 
-    private Task OpenLedgerAsync(Guid ledgerId) => RunAsync(async () =>
+    private async Task OpenLedgerAsync(Guid ledgerId)
+    {
+        if (!await LeaveReceiptEditorAsync()) return;
+        await RunAsync(async () =>
     {
         var opened = await connection.Ledgers.OpenAsync(ledgerId, lifetime.Token);
         PeopleList.ItemsSource = null;
@@ -98,9 +101,11 @@ public sealed partial class MainWindow
         EmptyPeople.Visibility = Visibility.Visible;
         DisplayLedger(opened);
     }, () => OpenLedgerAsync(ledgerId));
+    }
 
     private async void ShowLedgerMenu(object sender, RoutedEventArgs args)
     {
+        if (busy || ManagementDialogOpen || !await LeaveReceiptEditorAsync()) return;
         ledgerMenu = null;
         await RunAsync(async () =>
         {

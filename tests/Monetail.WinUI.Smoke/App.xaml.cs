@@ -102,6 +102,10 @@ public partial class App : Application
             await CheckPayments();
             await CheckReceiptList();
             await CheckReceiptNavigation();
+            await CheckReceiptEditor();
+            await CheckReceiptParentSelection();
+            await CheckReceiptEditorOperations();
+            await CheckReceiptEditorLoading();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,
                     rasterizationScale, checks }));

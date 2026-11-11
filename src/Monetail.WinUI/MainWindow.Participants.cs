@@ -21,7 +21,7 @@ public sealed partial class MainWindow
     private ParticipantEditSnapshot? pendingParticipantEdit;
     private sealed record ParticipantEditSnapshot(Guid AccountId, string Origin, LedgerInfo Ledger, MembersInfo? Members,
         MemberEditInfo? Edit, MemberEditInfo? Latest, string Role, Guid? PersonId, LedgerInvitationDraft? Invitation);
-    private bool ManagementDialogOpen => categoryDialogOpen || personDialogOpen || paymentDialogOpen || participantDialogOpen || invitationDialogOpen;
+    private bool ManagementDialogOpen => receiptDialogOpen || categoryDialogOpen || personDialogOpen || paymentDialogOpen || participantDialogOpen || invitationDialogOpen;
     private bool CanManageParticipants => account is not null && currentLedger is not null && !membersAccessDenied &&
         (peoplePermissions is null ? currentLedger.Role : peoplePermissions.CurrentRole) == "Admin";
     private ParticipantsWorkspace Participants => new(connection.Api, connection.Session, currentLedger!.LedgerId);

@@ -25,6 +25,22 @@ public partial class App
         var saves = 0;
         var navigation = new FormKeyboard(panel, save, () => { saves++; return Task.CompletedTask; }, first, date, multiline);
         date.CancellationTarget = cancel;
+        // 連続Focus呼出しで前のLostFocusを追い越さず、補完イベントの完了を観測する。
+        async Task FocusAndObserve(Control target)
+        {
+            await Wait(() => target.IsLoaded && target.ActualWidth > 0);
+            var previous = FocusManager.GetFocusedElement(panel.XamlRoot) as FrameworkElement;
+            if (ReferenceEquals(previous, target)) return;
+            var lost = previous is null;
+            RoutedEventHandler observed = (_, _) => lost = true;
+            if (previous is not null) previous.LostFocus += observed;
+            try
+            {
+                if (!target.Focus(FocusState.Keyboard)) throw new InvalidOperationException("入力試験のフォーカス移動に失敗しました。");
+                await Wait(() => lost && ReferenceEquals(FocusManager.GetFocusedElement(panel.XamlRoot), target));
+            }
+            finally { if (previous is not null) previous.LostFocus -= observed; }
+        }
         var inputWindow = new Window { Content = panel };
         inputWindow.Activate();
         try
@@ -52,20 +68,20 @@ public partial class App
             Check(navigation.HandleEnter(true, false) is null && saves == 1, "Ctrl+Enterは無効な保存を実行しない");
             save.IsEnabled = true;
 
-            date.Focus(FocusState.Keyboard);
+            await FocusAndObserve(date);
             date.Text = "not a date";
-            cancel.Focus(FocusState.Keyboard);
+            await FocusAndObserve(cancel);
             await Settle();
             Check(date.Text == "not a date", "キャンセルへ移るとき日付を補完しない");
-            date.Focus(FocusState.Keyboard);
-            save.Focus(FocusState.Keyboard);
+            await FocusAndObserve(date);
+            await FocusAndObserve(save);
             await Settle();
             Check(date.Text == "", "空欄可の日付は不正入力を空欄に補正");
             date.AllowEmpty = false;
-            date.Focus(FocusState.Keyboard);
+            await FocusAndObserve(date);
             date.Text = "不正";
             var before = DateTime.Now.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture);
-            save.Focus(FocusState.Keyboard);
+            await FocusAndObserve(save);
             await Settle();
             Check(date.Text == before || date.Text == DateTime.Now.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
                 "必須の日付は不正入力をWindowsの本日に補正");

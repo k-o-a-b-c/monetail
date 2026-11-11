@@ -70,7 +70,7 @@ public partial class App
 
     private static void ObserveDialogs(FrameworkElement root)
     {
-        foreach (var name in new[] { "PersonDialog", "PaymentDialog", "CategoryDialog", "ParticipantDialog", "InvitationCancelDialog" })
+        foreach (var name in new[] { "PersonDialog", "PaymentDialog", "CategoryDialog", "ParticipantDialog", "InvitationCancelDialog", "ReceiptConfirmationDialog" })
         {
             var dialog = Find<ContentDialog>(root, name);
             var id = RuntimeHelpers.GetHashCode(dialog);
