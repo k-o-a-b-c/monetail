@@ -103,6 +103,7 @@ public partial class App : Application
             await CheckReceiptList();
             await CheckReceiptNavigation();
             await CheckReceiptEditor();
+            await CheckReceiptParentSelection();
             await CheckReceiptEditorOperations();
             await CheckReceiptEditorLoading();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),

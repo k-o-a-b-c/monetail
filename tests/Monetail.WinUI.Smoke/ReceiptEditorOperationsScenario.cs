@@ -41,13 +41,13 @@ public partial class App
         Check(editor.Groups.Count == 1 && editor.SelectedGroupKey is null && groups.SelectedItem is null && !Find<Button>(root, "ReceiptCategoryRemove").IsEnabled &&
             !Find<TextBox>(root, "ReceiptCategoryMemo").IsEnabled, "科目削除後は自動選択せず、フォームと削除を無効化");
         Find<TextBox>(root, "ReceiptShopName").Text = "親情報"; Find<TextBox>(root, "ReceiptShopLocation").Text = "所在地"; Find<TextBox>(root, "ReceiptMemo").Text = "レシートメモ";
-        var tax = Find<ComboBox>(root, "ReceiptTaxInclusion"); tax.SelectedIndex = 0;
+        var tax = Find<RadioButton>(root, "ReceiptTaxIncluded"); tax.IsChecked = true;
         await Wait(() => editor.Header.TaxInclusionMode == 0);
-        Check(((ComboBoxItem)tax.SelectedItem).Content.ToString() == "税込", "税込表示はAPIの0と一致");
-        tax.SelectedIndex = 1; Find<ComboBox>(root, "ReceiptTaxRounding").SelectedIndex = 1; Find<ComboBox>(root, "ReceiptEditorPayment").SelectedIndex = 0;
-        Find<CheckBox>(root, "ReceiptRepeats").IsChecked = true; Find<TextBox>(root, "ReceiptInterval").Text = "2"; Find<ComboBox>(root, "ReceiptUnit").SelectedIndex = 1;
+        Check(tax.Content.ToString() == "税込", "税込表示はAPIの0と一致");
+        Find<RadioButton>(root, "ReceiptTaxExcluded").IsChecked = true; Find<RadioButton>(root, "ReceiptTaxHalfUp").IsChecked = true; Find<ComboBox>(root, "ReceiptEditorPayment").SelectedIndex = 0;
+        Find<TextBox>(root, "ReceiptInterval").Text = "2"; Find<ComboBox>(root, "ReceiptUnit").SelectedIndex = 1;
         await Wait(() => editor.Header.RecurrenceInterval == 2 && editor.Header.TaxRoundingMode == "half_up" && editor.Header.PaymentMethodId is not null);
-        Check(editor.Header.TaxInclusionMode == 1 && ((ComboBoxItem)tax.SelectedItem).Content.ToString() == "税抜" && editor.Header.RecurrenceUnit == "Month" &&
+        Check(editor.Header.TaxInclusionMode == 1 && Find<RadioButton>(root, "ReceiptTaxExcluded").IsChecked == true && editor.Header.RecurrenceUnit == "Month" &&
             editor.Header.ShopName == "親情報" && editor.Header.ShopLocation == "所在地" && editor.Header.Memo == "レシートメモ", "親情報・税設定・周期の変更をHeaderへ反映");
         var time = Find<TimeInputBox>(root, "ReceiptTime"); time.Text = "９１５"; time.Complete();
         var date = Find<DateInputBox>(root, "ReceiptDate"); date.Text = "20260401"; date.Complete();

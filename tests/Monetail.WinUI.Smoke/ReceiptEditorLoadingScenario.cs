@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Client.Receipts;
 
 namespace Monetail.WinUI.Smoke;
 
@@ -17,8 +18,9 @@ public partial class App
         var payments = new PaymentServer(); fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(payments.People())); fixture.PaymentsHandler = payments.HandleAsync;
         var date = DateTime.SpecifyKind(DateTime.Today.AddDays(-1).AddHours(13).AddMinutes(24).AddSeconds(35), DateTimeKind.Unspecified);
         var summaries = Enumerable.Range(1, 100).Select(i => new ReceiptSummaryInfo(Guid.Parse(i.ToString("x32")), date, "保存店" + i, null, payments.ExpiredId, i, null)).ToArray();
-        ReceiptInfo Detail(Guid id) => new(id, date, "保存店", "保存所在地", payments.ExpiredId, 1, "floor", 2, "Month", null, Guid.NewGuid(), [
-            new(Guid.NewGuid(), categories.Rows[1].CategoryId, null, [new(Guid.NewGuid(), 0, "保存明細", 100, 1, 0, 0, null, "Excluded", "Regular", null, [])]),
+        var noRecurrence = false;
+        ReceiptInfo Detail(Guid id) => new(id, date, "保存店", "保存所在地", payments.ExpiredId, 1, "floor", noRecurrence ? null : 2, noRecurrence ? null : "Month", null, Guid.NewGuid(), [
+            new(Guid.NewGuid(), categories.Rows[1].CategoryId, null, [new(Guid.NewGuid(), 0, "保存明細", 100, 1, 0, 0, null, "Excluded", noRecurrence ? "Irregular" : "Regular", null, [])]),
             new(Guid.NewGuid(), categories.Rows[0].CategoryId, "保存科目メモ", [new(Guid.NewGuid(), 0, "別明細", -20, 2, 0, 0, 0, "Variable", "Irregular", null, [])])]);
         var reads = new List<Guid>(); var listReads = 0; var fail = false;
         TaskCompletionSource<bool>? gate = null; var cancelled = false;
@@ -59,9 +61,11 @@ public partial class App
             Find<TimeInputBox>(root, "ReceiptTime").Text == "13:24:35" && Find<DateInputBox>(root, "ReceiptDate").Text == date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
             "既存編集は詳細GET一回で保存済み取引日時を再現し新規初期値を適用しない");
         Check(editor.Header.ShopName == "保存店" && editor.Header.ShopLocation == "保存所在地" && editor.Header.PaymentMethodId == payments.ExpiredId &&
-            editor.Header.TaxInclusionMode == 1 && ((ComboBoxItem)Find<ComboBox>(root, "ReceiptTaxInclusion").SelectedItem).Content.ToString() == "税抜" &&
+            editor.Header.TaxInclusionMode == 1 && Find<RadioButton>(root, "ReceiptTaxExcluded").IsChecked == true &&
             editor.Header.TaxRoundingMode == "floor" && editor.Header.RecurrenceInterval == 2 && editor.Header.RecurrenceUnit == "Month" && editor.Header.Memo is null && !editor.NeedsLeaveConfirmation,
             "既存親情報・NULL・税区分・周期を保持し、開いただけでは未変更");
+        Check(ParentInput.TaxInclusionSource == ReceiptInputSource.Saved && !ParentInput.CanAutofillTaxInclusion && !ParentInput.CanAutofillTaxRounding,
+            "既存レシートの税設定は保存済み由来として両項目の自動補完を禁止");
         Check(Find<Button>(root, "ReceiptRegister").Visibility == Visibility.Collapsed && Find<Button>(root, "ReceiptUpdate").Visibility == Visibility.Visible &&
             Find<Button>(root, "ReceiptReuse").Visibility == Visibility.Visible && !Find<Button>(root, "ReceiptUpdate").IsEnabled && !Find<Button>(root, "ReceiptReuse").IsEnabled,
             "既存画面は更新/流用登録だけを無効状態で表示し保存成功を偽装しない");
@@ -92,7 +96,11 @@ public partial class App
         await Wait(() => Find<ContentControl>(root, "Operations").IsEnabled);
         Check(ReceiptEditing is null && Visible(root, "ManagementPage"), "中断要求の遅延応答は離脱後に編集画面を開かない");
         await InvokeAsync(() => Find<Button>(root, "ReturnButton")); await Wait(() => Visible(root, "HomePage"));
+        noRecurrence = true;
         await window.OpenReceiptEditorAsync(summaries[2].ReceiptId); await Wait(() => ReceiptEditing is not null);
+        Check(ReceiptEditing!.Header.RecurrenceInterval is null && ReceiptEditing.Header.RecurrenceUnit is null &&
+            ((ComboBoxItem)Find<ComboBox>(root, "ReceiptUnit").SelectedItem).Tag.ToString() == "Month" && !ReceiptEditing.NeedsLeaveConfirmation,
+            "既存の周期なしも表示月・保存値NULLのまま未変更で復元する");
         Check(ReceiptEditing!.ReceiptId == summaries[2].ReceiptId, "中断要求の終了後は別レシートを明示的に開ける");
         await Wait(() => Find<Button>(root, "ReceiptBack").ActualWidth > 0); await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
         await Wait(() => ReceiptEditing is null);

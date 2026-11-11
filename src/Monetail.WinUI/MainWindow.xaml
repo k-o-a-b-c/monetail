@@ -297,25 +297,30 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <ComboBox x:Name="ReceiptEditorPayment" Header="支払方法" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged"/>
-                            <ComboBox x:Name="ReceiptTaxInclusion" Grid.Column="1" Header="税込／税抜" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged">
-                                <ComboBoxItem Content="税込" Tag="0"/><ComboBoxItem Content="税抜" Tag="1"/>
-                            </ComboBox>
-                            <ComboBox x:Name="ReceiptTaxRounding" Grid.Column="2" Header="税端数方式" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged">
-                                <ComboBoxItem Content="切り捨て" Tag="floor"/><ComboBoxItem Content="四捨五入" Tag="half_up"/>
-                            </ComboBox>
+                            <StackPanel x:Name="ReceiptTaxInclusion" Grid.Column="1" Spacing="4">
+                                <TextBlock Text="税込／税抜"/>
+                                <RadioButton x:Name="ReceiptTaxIncluded" Content="税込" Tag="0" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
+                                <RadioButton x:Name="ReceiptTaxExcluded" Content="税抜" Tag="1" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
+                            </StackPanel>
+                            <StackPanel x:Name="ReceiptTaxRounding" Grid.Column="2" Spacing="4">
+                                <TextBlock Text="税端数方式"/>
+                                <RadioButton x:Name="ReceiptTaxFloor" Content="切り捨て" Tag="floor" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
+                                <RadioButton x:Name="ReceiptTaxHalfUp" Content="四捨五入" Tag="half_up" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
+                            </StackPanel>
                         </Grid>
                         <TextBlock x:Name="ReceiptPaymentWarning" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                         <Grid x:Name="ReceiptHeaderRow4" ColumnSpacing="12" RowSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <StackPanel Spacing="8">
-                                <CheckBox x:Name="ReceiptRepeats" Content="繰り返し周期を設定" Checked="ReceiptRepeatChanged" Unchecked="ReceiptRepeatChanged"/>
+                                <TextBlock Text="繰り返し周期"/>
                                 <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <TextBox x:Name="ReceiptInterval" Header="間隔" InputScope="Number" TextChanged="ReceiptParentTextChanged" IsEnabled="False"/>
-                                    <ComboBox x:Name="ReceiptUnit" Grid.Column="1" Header="単位" SelectionChanged="ReceiptParentChoiceChanged" HorizontalAlignment="Stretch" IsEnabled="False">
+                                    <TextBox x:Name="ReceiptInterval" Header="間隔" InputScope="Number" TextChanged="ReceiptParentTextChanged"/>
+                                    <ComboBox x:Name="ReceiptUnit" Grid.Column="1" Header="単位" SelectionChanged="ReceiptParentChoiceChanged" HorizontalAlignment="Stretch">
                                         <ComboBoxItem Content="週" Tag="Week"/><ComboBoxItem Content="月" Tag="Month"/><ComboBoxItem Content="年" Tag="Year"/>
                                     </ComboBox>
                                 </Grid>
+                                <TextBlock Text="間隔が空欄なら繰り返しなし" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBlock x:Name="ReceiptIntervalError" Visibility="Collapsed" Text="間隔は1以上の整数を入力してください。" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                             </StackPanel>
                             <TextBox x:Name="ReceiptMemo" Grid.Column="1" Header="レシートメモ" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" TextChanged="ReceiptParentTextChanged"/>

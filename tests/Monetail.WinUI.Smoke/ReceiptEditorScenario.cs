@@ -36,9 +36,9 @@ public partial class App
         var editor = ReceiptEditing!; var today = DateTime.Today;
         Check(editor.Header.TransactionAt == today && Find<DateInputBox>(root, "ReceiptDate").Text == today.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) &&
             Find<TimeInputBox>(root, "ReceiptTime").Text == "00:00:00", "新規親情報は画面を開いたローカル日付・午前0時");
-        Check(!editor.NeedsLeaveConfirmation && editor.Header.PaymentMethodId is null && editor.Header.TaxInclusionMode is null && editor.Header.TaxRoundingMode is null &&
+        Check(!editor.NeedsLeaveConfirmation && editor.Header.PaymentMethodId is null && editor.Header.TaxInclusionMode == 0 && editor.Header.TaxRoundingMode == "floor" &&
             editor.Header.RecurrenceInterval is null && editor.Header.RecurrenceUnit is null && editor.Header.ShopName == "" && editor.Header.ShopLocation == "" && editor.Header.Memo == "",
-            "新規親情報の空欄・未選択・周期なしは未保存変更にしない");
+            "新規親情報の空欄・支払未選択・税込/切り捨て・周期なしは未保存変更にしない");
         Check(Visible(root, "HomePage") && Visible(root, "ReceiptEditorPage") && !Visible(root, "RecordContent") && Find<Button>(root, "LedgerSelector").IsLoaded &&
             !Find<Button>(root, "ReceiptRegister").IsEnabled && Find<Button>(root, "ReceiptUpdate").Visibility == Visibility.Collapsed, "共通ヘッダーを残しメイン領域全体を新規入力へ切替、保存は無効");
         Find<TextBox>(root, "ReceiptShopName").Text = "未保存店";
