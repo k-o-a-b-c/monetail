@@ -17,7 +17,10 @@ public partial class App
     }
     private async Task ConfirmReceipt(FrameworkElement root, bool accept)
     {
-        await Wait(() => Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded && ReceiptConfirmationFooter(root, accept).IsLoaded);
+        await Wait(() => {
+            if (ReceiptEditing is null) throw new InvalidOperationException("未保存確認の前に編集モデルが破棄されました。");
+            return Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded && ReceiptConfirmationFooter(root, accept).IsLoaded;
+        });
         await InvokeAsync(() => ReceiptConfirmationFooter(root, accept));
         await Wait(() => !(bool)typeof(MainWindow).GetField("receiptDialogOpen", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!);
     }

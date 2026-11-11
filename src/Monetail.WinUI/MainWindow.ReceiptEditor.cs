@@ -70,7 +70,7 @@ public sealed partial class MainWindow
             if (!Current()) return;
             ReceiptCategoryDefaults Defaults(Guid category, DateTime? date)
             {
-                var master = connection.Masters.Categories(ledger)?.Categories.Single(c => c.CategoryId == category)
+                var master = connection.Masters.Categories(ledger)?.Categories.FirstOrDefault(c => c.CategoryId == category)
                     ?? throw new ReceiptInputException("categoryId", "科目情報を取得できませんでした。");
                 // 税率履歴は後続工程で接続。履歴未取得を非課税として代用しない。
                 return new(master.IncomeExpense, ReceiptTaxSelection.Unselected);
@@ -207,7 +207,10 @@ public sealed partial class MainWindow
     { if (args.ClickedItem is ReceiptCategoryRow row) ActivateReceiptCategory(row.Key); }
     private void ActivateReceiptCategory(Guid key)
     {
-        receiptEditor?.SelectGroup(key); SelectReceiptGroupPresentation();
+        SyncReceiptGroupMemo();
+        try { receiptEditor?.SelectGroup(key); }
+        catch (ReceiptInputException) { ShowError("科目情報を確認できないため切り替えできません。入力は保持しています。"); }
+        SelectReceiptGroupPresentation();
     }
     private void ReceiptCategoryKeyDown(object sender, KeyRoutedEventArgs args)
     {
@@ -215,12 +218,17 @@ public sealed partial class MainWindow
         for (var element = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
             if (element is ListViewItem { Content: ReceiptCategoryRow row }) { args.Handled = true; ActivateReceiptCategory(row.Key); return; }
     }
-    private void ReceiptGroupMemoChanged(object sender, TextChangedEventArgs args)
-    { if (!receiptEditorRendering && receiptEditor?.SelectedGroup is not null) receiptEditor.SetGroupMemo(ReceiptCategoryMemo.Text); }
+    private void ReceiptGroupMemoChanged(object sender, TextChangedEventArgs args) => SyncReceiptGroupMemo();
+    private void SyncReceiptGroupMemo()
+    {
+        if (!receiptEditorRendering && receiptEditor is { SelectedGroup: { } group } state && (group.Memo ?? "") != ReceiptCategoryMemo.Text)
+            state.SetGroupMemo(ReceiptCategoryMemo.Text);
+    }
     private async void RemoveReceiptCategory(object sender, RoutedEventArgs args)
     {
         if (receiptDialogOpen || receiptEditor is not { SelectedGroup: { } group } state) return;
         var row = ReceiptCategories.Items.OfType<ReceiptCategoryRow>().Single(c => c.Key == group.Key);
+        SyncReceiptGroupMemo();
         var dialog = ReceiptConfirmationDialog; dialog.XamlRoot = WorkspaceRoot.XamlRoot;
         dialog.Title = "科目を削除"; dialog.Content = $"「{row.Name}」と明細{group.Details.Count}件を削除しますか？";
         dialog.PrimaryButtonText = "削除"; dialog.CloseButtonText = "キャンセル";
@@ -241,6 +249,8 @@ public sealed partial class MainWindow
     {
         if (receiptLeaving || receiptDialogOpen) return false;
         if (receiptEditor is null) { CancelReceiptOpening(); return true; }
+        // TextChangedの通知を待たず、離脱直前のコントロール値を必ず保護対象にする。
+        SyncReceiptHeader(); SyncReceiptGroupMemo();
         receiptLeaving = true;
         try
         {
