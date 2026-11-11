@@ -17,7 +17,7 @@ public sealed partial class ReceiptsWorkspaceTests
     public async Task LargeConflictIsStreamedAndValidatedLikeDetailWithoutChangingInputs(ReceiptWriteOperation operation, bool chunked)
     {
         var latest = JsonSerializer.SerializeToNode(Detail())!.AsObject(); latest["memo"] = new string('あ', 70000);
-        var bytes = Encoding.UTF8.GetBytes(new JsonObject { ["code"] = "revision_conflict", ["latest"] = latest }.ToJsonString()); Assert.True(bytes.Length > 65536);
+        var bytes = Encoding.UTF8.GetBytes(LedgerConflictBody("revision_conflict", latest).ToJsonString()); Assert.True(bytes.Length > 65536);
         using var f = new WriteFixture((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Conflict) { Content = chunked ? new StreamContent(new ChunkStream(bytes)) : new ByteArrayContent(bytes) }));
         var input = Snapshot(); var request = WriteRequest(operation, input);
         var error = await Assert.ThrowsAsync<ReceiptRequestException>(() => Write(f, request));
@@ -32,7 +32,7 @@ public sealed partial class ReceiptsWorkspaceTests
     [InlineData("duplicate-detail")] [InlineData("null-people")] [InlineData("extra-property")] [InlineData("unknown-code")]
     public async Task MalformedConflictCannotBecomeAdoptableLatest(string invalid)
     {
-        var latest = JsonSerializer.SerializeToNode(Detail())!.AsObject(); var payload = new JsonObject { ["code"] = "revision_conflict", ["latest"] = latest };
+        var latest = JsonSerializer.SerializeToNode(Detail())!.AsObject(); var payload = LedgerConflictBody("revision_conflict", latest);
         var row = latest["groups"]![0]!["details"]![0]!;
         switch (invalid)
         {
@@ -60,7 +60,7 @@ public sealed partial class ReceiptsWorkspaceTests
     [InlineData(409, "request_conflict", null)] [InlineData(429, "rate_limited", null)] [InlineData(503, "store_unavailable", null)]
     public async Task ConfirmedErrorsKeepFieldReasonAndPermissionsWithoutBusinessRetries(int status, string code, string? reason)
     {
-        using var f = new WriteFixture((_, _) => Task.FromResult(Json(status == 409 ? new { code } : (object)new {
+        using var f = new WriteFixture((_, _) => Task.FromResult(Json(status == 409 ? LedgerConflictBody(code, null) : (object)new {
             code, field = "groups[0].details[1].taxRate", reason, message = "非公開SQL", latest = "読んではいけない", permissions = new { currentRole = "Viewer", myPersonId = Owner }
         }, (HttpStatusCode)status)));
         var request = WriteRequest(ReceiptWriteOperation.Update);

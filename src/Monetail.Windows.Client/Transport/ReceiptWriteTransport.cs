@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json.Serialization;
 using Monetail.Windows.Client.Ledgers;
 
 namespace Monetail.Windows.Client.Transport;
@@ -35,8 +36,8 @@ public sealed partial class MonetailApiClient
         {
             var error = await ReceiptJson.ReadAsync<ReceiptConflictPayload>(response.Content, token);
             if (error.Code == "revision_conflict" && receiptId is Guid id && error.Latest is not null)
-                return new ReceiptRequestException(response.StatusCode, error.Code, null, latestReceipt: ValidateReceipt(error.Latest, id));
-            if (error.Code == "request_conflict" && error.Latest is null) return new ReceiptRequestException(response.StatusCode, error.Code, null);
+                return new ReceiptRequestException(response.StatusCode, error.Code, error.Field, latestReceipt: ValidateReceipt(error.Latest, id));
+            if (error.Code == "request_conflict" && error.Latest is null) return new ReceiptRequestException(response.StatusCode, error.Code, error.Field);
             throw new ApiConnectionException();
         }
         var bytes = await ReadBoundedAsync(response.Content, token);
@@ -44,5 +45,10 @@ public sealed partial class MonetailApiClient
             return ReadReceiptFailure(response.StatusCode, bytes);
         throw new ApiConnectionException();
     }
-    private sealed record ReceiptConflictPayload(string Code, ReceiptInfo? Latest = null);
+    private sealed record ReceiptConflictPayload(string Code, ReceiptInfo? Latest = null, string? Field = null)
+    {
+        // LedgerApiFault.Bodyの共通項目を受理するが、409の表示文や権限更新には使わない。
+        [JsonIgnore] public object? Message => null;
+        [JsonIgnore] public object? Permissions => null;
+    }
 }
