@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Http.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.WinUI.Input;
@@ -28,7 +29,18 @@ public partial class App
             var id = Guid.Parse(request.RequestUri.Segments[^1]); reads.Add(id);
             if (gate is { } waiting) { gate = null; using var registration = token.Register(() => cancelled = true); await waiting.Task; }
             if (fail) { fail = false; return new(HttpStatusCode.ServiceUnavailable); }
-            return PaymentServer.Json(Detail(id));
+            var info = Detail(id);
+            // 実APIと同じくDecimalは文字列、日時はオフセットなし、NULLは省略しない。
+            return new(HttpStatusCode.OK) { Content = JsonContent.Create(new {
+                info.ReceiptId, transactionAt = info.TransactionAt.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
+                info.ShopName, info.ShopLocation, info.PaymentMethodId, info.TaxInclusionMode, info.TaxRoundingMode,
+                info.RecurrenceInterval, info.RecurrenceUnit, info.Memo, info.Revision,
+                groups = info.Groups.Select(g => new { g.GroupId, g.CategoryId, g.Memo, details = g.Details.Select(d => new {
+                    d.DetailId, d.DisplayOrder, d.Name, d.UnitPrice, d.Quantity, d.UnitDiscountAmount,
+                    discountRate = d.DiscountRate.ToString(CultureInfo.InvariantCulture), taxRate = d.TaxRate?.ToString(CultureInfo.InvariantCulture),
+                    d.ExpenseType, d.OccurrenceType, d.Memo, d.PersonIds
+                }) })
+            }) };
         };
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
         var list = Find<ListView>(root, "ReceiptList");
@@ -39,7 +51,9 @@ public partial class App
         list.ScrollIntoView(selected, ScrollIntoViewAlignment.Leading); await Wait(() => scroll.VerticalOffset > 0); await Settle(); var offset = scroll.VerticalOffset;
         Check(offset > 0, "編集前に標準ListViewの非先頭スクロール位置が確定していることを確認");
         // ダブルクリックのイベントと同じ共通入口を使用（物理ポインター操作とは区別）。
-        await window!.OpenReceiptEditorAsync(summaries[79].ReceiptId); await Wait(() => Find<Button>(root, "ReceiptBack").ActualWidth > 0);
+        await window!.OpenReceiptEditorAsync(summaries[79].ReceiptId);
+        Check(ReceiptEditing is not null, "詳細APIのDecimal文字列・NULL・全階層を受信して編集モデルを作成する");
+        await Wait(() => Find<Button>(root, "ReceiptBack").ActualWidth > 0);
         var editor = ReceiptEditing!; var originalGroup = editor.Groups[0]; var originalDetail = originalGroup.Details[0];
         Check(reads.Count == 1 && editor.ReceiptId == summaries[79].ReceiptId && editor.Header.TransactionAt == date &&
             Find<TimeInputBox>(root, "ReceiptTime").Text == "13:24:35" && Find<DateInputBox>(root, "ReceiptDate").Text == date.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture),
