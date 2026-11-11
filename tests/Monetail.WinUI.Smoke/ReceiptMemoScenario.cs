@@ -69,7 +69,9 @@ public partial class App
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), next[index]));
             Check(group.Details.Count == 1 && editor.SelectedDetailKey == group.Details[0].Key && group.Details[0].Values.Memo == detailMemo,
                 $"{memo.Name}のEnterは次の項目へ移動するだけで追加/更新を実行しない");
-            await PressReceiptKey(0x0D, 0x10); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
+            // ボタン上のEnterは実行操作なので、ここではメモへ明示的に戻して値戻しを確認する。
+            memo.Focus(FocusState.Keyboard);
+            await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
             memo.Text = initialText;
             Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
                 $"{memo.Name}を表示時の値へ戻すと保存済み文字列と未変更判定を復元");
