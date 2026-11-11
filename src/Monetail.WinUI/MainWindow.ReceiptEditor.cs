@@ -24,7 +24,9 @@ public sealed partial class MainWindow
     private bool receiptEditorRendering, receiptDialogOpen, receiptLeaving, receiptCloseApproved, receiptRestorePending;
     private double receiptReturnOffset;
     private string? receiptInitialLocation, receiptInitialMemo;
+    private string receiptInitialMemoText = "";
     private readonly Dictionary<Guid, string?> receiptInitialGroupMemos = [];
+    private readonly Dictionary<Guid, string> receiptInitialGroupMemoTexts = [];
     private FormKeyboard receiptEditorKeyboard = null!;
 
     private void InitializeReceiptEditor()
@@ -111,7 +113,7 @@ public sealed partial class MainWindow
     }
     private void ResetReceiptEditor()
     {
-        CancelReceiptOpening(); receiptEditor = null; receiptParentInput = null; receiptDetailInput = null; receiptInitialGroupMemos.Clear();
+        CancelReceiptOpening(); receiptEditor = null; receiptParentInput = null; receiptDetailInput = null; receiptInitialGroupMemos.Clear(); receiptInitialGroupMemoTexts.Clear();
         ReceiptEditorPage.Visibility = Visibility.Collapsed; RecordContent.Visibility = Visibility.Visible;
     }
     private void PopulateReceiptEditor()
@@ -123,6 +125,7 @@ public sealed partial class MainWindow
         ReceiptDate.Text = DateTimeInput.FormatDate(header.TransactionAt is DateTime at ? DateOnly.FromDateTime(at) : null);
         ReceiptTime.Text = DateTimeInput.FormatTime(header.TransactionAt is DateTime time ? TimeOnly.FromDateTime(time) : null);
         ReceiptShopName.Text = header.ShopName; ReceiptShopLocation.Text = header.ShopLocation ?? ""; ReceiptMemo.Text = header.Memo ?? "";
+        receiptInitialMemoText = ReceiptMemo.Text;
         RenderReceiptTaxValues();
         ReceiptIntervalError.Visibility = Visibility.Collapsed;
         ReceiptInterval.Text = header.RecurrenceInterval?.ToString(CultureInfo.InvariantCulture) ?? ""; SetReceiptChoice(ReceiptUnit, header.RecurrenceUnit ?? "Month");
@@ -162,7 +165,7 @@ public sealed partial class MainWindow
             TimeOnly.TryParseExact(ReceiptTime.Text, "HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)) header.TransactionAt = date.ToDateTime(time);
         header.ShopName = ReceiptShopName.Text;
         header.ShopLocation = ReceiptOptionalText(ReceiptShopLocation.Text, receiptInitialLocation);
-        header.Memo = ReceiptOptionalText(ReceiptMemo.Text, receiptInitialMemo);
+        header.Memo = ReceiptOptionalText(ReceiptMemo.Text, receiptInitialMemo, receiptInitialMemoText);
         if (ReceiptEditorPayment.SelectedItem is ReceiptFilterChoice payment) header.PaymentMethodId = payment.Id;
         header.TaxInclusionMode = ReceiptTaxIncluded.IsChecked == true ? 0 : ReceiptTaxExcluded.IsChecked == true ? 1 : null;
         header.TaxRoundingMode = ReceiptTaxFloor.IsChecked == true ? "floor" : ReceiptTaxHalfUp.IsChecked == true ? "half_up" : null;
@@ -172,8 +175,9 @@ public sealed partial class MainWindow
         ReceiptIntervalError.Visibility = recurrence.IsValid ? Visibility.Collapsed : Visibility.Visible;
         if (previousDate != header.TransactionAt?.Date || previousPayment != header.PaymentMethodId) RefreshReceiptEditorChoices();
     }
-    // 空欄へ戻したときも、読込時のNULL/空文字の違いを維持して不要な変更を作らない。
-    private static string? ReceiptOptionalText(string text, string? initial) => text == (initial ?? "") ? initial : text;
+    // 表示時の改行正規化やNULL/空文字の差を、利用者の変更とみなさない。元の表示へ戻した場合も保存値を復元する。
+    private static string? ReceiptOptionalText(string text, string? initial, string? initialDisplay = null) =>
+        text == (initialDisplay ?? initial ?? "") ? initial : text;
     private bool ReceiptEditorDirty => receiptEditor is { } state && (state.NeedsLeaveConfirmation || receiptDetailInput?.HasChanges == true ||
         ReceiptDate.Text != DateTimeInput.FormatDate(state.Header.TransactionAt is DateTime at ? DateOnly.FromDateTime(at) : null) ||
         ReceiptTime.Text != DateTimeInput.FormatTime(state.Header.TransactionAt is DateTime time ? TimeOnly.FromDateTime(time) : null) ||
@@ -218,6 +222,7 @@ public sealed partial class MainWindow
         ReceiptCategories.SelectedItem = ReceiptCategories.Items.OfType<ReceiptCategoryRow>().FirstOrDefault(c => c.Key == state.SelectedGroupKey);
         ReceiptCategoryMemo.IsEnabled = ReceiptCategoryRemove.IsEnabled = state.SelectedGroup is not null;
         ReceiptCategoryMemo.Text = state.SelectedGroup?.Memo ?? "";
+        if (state.SelectedGroupKey is Guid groupKey) receiptInitialGroupMemoTexts.TryAdd(groupKey, ReceiptCategoryMemo.Text);
         receiptEditorRendering = false; UpdateReceiptCategoryActions(); LoadReceiptDetailForm();
     }
     private void ReceiptGroupSelectionChanged(object sender, SelectionChangedEventArgs args)
@@ -272,7 +277,7 @@ public sealed partial class MainWindow
     {
         if (!receiptEditorRendering && receiptEditor is { SelectedGroup: { } group } state)
         {
-            var value = ReceiptOptionalText(ReceiptCategoryMemo.Text, receiptInitialGroupMemos.GetValueOrDefault(group.Key));
+            var value = ReceiptOptionalText(ReceiptCategoryMemo.Text, receiptInitialGroupMemos.GetValueOrDefault(group.Key), receiptInitialGroupMemoTexts.GetValueOrDefault(group.Key));
             if (value != group.Memo) state.SetGroupMemo(value);
         }
     }

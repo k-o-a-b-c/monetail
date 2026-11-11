@@ -323,7 +323,7 @@
                                 <TextBlock Text="間隔が空欄なら繰り返しなし" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBlock x:Name="ReceiptIntervalError" Visibility="Collapsed" Text="間隔は1以上の整数を入力してください。" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                             </StackPanel>
-                            <TextBox x:Name="ReceiptMemo" Grid.Column="1" Header="レシートメモ" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" TextChanged="ReceiptParentTextChanged"/>
+                            <TextBox x:Name="ReceiptMemo" Grid.Column="1" Header="レシートメモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptParentTextChanged"/>
                         </Grid>
                         <Grid x:Name="ReceiptCategoryArea" ColumnSpacing="24" RowSpacing="16">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
@@ -341,7 +341,7 @@
                                         </Grid>
                                     </DataTemplate></ListView.ItemTemplate>
                                 </ListView>
-                                <TextBox x:Name="ReceiptCategoryMemo" Header="科目メモ" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="ReceiptGroupMemoChanged" IsEnabled="False"/>
+                                <TextBox x:Name="ReceiptCategoryMemo" Header="科目メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptGroupMemoChanged" IsEnabled="False"/>
                                 <Button x:Name="ReceiptCategoryRemove" Content="科目を削除" Click="RemoveReceiptCategory" IsEnabled="False"/>
                             </StackPanel>
                             <StackPanel x:Name="ReceiptDetailsArea" Grid.Column="1" Spacing="8" MinHeight="220" PreviewKeyDown="ReceiptDetailKeyDown">
@@ -378,7 +378,7 @@
                                     </StackPanel>
                                 </Grid>
                                 <TextBlock Text="税率履歴は未接続です。新規の課税税率は未選択のままです。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <TextBox x:Name="ReceiptItemMemo" Header="明細メモ" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="ReceiptDetailTextChanged"/>
+                                <TextBox x:Name="ReceiptItemMemo" Header="明細メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptDetailTextChanged"/>
                                 <TextBlock x:Name="ReceiptDetailError" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                                 <Button x:Name="ReceiptDetailApply" Content="追加" HorizontalAlignment="Right" Click="ApplyReceiptDetail" IsEnabled="False"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
