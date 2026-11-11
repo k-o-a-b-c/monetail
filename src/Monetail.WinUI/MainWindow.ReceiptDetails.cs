@@ -17,7 +17,7 @@ public sealed partial class MainWindow
     private string? receiptDetailInitialMemo;
     private string receiptDetailInitialMemoText = "";
 
-    private void LoadReceiptDetailForm()
+    private void LoadReceiptDetailForm(bool refreshList = true)
     {
         receiptDetailRendering = true;
         try
@@ -44,7 +44,7 @@ public sealed partial class MainWindow
             RenderReceiptDetailPeople(); ReceiptDetailError.Visibility = Visibility.Collapsed;
         }
         finally { receiptDetailRendering = false; }
-        RenderReceiptDetailList();
+        RenderReceiptDetailList(refreshList);
     }
     private void RenderReceiptDetailPeople()
     {
@@ -132,12 +132,13 @@ public sealed partial class MainWindow
         SyncReceiptDetailInput(); receiptEditor.MoveSelectedDetail(delta);
         RenderReceiptDetailList(); // フォームは再読込しない。不正な入力文字列もそのまま。
     }
-    private void RenderReceiptDetailList()
+    private void RenderReceiptDetailList(bool refreshRows = true)
     {
         receiptDetailRendering = true;
         try
         {
-            ReceiptDetailsList.ItemsSource = receiptEditor?.SelectedGroup?.Details.Select(d => new ReceiptDetailRow(d)).ToArray() ?? [];
+            // 行選択だけではコンテナーを破棄しない。矢印移動後も一覧のキーボードフォーカスを保持する。
+            if (refreshRows) ReceiptDetailsList.ItemsSource = receiptEditor?.SelectedGroup?.Details.Select(d => new ReceiptDetailRow(d)).ToArray() ?? [];
             ReceiptDetailsList.SelectedItem = ReceiptDetailsList.Items.OfType<ReceiptDetailRow>().FirstOrDefault(r => r.Key == receiptEditor?.SelectedDetailKey);
             var selected = receiptEditor?.SelectedDetailKey;
             ReceiptDetailApply.IsEnabled = receiptEditor?.SelectedGroup is not null;
@@ -162,7 +163,7 @@ public sealed partial class MainWindow
         try
         {
             if (!await ResolveReceiptDetailAsync() || receiptEditor is null) return;
-            receiptEditor.SelectDetail(target.Key); LoadReceiptDetailForm();
+            receiptEditor.SelectDetail(target.Key); LoadReceiptDetailForm(refreshList: false);
         }
         finally { receiptDetailTransition = false; }
     }

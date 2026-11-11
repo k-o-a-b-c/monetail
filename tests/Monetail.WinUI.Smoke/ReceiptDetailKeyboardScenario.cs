@@ -53,9 +53,10 @@ public partial class App
         var list = Find<ListView>(root, "ReceiptDetailsList"); list.SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         list.ScrollIntoView(list.Items[0]); await Wait(() => list.ContainerFromIndex(0) is ListViewItem { IsLoaded: true });
+        var rows = list.ItemsSource;
         ((ListViewItem)list.ContainerFromIndex(0)).Focus(FocusState.Keyboard);
         await PressReceiptKey(0x28); await Wait(() => editor.SelectedDetailKey == group.Details[1].Key);
-        Check(name.Text == group.Details[1].Values.Name, "明細一覧の矢印は選択明細をフォームへ復元");
+        Check(name.Text == group.Details[1].Values.Name && ReferenceEquals(rows, list.ItemsSource), "明細一覧の矢印は選択明細をフォームへ復元");
         await PressReceiptKey(0x0D); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), name));
         Check(true, "明細一覧のEnterは品名へフォーカス移動");
     }
