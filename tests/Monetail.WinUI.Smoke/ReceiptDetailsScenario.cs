@@ -24,7 +24,7 @@ public partial class App
             All(Find<StackPanel>(root, "ReceiptDetailPeople")).OfType<CheckBox>().All(c => c.IsChecked != true), "明細初期値・人物0人・税率未選択を維持");
         name.Text = "明細A"; price.Text = "不正"; tax.SelectedIndex = 0;
         await InvokeAsync(() => Find<Button>(root, "ReceiptDetailApply"));
-        Check(group.Details.Count == 0 && price.Text == "不正" && name.Text == "明細A" && Visible(root, "ReceiptDetailError"), "不正入力は0へ補正せず追加拒否し入力を維持");
+        Check(group.Details.Count == 0 && price.Text == "不正" && name.Text == "明細A" && Find<TextBlock>(root, "ReceiptDetailError").Visibility == Visibility.Visible, "不正入力は0へ補正せず追加拒否し入力を維持");
         price.Text = "100+20*3";
         await InvokeAsync(() => Find<Button>(root, "ReceiptDetailApply"));
         await Wait(() => group.Details.Count == 1);
@@ -50,7 +50,7 @@ public partial class App
         list.SelectedIndex = 0; await ChooseReceiptDetailDraft(root, ContentDialogResult.None);
         Check(editor.SelectedDetailKey == selected && list.SelectedIndex == 1 && price.Text == "途中" && name.Text == "並び替え中", "切替取消で元選択と全入力を保持");
         list.SelectedIndex = 0; await ChooseReceiptDetailDraft(root, ContentDialogResult.Primary);
-        Check(editor.SelectedDetailKey == selected && price.Text == "途中" && group.Details[1].Values.Name == "更新A" && Visible(root, "ReceiptDetailError"), "追加/更新して移動の検証失敗では移動も元行変更もしない");
+        Check(editor.SelectedDetailKey == selected && price.Text == "途中" && group.Details[1].Values.Name == "更新A" && Find<TextBlock>(root, "ReceiptDetailError").Visibility == Visibility.Visible, "追加/更新して移動の検証失敗では移動も元行変更もしない");
         list.SelectedIndex = 0; await ChooseReceiptDetailDraft(root, ContentDialogResult.Secondary);
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         Check(name.Text == "B" && group.Details[1].Values.Name == "更新A", "破棄して移動は未反映入力だけを破棄し登録済み明細を維持");
