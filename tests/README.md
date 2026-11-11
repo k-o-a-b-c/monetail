@@ -9,11 +9,11 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 1444 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取/書込・補完・編集モデル） | 675 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取/書込・補完・編集モデル） | 691 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 2398 |
+| 合計 | 2414 |
 
 ## 工程6-D2：WinUIレシート基本入力
 
@@ -24,6 +24,16 @@
 ソース`dccc7b85cf0821fa6ee06a0d9a06fe7022ab7d3d`の[Tests 43005054668](https://github.com/k-o-a-b-c/monetail/actions/runs/43005054668)でWinUI製品/検証用Releaseビルド（警告・エラー0）・製品起動・既存を含む332確認が成功。基点main `9e85648b4ed7461d3015125e97b4069505ae672d`の[push Tests 42991325636](https://github.com/k-o-a-b-c/monetail/actions/runs/42991325636)を変更前の根拠とし、未変更のClient675件・実DPAPI3件・API/Docker/旧Windows/性能等はCIのfingerprintで成功記録を再利用した。ローカルはXAMLのXML構造・文書リンク・差分を確認。LinuxでWinUIビルド/画面を実行したものではない。今回`0xC0000005`は再発していないが、過去の原因解決とは扱わない。
 
 明細フォーム/一覧・API保存・計算・競合/結果不明/編集認証復帰・履歴候補/自動補完UIは未実装。物理ダブルクリック/キー/IME・各DPI/複数モニター・実API接続と保存・ARM64実機の手動確認は未検証。合成画面は同じ製品XAML・イベント/共通入口・標準コントロールを使用し、物理操作と区別する。API・DB・Migration・ClientSession/DTO・外部ライブラリの変更なし。
+
+### PR #146：親情報RadioButton・手動保護・周期入力の追修正
+
+新規は税込/切り捨てを選択済みにし、周期CheckBoxを削除、間隔空欄・表示月と保存用の両列NULLを分離した。Clientへ由来管理/補完保護と周期解析の16ケースを追加（全691件）。同値再選択の手動保護、項目別の補完可否、保存済み値の保護、値を戻した場合の変更解消、空欄/不正/Int32境界を確認する。ローカルの関連16件・Client全691件と、ソース`df178991548e177f186c4e7384c434dc5d8326c9`の[Tests 43017415753](https://github.com/k-o-a-b-c/monetail/actions/runs/43017415753)でWindows Client691件・実DPAPI3件が成功。
+
+既存WinUIケースは期待値を新仕様へ同期し、入力保持・一覧復帰・離脱保護の判定は維持した。初期値/既存復元、同値再クリック/別値選択、手動フラグだけでは未変更、プログラムのIsChecked/自動値/再描画は非手動、周期解除/不正文字列/モデル未変更時の不正入力離脱を追加確認。標準RadioButtonはSpaceで選択し、Enterを独自の選択キーへ変更しない。実キー試験で誤って前提にしたEnter選択と、マウス試験のクライアント/画面座標の不一致を修正し、判定・待機上限は緩めていない。
+
+ソース`b1ec3d1e3ea1010831402ea1869577b62cdf90c7`の[Tests 43021712671](https://github.com/k-o-a-b-c/monetail/actions/runs/43021712671)でWinUI製品/検証用Releaseビルド（警告・エラー0）・製品起動・既存を含む353確認が成功（追修正で21確認追加）。テスト専用のSendInputでマウス押下/解放とSpaceを送り、標準Clickの発火・手動状態を確認する。製品へ入力注入や独自キー処理を追加しない。テストのクリック位置は標準レイアウト変換・実倍率・ClientToScreenで取得し、データ/認証情報を診断へ記録しない。今回`0xC0000005`は再発していないが、過去の原因解決とは扱わない。
+
+基点PR先端`549893c`の[Tests 43005713485](https://github.com/k-o-a-b-c/monetail/actions/runs/43005713485)を変更前の根拠とし、API/Docker/旧Windows/性能等はCIのfingerprintで成功記録を再利用。テストだけの追修正でも成功済みClient/Storageを再利用した。実APIの履歴補完は未接続で、API/DB/Migration/ClientSession/DTO/外部ライブラリは変更しない。実機の人手操作・IME・各DPI/複数モニター・ARM64は未検証。
 
 ## 工程6-D1：レシート編集状態モデル
 
