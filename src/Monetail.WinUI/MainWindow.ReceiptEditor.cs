@@ -148,7 +148,7 @@ public sealed partial class MainWindow
     private void ReceiptTaxSelected(object sender, RoutedEventArgs args)
     {
         if (receiptEditorRendering || receiptParentInput is null || sender is not RadioButton radio) return;
-        // 標準ClickはマウスとSpace/Enterの明示選択で発火し、選択済みの再操作も含む。Checkedだけでは由来を変えない。
+        // 標準Clickはマウスとキーボードの明示選択で発火し、選択済みの再操作も含む。Checkedだけでは由来を変えない。
         if (radio.GroupName == "ReceiptInclusion") receiptParentInput.SelectTaxInclusion(int.Parse((string)radio.Tag, CultureInfo.InvariantCulture));
         else receiptParentInput.SelectTaxRounding((string)radio.Tag);
         SyncReceiptHeader();

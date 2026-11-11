@@ -11,7 +11,7 @@ namespace Monetail.WinUI.Smoke;
 public partial class App
 {
     private ReceiptParentInputState ParentInput => (ReceiptParentInputState)typeof(MainWindow).GetField("receiptParentInput", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
-    private async Task SelectReceiptRadio(FrameworkElement root, string name, bool keyboard = false, ushort key = 0x20)
+    private async Task SelectReceiptRadio(FrameworkElement root, string name, bool keyboard = false)
     {
         await Wait(() => Find<RadioButton>(root, name) is { IsLoaded: true, ActualWidth: > 0, IsEnabled: true });
         var radio = Find<RadioButton>(root, name);
@@ -24,7 +24,7 @@ public partial class App
         var clicked = false; RoutedEventHandler observed = (_, _) => clicked = true; radio.Click += observed;
         try
         {
-            if (keyboard) await PressReceiptRadioKeyAsync(radio, key);
+            if (keyboard) await PressReceiptRadioSpaceAsync(radio);
             else
             {
                 var peer = FrameworkElementAutomationPeer.CreatePeerForElement(radio)!;
@@ -54,7 +54,7 @@ public partial class App
         await SelectReceiptRadio(root, "ReceiptTaxExcluded", keyboard: true);
         await SelectReceiptRadio(root, "ReceiptTaxHalfUp", keyboard: true);
         Check(editor.Header.TaxInclusionMode == 1 && editor.Header.TaxRoundingMode == "half_up" && editor.NeedsLeaveConfirmation, "Spaceキーの標準選択でも値と手動設定を反映");
-        await SelectReceiptRadio(root, "ReceiptTaxIncluded", keyboard: true, key: 0x0D); await SelectReceiptRadio(root, "ReceiptTaxFloor", keyboard: true, key: 0x0D);
+        await SelectReceiptRadio(root, "ReceiptTaxIncluded", keyboard: true); await SelectReceiptRadio(root, "ReceiptTaxFloor", keyboard: true);
         Check(!editor.NeedsLeaveConfirmation && !state.TryAutofillTaxInclusion(1) && !state.TryAutofillTaxRounding("half_up"), "値を初期値へ戻すと未保存変更は解消し手動保護は残る");
         window.RenderReceiptTaxValues(); Check(ReferenceEquals(state, ParentInput) && state.TaxInclusionSource == ReceiptInputSource.Manual, "再描画は手動設定状態を再作成・解除しない");
         unit.SelectedIndex = 2; await Task.Yield();
@@ -85,9 +85,9 @@ public partial class App
         await SelectReceiptRadio(root, "ReceiptTaxIncluded", keyboard: true);
         Check(fresh.TaxInclusionSource == ReceiptInputSource.Manual && fresh.TaxRoundingSource == ReceiptInputSource.Automatic && !secondEditor.NeedsLeaveConfirmation,
             "Spaceで同値を選択してもその項目だけ自動値から手動保護へ移行する");
-        await SelectReceiptRadio(root, "ReceiptTaxFloor", keyboard: true, key: 0x0D);
+        await SelectReceiptRadio(root, "ReceiptTaxFloor", keyboard: true);
         Check(fresh.TaxRoundingSource == ReceiptInputSource.Manual && !secondEditor.NeedsLeaveConfirmation,
-            "Enterで同値を選択しても手動にし、値不変なら未保存変更は増やさない");
+            "Spaceで同値を選択しても手動にし、値不変なら未保存変更は増やさない");
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await Wait(() => ReceiptEditing is null);
     }
 }

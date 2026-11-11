@@ -28,7 +28,7 @@ public partial class App
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr window);
-    private async Task PressReceiptRadioKeyAsync(RadioButton radio, ushort key)
+    private async Task PressReceiptRadioSpaceAsync(RadioButton radio)
     {
         var handle = WinRT.Interop.WindowNative.GetWindowHandle(window!);
         window!.Activate(); SetForegroundWindow(handle);
@@ -36,8 +36,8 @@ public partial class App
         if (!radio.Focus(FocusState.Keyboard)) throw new InvalidOperationException("RadioButtonへキーボードフォーカスを移動できません。");
         await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(radio.XamlRoot), radio));
         var inputs = new[] {
-            new ReceiptNativeInput { Type = 1, Data = new() { Key = new() { VirtualKey = key } } },
-            new ReceiptNativeInput { Type = 1, Data = new() { Key = new() { VirtualKey = key, Flags = 2 } } }
+            new ReceiptNativeInput { Type = 1, Data = new() { Key = new() { VirtualKey = 0x20 } } },
+            new ReceiptNativeInput { Type = 1, Data = new() { Key = new() { VirtualKey = 0x20, Flags = 2 } } }
         };
         if (SendInput(2, inputs, Marshal.SizeOf<ReceiptNativeInput>()) != 2) throw new Win32Exception(Marshal.GetLastWin32Error());
     }
