@@ -41,6 +41,7 @@ public partial class App
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
             "1行表示で開いて選択しただけでは保存済みの改行メモも未保存変更にしない");
         var memos = new[] { Find<TextBox>(root, "ReceiptMemo"), Find<TextBox>(root, "ReceiptCategoryMemo"), Find<TextBox>(root, "ReceiptItemMemo") };
+        await Wait(() => memos.All(memo => memo.IsLoaded && memo.ActualWidth > 0));
         var next = new Control[] { Find<ComboBox>(root, "ReceiptCategoryChoice"), Find<Button>(root, "ReceiptCategoryRemove"), Find<Button>(root, "ReceiptDetailApply") };
         for (var index = 0; index < memos.Length; index++)
         {
