@@ -1,7 +1,5 @@
 using System.Reflection;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Automation.Peers;
-using Microsoft.UI.Xaml.Automation.Provider;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Monetail.Windows.Client.Receipts;
@@ -25,12 +23,7 @@ public partial class App
         try
         {
             if (keyboard) await PressReceiptRadioSpaceAsync(radio);
-            else
-            {
-                var peer = FrameworkElementAutomationPeer.CreatePeerForElement(radio)!;
-                // WinUIのSelectionItem.Selectはマウスと同じ標準OnClickを呼ぶ。
-                ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
-            }
+            else await ClickReceiptRadioAsync(radio);
             await Wait(() => clicked && radio.IsChecked == true);
         }
         finally { radio.Click -= observed; }

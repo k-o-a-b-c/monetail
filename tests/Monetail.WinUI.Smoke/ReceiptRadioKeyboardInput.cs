@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Input;
 
 namespace Monetail.WinUI.Smoke;
@@ -28,11 +29,34 @@ public partial class App
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetForegroundWindow(IntPtr window);
-    private async Task PressReceiptRadioSpaceAsync(RadioButton radio)
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetCursorPos(int x, int y);
+    private async Task ActivateReceiptInputWindowAsync()
     {
         var handle = WinRT.Interop.WindowNative.GetWindowHandle(window!);
         window!.Activate(); SetForegroundWindow(handle);
         await Wait(() => GetForegroundWindow() == handle);
+    }
+    private async Task ClickReceiptRadioAsync(RadioButton radio)
+    {
+        await ActivateReceiptInputWindowAsync();
+        // 標準UI Automationの画面座標を使い、独自のDPI/配置計算は行わない。
+        radio.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
+        var peer = FrameworkElementAutomationPeer.CreatePeerForElement(radio)!;
+        await Wait(() => !peer.IsOffscreen());
+        var bounds = peer.GetBoundingRectangle();
+        if (bounds.Width <= 0 || bounds.Height <= 0) throw new InvalidOperationException("RadioButtonの表示位置を取得できません。");
+        if (!SetCursorPos((int)(bounds.X + bounds.Width / 2), (int)(bounds.Y + bounds.Height / 2))) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var inputs = new[] {
+            new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = 2 } } },
+            new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = 4 } } }
+        };
+        if (SendInput(2, inputs, Marshal.SizeOf<ReceiptNativeInput>()) != 2) throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
+    private async Task PressReceiptRadioSpaceAsync(RadioButton radio)
+    {
+        await ActivateReceiptInputWindowAsync();
         if (!radio.Focus(FocusState.Keyboard)) throw new InvalidOperationException("RadioButtonへキーボードフォーカスを移動できません。");
         await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(radio.XamlRoot), radio));
         var inputs = new[] {
