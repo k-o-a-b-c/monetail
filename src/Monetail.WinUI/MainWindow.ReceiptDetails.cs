@@ -25,7 +25,8 @@ public sealed partial class MainWindow
             receiptDetailInput = receiptEditor?.Draft is { } draft ? new(draft) : null;
             var input = receiptDetailInput; var value = input?.Values;
             receiptDetailInitialMemo = value?.Memo;
-            ReceiptDetailForm.IsEnabled = ReceiptItemMemo.IsEnabled = input is not null;
+            foreach (var control in new Control[] { ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount,
+                ReceiptItemRateDiscount, ReceiptItemTax, ReceiptItemExpense, ReceiptItemOccurrence, ReceiptItemMemo }) control.IsEnabled = input is not null;
             ReceiptItemName.Text = value?.Name ?? ""; ReceiptItemPrice.Text = input?.UnitPrice ?? "";
             ReceiptItemQuantity.Text = input?.Quantity ?? ""; ReceiptItemDiscount.Text = input?.UnitDiscountAmount ?? "";
             ReceiptItemRateDiscount.Text = input?.DiscountRate ?? ""; ReceiptItemMemo.Text = value?.Memo ?? "";
