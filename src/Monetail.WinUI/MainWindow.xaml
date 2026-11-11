@@ -298,7 +298,7 @@
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <ComboBox x:Name="ReceiptEditorPayment" Header="支払方法" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged"/>
                             <ComboBox x:Name="ReceiptTaxInclusion" Grid.Column="1" Header="税込／税抜" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged">
-                                <ComboBoxItem Content="税込" Tag="1"/><ComboBoxItem Content="税抜" Tag="0"/>
+                                <ComboBoxItem Content="税込" Tag="0"/><ComboBoxItem Content="税抜" Tag="1"/>
                             </ComboBox>
                             <ComboBox x:Name="ReceiptTaxRounding" Grid.Column="2" Header="税端数方式" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged">
                                 <ComboBoxItem Content="切り捨て" Tag="floor"/><ComboBoxItem Content="四捨五入" Tag="half_up"/>

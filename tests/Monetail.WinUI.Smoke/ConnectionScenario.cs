@@ -341,7 +341,7 @@ public partial class App
             }
             if (path == $"/ledgers/{second.LedgerId:N}/open") return Json(second);
             if (path == $"/ledgers/{first.LedgerId:N}/open") return CannotOpenLedger ? new(HttpStatusCode.NotFound) : Json(first);
-            if (path.EndsWith("/receipts", StringComparison.Ordinal))
+            if (path.EndsWith("/receipts", StringComparison.Ordinal) || path.Contains("/receipts/", StringComparison.Ordinal))
                 return ReceiptsHandler is not null ? await ReceiptsHandler(request, token) : Json(new ReceiptListInfo([], null));
             if (path.EndsWith("/payment-methods", StringComparison.Ordinal) && PaymentsHandler is null) return Json(new PaymentMethodsInfo([], [], null, "Admin"));
             if (ParticipantsHandler is not null && (path.Contains("/members", StringComparison.Ordinal) || path.Contains("/invitations", StringComparison.Ordinal)))

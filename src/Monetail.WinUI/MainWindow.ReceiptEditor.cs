@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -201,11 +202,11 @@ public sealed partial class MainWindow
     private void AddReceiptCategory(object sender, RoutedEventArgs args)
     {
         if (receiptEditor is not { } state || ReceiptCategoryChoice.SelectedItem is not ReceiptFilterChoice { Id: Guid id } || !ReceiptCategoryAdd.IsEnabled) return;
-        state.AddCategory(id); RenderReceiptGroups();
+        SyncReceiptGroupMemo(); state.AddCategory(id); RenderReceiptGroups();
     }
     private void ReceiptCategoryClicked(object sender, ItemClickEventArgs args)
     { if (args.ClickedItem is ReceiptCategoryRow row) ActivateReceiptCategory(row.Key); }
-    private void ActivateReceiptCategory(Guid key)
+    internal void ActivateReceiptCategory(Guid key)
     {
         SyncReceiptGroupMemo();
         try { receiptEditor?.SelectGroup(key); }
@@ -214,9 +215,15 @@ public sealed partial class MainWindow
     }
     private void ReceiptCategoryKeyDown(object sender, KeyRoutedEventArgs args)
     {
-        if (args.Key != VirtualKey.Enter || receiptEditorKeyboard.IsComposing) return;
+        if (args.Key != VirtualKey.Enter || receiptEditorKeyboard.IsComposing ||
+            new[] { VirtualKey.Control, VirtualKey.Menu, VirtualKey.Shift }.Any(key => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down))) return;
+        args.Handled = ActivateFocusedReceiptCategory();
+    }
+    internal bool ActivateFocusedReceiptCategory()
+    {
         for (var element = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
-            if (element is ListViewItem { Content: ReceiptCategoryRow row }) { args.Handled = true; ActivateReceiptCategory(row.Key); return; }
+            if (element is ListViewItem { Content: ReceiptCategoryRow row }) { ActivateReceiptCategory(row.Key); return true; }
+        return false;
     }
     private void ReceiptGroupMemoChanged(object sender, TextChangedEventArgs args) => SyncReceiptGroupMemo();
     private void SyncReceiptGroupMemo()

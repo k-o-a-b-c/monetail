@@ -19,7 +19,7 @@ public partial class App
     {
         await Wait(() => {
             if (ReceiptEditing is null) throw new InvalidOperationException("未保存確認の前に編集モデルが破棄されました。");
-            return Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded && ReceiptConfirmationFooter(root, accept).IsLoaded;
+            return Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded && ReceiptConfirmationFooter(root, accept).IsLoaded && ReceiptConfirmationFooter(root, accept).ActualWidth > 0;
         });
         await InvokeAsync(() => ReceiptConfirmationFooter(root, accept));
         await Wait(() => !(bool)typeof(MainWindow).GetField("receiptDialogOpen", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!);
@@ -30,7 +30,9 @@ public partial class App
         var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
         var list = Find<ListView>(root, "ReceiptList");
-        await InvokeAsync(() => Find<Button>(root, "NewReceiptButton")); await Wait(() => ReceiptEditing is not null);
+        await Wait(() => Find<Button>(root, "NewReceiptButton").ActualWidth > 0);
+        await InvokeAsync(() => Find<Button>(root, "NewReceiptButton"));
+        await Wait(() => ReceiptEditing is not null && Find<Button>(root, "ReceiptBack").ActualWidth > 0);
         var editor = ReceiptEditing!; var today = DateTime.Today;
         Check(editor.Header.TransactionAt == today && Find<DateInputBox>(root, "ReceiptDate").Text == today.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) &&
             Find<TimeInputBox>(root, "ReceiptTime").Text == "00:00:00", "新規親情報は画面を開いたローカル日付・午前0時");
