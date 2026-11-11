@@ -344,7 +344,7 @@
                                 <TextBox x:Name="ReceiptCategoryMemo" Header="科目メモ" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="ReceiptGroupMemoChanged" IsEnabled="False"/>
                                 <Button x:Name="ReceiptCategoryRemove" Content="科目を削除" Click="RemoveReceiptCategory" IsEnabled="False"/>
                             </StackPanel>
-                            <StackPanel x:Name="ReceiptDetailsArea" Grid.Column="1" Spacing="8" MinHeight="220" KeyDown="ReceiptDetailKeyDown">
+                            <StackPanel x:Name="ReceiptDetailsArea" Grid.Column="1" Spacing="8" MinHeight="220" PreviewKeyDown="ReceiptDetailKeyDown">
                                 <TextBlock Text="明細" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                                 <Grid x:Name="ReceiptDetailForm" ColumnSpacing="16" RowSpacing="8" SizeChanged="ReceiptDetailFormSizeChanged">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

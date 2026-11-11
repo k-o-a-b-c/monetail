@@ -305,7 +305,7 @@ public sealed partial class MainWindow
     }
     private async Task<bool> LeaveReceiptEditorAsync()
     {
-        if (receiptLeaving || receiptDialogOpen) return false;
+        if (receiptLeaving || receiptDialogOpen || receiptDetailTransition) return false;
         if (receiptEditor is null) { CancelReceiptOpening(); return true; }
         // TextChangedの通知を待たず、離脱直前のコントロール値を必ず保護対象にする。
         SyncReceiptHeader(); SyncReceiptGroupMemo(); SyncReceiptDetailInput();

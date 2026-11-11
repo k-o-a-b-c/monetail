@@ -89,6 +89,10 @@ public sealed partial class MainWindow
         input.Values.ExpenseType = ReceiptChoice(ReceiptItemExpense) ?? ""; input.Values.OccurrenceType = ReceiptChoice(ReceiptItemOccurrence) ?? "";
         input.Values.Memo = ReceiptOptionalText(ReceiptItemMemo.Text, receiptDetailInitialMemo);
         input.Values.PersonIds.Clear(); input.Values.PersonIds.AddRange(ReceiptDetailPeople.Children.OfType<CheckBox>().Where(c => c.IsChecked == true).Select(c => (Guid)c.Tag));
+        // 完全に解析できる間は可変下書きだけ同期。失敗時は生文字列を保護し、保存済み行には触れない。
+        if (receiptEditor?.Draft is { } draft)
+            try { input.ApplyTo(draft); } catch (ReceiptInputException) { }
+
     }
     private bool ApplyReceiptDetailCore(bool focus)
     {
@@ -175,7 +179,7 @@ public sealed partial class MainWindow
             var result = await dialog.ShowAsync();
             if (!ReferenceEquals(state, receiptEditor)) return false;
             if (result == ContentDialogResult.Primary) return ApplyReceiptDetailCore(false);
-            if (result == ContentDialogResult.Secondary) { state.DiscardDraft(); return true; }
+            if (result == ContentDialogResult.Secondary) { state.DiscardDraft(); LoadReceiptDetailForm(); return true; }
             return false;
         }
         finally { receiptDialogOpen = false; dialog.SecondaryButtonText = ""; }
