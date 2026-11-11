@@ -49,6 +49,7 @@ public partial class App
             Check(!memo.AcceptsReturn && memo.TextWrapping == TextWrapping.NoWrap && memo.ReadLocalValue(FrameworkElement.MinHeightProperty) == DependencyProperty.UnsetValue,
                 $"{memo.Name}は複数行用の高さを持たない標準1行TextBox");
             memo.Text = "入力" + index;
+            await Wait(() => (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == "入力" + index);
             Check(Dirty() && (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == "入力" + index,
                 $"{memo.Name}の入力を対応するモデルと未保存判定へ反映");
             await ActivateReceiptInputWindowAsync(); memo.Focus(FocusState.Keyboard);
@@ -74,11 +75,13 @@ public partial class App
             memo.Focus(FocusState.Keyboard);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
             memo.Text = initialText;
+            await Wait(() => (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == (index == 0 ? parentMemo : index == 1 ? groupMemo : detailMemo));
             Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
                 $"{memo.Name}を表示時の値へ戻すと保存済み文字列と未変更判定を復元");
         }
         // 他項目のイベント・再描画でも、表示上の改行処理をメモの編集として取り込まない。
-        var shop = Find<TextBox>(root, "ReceiptShopName"); shop.Text = "一時変更"; shop.Text = "メモの確認";
+        var shop = Find<TextBox>(root, "ReceiptShopName"); shop.Text = "一時変更"; await Wait(() => editor.Header.ShopName == "一時変更");
+        shop.Text = "メモの確認"; await Wait(() => editor.Header.ShopName == "メモの確認");
         window.RenderReceiptTaxValues();
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
             "他項目変更/再描画は保存済みメモを正規化せず維持");
