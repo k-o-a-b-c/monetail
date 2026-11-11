@@ -33,9 +33,11 @@ public partial class App
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
         var list = Find<ListView>(root, "ReceiptList");
         await Wait(() => list.Items.Count == 100);
-        var selected = list.Items[79]; list.SelectedItem = selected;
-        list.ScrollIntoView(selected); await Settle(); var scroll = All(list).OfType<ScrollViewer>().First(); var offset = scroll.VerticalOffset;
-        Check(reads.Count == 0 && offset > 0, "一覧の単一選択は詳細GETを行わず、非先頭の表示位置を保持");
+        await Wait(() => list.ActualHeight > 0 && All(list).OfType<ScrollViewer>().Any(s => s.ScrollableHeight > 0));
+        var scroll = All(list).OfType<ScrollViewer>().First(); var selected = list.Items[79]; list.SelectedItem = selected;
+        Check(reads.Count == 0, "一覧の単一選択では詳細GETを行わない");
+        list.ScrollIntoView(selected, ScrollIntoViewAlignment.Leading); await Wait(() => scroll.VerticalOffset > 0); await Settle(); var offset = scroll.VerticalOffset;
+        Check(offset > 0, "編集前に標準ListViewの非先頭スクロール位置が確定していることを確認");
         // ダブルクリックのイベントと同じ共通入口を使用（物理ポインター操作とは区別）。
         await window!.OpenReceiptEditorAsync(summaries[79].ReceiptId); await Wait(() => Find<Button>(root, "ReceiptBack").ActualWidth > 0);
         var editor = ReceiptEditing!; var originalGroup = editor.Groups[0]; var originalDetail = originalGroup.Details[0];
@@ -52,6 +54,11 @@ public partial class App
         window.ActivateReceiptCategory(originalGroup.Key);
         Check(!editor.NeedsLeaveConfirmation && originalGroup.Details[0].Key == originalDetail.Key && originalGroup.Details[0].DetailId == originalDetail.DetailId &&
             originalDetail.Values.Tax.IsSelected && originalDetail.Values.Tax.Rate is null, "科目選択でも保存済み明細ID・実税率とNULLメモを変更しない");
+        Find<TextBox>(root, "ReceiptMemo").Text = "一時編集"; await Wait(() => editor.Header.Memo == "一時編集");
+        Find<TextBox>(root, "ReceiptMemo").Text = ""; await Wait(() => editor.Header.Memo is null);
+        Find<TextBox>(root, "ReceiptCategoryMemo").Text = "一時科目メモ"; await Wait(() => originalGroup.Memo == "一時科目メモ");
+        Find<TextBox>(root, "ReceiptCategoryMemo").Text = ""; await Wait(() => originalGroup.Memo is null);
+        Check(!editor.NeedsLeaveConfirmation, "NULLの親/科目メモを編集して空欄へ戻すと元のNULLと未変更状態へ戻る");
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await Wait(() => ReceiptEditing is null && Visible(root, "RecordContent")); await Settle();
         Check(ReferenceEquals(list.SelectedItem, selected) && Math.Abs(scroll.VerticalOffset - offset) < 1 && listReads == 1 && list.Items.Count == 100,
             "無変更編集から一覧へ戻ると追加GETなしで検索・選択・非先頭スクロールを保持");
