@@ -58,6 +58,39 @@
 
 **優先判断**：マスタ管理画面の「今日有効」とレシート入力の「取引日に有効」を同一フィルタと誤解しない。**実装上の検証候補**（人物チェック欄・登録済み科目行の表示鮮度）は、該当イベントの発生条件を再現したテストで確認してから改修する。
 
+## レシート保存・更新競合・再送の新旧実装比較
+
+今回の対象：旧WinFormsの`RegisterForm`／`ViewForm_List`と`DataAccess`のトランザクション、現行APIの`ReceiptManagement`／`ReceiptPersistence`／`ReceiptPayload`、Windows Clientの`ReceiptWriteRequest`／`ReceiptWriteTransport`／`ReceiptsWorkspace`、関連するAPI・Clientテスト。前段のレシート入力UI比較と区別し、**実装済みAPI／Clientと未接続のWinUIを混同しない**。
+
+| 観点 | 旧WinForms／SQLiteの実処理 | 新API／Clientの実処理と照合結果 | 判定 |
+| --- | --- | --- | --- |
+| 新規レシートID | 旧`RegisterReceipt`はトランザクション中に`MAX(seq)+1`を算出して元`Receipt.Seq`へ代入し、子Seqを採番 | 新APIはサーバーが**UUIDv7**の親／新規子IDを発行。Clientは作成スナップショットに既存IDを入れず`POST`する | **承認済み構造変更** |
+| 失敗後の未確定ID | 旧新規INSERTの失敗・ロールバック時に、**元インスタンスの`Seq`は自動復元されない**（既存比較でも指摘） | 新`ReceiptWriteRequest`は要求JSONを作成時に確定し、Clientのメモリ上に未確定親IDを採番しない。作成成功時のHTTP 201＋Locationから確定する設計 | **旧版リスクの回避** |
+| 更新時の子レコード | 旧`UpdateReceipt`は親の版条件付きUPDATE後、**全子グループ／明細／人物関連を削除して再INSERT** | 新`SaveReceiptChildrenAsync`は入力内の既存`groupId`／`detailId`を保持し、追加／削除／明細の別グループへの移動を許す。関連人物の集合差も更新。API結合テストあり | **新版の識別子継続・実装済み** |
+| 一括保存と子の原子性 | 旧レシート・振替・残高はいずれもSQLiteトランザクションで親子を原子的に保存。旧レシートの子全削除もトランザクション内 | 新APIは同じ書込トランザクションで親子・更新版・成功要求記録を処理。別レシートや別家計簿の子IDを流用する要求を拒否するAPIテストもあり | **本質を継承・権限を追加** |
+| 保存済み金額の権威 | 旧`RegisterReceipt/UpdateReceipt`はWinFormsの`Receipt.Total`を計算して`t_receipts.total`へ書き込む | 新Clientは`totalAmount`を送らず、**新APIが全明細と税率履歴を検証・再計算し`total_amount`へ保存**。Client側の表示額をサーバーが無条件に信頼しない | **新版のサーバー責任化・実装済み** |
+| 更新競合 | 旧`revision_token`を親のUPDATE/DELETE条件に含め、競合時は`DBConcurrencyException`と`ReloadRequired`を使う。差分や最新の全階層値は応答しない | 新APIは親`revision`で条件付きUPDATE/DELETE。古い版なら`409 revision_conflict`と**全階層の`latest`**を返し、データを書き換えない。APIで同時別要求の204/409をテスト | **競合情報が強化・実装済み** |
+| 競合後のUI | 旧入力画面は「更新の競合」を表示し、閉じた後に一覧を再取得する経路がある | 新版正本の「最新を読み込む／編集に戻る」2択・未保存入力保持は確定。ただし現WinUIは**レシート書込自体が未接続**で、409ダイアログまで接続済みとは言えない | **6-D5未接続** |
+| 無変更更新 | 旧`UpdateReceipt`は内容が同じでも親をUPDATEし`revision_token`・更新日時を変え、子を全再INSERT | 新APIは正規化して同値なら**親・子を更新せず、旧revisionと監査日時を保持**。ただし成功要求の記録は同じトランザクションで新規挿入。DBのUPDATE禁止トリガーを使うテストで確認 | **新版追加・実装済み** |
+| 新規登録の通信結果不明 | 旧SQLite直書きにはHTTPのタイムアウト後「成功か不明」という状態はない | 新Clientは接続失敗・タイムアウト・不正成功レスポンスを`ReceiptWriteUncertainException`へ分類し、**成功／失敗を断定しない**。呼出側が同じ要求で手動再試行する契約 | **分散システム特有・実装済み** |
+| 書込要求の不変性 | 旧版は同じ編集オブジェクトを再操作するとその時点のフィールドとSeqを再利用 | 新`ReceiptWriteRequest`は1操作の`requestId`・対象ID・revision・JSON文字列を固定。**最初の送信後に元の配列や明細を変えても同一要求の再送本文は変化しない**（Clientテストあり） | **新規・実装済み** |
+| 同じ要求IDの再送 | 旧版に同一書込操作を識別するHTTP要求IDはない | 新APIは`operation_requests`を使用。**同じ操作者・操作・対象・内容であれば二重作成しない**（POST 201／PUT・DELETE 204）。APIテストは同時同一POSTでも保存1件を確認 | **二重登録防止・実装済み** |
+| 異なる要求へのID使い回し | 旧版は別操作との同一要求IDの衝突自体がない | 新APIは既存成功IDに違う操作・内容を当てると`409 request_conflict`。同じIDを使って不正な更新として再解釈しない。POST／PUT／DELETEの各テストあり | **実装済み** |
+| 削除完了後の再送 | 旧`DeleteReceipt`成功後はレコードがなくなる。別の新規削除のように再実行すれば同じ対象はない | 新APIは**成功したDELETEの同一要求**なら対象削除後も204。現在の家計簿参加とAdmin/Editorロールを再確認（Viewerなら403・非参加なら404）、削除済みの旧支払方法所有権までは再検証しない | **実装済み** |
+| 成功した登録／更新後に対象が削除された場合 | 旧版は過去の成功した編集操作を履歴要求IDとして保持しない | 新APIはDELETE後でも過去の成功POST／PUTと同一要求を**元の201／204として返し、削除済みのレシートを復活させない**。APIテストで確認 | **結果不明の再送保護・実装済み** |
+| 書込権限と支払方法変更 | 旧SQLite直結の編集に家計簿のAdmin/Editorや支払方法所有人物によるAPI認可がない | 新APIでAdminは全体、Editorは**変更前と変更後の双方の支払方法の所有者**が本人対応人物でなければ更新不可。本人の口座から他人の口座への付け替えによる権限逸脱を防ぐ | **新権限・実装済み** |
+| 保存検証の基準 | 旧版は入力画面で必須項目・金額範囲をチェックしてからSQLite更新。税率は主に旧率マスタとフォーム選択 | 新APIは書込中、対象取引日の科目／支払方法／人物有効期間、税率履歴、全明細・金額・子ID、現在の役割と参照マスタを検証。**旧データを無断補正しない**。マスタ変更由来の400は`reason=master_changed`の場合あり | **新版の厳密化・実装済み** |
+| 流用登録時の元レシート | 旧`RegisterReceipt(True)`は**元の同じ`Receipt`オブジェクトの`Seq=0`へ変更**して新規登録に使う。元の編集対象のメモリIDが変わる | 新`ReceiptEditorState.PrepareSave(ReuseRegistration)`は元のID／revisionを変更せず、**新規送信用のグループID・明細IDを省略したスナップショットを別生成**。Clientテストあり | **旧版リスクの回避・モデル実装済み** |
+| レシート削除と明細削除 | 旧`RegisterForm`のレシート削除は確認Yes/No後にDBから親子を削除し画面を閉じる | 新APIの全体DELETEは実装済み。現在WinUIの**明細［削除］は編集モデル内だけ**を削除し、レシート全体DELETEの操作・確認・完了後の一覧更新は未接続 | **6-D5未接続** |
+| 書込成功と一覧更新 | 旧レシート登録・更新は成功後`YearMonth`を取引月へ合わせ、`UpdateList`で再取得して当該行を選択 | 新`ReceiptsWorkspace`は**HTTPだけ実行**し、一覧再取得・選択位置・スクロール復帰は担当しない。現WinUIは読取と画面内下書きまでなので、保存成功後の検索条件・一覧復帰は**今後のUI接続で確認** | **旧UI機能の後続接続** |
+| 保存成功HTTPの戻り値 | 旧直接保存は更新した`Receipt.Seq`・リビジョンを同一オブジェクトへ反映し、フォームを閉じる | 新APIはPOST成功時**201＋Location**、PUT／DELETEは**204本文なし**。`ReceiptsWorkspace.CreateAsync/UpdateAsync/DeleteAsync`はTaskで結果IDを返さず、成功後は一覧／詳細を再取得する設計。HTTP本文にIDがあると決めつけない | **明示的な契約差・Client実装済み** |
+| 認証更新を伴う書込再試行 | 旧直結DBは認証アクセストークン・401後の再認証がない | 新Clientは認証トークン更新時に**Bearerだけ変更して同じ操作ID・同じJSON本文**で通信する。結果不明の手動再送とも区別し、Clientテストで確認 | **分散システム特有・実装済み** |
+| ドキュメント実装状態の不一致 | 旧版にはHTTPの`requestId`仕様がない | `ledger-operation-retries.md`にレシートPUT／DELETE再送が**「未実装」**と残っているが、新API／Client／API結合テストでは実装済み。**仕様の不一致ではなく、実装状態ラベルの陳腐化** | **文書の更新対象** |
+
+**根拠**：[旧レシート入力](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)／[旧レシート一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)／[旧レシート永続化](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)／[新API書込](../src/Monetail.Api/Features/Monetail/Ledgers/ReceiptManagement.cs)／[新API子保存](../src/Monetail.Api/Features/Monetail/Ledgers/ReceiptPersistence.cs)／[新要求検証](../src/Monetail.Api/Features/Monetail/Receipts/ReceiptPayload.cs)／[新APIエンドポイント](../src/Monetail.Api/Features/Monetail/Receipts/ReceiptEndpoints.cs)／[新Client要求](../src/Monetail.Windows.Client/Ledgers/ReceiptWriteRequest.cs)／[新Client通信](../src/Monetail.Windows.Client/Transport/ReceiptWriteTransport.cs)／[新Clientサービス](../src/Monetail.Windows.Client/Ledgers/ReceiptsWorkspace.cs)／[新UI編集状態](../src/Monetail.Windows.Client/Receipts/ReceiptEditorState.cs)／[新API結合テスト](../tests/Monetail.Api.Tests/ReceiptApiTests.cs)／[新API競合・再送テスト](../tests/Monetail.Api.Tests/ReceiptApiScenarios.cs)／[新Client通信テスト](../tests/Monetail.Windows.Client.Tests/ReceiptWriteTests.cs)／[新Client流用テスト](../tests/Monetail.Windows.Client.Tests/ReceiptEditorSaveTests.cs)／[API契約](ledger-receipt-api.md)／[再送契約](ledger-operation-retries.md)。
+
+**優先度**：API・Clientの再設計を先行しない。①工程6-D5で既存`requestId`・最新レスポンス・結果不明をWinUIへ接続、②既存の旧版と同様の保存成功後の月表示・一覧行選択の採否を受入確認、③削除成功と再送成功を区別して一覧を再読込、④有効期間・認可競合・通信失敗を明細下書き破棄と混同しない。実機操作のE2E実行、旧運用DB移行、製品コード変更は**対象外**。
+
 ### 優先対応
 
 1. **現コード上の再現候補**：全期間ON時の不正年月下書き＋店名検索をWindows ClientテストおよびWinUI Smokeで再現してから、**AllPeriodsでは年月を適用条件にしない**など既存確定仕様と整合する修正を判断する。既存の`ReceiptSearchStateTests`には「不正年月から全期間へ切替えて`Query().Month == all`」のテストはあるが、**その状態で`ApplyText`して店名を確定するテストはない**。
