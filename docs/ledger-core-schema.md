@@ -166,6 +166,9 @@ POSTはこの一覧にトップレベルの`categoryId`を追加し、初回201�
 - 同一税区分の期間重複・無効日付・数値書式・区分外コード・NULL規則を検証してから反映する。既存行は`(taxCategoryCode,validFrom)`を基準に照合し、値が不変ならID・revisionを維持、終了日・率の変更時だけ更新、新しい開始日は行を追加する。存在しなくなった行は削除候補とし、**通常の`--apply`は削除候補があれば拒否**。削除を許す場合のみ`--apply --allow-delete`を明示する。
 - `--apply`時も最新DBを**書込トランザクション内で再照合**して同じ入力ファイルの全差分を検証する。削除許可の有無・期間重複などを判定した後、終了日の短縮・必要な削除・新規追加を**トリガーが有効なまま安全な順序**で処理する。全件成功時だけコミット、失敗時はロールバック。変更のない再適用はID・revision・保存値を変更しない。
 - `initialize-db`は履歴0件のまま。正式リリース前にMigrationや既存スキーマの自動変換を行わない。DB制約緩和後の最新スキーマで新規DBを作成する。CLIによる履歴変更は保存済みレシートを自動書換えしない。
+- **投入用データの管理場所は[`config/tax-history.json`](../config/tax-history.json)** とする。日本国内向けの確定済み税率履歴を全4区分・過去から現行まで収録し、運営者がレビュー済みの版をサーバーへコピーして明示的に同期する。過去に軽減税率制度が存在しなかった期間も、`ReducedFood`・`ReducedNewspaper`の入力支援用履歴には当時の標準税率と同じ値を持たせる（他区分へのフォールバックは実装しない）。**2014-04-01以降の8%が2019-10-01をまたいで続く場合、同値の隣接行は作らない。**
+- **2026-11-12時点**、2027-04-01〜2029-03-31の飲食料品1%は政府が発表した制度改正案であり、国税庁も国会での法案成立を条件と明記しているため、**このJSONには追加しない**。成立・施行日を確認した後に別PRで`ReducedFood`の期間を更新する。根拠：[国税庁の税率履歴](https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6303.htm)、[軽減税率制度](https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6102.htm)、[消費税率引下げ特設サイト](https://www.nta.go.jp/taxes/shiraberu/zeimokubetsu/shohi/keigenzeiritsu/zeiritsuhikisage.htm)、[農林水産省](https://www.maff.go.jp/j/keiei/tyosei/syouhizei.html)。
+- 配置・コンテナ内の読取専用マウント例は[Dockerサーバー配備例](deployment-examples/docker-tailscale.md#税率履歴ファイルの配置と同期cli実装後)を参照。JSONをリポジトリへ追加しただけではAPIのDBは変更されない。
 
 詳細なCodex受入条件は[工程6-D4ガイド](ledger-receipt-implementation.md#税率履歴全件getと全履歴同期cli仕様確定)を参照。
 
