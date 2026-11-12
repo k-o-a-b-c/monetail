@@ -73,15 +73,15 @@
 ```json
 {
   "rates": [
-    { "taxCategoryCode": "Standard", "validFrom": "2026-01-01", "validTo": null, "rate": "10" },
-    { "taxCategoryCode": "ReducedFood", "validFrom": "2026-01-01", "validTo": "2026-06-30", "rate": "8" },
-    { "taxCategoryCode": "ReducedFood", "validFrom": "2026-07-01", "validTo": null, "rate": "5" },
-    { "taxCategoryCode": "Exempt", "validFrom": "2026-01-01", "validTo": null, "rate": null }
+    { "taxCategoryCode": "Standard", "validFrom": "0001-01-01", "validTo": "1989-03-31", "rate": null },
+    { "taxCategoryCode": "Standard", "validFrom": "1989-04-01", "validTo": "1997-03-31", "rate": "3" },
+    { "taxCategoryCode": "Standard", "validFrom": "1997-04-01", "validTo": null, "rate": "5" },
+    { "taxCategoryCode": "Exempt", "validFrom": "0001-01-01", "validTo": null, "rate": null }
   ]
 }
 ```
 
-**例の日付・税率は架空の説明用であり実データ・自動投入値ではない。** `rates`は必須配列、0件なら`{"rates":[]}`。各行に必要なのは`taxCategoryCode`（既存4コード）、`validFrom`（実在`YYYY-MM-DD`）、`validTo`（同形式またはnull）、`rate`（InvariantCultureのDecimal文字列または税なしのnull）の4フィールドのみ。**`Exempt`は常にnull、`Standard`等の課税区分でもnullを許可**し、課税`0%`の`"0"`と区別。`Standard`の履歴行あり・率nullは「税なし」の選択、履歴行なしは「初期未選択」であり、同じ扱いにしない。履歴ID/行更新版/名前/家計簿IDは返さない。
+**上記は境界日・NULL表現の説明用の抜粋で、運用DBに投入する全履歴データではない。** 1997年以降の`Standard/5`が終了なしとなっている点も**実際の改定履歴を示していない**。CLIの全履歴同期では、標準税率の後続の改定・食品/新聞区分の必要期間を含めた完全なファイルを用意する。`initialize-db`による自動投入は行わない。 `rates`は必須配列、0件なら`{"rates":[]}`。各行に必要なのは`taxCategoryCode`（既存4コード）、`validFrom`（実在`YYYY-MM-DD`）、`validTo`（同形式またはnull）、`rate`（InvariantCultureのDecimal文字列または税なしのnull）の4フィールドのみ。**`Exempt`は常にnull、`Standard`等の課税区分でもnullを許可**し、課税`0%`の`"0"`と区別。`Standard`の履歴行あり・率nullは「税なし」の選択、履歴行なしは「初期未選択」であり、同じ扱いにしない。履歴ID/行更新版/名前/家計簿IDは返さない。
 
 APIは同率の複数区分、同区分の複数期間を**統合・除去しない**。同一区分の期間非重複は既存DB制約に従う。配列順はビジネス上の意味を持たせず、候補の昇順・同率統合はWindows側で行う。非課税は履歴がなくても選択肢に常設し、`Exempt`科目なら初期選択する。保存APIでの全明細の最新履歴照合は省略しない。
 
@@ -93,7 +93,7 @@ APIは同率の複数区分、同区分の複数期間を**統合・除去しな
 
 - JSONの実在日付、区分4コード、Decimal文字列/NULL、終了日、同区分の期間非重複を投入前に全件検証し、入力ファイル内部と既存DBの整合性も確認。
 - 既存行を`(taxCategoryCode,validFrom)`で照合し、変わらない行のID/更新版は保持、終了日・率の変更は既存行を更新、新規期間は追加する案。開始日を変更するときは旧行の削除と新規行の追加として扱う。
-- ファイルから消えた履歴は**意図しない消去と区別**し、通常の`--apply`では削除を拒否。削除が必要な場合のみ別途`--allow-delete`を明示する案。全件差分を検証し、成功した全変更だけを1 SQLiteトランザクションで確定。途中失敗は全件ロールバックする。
+- ファイルから消えた履歴は**意図しない消去と区別**し、通常の`--apply`では削除を拒否。削除が必要な場合のみ別途`--allow-delete`を明示する案。**`rate:null`は正当な値であり、当該履歴行を削除する指示ではない**。全件差分を検証し、成功した全変更だけを1 SQLiteトランザクションで確定。途中失敗は全件ロールバックする。重複トリガーを一時停止せず、既存区間の終了日の更新と新規区間の追加が両立する書込み順を採用する。
 - `--dry-run`では追加・変更・削除予定を出力しDBを変更しない。実行時は事前にAPIを停止し、バックアップを取得。通常のWebログインは不要だが、サーバー/DBの運営者のみが実行できるようにし、HTTPの税率変更APIは設けない。
 - 新規DBの`initialize-db`は履歴0件のままとし、CLI実行でDBや認証情報を作り直さない。履歴変更で過去レシートが現在のマスタ検証に不適合となり得ることは、差分確認時に注意喚起する。DB側の期間重複トリガーと**`Exempt`のNULL必須制約**を維持する。課税区分のNULLを拒否する**現行CHECK制約は変更が必要**。
 
@@ -105,6 +105,7 @@ APIは同率の複数区分、同区分の複数期間を**統合・除去しな
 - 接続先変更・ログアウト・別アカウント切替で破棄、再ログインでは再取得。破棄前の通信応答は採用しない。ディスク保存・TTL・定期確認は行わない。
 - 各行の`validFrom <= 取引日 <= validTo`（終了nullは無期限）で絞る。数値同率は候補表示だけで重複除去し、科目初期選択は初期税区分コードから求める。保存済みの実税率や下書きは自動変更しない。
 - 保存APIで税率履歴の変化が原因の拒否を受けたら、全件を強制再取得し、入力を保持して利用者に再選択を求める。
+- **NULLの起源は明細に保存しない**：履歴`Standard/rate:null`から選んだ明細と、`Exempt`科目で選んだ明細はどちらも`taxRate:null`で保存する。保存済み明細を参照しても区分の起源は特定できない。必要なら将来の別設計とし、ここで明細の税区分列を追加しない。
 - **既存実装との差分**：`src/Monetail.Api/Features/Monetail/Taxes/TaxModel.cs`の`CK_tax_rate_history_rate`は課税区分に`rate IS NOT NULL`を要求するため、`Exempt`以外もNULL可へ緩和する。`CategoryTaxSchemaTests.TaxableZeroIsStoredButTaxableNullIsRejected`等の固定期待値を改め、NULL履歴行/履歴不在/数値0の区別を追加。レシート計算器・保存APIは既に明細`taxRate:null`を税なしとして扱うので、初期税率判定の非選択との混同に注意する。既存データの自動変換や正式リリース前のMigrationは実装しない。
 - 回帰：0件/複数期間/境界日（例：1989-03-31の`Standard/null`と1989-04-01の`Standard/3`）/期間間隙/同率異区分/税なしNULL・課税0%/再ログイン/家計簿切替/更新後の旧応答/履歴変更による保存拒否。CLIではdry-run非変更・再適用同値・重複期間・原子的失敗・削除ガード・将来改定時の終了日変更を検証する。**実例の日付・率は検証データであり、履歴の初期自動投入を承認するものではない。**
 
