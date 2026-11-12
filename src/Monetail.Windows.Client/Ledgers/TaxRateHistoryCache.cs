@@ -31,8 +31,8 @@ public sealed class TaxRateHistoryCache
                 {
                     if (generation != epoch) throw new AuthenticationContextChangedException();
                     value = loaded; pending = null;
+                    completion.TrySetResult(loaded);
                 }
-                completion.TrySetResult(loaded);
             }
             catch (OperationCanceledException) { Reset(); completion.TrySetCanceled(token); }
             catch (Exception error) { Reset(); completion.TrySetException(error); }
