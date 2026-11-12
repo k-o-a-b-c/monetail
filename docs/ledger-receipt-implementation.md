@@ -75,13 +75,12 @@
   "rates": [
     { "taxCategoryCode": "Standard", "validFrom": "0001-01-01", "validTo": "1989-03-31", "rate": null },
     { "taxCategoryCode": "Standard", "validFrom": "1989-04-01", "validTo": "1997-03-31", "rate": "3" },
-    { "taxCategoryCode": "Standard", "validFrom": "1997-04-01", "validTo": null, "rate": "5" },
     { "taxCategoryCode": "Exempt", "validFrom": "0001-01-01", "validTo": null, "rate": null }
   ]
 }
 ```
 
-**上記は境界日・NULL表現の説明用の抜粋で、運用DBに投入する全履歴データではない。** 1997年以降の`Standard/5`が終了なしとなっている点も**実際の改定履歴を示していない**。CLIの全履歴同期では、標準税率の後続の改定・食品/新聞区分の必要期間を含めた完全なファイルを用意する。`initialize-db`による自動投入は行わない。 `rates`は必須配列、0件なら`{"rates":[]}`。各行に必要なのは`taxCategoryCode`（既存4コード）、`validFrom`（実在`YYYY-MM-DD`）、`validTo`（同形式またはnull）、`rate`（InvariantCultureのDecimal文字列または税なしのnull）の4フィールドのみ。**`Exempt`は常にnull、`Standard`等の課税区分でもnullを許可**し、課税`0%`の`"0"`と区別。`Standard`の履歴行あり・率nullは「税なし」の選択、履歴行なしは「初期未選択」であり、同じ扱いにしない。履歴ID/行更新版/名前/家計簿IDは返さない。
+**上記は境界日・NULL表現の説明用の抜粋で、運用DBに投入する全履歴データではない。** CLIの全履歴同期では、1997年以降の標準税率の改定・食品/新聞区分の必要期間を含めた完全なファイルを用意する。`initialize-db`による自動投入は行わない。 `rates`は必須配列、0件なら`{"rates":[]}`。各行に必要なのは`taxCategoryCode`（既存4コード）、`validFrom`（実在`YYYY-MM-DD`）、`validTo`（同形式またはnull）、`rate`（InvariantCultureのDecimal文字列または税なしのnull）の4フィールドのみ。**`Exempt`は常にnull、`Standard`等の課税区分でもnullを許可**し、課税`0%`の`"0"`と区別。`Standard`の履歴行あり・率nullは「税なし」の選択、履歴行なしは「初期未選択」であり、同じ扱いにしない。履歴ID/行更新版/名前/家計簿IDは返さない。
 
 APIは同率の複数区分、同区分の複数期間を**統合・除去しない**。同一区分の期間非重複は既存DB制約に従う。配列順はビジネス上の意味を持たせず、候補の昇順・同率統合はWindows側で行う。非課税は履歴がなくても選択肢に常設し、`Exempt`科目なら初期選択する。保存APIでの全明細の最新履歴照合は省略しない。
 
