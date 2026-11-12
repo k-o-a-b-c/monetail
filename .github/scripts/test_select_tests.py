@@ -27,6 +27,9 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["tests/Monetail.Api.Tests/HealthTests.cs"], "api")
         self.assert_flags(["tests/Monetail.Api.Tests/docker-smoke.sh"], "docker")
 
+    def test_tax_history_config_selects_api_not_unrelated_platforms(self):
+        self.assert_flags(["config/tax-history.json"], "api")
+
     def test_new_windows_client_source_validates_portable_and_desktop_without_legacy(self):
         self.assert_flags(["src/Monetail.Windows.Client/Authentication/BrowserOAuthLogin.cs"],
                           "windows_client", "windows_storage", "winui")
