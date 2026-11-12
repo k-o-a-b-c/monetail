@@ -29,7 +29,7 @@
 | 6-D1. 編集状態モデル | UI非依存の親/科目/明細/人物、未反映下書き、更新/流用登録用スナップショット | ID維持/除外、未変更判定、切替3択、失敗時の入力保持 |
 | 6-D2. WinUI基本入力 | 親情報4行・科目領域・詳細GET・同一Window内遷移・離脱保護 | 新規初期値/既存値保持・二重起動/旧応答拒否・一覧状態復帰・保存無効 |
 | 6-D3. WinUI明細編集 | 明細フォーム/一覧、画面内CRUD・流用・上下移動、対象人物、未反映3択 | 入力保持・取消/検証失敗・連続削除防止・ID/選択維持・保存API未呼出 |
-| 6-D4（分割案・未実装）. 税率・正式計算接続 | 税率履歴の読取経路・既存計算の共用化・WinUI候補/参考額/合計表示 | 期間端点・重複率・非課税/課税0%・Decimal/Int32・入力値保持・API保存なし |
+| 6-D4（D4-0・A実装済み）. 税率・正式計算接続 | 税率履歴の読取経路・既存計算の共用化・WinUI候補/参考額/合計表示 | 期間端点・重複率・非課税/課税0%・Decimal/Int32・入力値保持・API保存なし |
 | 6-D5以降（分割案・未実装）. WinUI保存・候補 | 保存/競合/認証復帰、履歴候補/自動補完、実API受入 | 不変requestId/再送、未反映下書き保護、IME・キーボード、認証/権限、実機検証 |
 
 **実装状態：工程1〜5（DB・共通計算/検証・読取/書込・履歴候補/自動補完API）は実装済み。** [API契約](ledger-receipt-api.md)を参照。未確定の人物按分最終端数・人物別期間合計は未実装。工程6-AのWindows Client読取接続も実装済み（[構成](architecture-winui.md#レシートのclient読取接続工程6-a)）。工程6-BのWinUI一覧・画面用キャッシュ基盤も実装済み。工程6-Cの書込Clientも実装済み（[構成と要求の保持](architecture-winui.md#レシートのclient書込接続工程6-c)）。工程6-D1のUI非依存編集モデルも実装済み（[構成](architecture-winui.md#レシート編集状態モデル工程6-d1)）。工程6-D2の親情報・科目・画面遷移、工程6-D3の明細フォーム・一覧・画面内編集も実装済み。**正式計算/税率履歴のWinUI接続・全体保存・履歴候補UIは未実装**。履歴候補・自動補完は[候補API契約](ledger-receipt-suggestions.md)を参照。
@@ -40,7 +40,7 @@
 
 **工程番号・PRの分け方は提案だが、共通税率履歴の全件GET・応答JSON・CLI同期方式は仕様確定済み。登録用の実税率・施行日は[`config/tax-history.json`](../config/tax-history.json)へ準備済みで、未成立の法改正や未合意の別仕様を推測で追加しない。** 税率の業務規則は[共通税履歴とレシートへの引継ぎ](ledger-core-schema.md#shared-tax-history)、計算結果は[API計算契約](ledger-receipt-api.md)と[計算契約](12-calculation-contract.md)、画面操作は[レシートUI](ledger-receipt-ui.md)を正本とする。
 
-### 現状確認（main・工程6-D3とD4-0まで）
+### 現状確認（工程6-D4-Aまで）
 
 - **既存**：APIの`Features/Monetail/Receipts/ReceiptCalculator`に値引後金額、税率別の会計合計、明細・グループ参考額、正負の収支とDecimal/Int32超過検証がある。保存APIは`ReceiptMasterValidation`で共通税率履歴をDBから参照し、全明細を取引日で検証する。
 - **既存**：`tax_categories`は全家計簿共通の4区分、`tax_rate_history`は期間・Decimal率・課税区分も含むNULL率・重複禁止を保持する（D4-0実装済み）。初期DBの税率履歴は**0件**。科目API/Clientには`taxCategoryCode`がある。WinUIには`ReceiptEditorState`の初期税率解決口、未選択/非課税/課税0%を区別する型がある。

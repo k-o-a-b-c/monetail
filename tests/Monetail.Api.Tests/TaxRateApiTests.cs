@@ -35,8 +35,8 @@ public sealed partial class CategoryApiTests
         TaxRow(f, "Standard", "0001-01-01", "1989-03-31", null);
         TaxRow(f, "Standard", "1989-04-01", "1997-03-31", "3");
         TaxRow(f, "Standard", "2099-04-01", null, "0");
-        TaxRow(f, "ReducedFood", "2019-10-01", null, "8.1250000000000000000000000001");
-        TaxRow(f, "ReducedNewspaper", "2019-10-01", null, "8.1250000000000000000000000001");
+        TaxRow(f, "ReducedFood", "2019-10-01", null, "0.1250000000000000000000000001");
+        TaxRow(f, "ReducedNewspaper", "2019-10-01", null, "0.1250000000000000000000000001");
         TaxRow(f, "Exempt", "0001-01-01", null, null);
         var before = f.Snapshot(); var result = await Send(f.Client, "GET", TaxPath(f));
         var rows = result.GetProperty("rates").EnumerateArray().ToArray(); Assert.Equal(6, rows.Length);
@@ -47,7 +47,7 @@ public sealed partial class CategoryApiTests
         Assert.Equal("1989-03-31", standard[0].GetProperty("validTo").GetString()); Assert.Equal(JsonValueKind.String, standard[1].GetProperty("rate").ValueKind); Assert.Equal(3m, decimal.Parse(standard[1].GetProperty("rate").GetString()!, System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(0m, decimal.Parse(standard[2].GetProperty("rate").GetString()!, System.Globalization.CultureInfo.InvariantCulture));
         foreach (var code in new[] { "ReducedFood", "ReducedNewspaper" })
-            Assert.Equal(8.1250000000000000000000000001m, decimal.Parse(rows.Single(r => r.GetProperty("taxCategoryCode").GetString() == code).GetProperty("rate").GetString()!, System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal("0.1250000000000000000000000001", rows.Single(r => r.GetProperty("taxCategoryCode").GetString() == code).GetProperty("rate").GetString());
         Assert.Equal(before, f.Snapshot());
     }
     [Fact]
