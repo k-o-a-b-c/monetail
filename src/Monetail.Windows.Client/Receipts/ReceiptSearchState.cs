@@ -17,9 +17,13 @@ public sealed class ReceiptSearchState
     public ReceiptSearchState(DateOnly today) { Month = new(today.Year, today.Month, 1); MonthText = Format(Month); }
     public bool ApplyText()
     {
-        if (MonthText.Length != 7 || !DateOnly.TryParseExact(MonthText + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month))
-        { MonthError = "年月をYYYY-MMで入力してください。"; return false; }
-        Month = month; AppliedShop = ShopText; MonthError = null; return true;
+        if (!AllPeriods)
+        {
+            if (MonthText.Length != 7 || !DateOnly.TryParseExact(MonthText + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month))
+            { MonthError = "年月をYYYY-MMで入力してください。"; return false; }
+            Month = month;
+        }
+        AppliedShop = ShopText; MonthError = null; return true;
     }
     public bool CanMove(int delta) => !AllPeriods && (delta < 0 ? Month > new DateOnly(1, 1, 1) : Month < new DateOnly(9999, 12, 1));
     public bool MoveMonth(int delta)
