@@ -1,6 +1,6 @@
 # 旧WinFormsと現WinUI・Windows Clientの実装照合
 
-[← 文書の入口](INDEX.md) | [旧版／新版の機能比較](legacy-new-comparison.md) | [新版レシートUIの正本](ledger-receipt-ui.md) | [実装工程](ledger-receipt-implementation.md)
+[← 文書の入口](INDEX.md) | [旧版／新版の機能比較](legacy-new-comparison.md) | [最終比較台帳](legacy-new-final-parity-matrix.md) | [新版レシートUIの正本](ledger-receipt-ui.md) | [実装工程](ledger-receipt-implementation.md)
 
 ## 対象・判定の意味
 
