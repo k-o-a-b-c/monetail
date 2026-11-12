@@ -38,6 +38,7 @@
 | 構成の入口・旧見出しリンク | [04 構成](04-architecture.md) |
 | 旧VB.NET・Windows Forms・SQLite・旧版の処理 | [旧Windows版](architecture-legacy.md) |
 | 旧Windows版と新版の操作・機能差異と未決定事項 | [旧版／新版の比較](legacy-new-comparison.md) |
+| 旧版／新版の計算・DB・移行時の値域と非互換点の監査 | [計算・DB・移行境界の照合](legacy-new-data-calculation-audit.md) |
 | 新Windows版の構成・WinUI 3・Client | [新Windows版](architecture-winui.md) |
 | APIの責務・依存・後続分離案 | [API構成](architecture-api.md) |
 | リポジトリ配置・CI・関連資料 | [配置とCI](architecture-repository.md) |

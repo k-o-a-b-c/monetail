@@ -4,7 +4,12 @@ Imports System.Linq
 Imports System.Text.Json
 
 Module Program
-    Function Main() As Integer
+    Function Main(args As String()) As Integer
+        If args.Length = 2 AndAlso args(0) = "--export-parity" Then
+            LegacyParityExporter.Export(args(1))
+            Return 0
+        End If
+        If args.Length <> 0 Then Throw New ArgumentException("不明な計算テスト引数です。")
         CheckJsonExpectations()
         Check("decimal detail discounts preserve integer boundaries signs manual discounts and legacy rates", AddressOf DecimalDiscountTests.IntegerDiscountBoundaries)
         Check("decimal discounts round per detail before tax aggregation and preserve saved totals", AddressOf DecimalDiscountTests.TaxAndAggregation)

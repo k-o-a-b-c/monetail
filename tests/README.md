@@ -7,13 +7,28 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1444 |
+| ASP.NET Core API | 1445 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取/書込・補完・編集モデル） | 714 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 2437 |
+| 合計 | 2438 |
+
+## 旧VBと新版APIの計算結果の直接照合（PR #154）
+
+[共通24ケース](../docs/tests/receipt-parity-cases.json)を`tests/CalculationTests/LegacyParityExporter.vb`で**旧VBの本物の計算コード**へ流し、JSONで金額を出力する。別プロセスの`tests/Monetail.Api.Tests/ReceiptParityTests.cs`が、同じ各グループ・明細の値を新版`ReceiptCalculator`へ流し、**会計合計・収入・支出・グループ参考額・明細参考額・値引後額**を突き合わせる。共通JSONを一方で別の計算式に写経して比べる方式ではない。
+
+CIの`receipt-calculation-parity`ジョブは、APIまたは旧計算のコードに変更があったら実行する。[成功実行](https://github.com/k-o-a-b-c/monetail/actions/runs/43187316579)で、旧VBから24件出力、比較xUnitは**1件成功・失敗0**。通常のAPIテストでは旧結果ファイルが存在しないため、入力JSONの基本検査のみ実行し、**対照比較を済ませたとみなさない**。
+
+ローカルでも両SDK（.NET 8/10）があれば、旧版の結果を生成してから新APIのテストを絞って実行できる：
+
+```bash
+dotnet run --project tests/CalculationTests/CalculationTests.vbproj --configuration Release -- --export-parity /tmp/receipt-parity.json
+MONETAIL_LEGACY_PARITY_RESULTS=/tmp/receipt-parity.json dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release --filter 'FullyQualifiedName~ReceiptParityTests'
+```
+
+この比較は**正常値24ケースの金額**に限定する。実際の旧DB内容、日付文字列表現、NULL保存額、対象人物按分、保存時マスタ期間検証、エラー境界や例外種類の完全一致は**未検証**。[照合と移行時の論点](../docs/legacy-new-data-calculation-audit.md)を参照する。
 
 ## 工程6-D3：レシート明細フォーム・一覧
 

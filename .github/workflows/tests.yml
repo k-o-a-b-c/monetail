@@ -282,6 +282,27 @@ jobs:
           check: migrations
           fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).migrations }}
 
+  receipt-calculation-parity:
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.calculations == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - uses: ./.github/actions/nuget-cache
+        with:
+          scope: api
+      - name: Export actual legacy VB calculation results
+        run: dotnet run --project tests/CalculationTests/CalculationTests.vbproj --configuration Release -- --export-parity "$RUNNER_TEMP/receipt-parity.json"
+      - name: Compare with actual API C# calculator
+        run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release --filter "FullyQualifiedName~ReceiptParityTests"
+        env:
+          MONETAIL_LEGACY_PARITY_RESULTS: ${{ runner.temp }}/receipt-parity.json
+
   windows-persistence-and-ui:
     needs: changes
     if: needs.changes.outputs.windows_tests == 'true' || needs.changes.outputs.windows_build == 'true'

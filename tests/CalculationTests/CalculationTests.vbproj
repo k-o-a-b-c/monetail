@@ -15,5 +15,6 @@
     <Compile Include="../Shared/IntegerExpressionCases.vb" Link="IntegerExpressionCases.vb" />
     <Compile Include="../Shared/ReceiptFixtures.vb" Link="ReceiptFixtures.vb" />
     <None Include="../../docs/tests/tax-rounding-cases.json" Link="tax-rounding-cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../docs/tests/receipt-parity-cases.json" Link="receipt-parity-cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
