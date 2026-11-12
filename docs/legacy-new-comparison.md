@@ -135,6 +135,31 @@
 
 **旧Designerの参照**：[メイン](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.Designer.vb)／[レシート](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.Designer.vb)／[振替](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterTransferForm.Designer.vb)／[残高](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterBalanceForm.Designer.vb)／[支払メモ](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterPaymentMemoForm.Designer.vb)／[内訳](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm.Designer.vb)／[未完成マスタ管理](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/MasterMaintenanceForm.Designer.vb)／[旧日付時刻コントロール](../HouseholdAccountsBeta/OriginalControls/OriginalDateTimeTextBox.vb)。新版の参照：[共通入力](59-input-controls-design.md)／[レシートUI](ledger-receipt-ui.md)／[共通UI](../UI_DESIGN.md)。
 
+### 履歴候補・年次集計・内訳の条件引継ぎ（追加精査）
+
+この節は旧`DataAccess.vb`のSQLと集計画面のイベント処理を実際に突き合わせた結果。**旧版で画面の選択条件と内訳の検索条件が一致しないケース**もあり、互換性を理由に新版へそのまま移さない。新版の既決事項は変更せず、採否・設計の必要なものを明示する。
+
+| 観点 | 旧版のコードで確定した動作 | 新版との関係／確認すること | 分類 |
+| --- | --- | --- | --- |
+| 店舗・所在地・品名の履歴候補順位 | 所在地・品名は一致するレシートの**取引日時`MAX(date)`**を新しい順に表示。履歴候補には現在のレシートの`update_datetime`を使用しない | 新版の3候補は**`MAX(updated_at_utc)`**を新しい順にする（DEC-217）。**古い取引日を新規登録・修正**すると候補の順位が旧版と異なる。これは承認済みの仕様差 | 承認済み変更 |
+| 所在地候補の空文字 | 旧`GetShopLocationList`は`shop_location <> ''`を条件に含めるため、空文字の候補を除外 | 新版は元文字列を保持し、**空文字・空白だけの候補を除外する案は未確定**。検索欄に空候補を提示するか、履歴候補UI実装時に決める | UI要判断 |
+| 品名の候補先頭 | 旧グループ選択時はDBからの品名候補一覧に**科目名を先頭へ挿入**。過去にその品名を使っていなくても候補化する | 新版の品名候補GETは保存済み明細だけを返し、科目名の追加はAPIに含めない。**UI側で科目名を候補化するか未決定**（空グループでの品名初期値とは別問題） | 要判断 |
+| 店名からの科目初期候補 | 旧フォームはグループ0件の場合、**店マスタの既定科目（候補から店を選んだ場合）**、それ以外は**同店の本人履歴の先頭科目**を選択 | 新版の`receipt-autofill`は支払方法・税区分・端数方式の**3項目だけ**を返し、科目候補は含めない。旧版同様の科目初期選択をするかは別途判断 | 旧補完の移植要判断 |
+| 店名による税込／税抜補完の履歴順 | 旧`GetTaxType`は同名店のレシートを**取引日降順**で選び、同日時の追加並び順は未指定。人物限定なし | 新版は**更新UTC降順・同時刻はレシートID降順**で選ぶ（DEC-220/221）。古い取引の修正後に補完が変わり得るが**承認済み差異** | 承認済み変更 |
+| 店名による端数方式補完の人物範囲 | 旧`GetTaxRoundingMode`は同名店の**Windows利用者本人の支払方法を使った履歴だけ**、取引日・seq降順 | 新版は端数方式も**同一家計簿の全人物の同名店履歴**から更新UTC降順で決める（支払方法の補完だけ本人限定）。**他人物の履歴が端数方式へ反映される**のは明示された設計変更 | 承認済み変更・入力受入確認 |
+| 店名による支払方法補完の履歴順 | 旧版は**Windows利用者の本人所有支払方法**を使った同店履歴を取引日降順で選ぶ（同日タイブレークなし） | 新版は**現在の対応人物ID**による所有・取引日の有効期間・書込権限を確認し、更新UTC降順・同時刻ID降順。参照条件が異なる | 承認済み変更 |
+| 年次の支払者絞り込みと対象者絞り込み | 旧**分類集計**はレシートの**支払方法所有者**でまず絞り、さらに明細の**対象人物集合**で部分／完全一致を判定。**収支集計**では支払者を絞るが明細対象者集合での絞り込みを行わない | 新版の集計APIを作るとき、この**2つの「人物」概念**を混同せず別条件として設計する。集計・内訳APIは後続 | 重要・後続 |
+| 「1人分」按分チェックの有効条件 | 旧分類集計の`OnlyPersonCheckBox`は**部分一致モードかつ対象人物をちょうど1人選択した時だけ有効**。旧`GetGroupStatisticsList`の内部には人数按分の処理があるが、UIから複数人同時按分は選べない | 新版で人物別集計を実装する際、**旧計算関数が複数人を扱えること**と**旧UIで選択可能だった条件**を区別して採否を決める | 後続・要判断 |
+| 収支表の「収入のみ／支出のみ」からの内訳 | 旧収支表はラジオボタンで**収入または支出だけ**を集計する。しかし月／年セルのダブルクリック先には**支払方法ID・年・月だけ**を渡す。`DetailViewForm`は明細の正負を絞らず、同口座の全明細を表示 | **旧版の表示合計と内訳の範囲が食い違い得る**。新版では表の符号別表示条件を内訳へ渡すか判断し、旧版の取りこぼしを再現しない方がよい | **旧版の条件欠落・重要** |
+| 分類集計から内訳への対象者条件 | 旧分類表のダブルクリックは**分類コード・年・月だけ**を内訳に渡し、**対象人物の部分／完全一致・1人按分・支払者絞り込み**を渡さない。内訳は該当科目の全レシートのグループ／明細参考額を表示 | **旧分類表と内訳が異なる数字になるケースがある**。新版で同等機能を作る際、**表示中フィルタの引継ぎ**と会計額・参考額の違いを分けて契約化する | **旧版の条件欠落・重要** |
+| 収支表／残高表から内訳への支払者・期間 | 旧版は収支表・残高表のセルから同じ`DetailViewFormMode.Payment`を使用し、**口座コードと年月だけ**を渡す。年計列は`Month=0`の全年度表示 | 残高表のセルからも残高推算の明細ではなく**その支払方法のレシート明細**が開く。新版は内訳画面の用途と元セルの条件を明示してから設計する | 後続・要判断 |
+| 残高年次表の月内評価額 | 旧版は月内の残高記録に評価額が複数あれば**評価額がNULLでない最新の記録**を優先。該当月に評価額が1件もなければ最新残高へフォールバックする。**最新残高行に評価額がNULLでも、古い評価額が使われ得る** | 新版の評価額集計が未設計。**月末時点の残高の参考値なのか、最新評価額を継続するのか**は分けて決める | 後続・重要計算 |
+| 残高年次表の予測値・確定値 | 旧版は月内に残高記録があれば**最新の登録残高（または前述の評価額）**を表示し、月末／本日でない記録を色で「予測」扱いする。登録がない月は条件付きで月末残高の自動推算を実行 | 新版で「実測月内最新値」と「月末推算値」を混同しない。旧画面の色と数字は必ずしも「月末に再推算した額」ではない | 後続・重要計算 |
+
+**根拠**：[旧候補SQL](../HouseholdAccountsBeta/HouseholdAccountsBeta/DataAccess/DataAccess.vb)／[旧レシート入力](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)／[旧メインの人物条件](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)／[旧分類集計](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_ListStatistics.vb)／[旧収支集計](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Expenses.vb)／[旧残高集計](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_BalanceStatistics.vb)／[旧内訳](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm.vb)／[新版候補・補完の正本](ledger-receipt-suggestions.md)／[新版レシート画面](ledger-receipt-ui.md)。
+
+**移植判断の優先度**：①分類／収支集計のドリルダウンへ**どのフィルタを引き継ぐか**、②店名による科目候補・品名の科目名候補、③残高表で最新の評価額と月末推算値をどう区別して表示するか。**今回は仕様を確定せず、対象機能に取り組む際の照合条件として残す**。旧DBのデータ監査・移行SQL・計算の改修は行わない。
+
 ### 追加点検後の判断待ち（優先度順）
 
 1. **レシート一覧**：対象人物0人の警告、保存額と再計算額の差異、再計算の範囲超過は、現行の親7フィールド一覧GETだけでは判定できない。表示の採否と必要なデータ取得設計を**別途承認**する。保存済み金額・既存APIの7フィールドをこの表だけで変更しない。
