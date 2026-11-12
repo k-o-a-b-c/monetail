@@ -32,8 +32,10 @@ public static class TaxModel
                 table.HasCheckConstraint("CK_tax_rate_history_from", DateConstraint("valid_from"));
                 table.HasCheckConstraint("CK_tax_rate_history_to", "valid_to IS NULL OR (" + DateConstraint("valid_to") + ")");
                 table.HasCheckConstraint("CK_tax_rate_history_period", "valid_to IS NULL OR valid_from <= valid_to");
+                // 制度導入前などの期間ではStandard/軽減区分のrateもNULL（税なし）になり得る。
+                // Exemptだけは常にNULL。課税0%（文字列"0"）とは区別する。
                 table.HasCheckConstraint("CK_tax_rate_history_rate",
-                    "(tax_category_code = 'Exempt' AND rate IS NULL) OR (tax_category_code <> 'Exempt' AND rate IS NOT NULL)");
+                    "tax_category_code <> 'Exempt' OR rate IS NULL");
             });
             history.HasKey(row => row.Id);
             history.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
