@@ -65,6 +65,64 @@
 | ポイント | DB表・データクラスはあるが旧画面イベント・保存読込は未完成 | 新版で採用するか未決定。旧版の実装済み機能として継承対象に数えない | 保留／採否未決定 | [旧版機能](01-features.md)、[ロードマップ](07-roadmap.md) |
 | Web・スマートフォン入力 | 旧版にはアプリ認証・スマホ入力・同期機能なし | APIを共用するWeb業務画面は後続。Windows入力を先行 | 追加／Web業務入力は後続 | [旧版](01-features.md)、[ロードマップ](07-roadmap.md) |
 
+## 画面別の追加精査（旧版イベント・操作の詳細）
+
+先の比較表は**主要な機能境界**。以下は旧版の各画面のイベント処理と[操作ガイド](09-user-guide.md)をさらに照合して見つかった**移植時の差異・見落としやすい振る舞い**。ここで新版の採否を新たに決定しない。「要判断」は正本に新版の対応仕様が未確定、または画面の受入検証が必要という意味で、旧版の挙動を無条件に踏襲する指示ではない。
+
+### ホーム・一覧・共通操作
+
+| 照合対象 | 旧版ソースで確認した振る舞い | 新版仕様との関係／要確認事項 | 判定 | 根拠 |
+| --- | --- | --- | --- | --- |
+| 年月・タブ・ショートカット | 一覧タブでは月移動、3種の集計タブでは年移動。メイン画面で`Alt+←/→`が前後移動、一覧で`Ctrl+N`が新規レシート | 新版レシート一覧は月／全期間と前後移動を確定。**旧キー割当の継承は未確認**。年次集計画面は後続 | 一部変更・キー要判断 | [旧メイン](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)、[新一覧](ledger-receipt-ui.md) |
+| 一覧の二系列と絞り込み | 旧一覧はレシートと振替を別々に表示。人物・支払方法で絞る際、振替は**移動元または移動先**の一致を採用 | 新版レシート一覧の所有者絞り込みは支払方法所有者で確定。**振替一覧の絞り込み・表示方式は未決定**で、レシートの条件を流用しない | 振替側は保留 | [旧一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)、[新API](ledger-receipt-api.md) |
+| 対象人物0人の視覚警告 | 旧一覧は**対象人物が0人の明細を1件でも含むレシート行**を薄桃色にする | 新版の明細0人保存は認めるが、**一覧GETは親7フィールドのみで、明細対象人物の情報は含まれない**。旧版同等の一覧警告を採用するか／取得方式は未決定 | 要判断・現行一覧APIでは情報不足 | [旧一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)、[一覧契約](ledger-receipt-api.md)、[明細UI](ledger-receipt-ui.md) |
+| 登録・変更後の一覧復帰 | 旧版は登録・更新成功で取引年月へ表示を切替え、保存した行を再選択・スクロール。閉じる場合も競合時は一覧を再読込 | 新版は元一覧の検索条件・スクロール・選択を可能な限り維持する方針。**異なる月への登録成功・競合後の復帰先／選択結果は保存UI接続時に照合** | 一部変更・保存UI後続 | [旧一覧](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)、[新版UI](ledger-receipt-ui.md) |
+| 更新競合の対象 | 旧版はレシートだけでなく振替・残高の編集／削除でも古い更新状態を検出し、警告して中止 | 新版のレシートrevision／競合対応は規定済み。**振替・残高で同等の競合保護を行う契約は後続** | レシート確定・他は保留 | [旧ガイド](09-user-guide.md)、[新API](ledger-receipt-api.md) |
+
+### レシート入力の細かな操作
+
+| 照合対象 | 旧版ソースで確認した振る舞い | 新版仕様との関係／要確認事項 | 判定 | 根拠 |
+| --- | --- | --- | --- | --- |
+| グループの科目変更・統合 | 旧版は選択済みグループの分類を別の既存グループと同じ分類に変更すると、**既存グループへ明細を統合して元グループを削除**できた | 新版は**1科目1グループ**をDBで強制し、画面は科目の追加・削除・切替を規定。**既存グループの科目変更／統合操作を提供するかは未決定** | 変更・旧操作の採否要判断 | [旧登録](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[新版UI](ledger-receipt-ui.md)、[新版DB](ledger-receipt-schema.md) |
+| 空グループの品名初期値 | 旧版は選択したグループに明細が0件なら、品名欄へ**分類名**を自動設定する | 新版は科目追加後に品名欄へフォーカスするが、**空グループの品名に科目名を補完する規則は未確認** | 要判断 | [旧登録](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[新版UI](ledger-receipt-ui.md) |
+| 連続入力後の値引率保持 | 旧版の明細追加／更新後は単価・数量・値引額・品名・メモを初期化するが、**率値引は入力値を保持**し、対象人物も保持する。グループ選択変更時は率値引もクリア | 新版は追加成功後の**率値引0を初期値**とし、対象人物の選択だけ継承する。税率も直前の明細から無条件には継承しない | **承認済み仕様との差異**・UI検証対象 | [旧登録](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[新版UI](ledger-receipt-ui.md) |
+| 数値入力の補正 | 旧版は数量の不正値を1、値引率の不正値を0／100%超を100に補正。単価・単価値引の式（`+ - *`）が不正なら0を表示 | 新版の画面内明細編集では**不正文字列を保持してエラーとし、0/1へ黙って補正しない**。単価・値引額の整数式はClientで解析するが、失敗時の破棄規則は同一ではない | **変更**・回帰試験対象 | [旧入力](23-detail-input-validation.md)、[旧式](24-integer-money-expressions.md)、[新UI](ledger-receipt-ui.md)、[Client](../src/Monetail.Windows.Client/Receipts/ReceiptDetailInput.cs) |
+| ショートカットの置換 | 旧版レシートフォームには`Ctrl+Enter`で保存、`Ctrl+T`でレシートメモへ、`Ctrl+G`でグループ選択解除・分類へフォーカスする操作がある | 新版は`Alt+Enter`で画面内明細反映、`Ctrl+Enter`でレシート全体保存、通常Enter/Shift+Enterのフォーカス移動を確定。**Ctrl+T/Gの継承は未決定**。レシート全体保存は現時点では未接続 | 一部変更・旧補助キー要判断 | [旧登録](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[新版UI](ledger-receipt-ui.md) |
+| 確認ダイアログの条件 | 旧版は**時刻00:00:00**で保存前確認、既存レシートの**日付変更**で追加確認。流用・通常登録の保存確認、削除確認も個別に行う | 新版は新規時刻00:00:00を初期表示とするが、**時刻0／日付変更時の旧確認を残すかは未確定**。新版の未保存離脱・競合・削除の確定契約とは混同しない | 要判断・全体保存UI後続 | [旧登録](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[新版UI](ledger-receipt-ui.md) |
+| 保存・流用ボタンの必須条件 | 旧版は店名・税込／税抜・支払方法・明細1件以上がないと登録／流用ボタンを無効化し、実行時にも再検証 | 新版はAPIで正式検証、画面の全体保存は後続。**無効状態・入力エラー・最初の明細なしを保存UIで再照合** | 保存UI後続 | [旧登録](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[旧詳細](30-receipt-input-validation.md)、[新版API](ledger-receipt-api.md) |
+| 明細・グループ一覧の列 | 旧グループ一覧は分類名・メモ等、旧明細一覧は**品名・単価・明細メモ**を表示 | 新版明細一覧は**6列（品名・単価・数量・値引・税率・参考額）**で、明細メモはフォームで見る。グループメモも別欄で編集する | **変更**・画面仕様確定 | [旧登録](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb)、[新版UI](ledger-receipt-ui.md) |
+
+### 振替・残高・支払メモ
+
+| 照合対象 | 旧版ソースで確認した振る舞い | 新版仕様との関係／要確認事項 | 判定 | 根拠 |
+| --- | --- | --- | --- | --- |
+| 振替名による初期候補 | 旧振替フォームは**過去の振替名を候補化**し、名称確定時に未選択なら移動元を、移動元選択時に未選択なら移動先を履歴から補完 | 新版の振替の履歴候補と補完保護は未設計。レシートの店名補完とは別契約として検討 | 要判断・振替後続 | [旧振替](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterTransferForm.vb) |
+| 振替の金額と保存前確認 | 旧版は**0・負の整数金額も可**、振替金額欄にはレシートの四則式入力を適用しない。同一口座間は禁止。時刻0・編集日付変更・即時流用・削除の確認がある | 新版の振替DB／API／UIは後続。**金額の符号・同一口座、入力式の有無、確認タイミング**を実装前に決める | 要判断・振替後続 | [旧振替](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterTransferForm.vb)、[旧契約](28-transfer-input-validation.md) |
+| 振替の残高への影響 | 旧版の残高推算では振替の移動元を減算・移動先を加算。月別一覧の人物・支払方法フィルタも両側を対象 | 新版の残高推算・振替一覧は後続。**振替と残高の整合・入力日境界も合わせて移植時に検証** | 保留 | [旧ガイド](09-user-guide.md)、[残高計算](21-end-of-day-balance.md) |
+| 残高のスナップショット境界 | 旧版は**指定日終了時点**の残高として扱い、推算は翌日から対象日末まで。日付が同じ別レコードを新規登録しない | 新版の残高スナップショット・日付一意性と推算期間は未設計。**時刻・小数秒の端点を含む旧契約**を移植時に検証 | 保留・重要計算 | [旧残高](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterBalanceForm.vb)、[期間](21-end-of-day-balance.md) |
+| 残高の行単位入力と表示 | 旧版は支払方法ごとの**残高・自動計算残高・［反映］・評価額・メモ**を一覧編集。予測と登録値の相違は行着色。範囲超過表示の文字列は［反映］しない | 新版残高UIは後続。**評価額だけの入力不可／最低1残高、整数検証、色や差異の通知、範囲超過時の入力保持**が照合対象 | 保留・重要入力 | [旧残高](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterBalanceForm.vb)、[旧契約](29-balance-input-state.md)、[旧範囲](27-balance-amount-overflow.md) |
+| 支払メモの確認日と未確認表示 | 旧版は支払方法行の［反映］で確認日を**今日**に設定。確認日が今日以外または未入力の行を着色し、予測残高も参照できる | 新版での行操作・未確認表示・推算値の取得経路は未設計 | 保留・支払メモ後続 | [旧支払メモ](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterPaymentMemoForm.vb)、[旧ガイド](09-user-guide.md) |
+| 支払メモの終了保護と最前面 | 旧版は支払メモ画面の終了時に**Yes＝全件保存／No＝破棄／Cancel＝閉じない**。メイン画面終了中も支払メモが閉じられなければ終了をキャンセル。**最前面表示切替**あり | 新版は支払メモ画面自体が後続。保存単位だけでなく、**未保存離脱・アプリ終了・最前面UIの採否**も要判断 | 保留・終了保護 | [旧メモ](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterPaymentMemoForm.vb)、[旧メイン](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb) |
+
+### 集計・内訳・表示補助
+
+| 照合対象 | 旧版ソースで確認した振る舞い | 新版仕様との関係／要確認事項 | 判定 | 根拠 |
+| --- | --- | --- | --- | --- |
+| 年次の分類・収支集計 | 旧版は**12か月＋年計**。分類集計では明細対象者の部分一致／完全一致・1人のみ按分、収支集計では収入／支出／差額の表示を切り替え | 新版の期間集計API・人物按分の最終端数・表示UIは後続。**分類と明細対象者の集計条件を混同せず**決定する | 保留・計算契約要確認 | [旧ガイド](09-user-guide.md)、[旧収支](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Expenses.vb)、[計算](12-calculation-contract.md) |
+| 残高集計の切替と強調 | 旧版は**評価額の表示／USD換算／グラフ表示**を切替。自動推算のセルを着色・ツールチップ説明し、条件変更後も選択・スクロールを可能な範囲で復元 | 新版の残高集計UIと通貨換算は未設計。実データの為替レート・欠損時の扱いも移植前に照合する | 保留・集計後続 | [旧残高集計](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_BalanceStatistics.vb)、[旧ガイド](09-user-guide.md) |
+| 集計表から内訳への移動 | 旧版は集計の**月セル／年計セルをダブルクリック**して、分類別または支払方法別・月または年通期の内訳画面を開く | 新版のドリルダウン入口・条件引継ぎ・明細表示切替は未決定 | 保留・集計後続 | [旧分類](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_ListStatistics.vb)、[旧収支](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Expenses.vb)、[旧内訳](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm.vb) |
+| 内訳画面の粒度と金額エラー | 旧版は［明細表示］チェックで**科目グループ別／明細別**を切替。金額の範囲超過時は途中一覧を消して「集計不可／範囲超過」とし、別条件で再計算 | 新版の内訳API・切替UI・グループ参考額と明細参考額の丸め差の扱いは後続。**旧会計合計を単純な参考額合計に置換しない** | 保留・重要計算 | [旧内訳](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm.vb)、[旧範囲](31-detail-view-amount-overflow.md)、[新版計算](ledger-receipt-api.md) |
+| レシート一覧の範囲超過 | 旧版は一覧の再計算で範囲超過になった**該当行だけ**「範囲超過」を表示し、他行の閲覧・編集を維持 | 新版一覧GETは**保存済み合計**を返し、一覧読込では金額を再計算しない。旧版同等の一覧警告を採用するかは未決定 | 保留・一覧設計 | [旧範囲](32-receipt-list-amount-overflow.md)、[新一覧API](ledger-receipt-api.md) |
+
+### 追加点検後の判断待ち（優先度順）
+
+1. **レシート一覧**：対象人物0人の警告、保存額と再計算額の差異、再計算の範囲超過は、現行の親7フィールド一覧GETだけでは判定できない。表示の採否と必要なデータ取得設計を**別途承認**する。保存済み金額・既存APIの7フィールドをこの表だけで変更しない。
+2. **レシート入力**：旧版のグループ統合、空グループの品名初期値、`Ctrl+T/G`、時刻0／日付変更確認の採否を決める。**率値引の連続入力時リセットと数値エラーの扱いは既存新版仕様を正本**とし、旧版へ無断で戻さない。
+3. **振替・残高・支払メモ**：移動元／先の履歴補完、残高の指定日終了時点、支払メモの終了保護を、API設計前に仕様として定義する。
+4. **集計・内訳**：明細対象者の部分／完全一致・按分、参考額と会計額の丸め粒度、年度／月／USD／ドリルダウン、範囲超過表示を旧版の固定例で照合する。
+
+**検証境界**：上記は旧VBイベント処理／既存の旧版仕様書／新版正本の**静的照合**。全フォームのDesigner属性・Tab順・全メッセージ文言・実IME/実DB・すべての隠れた分岐を動作保証するものではない。移植時は[旧版操作ガイド](09-user-guide.md)の手動確認項目と各旧フォームのDesignerも個別確認する。未決定項目の実装や既存APIの仕様変更を、この比較表を根拠に先行しない。
+
 ## 実装前の旧版照合チェック（Codex・レビュー用）
 
 対応する旧画面がある変更では、[AGENTS.md](../AGENTS.md)・[UI_DESIGN.md](../UI_DESIGN.md)に従い**旧Designer／イベント処理 → 新版正本 → 現行WinUI XAML・処理・テスト**を比較する。
