@@ -17,6 +17,33 @@ public sealed class ReceiptListStateTests
     }
 
     [Fact]
+    public void AllPeriodsAppliesShopWithInvalidPendingMonthWithoutChangingSavedMonth()
+    {
+        var state = new ReceiptSearchState(new(2026, 11, 13));
+        state.MonthText = "bad"; state.ShopText = "店A";
+        Assert.False(state.ApplyText()); Assert.NotNull(state.MonthError);
+        state.AllPeriods = true;
+        state.ShopText = "店B";
+        Assert.True(state.ApplyText());
+        Assert.Null(state.MonthError);
+        Assert.Equal("2026-11", state.AppliedMonth);
+        Assert.Equal("all", state.Query().Month);
+        Assert.Equal("店B", state.Query().Q);
+
+        state.AllPeriods = false;
+        state.ShopText = "店C";
+        Assert.False(state.ApplyText());
+        Assert.Equal("2026-11", state.Query().Month);
+        Assert.Equal("店B", state.Query().Q);
+        Assert.NotNull(state.MonthError);
+
+        state.MonthText = "2026-12";
+        Assert.True(state.ApplyText());
+        Assert.Equal("2026-12", state.Query().Month);
+        Assert.Equal("店C", state.Query().Q);
+    }
+
+    [Fact]
     public async Task AutomaticFillStopsAt300AndLayoutCannotRestartItButUserScrollCan()
     {
         var calls = 0;
