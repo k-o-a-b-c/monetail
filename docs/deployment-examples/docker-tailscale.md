@@ -146,7 +146,21 @@ install -d -m 755 "$SERVER_ROOT/config"
 install -m 644 /path/to/tax-history.json "$SERVER_ROOT/config/tax-history.json"
 ```
 
-**この段階ではCLIも読み取りマウントもまだ未実装なので、DBへの登録は行わない。** D4-CLI実装後にAPIを停止し、DBバックアップを取得した上で、このホストファイルをAPIコンテナに**読取専用でバインド**し、`sync-tax-rates --file /コンテナ内のファイルパス --dry-run`で確認してから`--apply`を明示実行する。実際のCompose追加マウントとコマンド例はD4-CLI実装時に更新する。税率改定時もGitHubでPR確認→サーバーのファイル更新→CLI反映を同じ手順で行う。既存のDBや認証設定は作り直さない。
+**この段階では`sync-tax-rates`は未実装なので、次のコマンドはCLIを含むAPIイメージを配布した後にのみ使用する。** API停止・[DBの停止バックアップ](#停止バックアップ)が完了した状態で、上記の`dc`関数を使用する。通常APIコンテナにJSONのマウントを追加する必要はなく、**管理コマンド実行時だけ読取専用で渡す**。
+
+```bash
+# CLI実装後：まずDB無変更の差分確認を行う。
+dc run --rm --no-deps \
+  --volume "$SERVER_ROOT/config/tax-history.json:/tmp/tax-history.json:ro" \
+  api sync-tax-rates --file /tmp/tax-history.json --dry-run
+
+# 差分を確認・承認した場合に限ってDBへ反映する。
+dc run --rm --no-deps \
+  --volume "$SERVER_ROOT/config/tax-history.json:/tmp/tax-history.json:ro" \
+  api sync-tax-rates --file /tmp/tax-history.json --apply
+```
+
+通常の`--apply`は履歴の削除予定があれば拒否する。削除が明示的に必要な場合だけ`--apply --allow-delete`を指定する。税率改定時もGitHubのPR確認→サーバーファイル更新→差分確認→明示反映を同じ手順で行う。既存DB・認証設定を作り直さず、反映後はAPIを起動して運用記録に使用したJSONのコミットを記録する。
 
 ## 4. 動作確認
 
