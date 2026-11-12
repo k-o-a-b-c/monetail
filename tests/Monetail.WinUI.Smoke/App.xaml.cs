@@ -92,6 +92,7 @@ public partial class App : Application
             await CheckCategories();
             await CheckPeopleFilter();
             await CheckConnectionFlow(output, capture);
+            await CheckTaxRateConnectionCache();
             await CheckPeopleFlow(output, capture);
             await CheckPersonDeletion();
             await CheckPersonOrder();
