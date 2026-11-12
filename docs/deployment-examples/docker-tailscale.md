@@ -136,6 +136,18 @@ dc run --rm --no-deps api issue-enrollment-invitation --account-id REPLACE_ACCOU
 
 Windowsアプリには同じ`https://実際のノード名`を設定する。将来のスマートフォンもTailscale接続と同じOrigin/RpIdを使う前提だが、スマートフォンアプリの動作確認は別途必要。
 
+### 税率履歴JSONの配置（管理CLI未実装）
+
+初期税率データの正本はGitHubの[`config/tax-history.json`](https://github.com/k-o-a-b-c/monetail/blob/main/config/tax-history.json)。GitHubに保存するだけではDBに登録されない。サーバーにはリリース版ごとの`$SERVER_PACKAGE`の内部ではなく、**更新で残る`$SERVER_ROOT/config/tax-history.json`**（例：`/srv/monetail/config/tax-history.json`）として配置する。これは一般的なJSONで秘密情報ではない。
+
+```bash
+# GitHubでレビュー済みのconfig/tax-history.jsonを、管理用端末からサーバーへ転送済みとする。
+install -d -m 755 "$SERVER_ROOT/config"
+install -m 644 /path/to/tax-history.json "$SERVER_ROOT/config/tax-history.json"
+```
+
+**この段階ではCLIも読み取りマウントもまだ未実装なので、DBへの登録は行わない。** D4-CLI実装後にAPIを停止し、DBバックアップを取得した上で、このホストファイルをAPIコンテナに**読取専用でバインド**し、`sync-tax-rates --file /コンテナ内のファイルパス --dry-run`で確認してから`--apply`を明示実行する。実際のCompose追加マウントとコマンド例はD4-CLI実装時に更新する。税率改定時もGitHubでPR確認→サーバーのファイル更新→CLI反映を同じ手順で行う。既存のDBや認証設定は作り直さない。
+
 ## 4. 動作確認
 
 ```bash
