@@ -22,6 +22,12 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["AGENTS.md", "README.md", "docs/43-passkey-authentication-design.md",
                            "tests/README.md", "src/Monetail.Api/README.md"])
 
+    def test_tax_history_data_is_validated_without_product_rebuild(self):
+        self.assert_flags(["config/tax-history.json"])
+        self.assert_flags(["config/tax-history.json", "docs/ledger-core-schema.md"])
+        with self.assertRaisesRegex(ValueError, "未分類"):
+            select(["config/other.json"])
+
     def test_api_source_and_test_have_different_container_dependencies(self):
         self.assert_flags(["src/Monetail.Api/Program.cs"], "api", "docker")
         self.assert_flags(["tests/Monetail.Api.Tests/HealthTests.cs"], "api")
