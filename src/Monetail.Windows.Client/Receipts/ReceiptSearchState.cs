@@ -10,7 +10,12 @@ public sealed class ReceiptSearchState
     public string MonthText { get; set; }
     public string ShopText { get; set; } = "";
     public string AppliedShop { get; private set; } = "";
-    public bool AllPeriods { get; set; }
+    private bool allPeriods;
+    public bool AllPeriods
+    {
+        get => allPeriods;
+        set { allPeriods = value; if (value) MonthError = null; }
+    }
     public Guid? OwnerPersonId { get; set; }
     public Guid? PaymentMethodId { get; set; }
     public string? MonthError { get; private set; }
