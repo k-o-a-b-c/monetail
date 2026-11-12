@@ -1,0 +1,100 @@
+{
+  "rates": [
+    {
+      "taxCategoryCode": "Standard",
+      "validFrom": "0001-01-01",
+      "validTo": "1989-03-31",
+      "rate": null
+    },
+    {
+      "taxCategoryCode": "Standard",
+      "validFrom": "1989-04-01",
+      "validTo": "1997-03-31",
+      "rate": "3"
+    },
+    {
+      "taxCategoryCode": "Standard",
+      "validFrom": "1997-04-01",
+      "validTo": "2014-03-31",
+      "rate": "5"
+    },
+    {
+      "taxCategoryCode": "Standard",
+      "validFrom": "2014-04-01",
+      "validTo": "2019-09-30",
+      "rate": "8"
+    },
+    {
+      "taxCategoryCode": "Standard",
+      "validFrom": "2019-10-01",
+      "validTo": null,
+      "rate": "10"
+    },
+    {
+      "taxCategoryCode": "ReducedFood",
+      "validFrom": "0001-01-01",
+      "validTo": "1989-03-31",
+      "rate": null
+    },
+    {
+      "taxCategoryCode": "ReducedFood",
+      "validFrom": "1989-04-01",
+      "validTo": "1997-03-31",
+      "rate": "3"
+    },
+    {
+      "taxCategoryCode": "ReducedFood",
+      "validFrom": "1997-04-01",
+      "validTo": "2014-03-31",
+      "rate": "5"
+    },
+    {
+      "taxCategoryCode": "ReducedFood",
+      "validFrom": "2014-04-01",
+      "validTo": "2019-09-30",
+      "rate": "8"
+    },
+    {
+      "taxCategoryCode": "ReducedFood",
+      "validFrom": "2019-10-01",
+      "validTo": null,
+      "rate": "8"
+    },
+    {
+      "taxCategoryCode": "ReducedNewspaper",
+      "validFrom": "0001-01-01",
+      "validTo": "1989-03-31",
+      "rate": null
+    },
+    {
+      "taxCategoryCode": "ReducedNewspaper",
+      "validFrom": "1989-04-01",
+      "validTo": "1997-03-31",
+      "rate": "3"
+    },
+    {
+      "taxCategoryCode": "ReducedNewspaper",
+      "validFrom": "1997-04-01",
+      "validTo": "2014-03-31",
+      "rate": "5"
+    },
+    {
+      "taxCategoryCode": "ReducedNewspaper",
+      "validFrom": "2014-04-01",
+      "validTo": "2019-09-30",
+      "rate": "8"
+    },
+    {
+      "taxCategoryCode": "ReducedNewspaper",
+      "validFrom": "2019-10-01",
+      "validTo": null,
+      "rate": "8"
+    },
+    {
+      "taxCategoryCode": "Exempt",
+      "validFrom": "0001-01-01",
+      "validTo": null,
+      "rate": null
+    }
+  ]
+}
