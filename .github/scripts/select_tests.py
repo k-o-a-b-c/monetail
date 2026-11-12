@@ -67,6 +67,10 @@ def selected_inputs(paths, *, strict=True):
     for path in paths:
         if path.endswith(".md") or path in {".gitignore", ".gitattributes"}:
             continue
+        # 配備用の税率JSONはAPI/イメージへの入力ではない（明示CLIのみで適用）。
+        # changesジョブでtest_tax_history_data.pyを常時実行し、ここでは製品テストを選択しない。
+        if path == "config/tax-history.json":
+            continue
         # 運営者が明示実行するCLIの入力データ。アプリのビルドには含めない。
         # 値と期間の妥当性はchangesジョブのtest_tax_history_data.pyで検証する。
         if path == "config/tax-history.json":
