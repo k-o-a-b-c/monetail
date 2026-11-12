@@ -1,0 +1,694 @@
+{
+  "formatVersion": 1,
+  "description": "旧VBの実計算と新APIの実計算を同一入力で照合。各グループの単一税率は旧版制約に対応。taxable=falseは新版taxRate=nullへ写像する。",
+  "cases": [
+    {
+      "id": "same-rate-groups-floor",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "same-rate-groups-half-up",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "group-reference-vs-accounting",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 15,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 15,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-tax-rates-floor",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 8,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": 3,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-tax-rates-half-up",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 8,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": 3,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inclusive-mixed-rates-floor",
+      "inclusion": 0,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 8,
+          "details": [
+            {
+              "price": 108,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 110,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inclusive-mixed-rates-half-up",
+      "inclusion": 0,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 8,
+          "details": [
+            {
+              "price": 108,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 110,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "discount-ceiling-floor",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 1503,
+              "taxable": true,
+              "quantity": 2,
+              "discount": 3,
+              "discountRate": "1.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "discount-ceiling-half-up",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 1503,
+              "taxable": true,
+              "quantity": 2,
+              "discount": 3,
+              "discountRate": "1.1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "discount-negative",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": -100,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "2.5"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "negative-tax-floor",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": -5,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "negative-tax-half-up",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": -5,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-sign-floor",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 5,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": -1,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-sign-half-up",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 5,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": -1,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mixed-sign-inclusive",
+      "inclusion": 0,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 5,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": -1,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zero-tax-rate",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 0,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": -1,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": 5,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "zero-tax-half-up",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 0,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": -1,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": 5,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "non-tax-only",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 7,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": -2,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "max-int32",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 0,
+          "details": [
+            {
+              "price": 2147483647,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "min-int32",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 0,
+          "details": [
+            {
+              "price": -2147483648,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wide-intermediate-full-discount",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 2000000000,
+              "taxable": true,
+              "quantity": 2,
+              "discount": 0,
+              "discountRate": "100"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "small-fractional-rate-and-negative",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 8,
+          "details": [
+            {
+              "price": 1,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0.1"
+            },
+            {
+              "price": -1,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": 105,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 5,
+              "discountRate": "1.001"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "per-group-mixed-tax-target",
+      "inclusion": 1,
+      "rounding": "half_up",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": 15,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": 19,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        },
+        {
+          "rate": 8,
+          "details": [
+            {
+              "price": 7,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            },
+            {
+              "price": -5,
+              "taxable": false,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "one-hundred-percent-refund",
+      "inclusion": 1,
+      "rounding": "floor",
+      "groups": [
+        {
+          "rate": 10,
+          "details": [
+            {
+              "price": -100,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "100"
+            },
+            {
+              "price": 100,
+              "taxable": true,
+              "quantity": 1,
+              "discount": 0,
+              "discountRate": "100"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
