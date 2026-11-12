@@ -39,6 +39,7 @@
 | 旧VB.NET・Windows Forms・SQLite・旧版の処理 | [旧Windows版](architecture-legacy.md) |
 | 旧Windows版と新版の操作・機能差異と未決定事項 | [旧版／新版の比較](legacy-new-comparison.md) |
 | 旧版／新版の計算・DB・移行時の値域と非互換点の監査 | [計算・DB・移行境界の照合](legacy-new-data-calculation-audit.md) |
+| 旧WinFormsと現WinUI／Clientの実装差・テスト・未接続機能 | [旧版／新WinUIの実コード監査](legacy-new-winui-implementation-audit.md) |
 | 新Windows版の構成・WinUI 3・Client | [新Windows版](architecture-winui.md) |
 | APIの責務・依存・後続分離案 | [API構成](architecture-api.md) |
 | リポジトリ配置・CI・関連資料 | [配置とCI](architecture-repository.md) |
