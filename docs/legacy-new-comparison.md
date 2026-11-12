@@ -26,12 +26,12 @@
 | 対象 | 旧Windows版 | 新版での扱い | 分類／状態 | 詳細 |
 | --- | --- | --- | --- | --- |
 | マスタ管理画面 | `MasterMaintenanceForm`は空の雛形で、設定入口は非表示。マスタはDBから読み込んで利用 | 人物・支払方法・科目などの専用管理画面、API CRUD・並び順を導入。旧雛形が完成していたとは扱わない | 追加／主要管理画面実装 | [旧版機能](01-features.md)、[人物](ledger-persons.md)、[支払方法・科目](ledger-core-schema.md) |
-| 人物・支払方法の利用可能期間 | 旧マスタを選択肢に利用 | 人物・支払方法に有効期間を設定し、**操作日でなく取引日**で候補・保存を検証。所有者変更は制限する | 変更・追加／マスタとレシート経路実装 | [人物](ledger-persons.md)、[支払方法](ledger-core-schema.md) |
+| 人物・支払方法の利用可能期間 | 旧DBの支払方法には`valid_from`／`valid_to`列があるが、実際の期間フィルタ利用は未確認。旧人物マスタの期間仕様とは区別する | 新版は人物と支払方法の期間を業務ルールとして規定し、**操作日でなく取引日**で候補・レシート保存を検証。振替・残高の期間検証は後続 | 追加・再設計／マスタ管理・レシート経路実装 | [旧DB](02-database.md)、[人物](ledger-persons.md)、[支払方法](ledger-core-schema.md) |
 | 人物・支払方法の並び順 | 旧マスタ・一覧の順序を利用 | 家計簿の共通順、本人優先表示、人物別の支払方法順を明示的に管理 | 変更／管理UI実装 | [人物](ledger-persons.md)、[支払方法](ledger-core-schema.md) |
 | 支払方法の表示名 | 本人以外は人物名を括弧付きで表示 | 表示の`（人物名）支払方法名`を**継承**。本人判定はWindows利用者名でなく対応人物ID | 継承＋判定変更／レシート一覧実装 | [新版の一覧](ledger-receipt-ui.md)、[旧版](01-features.md) |
-| 科目・税区分 | 旧分類／レシートのグループ側に税率・課税対象を持つ | 科目は固定の収支区分と**初期税区分**を持ち、実税率は明細側へ保存 | 変更／科目UI・DB・API実装 | [科目・税](ledger-core-schema.md)、[レシートDB](ledger-receipt-schema.md) |
-| 日付・時刻の省略入力 | 旧版にも日付補完があるが、すべての入力境界の一致は未確認 | 1〜8桁等の受理形式、直近の暦上の補完範囲、IME・空欄・不正値の扱いを新版仕様として確定 | 変更／Client補完・主要管理UI接続済み。実IMEは要検証 | [入力正本](59-input-controls-design.md)、[旧登録画面](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb) |
-| Enter・Tab・IME | 旧版はWinFormsのイベント／フォーカス移動 | Enterで次、Shift+Enterで前、Ctrl+Enterで保存などを共通化。ただし業務ボタン・IME変換・候補展開の例外を優先 | 変更／対応画面へ段階接続、実機確認は別 | [入力正本](59-input-controls-design.md)、[UIルール](../UI_DESIGN.md) |
+| 科目・税区分 | 旧分類マスタは初期課税対象などを持ち、**レシートグループに税率、各明細に課税対象フラグ**を保存 | 新版の科目は固定の収支区分と**初期税区分**を持ち、実税率は明細側へ保存 | 変更／科目UI・DB・API実装 | [旧DB](02-database.md)、[科目・税](ledger-core-schema.md)、[レシートDB](ledger-receipt-schema.md) |
+| 日付・時刻の省略入力 | 旧版にも日付補完があるが、すべての入力境界の一致は未確認 | 日付は区切りなしの**1〜2／3〜4／6／8桁**を受理（5・7桁は不正）。過去の暦上の補完範囲、時刻補完、IME・空欄・不正値の扱いを新版仕様として確定 | 変更／Client補完・主要管理UI接続済み。実IMEは要検証 | [入力正本](59-input-controls-design.md)、[旧登録画面](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.vb) |
+| Enter・Tab・IME | 旧版はWinFormsのイベント／フォーカス移動 | Enterで次、Shift+Enterで前、Ctrl+Enterで保存等を共通化。ただしIME変換・候補展開等の例外を優先。**レシート全体保存は未接続で、現段階のCtrl+Enterでは保存しない** | 変更／対応画面へ段階接続、実機確認は別 | [入力正本](59-input-controls-design.md)、[レシートUI](ledger-receipt-ui.md) |
 
 ## レシート一覧・入力・保存
 
@@ -46,13 +46,13 @@
 | 3種のメモ欄 | レシート／科目／明細のテキスト欄は1行 | 新版も**1行TextBox**。WinUIの既定複数行化や改行可能化を無承認で行わない | 継承／WinUI修正済み | [入力画面](ledger-receipt-ui.md)、[UI比較原則](../UI_DESIGN.md) |
 | 初期値と店名補完 | 同店の履歴から支払方法・税設定などを候補化。店舗マスタの税端数設定は初期値に使わない | 新規は税込・切り捨てを初期選択。**店名の確定後**だけ本人支払方法・税込／税抜・端数の履歴補完を行い、手動値を保護 | 継承＋変更／補完API実装、UI自動補完は後続 | [候補・補完](ledger-receipt-suggestions.md)、[旧版](01-features.md) |
 | 店名・所在地・品名候補 | 旧版はローカルの過去の店舗・品名等を候補化 | 新版はAPI部分一致・表記ゆれ吸収・元文字列保持・候補100件。IME/矢印/Enterの画面操作は別途実装・検証 | 変更／API・Client実装、候補UIは後続 | [候補仕様](ledger-receipt-suggestions.md)、[実装工程](ledger-receipt-implementation.md) |
-| 税率の保持単位 | **グループに税率と課税対象**。明細に独立した実税率はない | **明細ごとに実税率**（非課税NULL／課税0%を区別）。同科目1グループに複数税率を持てる | 変更／DB・API・編集モデル実装、候補UI後続 | [新DB](ledger-receipt-schema.md)、[税率と初期選択](ledger-core-schema.md) |
+| 税率の保持単位 | **グループに税率、明細に課税対象フラグ**。同じグループ内の明細は同じ税率を参照 | **明細ごとに実税率**（非課税NULL／課税0%を区別）。同科目1グループに複数税率を持てる | 変更／DB・API・編集モデル実装、候補UI後続 | [旧DB](02-database.md)、[新DB](ledger-receipt-schema.md)、[税率と初期選択](ledger-core-schema.md) |
 | 税率候補の履歴 | 旧版の税率・グループ選択に依存 | 税率履歴を全期間GETしてClientにメモリ保持、取引日により候補と科目初期値を決定。非課税科目は履歴0件でも非課税を初期選択 | 変更／履歴DB・JSON準備済み、同期CLI／GET／WinUIは後続 | [共通税率履歴](ledger-core-schema.md)、[工程6-D4](ledger-receipt-implementation.md) |
 | 税込／税抜・端数方式 | レシート単位で保持、同率の明細額を集約後に端数処理 | **レシート単位を継承**。APIの正式計算とWinUIの参考額表示を共通化する方針。個人別の最終端数は一部未決定 | 継承／API計算済み、WinUI正式計算表示は後続 | [計算契約](12-calculation-contract.md)、[工程](ledger-receipt-implementation.md) |
 | 費用区分・発生区分・周期 | 旧版には新版と同一の項目契約を確認できない | **費用区分・発生区分は明細単位、繰返し周期はレシート単位**。周期を指定してもレシートは自動生成しない | 追加／DB・API・編集UIモデル実装 | [業務・初期値](ledger-core-schema.md)、[レシートDB](ledger-receipt-schema.md) |
 | 保存・再送・競合 | 旧版はアプリからSQLiteに親子をトランザクション保存。旧版独自の競合確認 | APIで親子・対象人物を原子的に保存し、requestIdで結果不明の再送を識別。revision／権限・マスタを保存時再検証 | 変更／API・Client実装、WinUI保存ボタン接続は後続 | [API保存](ledger-receipt-api.md)、[実装工程](ledger-receipt-implementation.md) |
 | 流用登録 | 既存編集から確認後に**即新規保存して閉じる** | 既存編集で現在の入力から［更新］と［流用登録］を選択。流用POSTから元のID・revisionを除き、元データを変更しない | 変更／編集状態モデルあり、WinUI保存接続は後続 | [旧版](01-features.md)、[編集開始・流用](ledger-receipt-ui.md) |
-| 保存済み合計・差異 | 旧版は保存合計と再計算額の不一致を強調表示し、保存値を自動補正しない | 新版も保存済み合計を保持し、開くだけで上書きしない。**旧版と同等の差異表示を画面でどう提供するかは別途照合が必要** | 保留／DB・APIは保存合計保持、差異表示の同等性未確認 | [旧版機能](01-features.md)、[レシートAPI](ledger-receipt-api.md) |
+| 保存済み合計・差異 | 旧版は保存合計と再計算額の不一致を強調表示し、保存値を自動補正しない | 新版DBは保存済み`total_amount`を保持し、一覧GETは`totalAmount`を返す。一方、**詳細GETは保存済み合計を返さない**ため、旧版と同じ「保存額と再計算額の差異表示」ができるかは未決定。表示だけで保存値を書き換えない | 保留／DB・APIに保存額あり、差異表示は未設計 | [旧版機能](01-features.md)、[レシートAPI](ledger-receipt-api.md) |
 
 ## 振替・残高・集計・周辺機能
 
