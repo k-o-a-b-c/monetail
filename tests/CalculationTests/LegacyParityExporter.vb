@@ -13,16 +13,16 @@ Public Module LegacyParityExporter
                 Dim receipt = MakeReceipt(item.GetProperty("rounding").GetString())
                 receipt.TaxType = item.GetProperty("inclusion").GetInt32()
                 For Each groupInput In item.GetProperty("groups").EnumerateArray()
-                    Dim group = Group(groupInput.GetProperty("rate").GetInt32())
+                    Dim legacyGroup = ReceiptFixtures.Group(groupInput.GetProperty("rate").GetInt32())
                     For Each detailInput In groupInput.GetProperty("details").EnumerateArray()
-                        group.Details.Add(Detail(
+                        legacyGroup.Details.Add(ReceiptFixtures.Detail(
                             detailInput.GetProperty("price").GetInt32(),
                             detailInput.GetProperty("taxable").GetBoolean(),
                             detailInput.GetProperty("quantity").GetInt32(),
                             detailInput.GetProperty("discount").GetInt32(),
                             Decimal.Parse(detailInput.GetProperty("discountRate").GetString(), CultureInfo.InvariantCulture)))
                     Next
-                    receipt.Groups.Add(group)
+                    receipt.Groups.Add(legacyGroup)
                 Next
                 Dim groups As New List(Of Object)()
                 For Each group In receipt.Groups
