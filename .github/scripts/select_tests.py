@@ -67,6 +67,10 @@ def selected_inputs(paths, *, strict=True):
     for path in paths:
         if path.endswith(".md") or path in {".gitignore", ".gitattributes"}:
             continue
+        # 運営者が明示実行するCLIの入力データ。アプリのビルドには含めない。
+        # 値と期間の妥当性はchangesジョブのtest_tax_history_data.pyで検証する。
+        if path == "config/tax-history.json":
+            continue
         # GHCR専用処理はchangesジョブで常にPython検証する。製品の入力指紋には含めない。
         # 共通CIや新しいスクリプトへ除外を広げず、既知の2ファイルだけに限定する。
         if path in {".github/scripts/registry_image.py", ".github/scripts/test_registry_image.py"}:

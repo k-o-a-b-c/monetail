@@ -136,6 +136,32 @@ dc run --rm --no-deps api issue-enrollment-invitation --account-id REPLACE_ACCOU
 
 Windowsアプリには同じ`https://実際のノード名`を設定する。将来のスマートフォンもTailscale接続と同じOrigin/RpIdを使う前提だが、スマートフォンアプリの動作確認は別途必要。
 
+### 税率履歴JSONの配置（管理CLI未実装）
+
+初期税率データの正本はGitHubの[`config/tax-history.json`](https://github.com/k-o-a-b-c/monetail/blob/main/config/tax-history.json)。GitHubに保存するだけではDBに登録されない。サーバーにはリリース版ごとの`$SERVER_PACKAGE`の内部ではなく、**更新で残る`$SERVER_ROOT/config/tax-history.json`**（例：`/srv/monetail/config/tax-history.json`）として配置する。これは一般的なJSONで秘密情報ではない。
+
+```bash
+# GitHubでレビュー済みのconfig/tax-history.jsonを、管理用端末からサーバーへ転送済みとする。
+install -d -m 755 "$SERVER_ROOT/config"
+install -m 644 /path/to/tax-history.json "$SERVER_ROOT/config/tax-history.json"
+```
+
+**この段階では`sync-tax-rates`は未実装なので、次のコマンドはCLIを含むAPIイメージを配布した後にのみ使用する。** API停止・[DBの停止バックアップ](#停止バックアップ)が完了した状態で、上記の`dc`関数を使用する。通常APIコンテナにJSONのマウントを追加する必要はなく、**管理コマンド実行時だけ読取専用で渡す**。
+
+```bash
+# CLI実装後：まずDB無変更の差分確認を行う。
+dc run --rm --no-deps \
+  --volume "$SERVER_ROOT/config/tax-history.json:/tmp/tax-history.json:ro" \
+  api sync-tax-rates --file /tmp/tax-history.json --dry-run
+
+# 差分を確認・承認した場合に限ってDBへ反映する。
+dc run --rm --no-deps \
+  --volume "$SERVER_ROOT/config/tax-history.json:/tmp/tax-history.json:ro" \
+  api sync-tax-rates --file /tmp/tax-history.json --apply
+```
+
+通常の`--apply`は履歴の削除予定があれば拒否する。削除が明示的に必要な場合だけ`--apply --allow-delete`を指定する。税率改定時もGitHubのPR確認→サーバーファイル更新→差分確認→明示反映を同じ手順で行う。既存DB・認証設定を作り直さず、反映後はAPIを起動して運用記録に使用したJSONのコミットを記録する。
+
 ## 4. 動作確認
 
 ```bash
