@@ -156,7 +156,7 @@ public sealed class TaxRatesWorkspaceTests
         public Fixture(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> respond)
         {
             var endpoint = ApiEndpoint.Parse("https://tax-test.example");
-            http = new(new Handler(async (r, ct) => { Requests.Add((r.RequestUri!.AbsolutePath, r.Headers.Authorization?.Parameter)); var response = await respond(r, ct); DuringRead?.Invoke(); return response; }));
+            http = new(new Handler(async (r, ct) => { Requests.Add((r.RequestUri!.PathAndQuery, r.Headers.Authorization?.Parameter)); var response = await respond(r, ct); DuringRead?.Invoke(); return response; }));
             Api = new(endpoint, http); Session = new(Api, endpoint, Store); Workspace = new(Api, Session, Guid.NewGuid());
         }
         public void Dispose() => http.Dispose();

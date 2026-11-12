@@ -7,13 +7,23 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1445 |
+| ASP.NET Core API | 1456 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・レシート読取/書込・補完・編集モデル） | 714 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル） | 748 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 2438 |
+| 合計 | 2483 |
+
+## 工程6-D4-A：共通税率履歴の全件GET・Clientキャッシュ
+
+新規API10件・Client33件とWinUI内4確認を追加。実HTTP/隔離SQLiteで全区分・過去/将来・空履歴・同率の別区分、4項目だけのJSON・Decimal文字列/NULL・課税0%、Admin/Editor/Viewer・未参加/匿名、取得中の参加解除/認証失効・保存障害の非公開/rollback、共有読取120回、既存GET/書込のOrigin境界を確認する。Clientは期間両端・終了なし、64KiB超の全履歴、厳密な型/日付/Decimal、認証更新、別アカウントの検出、再ログイン/ログアウトと失敗時、同時取得・明示再試行、コンテキスト破棄後の旧応答拒否を検証。接続先変更/Disposeも実際のClientConnectionで確認する。CLI・計算共有・候補/金額表示・DB/Migration・自動投入は追加していない。
+
+ローカルは最小API1件/Client2件→関連API10件/Client33件→Client全748件が成功。新規API試験の初回4失敗は、既存GETのOrigin契約とHTTPSのテスト用Client構成へ合わせて修正した。精度試験はDecimalで正確に表せる小数の文字列一致へ強化し、最終CIで確認した。ローカルAPI全件は実行中の環境再起動後に完了結果を取得できず、不採用（追加の精度テスト実行も中断）。同じ出力先でのビルド競合を避け、再起動後に全件を繰り返さずCIの正常終了結果を採用する。
+
+ソース`51126c02153577471d23ddecc4bae5f2c7728875`の[Tests 43322696503](https://github.com/k-o-a-b-c/monetail/actions/runs/43322696503)でAPI全1456件（失敗/skipなし）、Node、APIのDockerビルド・起動/サーバー/リリースアーカイブのスモーク、旧VBと新版APIの実計算照合が成功。税率JSON/DBの自動投入・既存データ書換えは行わない。ソース`cd207f25de4eab432f8a77fb17136629adfb7fe2`の[Tests 43321885948](https://github.com/k-o-a-b-c/monetail/actions/runs/43321885948)の成功ジョブでClient/実DPAPI、WinUI製品/検証用Releaseビルド（警告・エラー0）・製品起動・既存を含む420確認を確認し、以後同じ指紋の成功記録を再利用した。実行全体の中断を成功とは扱わない。未変更の旧Windows/性能等も既存CIの判定を維持する。
+
+基点main `d84fd20b881173acdc300e49f4ae2ea2d541b1bb`の[push Tests 43318967258](https://github.com/k-o-a-b-c/monetail/actions/runs/43318967258)はClient/実DPAPI成功、WinUIは既存ReceiptCategoryMemoの合成IME確認で失敗していた。本PRでは再現しなかったが、その原因解消とは扱わず、当該テストの判定やタイムアウトも変更していない。今回`0xC0000005`は再発していないが過去の原因解決とはしない。実API+Windowsの人手操作、実NAS/認証器、実IME/高DPI/ARM64は未検証。
 
 ## 旧VBと新版APIの計算結果の直接照合（PR #154）
 
