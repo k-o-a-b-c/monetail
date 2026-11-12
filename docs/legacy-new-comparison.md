@@ -1,6 +1,6 @@
 # 旧Windows版と新Windows版の機能・操作差異
 
-[← 文書の入口](INDEX.md) | [旧版の機能一覧](01-features.md) | [計算・DB・移行境界の追加照合](legacy-new-data-calculation-audit.md) | [新版の実装工程](ledger-receipt-implementation.md)
+[← 文書の入口](INDEX.md) | [旧版の機能一覧](01-features.md) | [計算・DB・移行境界の追加照合](legacy-new-data-calculation-audit.md) | [現WinUI・Client実装の直接照合](legacy-new-winui-implementation-audit.md) | [新版の実装工程](ledger-receipt-implementation.md)
 
 ## 目的・読み方
 
