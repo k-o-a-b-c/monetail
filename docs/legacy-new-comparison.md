@@ -114,6 +114,27 @@
 | 内訳画面の粒度と金額エラー | 旧版は［明細表示］チェックで**科目グループ別／明細別**を切替。金額の範囲超過時は途中一覧を消して「集計不可／範囲超過」とし、別条件で再計算 | 新版の内訳API・切替UI・グループ参考額と明細参考額の丸め差の扱いは後続。**旧会計合計を単純な参考額合計に置換しない** | 保留・重要計算 | [旧内訳](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm.vb)、[旧範囲](31-detail-view-amount-overflow.md)、[新版計算](ledger-receipt-api.md) |
 | レシート一覧の範囲超過 | 旧版は一覧の再計算で範囲超過になった**該当行だけ**「範囲超過」を表示し、他行の閲覧・編集を維持 | 新版一覧GETは**保存済み合計**を返し、一覧読込では金額を再計算しない。旧版同等の一覧警告を採用するかは未決定 | 保留・一覧設計 | [旧範囲](32-receipt-list-amount-overflow.md)、[新一覧API](ledger-receipt-api.md) |
 
+### Designer・共通入力コントロールの静的照合
+
+旧版の`ViewForm`、`RegisterForm`、`RegisterTransferForm`、`RegisterBalanceForm`、`RegisterPaymentMemoForm`、`DetailViewForm`、`MasterMaintenanceForm`の**計7個のDesigner**と、旧版の共通日付時刻入力を確認した。**Designerの`TabIndex`は同一コンテナ内での順序であり、単純な数値の全画面ソートは不可**。実行時の有効/非表示状態やフォーカス、IME/画面倍率による順序・操作の確認は別途必要。
+
+| 画面・観点 | 旧Designer／共通コントロールで確認できる事実 | 新版の仕様・残る確認 | 分類 |
+| --- | --- | --- | --- |
+| メインの入力・一覧 | 旧メインの一覧は**レシート・振替・残高の別Grid**。レシートと振替の一覧は**行選択専用・読取専用**。分類集計の対象者は`MultiSimple`選択で、初期条件は**部分一致** | 新版はレシート一覧を独立したAPI/WinUI画面で実装。**振替・残高の一覧と旧集計条件は後続** | 一部変更／他は保留 |
+| レシート親のTab順 | 旧`RegisterForm`は同一上段領域で概ね**日付 → 時刻 → 店名 → 所在地 → 税区分 → 税端数 → 支払方法 → メモ**の順に`TabIndex`を付与。税込税抜と端数処理はそれぞれ別の選択領域 | 新版の親情報の順序・Enter移動はDEC-171と入力共通契約を優先。**旧版のTab順を数値ごとコピーしない** | 変更・新仕様確定 |
+| レシートのグループ／明細欄 | 旧グループは**分類・税率・グループメモ・追加・一覧・削除**、明細は**品名・単価・数量・単価値引・率値引・メモ・対象人物・課税対象・追加・一覧・削除**を別コンテナで配置。対象人物リストは`MultiSimple`、両一覧は単一行選択 | 新版は**実税率を明細欄に移す**ほか、費用区分・発生区分とチェックボックス形式の対象人物を追加。明細Tab順はDEC-170を正本とし、実IMEは未確認 | 変更・新仕様確定 |
+| レシートの最初の使用可能状態 | 旧`DetailPanel`は**初期状態で無効**。グループを選択すると編集可能になる。旧明細の課税対象チェックは**既定でON**、数量欄は**1** | 新版も科目未選択時の明細操作制限を保護するが、税率NULL／課税0%／税率未選択を区別し、旧`TaxTarget`の既定ONをそのまま移さない | 変更・新仕様確定 |
+| 表示対象外のポイント編集 | 旧レシートのポイントGridはDesignerで**`Visible=False`**。旧レシートの金額欄は**`ReadOnly=True`** | 新版にポイント入力を既実装機能として追加しない。合計は計算経路の接続後に参照表示 | 保留・実装段階に注意 |
+| 旧画面ショートカットの発見可能性 | メインとレシート／振替／残高／支払メモの各Designerに**「？」ラベルのショートカット説明ツールチップ**あり。レシートでは`Ctrl+Enter`、`Ctrl+T`、`Ctrl+G`を案内、メインでは`Alt+←/→`、`Ctrl+N`を案内 | 新版の共通Enter/IMEと`Alt+Enter`を優先。**旧補助キーと操作説明の提供方法は未決定**。ショートカットは権限・保存条件を迂回させない | 旧補助UIの採否要判断 |
+| 旧版の日付補完の失敗時動作 | 共通`OriginalDateTimeTextBox`は**`Validated`で補完**。存在しない日付では月を1減らして再解析し、それも失敗なら**今日**に戻す処理を持つ。未来の省略日付の過去側補完も分岐に依存 | 新版は「直近1か月/1年」「日付自体を丸めない」「無効日は共通仕様に従い補正」と明示的に整理。**旧結果と一致しない入力があるのは意図した仕様差** | 変更・新仕様確定 |
+| 旧版の時刻補完 | 共通コントロールは**1〜6桁**の時・時分・時分秒を解析し、不正なら今日（時刻00:00）へ戻す。旧レシートと振替の新規フォームは日付・時刻欄を**`Date.Today`**で初期化 | 新版も時刻の補完・不正時0時を仕様化。ただし**時刻00:00で保存前に警告する旧動作は採否未決定** | 補完は継承＋再設計／確認は保留 |
+| 振替の入力欄 | 旧Designerは**日付・時刻・振替名・移動元／先・金額・メモ**をそれぞれ入力欄に配置し、移動元・先は選択専用ComboBox。新規作成では両口座とも未選択、編集時は保存値 | 新版振替フォーム自体が後続。移動元/先の候補、Tab順、未選択・無効期間の保護をレシート支払方法と別に規定する | 保留 |
+| 残高入力の6列 | 旧Gridは**支払方法／残高／自動計算／反映／評価額／メモ**。支払方法・推算・反映は編集不可で、残高・評価額・メモを入力。ユーザーによる行の追加・削除は無効 | 新版の残高UI/保存契約は後続。**推算値と手入力の分離、入力値保持、反映ボタン、日付重複禁止**を一緒に照合 | 保留・画面契約 |
+| 支払メモ入力の5列 | 旧Gridは**支払方法／自動計算／確認日／本日反映／メモ**。支払方法・推算・反映は読取専用で行の追加・削除は不可。**「常に手前に表示」チェックは初期ON** | 新版の同等機能・チェックの採否は未決定。**未保存時のYes/No/Cancel、アプリ終了阻止**を先のイベント照合と合わせて判断 | 保留・画面契約 |
+| 集計・内訳の編集可否 | 旧メインの各年次集計Gridと旧内訳Gridは**行選択・読取専用**。内訳の`詳細を表示`チェックで粒度を切り替え。ポイントのような隠し入力画面とは異なる | 新版の集計画面は後続。セルダブルクリックからの内訳参照と、範囲超過時の表示・操作抑止を検証する | 保留 |
+
+**旧Designerの参照**：[メイン](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.Designer.vb)／[レシート](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterForm.Designer.vb)／[振替](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterTransferForm.Designer.vb)／[残高](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterBalanceForm.Designer.vb)／[支払メモ](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/RegisterPaymentMemoForm.Designer.vb)／[内訳](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/DetailViewForm.Designer.vb)／[未完成マスタ管理](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/MasterMaintenanceForm.Designer.vb)／[旧日付時刻コントロール](../HouseholdAccountsBeta/OriginalControls/OriginalDateTimeTextBox.vb)。新版の参照：[共通入力](59-input-controls-design.md)／[レシートUI](ledger-receipt-ui.md)／[共通UI](../UI_DESIGN.md)。
+
 ### 追加点検後の判断待ち（優先度順）
 
 1. **レシート一覧**：対象人物0人の警告、保存額と再計算額の差異、再計算の範囲超過は、現行の親7フィールド一覧GETだけでは判定できない。表示の採否と必要なデータ取得設計を**別途承認**する。保存済み金額・既存APIの7フィールドをこの表だけで変更しない。
