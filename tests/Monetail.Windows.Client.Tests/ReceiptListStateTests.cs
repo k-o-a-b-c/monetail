@@ -23,6 +23,7 @@ public sealed class ReceiptListStateTests
         state.MonthText = "bad"; state.ShopText = "店A";
         Assert.False(state.ApplyText()); Assert.NotNull(state.MonthError);
         state.AllPeriods = true;
+        Assert.Null(state.MonthError);
         state.ShopText = "店B";
         Assert.True(state.ApplyText());
         Assert.Null(state.MonthError);
