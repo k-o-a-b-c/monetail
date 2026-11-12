@@ -4,7 +4,9 @@
 
 ## 照合の範囲と判定方法
 
-2026-11-12時点の`main`を対象に、旧VB.NETの`Receipt`／`ReceiptDetail`／`Calculation`／`DataAccess`と、新C#の`ReceiptCalculator`／`ReceiptValidation`／`ReceiptManagement`、両DB定義・既存自動テストを**静的照合**した。ここで「対応」とするのは**ソース上のアルゴリズムと固定例が整合する**意味であり、**旧・新実行バイナリに同一データを与えた差分テストを実施した意味ではない**。金額の互換性と移行可否は区別する。
+2026-11-12時点の`main`を基点に、旧VB.NETの`Receipt`／`ReceiptDetail`／`Calculation`／`DataAccess`と、新C#の`ReceiptCalculator`／`ReceiptValidation`／`ReceiptManagement`、両DB定義を**静的照合**した。加えて、PR #154では**旧VBと新APIの実計算コードを同一の24ケースで別プロセス実行して結果を直接比較**した。金額の一部の互換性検証と、実DBの移行可否は区別する。
+
+**直接対照テスト（24ケース、成功）**：共通の[入力JSON](tests/receipt-parity-cases.json)を旧VBテストプロジェクト（.NET 8）へ渡し、旧`Receipt.Total`／`Incomes`／`Expenses`／`GroupCalculatedFee`／`DetailCalculatedFee`／明細値引後額を出力。新版APIの`ReceiptCalculator`（.NET 10）を同じデータ・同じグループ順で実行し、全項目を比較した。[GitHub Actions成功記録](https://github.com/k-o-a-b-c/monetail/actions/runs/43187316579)（旧VBから24ケース出力、新API対照xUnit 1件成功）。**旧データのDB読込・税率の取引日妥当性・0人/複数人の按分・旧版未対応の同グループ混合税率は対象外**。既存テスト単独の成功だけをもってこの直接比較に代えない。
 
 - **対応**：同じ業務値を表現できる範囲の計算・トランザクションの契約がソース上で一致。
 - **承認済み変更**：旧データの表現と新入力制約が異なるが、新版正本で明示済み。
@@ -108,9 +110,9 @@ GROUP BY tax_target;
 ## 4. 次の検証順序・未完了判定
 
 1. **旧DB実値の棚卸し**：上記SQL、日時の異種形式・小数秒、実率マスタと旧税コード、同科目の重複、0人明細、未知の科目／支払方法／人物、NULLメモ、割引率REALを集計。**実運用DBに未アクセス**なので、件数と発生率を推測しない。
-2. **計算の対照テスト**：同一合成レシートを旧`Receipt.Total/Incomes/Expenses/GroupCalculatedFee/DetailCalculatedFee`と新`ReceiptCalculator`で計算し、結果・例外／上限を比較。特に正負、税率0／非課税、税端数2種、小数率、グループ分割、Int32の両端・途中超過。旧・新版の既存単独回帰テストがあることは、対照実行に代えない。
+2. **計算の対照テスト**：同一合成レシート24ケースについて旧`Receipt.Total/Incomes/Expenses/GroupCalculatedFee/DetailCalculatedFee`と新`ReceiptCalculator`の**正常値を直接照合し成功**。正負、0%／非課税、税端数2種、小数率、グループ分割、Int32両端、100%値引で中間額が大きい例まで対象。**双方の例外契約・途中Decimal超過・入力制約不一致の対照、実DB読込からの対照は残る**。
 3. **旧版の人物別集計を固定例にする**：対象者0・1・複数、完全/部分一致、人数按分、負額・半端な割り算、税込/税抜、`floor/half_up`。新版の人物別APIが実装されてから差分を測定する。
 4. **振替・残高・為替**：旧日末境界・税後レシート額と振替の加減算、基準残高なし／取引なしの`Nothing`、月末・閏日・最大日・USD中値と欠損を固定例化。新版業務API未実装時点で同等性を宣言しない。
 5. **移行試験**：旧DBの**コピー**と新空DBで件数・親子ID対応・NULL・金額・日付・FK・再計算差額・画面表示を照合。**正式リリース前は通常のDB Migrationを導入しない**。一度きりの旧データ移行SQLは別工程、`initialize-db`を旧DB変換に流用しない。
 
-**完了条件**：旧データの値域を確認し、上記の**高優先度の非互換の扱いを確定**し、旧・新の対照テストと移行コピーの差分結果を記録して初めて「計算・DB・移行も照合済み」とする。本書はその前段の静的監査。詳細な正本は[旧計算](12-calculation-contract.md)、[新版レシート](ledger-receipt-api.md)、[移行方針](ledger-core-transition.md)、[検証記録](../tests/README.md)とし、本書からこれらの仕様を変更しない。
+**完了条件**：正常値24ケースの直接対照は完了。ただし旧データの値域を確認し、**高優先度の非互換の扱いを確定**し、例外／入力境界・人物按分を含む追加の対照テストと移行コピーの差分結果を記録して初めて「計算・DB・移行も照合済み」とする。本書は静的監査と限定した直接対照の記録。詳細な正本は[旧計算](12-calculation-contract.md)、[新版レシート](ledger-receipt-api.md)、[移行方針](ledger-core-transition.md)、[検証記録](../tests/README.md)とし、本書からこれらの仕様を変更しない。
