@@ -18,7 +18,7 @@ public sealed class TaxRateHistory
     public string TaxCategoryCode { get; set; } = null!;
     public DateOnly ValidFrom { get; set; }
     public DateOnly? ValidTo { get; set; }
-    // DecimalをSQLiteのTEXTに保存し、REALへの変換による丸めを避ける。非課税はNULL。
+    // DecimalをSQLiteのTEXTに保存し、REALへの変換による丸めを避ける。NULLは全区分で税なし（ExemptはNULL必須）。
     public decimal? Rate { get; set; }
     public string Revision { get; set; } = null!;
 }

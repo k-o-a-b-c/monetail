@@ -271,13 +271,48 @@ public sealed class CategoryTaxSchemaTests
     [InlineData("Standard")]
     [InlineData("ReducedFood")]
     [InlineData("ReducedNewspaper")]
-    public async Task TaxableZeroIsStoredButTaxableNullIsRejected(string code)
+    public async Task TaxableZeroAndNullAreBothAcceptedAndRemainDistinct(string code)
     {
         using var db = new AuthDatabaseFixture(); await db.InitializeAsync();
         using var connection = db.OpenForeignKeyConnection();
         InsertRate(connection, Id(), code, "2026-01-01", "2026-01-01", "0");
-        Constraint(() => InsertRate(connection, Id(), code, "2026-01-02", null, null));
-        Assert.Equal("0", Scalar(connection, "SELECT rate FROM tax_rate_history"));
+        InsertRate(connection, Id(), code, "2026-01-02", null, null);
+        Assert.Equal("0", Scalar(connection,
+            "SELECT rate FROM tax_rate_history WHERE tax_category_code=@code AND valid_from='2026-01-01'", ("@code", code)));
+        Assert.Equal(DBNull.Value, Scalar(connection,
+            "SELECT rate FROM tax_rate_history WHERE tax_category_code=@code AND valid_from='2026-01-02'", ("@code", code)));
+        Constraint(() => InsertRate(connection, Id(), code, "2026-01-02", "2026-01-03", "5"));
+        Assert.Equal(2L, Scalar(connection, "SELECT COUNT(*) FROM tax_rate_history"));
+        Execute(connection,
+            "UPDATE tax_rate_history SET rate=NULL WHERE tax_category_code=@code AND valid_from='2026-01-01'", ("@code", code));
+        Assert.Equal(DBNull.Value, Scalar(connection,
+            "SELECT rate FROM tax_rate_history WHERE tax_category_code=@code AND valid_from='2026-01-01'", ("@code", code)));
+        Execute(connection,
+            "UPDATE tax_rate_history SET rate='0' WHERE tax_category_code=@code AND valid_from='2026-01-01'", ("@code", code));
+        Assert.Equal("0", Scalar(connection,
+            "SELECT rate FROM tax_rate_history WHERE tax_category_code=@code AND valid_from='2026-01-01'", ("@code", code)));
+    }
+
+    [Fact]
+    public async Task StandardNullBefore1989AndThreePercentAfterAreAdjacentAndStayQueryable()
+    {
+        using var db = new AuthDatabaseFixture(); await db.InitializeAsync();
+        using var connection = db.OpenForeignKeyConnection();
+        InsertRate(connection, Id(), TaxCategory.Standard, "0001-01-01", "1989-03-31", null);
+        InsertRate(connection, Id(), TaxCategory.Standard, "1989-04-01", "1997-03-31", "3");
+        Assert.Equal(DBNull.Value, Scalar(connection, """
+            SELECT rate FROM tax_rate_history WHERE tax_category_code='Standard'
+                AND valid_from <= '1989-03-31' AND (valid_to IS NULL OR '1989-03-31' <= valid_to)
+            """));
+        Assert.Equal("3", Scalar(connection, """
+            SELECT rate FROM tax_rate_history WHERE tax_category_code='Standard'
+                AND valid_from <= '1989-04-01' AND (valid_to IS NULL OR '1989-04-01' <= valid_to)
+            """));
+        Assert.Equal(0L, Scalar(connection, """
+            SELECT COUNT(*) FROM tax_rate_history WHERE tax_category_code='Standard'
+                AND valid_from <= '1997-04-01' AND (valid_to IS NULL OR '1997-04-01' <= valid_to)
+            """));
+        Constraint(() => InsertRate(connection, Id(), TaxCategory.Standard, "1989-03-31", "1989-04-01", null));
     }
 
     [Fact]
@@ -288,6 +323,7 @@ public sealed class CategoryTaxSchemaTests
         InsertRate(connection, Id(), TaxCategory.Exempt, "2026-01-01", null, null);
         Assert.Equal(DBNull.Value, Scalar(connection, "SELECT rate FROM tax_rate_history"));
         Constraint(() => InsertRate(connection, Id(), TaxCategory.Exempt, "2025-01-01", "2025-12-31", "0"));
+        Constraint(() => Execute(connection, "UPDATE tax_rate_history SET rate='0' WHERE tax_category_code='Exempt'"));
         Constraint(() => InsertRate(connection, Id(), "Unknown", "2026-01-01", null, "8"));
         Constraint(() => InsertRate(connection, Id(), TaxCategory.Standard, null!, null, "8"));
         Constraint(() => Execute(connection, "DELETE FROM tax_categories WHERE code='Exempt'"));
