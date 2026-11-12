@@ -95,6 +95,9 @@ def selected_inputs(paths, *, strict=True):
 
         if path.startswith("src/Monetail.Api/"):
             enable("api", "docker")
+        if path == "config/tax-history.json":
+            # 税率同期CLIが消費する運用データ。変更時にAPI検証を実行する。
+            enable("api")
         if path == "tests/Monetail.Api.Tests/docker-smoke.sh":
             enable("docker")
         elif path in {"tests/Monetail.Api.Tests/server-smoke.sh", "tests/Monetail.Api.Tests/release-smoke.sh"} or path.startswith("deploy/docker/"):
