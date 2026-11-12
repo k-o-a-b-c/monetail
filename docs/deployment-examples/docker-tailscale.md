@@ -136,6 +136,33 @@ dc run --rm --no-deps api issue-enrollment-invitation --account-id REPLACE_ACCOU
 
 Windowsアプリには同じ`https://実際のノード名`を設定する。将来のスマートフォンもTailscale接続と同じOrigin/RpIdを使う前提だが、スマートフォンアプリの動作確認は別途必要。
 
+### 税率履歴ファイルの配置と同期（CLI実装後）
+
+日本の税率履歴はGitHubの[`config/tax-history.json`](https://github.com/k-o-a-b-c/monetail/blob/main/config/tax-history.json)で管理する。この配備例では、**サーバーの永続領域`$SERVER_DATA/tax-history.json`**（`/srv/monetail/data/tax-history.json`）へ配置する。JSONは公開データなので、コンテナの非rootユーザーが読める権限にする。通常のAPIコンテナへはマウントせず、**管理コマンド実行時だけ読取専用マウント**する。DBや秘密情報をGitHubへアップロードしない。
+
+以下は**D4-CLI実装・配布後に使う手順**であり、現行APIイメージにはまだ`sync-tax-rates`がない。上で定義した`dc`関数と`SERVER_DATA`を使う。実行前にAPIを停止してDB・キー・PFXの整合バックアップを取得する（[停止バックアップ](#停止バックアップ)）。対象の税率履歴JSONは、レビュー済みコミットまたはタグから取得して内容を確認する。
+
+```bash
+# CLI実装後。REPLACE_REVIEWED_COMMIT_SHAを確認済みのGitコミットSHAへ置換する。
+TAX_HISTORY_REF=REPLACE_REVIEWED_COMMIT_SHA
+curl --fail --show-error --location --proto '=https' --tlsv1.2 \
+  --output "$SERVER_DATA/tax-history.json" \
+  "https://raw.githubusercontent.com/k-o-a-b-c/monetail/$TAX_HISTORY_REF/config/tax-history.json"
+chmod 644 "$SERVER_DATA/tax-history.json" # 公開データのみ。非rootの管理コンテナから参照可能にする。
+
+# APIの停止・バックアップ後に実施。履歴データは自動投入しない。
+dc run --rm --no-deps \
+  --volume "$SERVER_DATA/tax-history.json:/tmp/tax-history.json:ro" \
+  api sync-tax-rates --file /tmp/tax-history.json --dry-run
+
+# dry-run結果を確認後、承認した場合だけ実行する。
+dc run --rm --no-deps \
+  --volume "$SERVER_DATA/tax-history.json:/tmp/tax-history.json:ro" \
+  api sync-tax-rates --file /tmp/tax-history.json --apply
+```
+
+通常の`--apply`は削除予定があれば拒否する。意図的な削除だけ`--apply --allow-delete`を追加する。適用後はAPIを再開し、バックアップ・JSONの版・実行結果を運用記録に残す。JSONを配置しただけではDBの税率履歴は変更されない。将来の1%など**法案成立前の予定値は登録しない**。
+
 ## 4. 動作確認
 
 ```bash
