@@ -38,7 +38,7 @@
 
 ## 工程6-D4の実装前整理（調査済み事実と分割案）
 
-**工程番号・PRの分け方は提案であり、未承認の新API・税率値・CLI仕様をここで確定しない。** 税率の業務規則は[共通税履歴とレシートへの引継ぎ](ledger-core-schema.md#shared-tax-history)、計算結果は[API計算契約](ledger-receipt-api.md)と[計算契約](12-calculation-contract.md)、画面操作は[レシートUI](ledger-receipt-ui.md)を正本とする。
+**工程番号・PRの分け方は提案だが、共通税率履歴の全件GET・応答JSON・CLI同期方式は仕様確定済み。具体的な税率・施行日や、未合意の別仕様を推測で確定しない。** 税率の業務規則は[共通税履歴とレシートへの引継ぎ](ledger-core-schema.md#shared-tax-history)、計算結果は[API計算契約](ledger-receipt-api.md)と[計算契約](12-calculation-contract.md)、画面操作は[レシートUI](ledger-receipt-ui.md)を正本とする。
 
 ### 現状確認（main・工程6-D3まで）
 
