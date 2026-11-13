@@ -17,6 +17,7 @@
 | `.../MasterConfig/` | マスタ編集用と思われるXMLメタデータ（画面CRUDは未実装） |
 | `HouseholdAccountsBeta/OriginalControls/` | 独自テキストボックスなどのコントロール |
 | `src/Monetail.Api/` | ASP.NET Core API。現行契約は[43](43-passkey-authentication-design.md)、家計簿設計は[58](58-ledger-foundation-design.md) |
+| `src/Monetail.Calculations/` | API/Windows Clientが同じ実装を使う.NET 10のレシート計算・入力検証・結果モデル。BCL以外に依存しない |
 | `src/Monetail.WinUI/` | Windows 11向けアプリ。ホーム・左ナビゲーションと右側の人物一覧。ClientConnectionで既存Clientを構成し、MainWindowの接続・認証・家計簿操作を分担する |
 | `tests/Monetail.WinUI.Smoke/` | 製品の起動と、同じXAML・コードを使った合成データの画面スモーク。単発画像の取得も担当 |
 | `src/Monetail.Windows.Client/` | UIから独立したHTTPS通信・OAuth・セッション復元・設定とDPAPI保存・家計簿操作と起動先判定・人物管理の通信・画面に依存しない日付／時刻の補完 |

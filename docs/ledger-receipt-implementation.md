@@ -40,23 +40,23 @@
 
 **工程番号・PRの分け方は提案だが、共通税率履歴の全件GET・応答JSON・CLI同期方式は仕様確定済み。登録用の実税率・施行日は[`config/tax-history.json`](../config/tax-history.json)へ準備済みで、未成立の法改正や未合意の別仕様を推測で追加しない。** 税率の業務規則は[共通税履歴とレシートへの引継ぎ](ledger-core-schema.md#shared-tax-history)、計算結果は[API計算契約](ledger-receipt-api.md)と[計算契約](12-calculation-contract.md)、画面操作は[レシートUI](ledger-receipt-ui.md)を正本とする。
 
-### 現状確認（工程6-D4-Aまで）
+### 現状確認（工程6-D4-Bまで）
 
-- **既存**：APIの`Features/Monetail/Receipts/ReceiptCalculator`に値引後金額、税率別の会計合計、明細・グループ参考額、正負の収支とDecimal/Int32超過検証がある。保存APIは`ReceiptMasterValidation`で共通税率履歴をDBから参照し、全明細を取引日で検証する。
+- **既存**：共通ライブラリ`Monetail.Calculations`の`ReceiptCalculator`に値引後金額、税率別の会計合計、明細・グループ参考額、正負の収支とDecimal/Int32超過検証がある。保存APIは`ReceiptMasterValidation`で共通税率履歴をDBから参照し、全明細を取引日で検証する。
 - **既存**：`tax_categories`は全家計簿共通の4区分、`tax_rate_history`は期間・Decimal率・課税区分も含むNULL率・重複禁止を保持する（D4-0実装済み）。初期DBの税率履歴は**0件**。科目API/Clientには`taxCategoryCode`がある。WinUIには`ReceiptEditorState`の初期税率解決口、未選択/非課税/課税0%を区別する型がある。
 - **既存（D4-A）**：共通税率履歴GET、Windows Clientの型付き読取・期間端点判定、接続先/ログイン単位のメモリキャッシュ。キャッシュヒットでも現在の端末ログインを確認し、認証更新は既存ClientSessionを使用する。コンテキスト破棄後の旧応答を拒否する。画面の候補表示は未接続。
 - **既存（D4-CLI）**：全履歴同期管理CLIの検証・決定的な差分表示・明示適用・削除ガード。JSON配置だけではDBを変更せず、運営者の手動実行だけで反映する。
-- **未接続**：WinUIから使う正式計算の共用経路。現状の`ReceiptCalculator`はAPIプロジェクト内にあり、Windows Clientプロジェクトから直接参照していない。税率の固定値や独自の近似式をWinUIへ追加しない。
+- **既存（D4-B）**：API/Windows Clientが同じ`Monetail.Calculations`を参照する正式計算・基本検証。API側のマスタ照合は検証フックで元の順序を維持。Clientのスナップショット/編集状態変換は画面・通信に依存しない。WinUIからの呼出しと税率候補/参考額表示はD4-Cで接続する。
 - **未接続**：参考額・合計表示、全体保存操作。工程6-D3の保存ボタン無効と未計算表示は後続接続まで維持する。
 
-### 推奨する小PRの境界（D4-0・D4-A・D4-CLI実装済み）
+### 推奨する小PRの境界（D4-0・D4-A・D4-CLI・D4-B実装済み）
 
 | 仮区分 | 範囲 | 先に固定する条件・最小回帰 |
 | --- | --- | --- |
 | D4-0：履歴DB制約修正（実装済み） | `TaxModel`の課税区分NULL禁止CHECKを緩和、DB・APIの回帰テストを更新 | `Exempt`はNULL必須、他3区分はNULL可。新規`initialize-db`で最新構造、既存DBの無断自動変換なし |
 | D4-CLI：履歴同期管理（実装済み） | `sync-tax-rates`の入力検証・差分表示・明示適用・削除ガードを管理CLIとして実装 | dry-run非変更、区間縮小＋追加の原子性、同値再適用、同区分重複拒否・エラー/rollback |
 | D4-A：税率読取（実装済み） | 全家計簿共通の税率履歴を全件GETするAPI・Client型と、接続先/ログイン単位のメモリキャッシュを実装 | 全期間・有効期間の両端・空履歴・同率区分・NULL率/課税0%・認証/家計簿参加確認・アカウント切替時の破棄・古い応答拒否。**全件GET・JSON・キャッシュ方式は確定** |
-| D4-B：正式計算の共有 | APIの既存計算をWindows Client/WinUIでも利用できる構成へ整理。サーバーとクライアントで異なる式を持たない | 既存APIテストの結果を変えない。負額・Decimal率・端数方式・非課税/0%・Int32/Decimal超過・参考額≠会計合計を固定例で照合。**共有方式は技術設計時に選定** |
+| D4-B：正式計算の共有（実装済み） | APIの既存計算をWindows Client/WinUIでも利用できる構成へ整理。サーバーとクライアントで異なる式を持たない | 既存APIテストの結果を変えない。負額・Decimal率・端数方式・非課税/0%・Int32/Decimal超過・参考額≠会計合計を固定例で照合。**net10.0独立クラスライブラリ`Monetail.Calculations`をAPI/ClientからProjectReference** |
 | D4-C：WinUI接続 | 明細税率候補と科目/取引日による初期選択、明細/科目参考額・レシート合計の表示と失敗表示 | **税率履歴0件で非課税科目は非課税を初期選択、課税科目は未選択**、課税区分で**履歴行あり・rate=NULLなら非課税を初期選択**、履歴行なしでは未選択を固定テスト。非課税候補常設・課税0%との区別を検証。編集/流用で保存済み実税率を勝手に変更しない。日付変更・候補欠落・連続入力・下書きの3択・範囲外で入力を保護。**API保存はまだ行わない** |
 
 ### D4着手前の実装境界（確認済み/後続）

@@ -28,10 +28,19 @@ public sealed class ReceiptCalculationTests
             var groups = row.GetProperty("groups").EnumerateArray().Select((g, i) => new ReceiptGroupSnapshot(null,
                 Guid.Parse($"00000000-0000-0000-0000-{i + 1:D12}"), null, g.GetProperty("details").EnumerateArray().Select((d, j) =>
                     Detail(d.GetProperty("price").GetInt32(), d.GetProperty("taxable").GetBoolean() ? g.GetProperty("rate").GetDecimal() : null) with {
-                        DisplayOrder = j, Quantity = d.GetProperty("quantity").GetInt32(), UnitDiscountAmount = d.GetProperty("discount").GetInt32(),
+                        Name = "item", DisplayOrder = j, Quantity = d.GetProperty("quantity").GetInt32(), UnitDiscountAmount = d.GetProperty("discount").GetInt32(),
                         DiscountRate = decimal.Parse(d.GetProperty("discountRate").GetString()!, CultureInfo.InvariantCulture) }).ToArray())).ToArray();
-            var snapshot = Snapshot() with { TaxInclusionMode = row.GetProperty("inclusion").GetInt32(), TaxRoundingMode = row.GetProperty("rounding").GetString()!, Groups = groups };
-            var input = ReceiptCalculations.FromSnapshot(snapshot);
+            var snapshot = Snapshot() with { TransactionAt = new(2026, 11, 12, 12, 0, 0), ShopName = "test", TaxInclusionMode = row.GetProperty("inclusion").GetInt32(), TaxRoundingMode = row.GetProperty("rounding").GetString()!, Groups = groups };
+            // APIの旧VB照合と同じfixtureから期待入力を直接組み立て、変換漏れも検出する。
+            var input = new ReceiptCalculationInput("2026-11-12T12:00:00", "test", null,
+                row.GetProperty("inclusion").GetInt32(), row.GetProperty("rounding").GetString()!, null, null,
+                row.GetProperty("groups").EnumerateArray().Select((g, i) => new ReceiptCalculationGroup(
+                    Guid.Parse($"00000000-0000-0000-0000-{i + 1:D12}"), g.GetProperty("details").EnumerateArray().Select((d, j) =>
+                        new ReceiptCalculationDetail("item", d.GetProperty("price").GetInt64(), d.GetProperty("quantity").GetInt64(),
+                            d.GetProperty("discount").GetInt64(), d.GetProperty("discountRate").GetString()!,
+                            d.GetProperty("taxable").GetBoolean() ? g.GetProperty("rate").GetInt32().ToString(CultureInfo.InvariantCulture) : null,
+                            "Variable", "Irregular", j)).ToArray())).ToArray());
+            Assert.Equal(JsonSerializer.Serialize(input), JsonSerializer.Serialize(ReceiptCalculations.FromSnapshot(snapshot)));
             var before = JsonSerializer.Serialize(snapshot);
             var expected = ReceiptCalculator.Calculate(input); var actual = ReceiptCalculations.Calculate(snapshot);
             Assert.Equal(JsonSerializer.Serialize(expected), JsonSerializer.Serialize(actual));

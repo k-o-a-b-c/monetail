@@ -13,6 +13,8 @@
 - **要対応**：新旧の値／制約の同時保持が現状不可能、または移行前に方法を決める必要がある。
 - **後続**：新版の振替・残高・支払メモ・人物別集計等が未実装／最終仕様未確定で、数値の一致をまだ判定できない。
 
+工程6-D4-Bでは新版の計算・基本検証を`Monetail.Calculations`へ移し、API/Windows Clientから参照する。式や旧VB側の処理は変更せず、以下の監査上の対応/差異・人物按分の未決定範囲を維持する。API固有のマスタ検証はAPIに残す。
+
 ## 1. 金額計算の処理順と固定例
 
 | 項目 | 旧VB.NET | 新C# | 照合結果 |
@@ -42,7 +44,7 @@
 
 **人物按分は未照合のまま残す**：旧`Receipt.GetGroupStatisticsList`は、明細のDecimalを`Double`へ変換して人数で割り、グループの`Double`へ加算してからDecimalへ戻す。新版DEC-157は明細別按分後にグループ内の税率別集計まで確定したが、**負額・小数配分の最終端数**は未決定。旧版から安易に`Decimal`の人数割りへ置き換えて「完全互換」と呼ばない。
 
-**参照ソース**：[旧レシート](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)／[旧計算](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)／[新計算](../src/Monetail.Api/Features/Monetail/Receipts/ReceiptCalculator.cs)／[新保存検証](../src/Monetail.Api/Features/Monetail/Receipts/ReceiptValidation.cs)／[新計算テスト](../tests/Monetail.Api.Tests/ReceiptCalculationTests.cs)。
+**参照ソース**：[旧レシート](../HouseholdAccountsBeta/HouseholdAccountsBeta/Data/Data/Receipt.vb)／[旧計算](../HouseholdAccountsBeta/HouseholdAccountsBeta/Logic/Calculation.vb)／[新共通計算](../src/Monetail.Calculations/Receipts/ReceiptCalculator.cs)／[新保存検証](../src/Monetail.Api/Features/Monetail/Receipts/ReceiptValidation.cs)／[新計算テスト](../tests/Monetail.Api.Tests/ReceiptCalculationTests.cs)。
 
 ## 2. DBアクセス・保存／読み取りの境界
 
