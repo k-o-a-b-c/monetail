@@ -97,6 +97,8 @@ def selected_inputs(paths, *, strict=True):
             for flag in flags:
                 result[flag].add(path)
 
+        if path.startswith("src/Monetail.Calculations/"):
+            enable("api", "docker", "windows_client", "windows_storage", "winui")
         if path.startswith("src/Monetail.Api/"):
             enable("api", "docker")
         if path == "tests/Monetail.Api.Tests/docker-smoke.sh":

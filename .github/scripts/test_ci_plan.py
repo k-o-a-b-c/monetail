@@ -31,6 +31,12 @@ class FingerprintTests(unittest.TestCase):
         before, after = fingerprints(self.records), fingerprints(changed)
         self.assertEqual(set(expected), {flag for flag in FLAGS if before[flag] != after[flag]})
 
+    def test_shared_calculation_inputs_invalidate_api_client_and_ui_proofs(self):
+        for path in ("src/Monetail.Calculations/Receipts/ReceiptCalculator.cs",
+                     "src/Monetail.Calculations/Monetail.Calculations.csproj"):
+            with self.subTest(path=path):
+                self.assert_changed(path, "api", "docker", "windows_client", "windows_storage", "winui")
+
     def test_document_changes_keep_all_success_fingerprints(self):
         self.assert_changed("README.md")
         self.assert_changed("docs/new-document.md")
