@@ -1,4 +1,5 @@
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Client.Ledgers;
 
 namespace Monetail.Windows.Client.Authentication;
 
@@ -9,6 +10,7 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
     private readonly TimeProvider time = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim gate = new(1, 1);
     private TokenSet? observedTokens;
+    public TaxRateHistoryCache TaxRates { get; } = new();
 
     /// <summary>業務APIも期限を更新しながら呼び出す。拒否された時だけ認証を破棄する。</summary>
     public async Task<T> ExecuteAuthenticatedAsync<T>(Func<string, CancellationToken, Task<T>> operation,
@@ -17,7 +19,8 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         await gate.WaitAsync(cancellationToken);
         try
         {
-            var current = tokens.Load(endpoint) ?? throw new AuthenticationRejectedException();
+            var current = tokens.Load(endpoint);
+            if (current is null) { TaxRates.Clear(); throw new AuthenticationRejectedException(); }
             EnsureSameContext(current);
             var refreshed = false;
             if (current.AccessTokenExpiresAtUtc <= time.GetUtcNow().AddSeconds(30))
@@ -33,6 +36,7 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
             }
         }
         catch (AuthenticationRejectedException) { ClearObservedContext(); throw; }
+        catch (AuthenticationContextChangedException) { TaxRates.Clear(); throw; }
         finally { gate.Release(); }
     }
 
@@ -41,6 +45,7 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         await gate.WaitAsync(cancellationToken);
         try
         {
+            TaxRates.Clear();
             var restored = tokens.Load(endpoint);
             if (restored is null) return null;
             var validated = await ValidateAsync(restored, cancellationToken);
@@ -56,6 +61,7 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         await gate.WaitAsync(cancellationToken);
         try
         {
+            TaxRates.Clear();
             // 認可コードは再利用できないため、有効性確認中の通信障害でも取得済みトークンを残す。
             tokens.Save(endpoint, acquired);
             var validated = await ValidateAsync(acquired, cancellationToken);
@@ -71,7 +77,7 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         try
         {
             var restored = tokens.Load(endpoint);
-            if (restored is null) return;
+            if (restored is null) { TaxRates.Clear(); return; }
             EnsureSameContext(restored);
             var validated = await ValidateAsync(restored, cancellationToken);
             if (validated is null) return;
@@ -125,17 +131,28 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         return updated;
     }
 
+    internal void EnsureCurrentContext()
+    {
+        var current = tokens.Load(endpoint);
+        if (current is null) { TaxRates.Clear(); throw new AuthenticationContextChangedException(); }
+        EnsureSameContext(current);
+    }
+
     private void EnsureSameContext(TokenSet current)
     {
         if (observedTokens is not null &&
             (observedTokens.AccessToken != current.AccessToken || observedTokens.RefreshToken != current.RefreshToken ||
                 observedTokens.AccessTokenExpiresAtUtc != current.AccessTokenExpiresAtUtc))
+        {
+            TaxRates.Clear();
             throw new AuthenticationContextChangedException();
+        }
         observedTokens = current;
     }
 
     private void ClearObservedContext()
     {
+        TaxRates.Clear();
         var current = tokens.Load(endpoint);
         if (current is null) return;
         EnsureSameContext(current);

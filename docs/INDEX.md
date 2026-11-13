@@ -14,6 +14,7 @@
 | 家計簿共通設計の入口・旧見出し | [共通仕様](ledger-foundation-core.md) |
 | 家計簿の前提・確定済みの基本ルール | [共通前提](ledger-core-principles.md) |
 | 業務モデル・家計簿DBの構成 | [DB・モデル](ledger-core-schema.md) |
+| 共通税率履歴GET・Clientメモリキャッシュ | [共通税履歴](ledger-core-schema.md#共通税率履歴の全件getメモリキャッシュ) |
 | レシート4表の列・複合FK・CHECK・索引 | [レシートDB](ledger-receipt-schema.md) |
 | レシート一覧・詳細・書込・競合・再送API | [レシートAPI](ledger-receipt-api.md) |
 | レシート専用入力・一覧・保存不可時のWinUI | [レシート画面](ledger-receipt-ui.md) |

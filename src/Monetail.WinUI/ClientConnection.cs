@@ -44,12 +44,12 @@ internal sealed class ClientConnection(ClientSettingsStore settings, ITokenStore
 
     private void SetEndpoint(ApiEndpoint endpoint)
     {
-        Masters.Clear();
+        Masters.Clear(); Session?.TaxRates.Clear();
         Endpoint = endpoint;
         Api = new(endpoint, http);
         Session = new(Api, endpoint, tokens);
         Ledgers = new(Api, Session);
     }
 
-    public void Dispose() { Masters.Clear(); http.Dispose(); }
+    public void Dispose() { Masters.Clear(); Session?.TaxRates.Clear(); http.Dispose(); }
 }
