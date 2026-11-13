@@ -378,7 +378,6 @@
                                         <TextBlock Text="0人でも追加できます" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </StackPanel>
                                 </Grid>
-                                <TextBlock Text="税率履歴は未接続です。新規の課税税率は未選択のままです。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBox x:Name="ReceiptItemMemo" Header="明細メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptDetailTextChanged"/>
                                 <TextBlock x:Name="ReceiptItemTaxWarning" TextWrapping="Wrap" Visibility="Collapsed"/>
                                 <TextBlock x:Name="ReceiptDetailError" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>

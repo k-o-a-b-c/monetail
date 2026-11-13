@@ -13,7 +13,7 @@ namespace Monetail.WinUI;
 public sealed partial class MainWindow
 {
     private ReceiptDetailInput? receiptDetailInput;
-    private bool receiptDetailRendering, receiptDetailTransition;
+    private bool receiptDetailRendering, receiptDetailTransition, receiptDetailValidationRequested;
     private string? receiptDetailInitialMemo;
     private string receiptDetailInitialMemoText = "";
 
@@ -22,6 +22,7 @@ public sealed partial class MainWindow
         receiptDetailRendering = true;
         try
         {
+            receiptDetailValidationRequested = false;
             receiptDetailInput = receiptEditor?.Draft is { } draft ? new(draft) : null;
             var input = receiptDetailInput; var value = input?.Values;
             receiptDetailInitialMemo = value?.Memo;
@@ -102,8 +103,8 @@ public sealed partial class MainWindow
             receiptDetailInput.ApplyTo(draft); receiptEditor.ApplyDraft();
             LoadReceiptDetailForm(); if (focus) ReceiptItemName.Focus(FocusState.Programmatic); return true;
         }
-        catch (ReceiptInputException error)
-        { ReceiptDetailError.Text = error.Message; ReceiptDetailError.Visibility = Visibility.Visible; return false; }
+        catch (ReceiptInputException)
+        { receiptDetailValidationRequested = true; RefreshReceiptCalculation(); return false; }
     }
     private void ApplyReceiptDetail(object sender, RoutedEventArgs args) => ApplyReceiptDetailCore(true);
     private void ReuseReceiptDetail(object sender, RoutedEventArgs args)

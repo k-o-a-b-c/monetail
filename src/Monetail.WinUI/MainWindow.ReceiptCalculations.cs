@@ -47,8 +47,22 @@ public sealed partial class MainWindow
         ReceiptCalculationNotice.Visibility = result.Message is null ? Visibility.Collapsed : Visibility.Visible;
         var tax = ReceiptTaxRules.Check(receiptTaxRates, ConfirmedReceiptDay, receiptDetailInput?.Values.Tax ?? ReceiptTaxSelection.Unselected);
         var warning = tax switch { ReceiptTaxValidity.Unselected => "税率を選択してください。", ReceiptTaxValidity.NeedsReselection => "この税率は取引日に適用できません。値を保持しています。税率を再選択してください。", ReceiptTaxValidity.Unknown => "取引日が未確定のため、税率を判定できません。", _ => "" };
-        if (receiptDetailInput is { } input)
-            try { _ = input.Read(); } catch (Monetail.Windows.Client.Ledgers.ReceiptInputException error) { warning = error.Message; }
         ReceiptItemTaxWarning.Text = warning; ReceiptItemTaxWarning.Visibility = receiptDetailInput is not null && warning.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        // 税率警告と一般入力エラーは別々に更新する。検証だけを行い、下書きを反映/破棄しない。
+        var inputError = "";
+        if (receiptDetailInput is { } input)
+        {
+            try
+            {
+                _ = input.Read();
+                if (receiptDetailValidationRequested) editor.ValidateDraft();
+            }
+            catch (Monetail.Windows.Client.Ledgers.ReceiptInputException error)
+            {
+                if (error.Field != "taxRate" && !error.Field.EndsWith(".taxRate", StringComparison.Ordinal)) inputError = error.Message;
+            }
+        }
+        ReceiptDetailError.Text = inputError;
+        ReceiptDetailError.Visibility = inputError.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 }

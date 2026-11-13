@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text.Json;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Receipts;
@@ -30,6 +32,7 @@ public partial class App
         var writes = 0; fixture.ReceiptsHandler = (request, _) => { if (request.Method != HttpMethod.Get) writes++; return Task.FromResult(PaymentServer.Json(new { receipts = Array.Empty<object>(), nextCursor = (string?)null })); };
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenReceiptEditorAsync(null);
         await Wait(() => Find<Button>(root, "ReceiptBack").IsLoaded);
+        Check(All(root).OfType<TextBlock>().All(t => !t.Text.Contains("税率履歴は未接続")), "接続済みの税率履歴を未接続と説明する旧表示を残さない");
         var date = Find<TextBox>(root, "ReceiptDate"); date.Text = "2026/11/10";
         Find<TextBox>(root, "ReceiptShopName").Text = "計算確認";
         Find<RadioButton>(root, "ReceiptTaxExcluded").IsChecked = true;
@@ -57,8 +60,10 @@ public partial class App
         var rows = Find<ListView>(root, "ReceiptDetailsList"); rows.SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         var selected = editor.SelectedDetailKey; var draft = editor.Draft; var rowObjects = rows.Items.Cast<object>().ToArray();
+        await ActivateReceiptInputWindowAsync(); price.Focus(FocusState.Keyboard);
+        await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), price));
         price.Text = "不正な生文字列";
-        await Wait(() => Find<TextBlock>(root, "ReceiptItemTaxWarning").Text.Contains("Int32"));
+        await Wait(() => Find<TextBlock>(root, "ReceiptDetailError").Text.Contains("Int32"));
         Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("41") && group.Details.Count == 2 &&
             editor.SelectedDetailKey == selected && ReferenceEquals(draft, editor.Draft) && rows.Items.Cast<object>().SequenceEqual(rowObjects),
             "未反映の不正文字列は正式合計へ入れず、再計算で行・選択・下書きを再生成しない");
@@ -82,6 +87,34 @@ public partial class App
         Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("41") && fixture.TaxRatesRequests == 1 &&
             group.Details.All(d => d.Values.Tax == ReceiptTaxSelection.Taxed(10)) && price.Text == "不正な生文字列",
             "日付を戻すと反映済みの正式額を復元し、追加GET・税率書換え・下書き破棄なし");
+        // 税率と一般入力のエラーを同時に発生させ、それぞれ独立して解消する。
+        date.Text = "2026/11/11";
+        await Wait(() => editor.Header.TransactionAt?.Date == new DateTime(2026, 11, 11));
+        var taxWarning = Find<TextBlock>(root, "ReceiptItemTaxWarning"); var inputError = Find<TextBlock>(root, "ReceiptDetailError");
+        var stored = JsonSerializer.Serialize(editor.Groups); var official = Find<TextBlock>(root, "ReceiptAccountingTotal").Text;
+        Check(taxWarning.Visibility == Visibility.Visible && taxWarning.Text.Contains("適用できません") && !taxWarning.Text.Contains("Int32") &&
+            inputError.Visibility == Visibility.Visible && inputError.Text.Contains("Int32") && price.Text == "不正な生文字列" &&
+            editor.SelectedDetailKey == selected && ReferenceEquals(draft, editor.Draft) && ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), price),
+            "税率不一致と単価不正は別領域に同時表示し、生文字列・下書き・選択・フォーカスを保持");
+        price.Text = "19"; await Wait(() => inputError.Visibility == Visibility.Collapsed);
+        Check(taxWarning.Visibility == Visibility.Visible && taxWarning.Text.Contains("適用できません") && inputError.Text == "" &&
+            stored == JsonSerializer.Serialize(editor.Groups) && official == Find<TextBlock>(root, "ReceiptAccountingTotal").Text &&
+            ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), price), "単価修正は一般エラーだけを消し、税率警告・保存済み明細・正式結果を変更しない");
+        SelectReceiptTax(tax, 1); await Wait(() => taxWarning.Visibility == Visibility.Collapsed);
+        Check(taxWarning.Text == "" && inputError.Visibility == Visibility.Collapsed && stored == JsonSerializer.Serialize(editor.Groups) &&
+            official == Find<TextBlock>(root, "ReceiptAccountingTotal").Text && editor.Draft!.Tax == ReceiptTaxSelection.Taxed(1) && editor.HasUnappliedChanges,
+            "税率修正は税率警告を消すが、未反映の税率を保存済み明細や正式結果へ混ぜない");
+        date.Text = "2026/11/10"; await Wait(() => editor.Header.TransactionAt?.Date == new DateTime(2026, 11, 10));
+        SelectReceiptTax(tax, 10); await Wait(() => taxWarning.Visibility == Visibility.Collapsed);
+        var quantity = Find<TextBox>(root, "ReceiptItemQuantity"); quantity.Text = "0"; await Wait(() => editor.Draft!.Quantity == 0);
+        await InvokeAsync(() => Find<Button>(root, "ReceiptDetailApply"));
+        Check(inputError.Visibility == Visibility.Visible && taxWarning.Visibility == Visibility.Collapsed && stored == JsonSerializer.Serialize(editor.Groups) &&
+            Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("41"), "数量の追加/更新検証エラーも一般領域へ表示し、明細と正式額を保持");
+        quantity.Focus(FocusState.Keyboard); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), quantity));
+        quantity.Text = "1"; await Wait(() => inputError.Visibility == Visibility.Collapsed);
+        Check(inputError.Text == "" && taxWarning.Visibility == Visibility.Collapsed && editor.SelectedDetailKey == selected && ReferenceEquals(draft, editor.Draft) &&
+            !editor.HasUnappliedChanges && stored == JsonSerializer.Serialize(editor.Groups) && ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), quantity),
+            "数量修正後は同じ検証で不要なエラーを消し、未反映判定・選択・フォーカスを保持");
         window.AppWindow.ResizeClient(new SizeInt32(780, 650)); await Settle();
         Check(Find<TextBlock>(root, "ReceiptAccountingTotal").ActualWidth > 0 && Find<ComboBox>(root, "ReceiptItemTax").ActualWidth > 0 &&
             new[] { "ReceiptRegister", "ReceiptUpdate", "ReceiptReuse" }.All(n => !Find<Button>(root, n).IsEnabled) && writes == 0,
