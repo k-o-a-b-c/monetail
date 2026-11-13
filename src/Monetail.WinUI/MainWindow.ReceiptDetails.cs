@@ -13,7 +13,7 @@ namespace Monetail.WinUI;
 public sealed partial class MainWindow
 {
     private ReceiptDetailInput? receiptDetailInput;
-    private bool receiptDetailRendering, receiptDetailTransition;
+    private bool receiptDetailRendering, receiptDetailTransition, receiptDetailValidationRequested;
     private string? receiptDetailInitialMemo;
     private string receiptDetailInitialMemoText = "";
 
@@ -22,6 +22,7 @@ public sealed partial class MainWindow
         receiptDetailRendering = true;
         try
         {
+            receiptDetailValidationRequested = false;
             receiptDetailInput = receiptEditor?.Draft is { } draft ? new(draft) : null;
             var input = receiptDetailInput; var value = input?.Values;
             receiptDetailInitialMemo = value?.Memo;
@@ -31,12 +32,7 @@ public sealed partial class MainWindow
             ReceiptItemQuantity.Text = input?.Quantity ?? ""; ReceiptItemDiscount.Text = input?.UnitDiscountAmount ?? "";
             ReceiptItemRateDiscount.Text = input?.DiscountRate ?? ""; ReceiptItemMemo.Text = value?.Memo ?? "";
             receiptDetailInitialMemoText = ReceiptItemMemo.Text;
-            ReceiptItemTax.Items.Clear();
-            var exempt = new ComboBoxItem { Content = "非課税", Tag = ReceiptTaxSelection.Exempt };
-            ReceiptItemTax.Items.Add(exempt);
-            if (value?.Tax is { IsSelected: true, Rate: not null } stored)
-                ReceiptItemTax.Items.Add(new ComboBoxItem { Content = ReceiptDetailRow.TaxLabel(stored), Tag = stored });
-            ReceiptItemTax.SelectedItem = ReceiptItemTax.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (ReceiptTaxSelection)i.Tag == value?.Tax);
+            RefreshReceiptTaxChoices();
             SetReceiptChoice(ReceiptItemExpense, value?.ExpenseType); SetReceiptChoice(ReceiptItemOccurrence, value?.OccurrenceType);
             var income = receiptEditor?.SelectedGroup is { } group && currentLedger is { } ledger &&
                 connection.Masters.Categories(ledger.LedgerId)?.Categories.FirstOrDefault(c => c.CategoryId == group.CategoryId)?.IncomeExpense == "Income";
@@ -95,6 +91,7 @@ public sealed partial class MainWindow
         // 完全に解析できる間は可変下書きだけ同期。失敗時は生文字列を保護し、保存済み行には触れない。
         if (receiptEditor?.Draft is { } draft)
             try { input.ApplyTo(draft); } catch (ReceiptInputException) { }
+        RefreshReceiptCalculation();
 
     }
     private bool ApplyReceiptDetailCore(bool focus, bool resolving = false)
@@ -106,8 +103,8 @@ public sealed partial class MainWindow
             receiptDetailInput.ApplyTo(draft); receiptEditor.ApplyDraft();
             LoadReceiptDetailForm(); if (focus) ReceiptItemName.Focus(FocusState.Programmatic); return true;
         }
-        catch (ReceiptInputException error)
-        { ReceiptDetailError.Text = error.Message; ReceiptDetailError.Visibility = Visibility.Visible; return false; }
+        catch (ReceiptInputException)
+        { receiptDetailValidationRequested = true; RefreshReceiptCalculation(); return false; }
     }
     private void ApplyReceiptDetail(object sender, RoutedEventArgs args) => ApplyReceiptDetailCore(true);
     private void ReuseReceiptDetail(object sender, RoutedEventArgs args)
@@ -149,6 +146,7 @@ public sealed partial class MainWindow
             ReceiptDetailDown.IsEnabled = selected is not null && rows?.LastOrDefault()?.Key != selected;
         }
         finally { receiptDetailRendering = false; }
+        RefreshReceiptCalculation();
     }
     private async void ReceiptDetailSelected(object sender, SelectionChangedEventArgs args)
     {

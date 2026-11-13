@@ -251,6 +251,8 @@ public partial class App
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ReceiptsHandler;
+        internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? TaxRatesHandler;
+        internal int TaxRatesRequests;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PeopleHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PaymentsHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? CategoriesHandler;
@@ -341,6 +343,11 @@ public partial class App
             }
             if (path == $"/ledgers/{second.LedgerId:N}/open") return Json(second);
             if (path == $"/ledgers/{first.LedgerId:N}/open") return CannotOpenLedger ? new(HttpStatusCode.NotFound) : Json(first);
+            if (path.EndsWith("/tax-rates", StringComparison.Ordinal))
+            {
+                TaxRatesRequests++;
+                return TaxRatesHandler is null ? Json(new { rates = Array.Empty<object>() }) : await TaxRatesHandler(request, token);
+            }
             if (path.EndsWith("/receipts", StringComparison.Ordinal) || path.Contains("/receipts/", StringComparison.Ordinal))
                 return ReceiptsHandler is not null ? await ReceiptsHandler(request, token) : Json(new ReceiptListInfo([], null));
             if (path.EndsWith("/payment-methods", StringComparison.Ordinal) && PaymentsHandler is null) return Json(new PaymentMethodsInfo([], [], null, "Admin"));

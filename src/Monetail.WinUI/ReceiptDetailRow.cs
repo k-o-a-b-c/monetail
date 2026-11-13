@@ -1,10 +1,21 @@
 using System.Globalization;
+using System.ComponentModel;
 using Monetail.Windows.Client.Receipts;
 
 namespace Monetail.WinUI;
 
-public sealed class ReceiptDetailRow
+public sealed class ReceiptDetailRow : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public string ReferenceAmount { get; private set; } = "未計算";
+    public string TaxWarning { get; private set; } = "";
+    internal void SetCalculation(int? amount, ReceiptTaxValidity status)
+    {
+        var text = amount?.ToString("N0", CultureInfo.CurrentCulture) ?? "未計算";
+        var warning = status switch { ReceiptTaxValidity.NeedsReselection => "要再選択", ReceiptTaxValidity.Unselected => "未選択", ReceiptTaxValidity.Unknown => "未判定", _ => "" };
+        if (ReferenceAmount != text) { ReferenceAmount = text; PropertyChanged?.Invoke(this, new(nameof(ReferenceAmount))); }
+        if (TaxWarning != warning) { TaxWarning = warning; PropertyChanged?.Invoke(this, new(nameof(TaxWarning))); }
+    }
     public Guid Key { get; }
     public string Name { get; }
     public string Price { get; }

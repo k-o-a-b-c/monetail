@@ -14,6 +14,10 @@ public partial class App
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
+        // 元の復元試験は有効な課税0%を対象とし、税率履歴を明示する。
+        fixture.TaxRatesHandler = (_, _) => Task.FromResult(PaymentServer.Json(new { rates = new[] {
+            new { taxCategoryCode = "Standard", validFrom = "0001-01-01", validTo = (string?)null, rate = "0" }
+        } }));
         var payments = new PaymentServer(); fixture.PaymentsHandler = payments.HandleAsync;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(payments.People() with { People = payments.People().People.Select(p => p.PersonId == payments.Other ? p with { ValidTo = payments.Today.AddDays(-1) } : p).ToArray() }));
         var id = Guid.NewGuid(); var groupId = Guid.NewGuid(); var detailId = Guid.NewGuid(); var revision = Guid.NewGuid(); var writes = 0;
@@ -44,6 +48,9 @@ public partial class App
             "有効期間外の対象人物も維持し、開いて選択しただけでは未変更");
         var rows = list.Items.OfType<ReceiptDetailRow>().ToArray();
         Check(rows[0].Price == 1234.ToString("N0") && rows[0].Discount == "10円 / 2.5%" && rows[0].Tax == "0%" && rows[1].Tax == "非課税" && rows[1].Discount == "—", "一覧の3桁区切り・値引単位・非課税/0%を区別");
+        Check(rows[0].ReferenceAmount == 2386.ToString("N0") && rows[1].ReferenceAmount == (-30).ToString("N0") &&
+            Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith(2356.ToString("N0")),
+            "保存済みの単価値引/率値引・正負・0%/非課税を共通計算で3桁区切り表示");
         var itemName = Find<TextBox>(root, "ReceiptItemName");
         await Wait(() => itemName.IsLoaded && itemName.ActualWidth > 0); await ActivateReceiptInputWindowAsync(); itemName.Focus(FocusState.Keyboard);
         await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), itemName));

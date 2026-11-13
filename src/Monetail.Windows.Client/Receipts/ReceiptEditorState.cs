@@ -112,6 +112,9 @@ public sealed class ReceiptEditorState
     private void SetDraft(ReceiptDetailDraft? value) { Draft = value; draftBaseline = value?.Copy(); }
     public void SetGroupMemo(string? memo) { Ready(); var group = SelectedGroup ?? throw new ReceiptInputException("categoryId", "科目を選択してください。"); group.Memo = memo; }
 
+    /// <summary>追加/更新と同じ検証だけを実行し、明細・下書き・選択を変更しない。</summary>
+    public void ValidateDraft() => _ = PrepareDetail();
+
     private ReceiptDetailDraft PrepareDetail()
     {
         var group = SelectedGroup ?? throw new ReceiptInputException("categoryId", "科目を選択してください。");
