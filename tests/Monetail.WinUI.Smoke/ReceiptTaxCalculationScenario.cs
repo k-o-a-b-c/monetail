@@ -48,6 +48,12 @@ public partial class App
             Find<ListView>(root, "ReceiptDetailsList").Items.OfType<ReceiptDetailRow>().All(r => r.ReferenceAmount == "20") &&
             Find<ListView>(root, "ReceiptCategories").Items.OfType<ReceiptCategoryRow>().Single().ReferenceAmount.EndsWith("41"),
             "正式表示は共通計算の明細20円ずつ・グループ41円・会計41円、次の新規も科目初期値");
+        Find<RadioButton>(root, "ReceiptTaxHalfUp").IsChecked = true;
+        Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("42"), "税端数方式変更で会計合計を共通計算し直す");
+        Find<RadioButton>(root, "ReceiptTaxIncluded").IsChecked = true;
+        Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("38"), "税込へ切替時は外税を加算しない");
+        Find<RadioButton>(root, "ReceiptTaxExcluded").IsChecked = true; Find<RadioButton>(root, "ReceiptTaxFloor").IsChecked = true;
+        Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("41"), "税抜/floorへ戻すと正式合計を復元");
         var rows = Find<ListView>(root, "ReceiptDetailsList"); rows.SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         var selected = editor.SelectedDetailKey; var draft = editor.Draft; var rowObjects = rows.Items.Cast<object>().ToArray();
@@ -97,6 +103,8 @@ public partial class App
             Find<ComboBox>(root, "ReceiptCategoryChoice").SelectedIndex = 0; await InvokeAsync(() => Find<Button>(root, "ReceiptCategoryAdd"));
             Check(ReceiptEditing!.Draft!.Tax == ReceiptTaxSelection.Exempt && Find<ComboBox>(root, "ReceiptItemTax").Items.Count == 1 &&
                 !ReceiptEditing.HasUnappliedChanges, "履歴0件でもExempt科目は非課税を初期選択し、初期値だけでは下書き未変更");
+            await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, true);
+            await Wait(() => ReceiptEditing is null);
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
         {
