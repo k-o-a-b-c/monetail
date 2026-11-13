@@ -1,9 +1,11 @@
-# APIのソースだけをビルドへ送る。
+# APIと依存する共通計算のソースだけをビルドへ送る。
 **
 !Dockerfile
 !src/
 !src/Monetail.Api/
 !src/Monetail.Api/**
+!src/Monetail.Calculations/
+!src/Monetail.Calculations/**
 **/bin/
 **/obj/
 **/.env

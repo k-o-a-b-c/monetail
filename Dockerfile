@@ -1,8 +1,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
 COPY src/Monetail.Api/Monetail.Api.csproj src/Monetail.Api/
+COPY src/Monetail.Calculations/Monetail.Calculations.csproj src/Monetail.Calculations/
 RUN dotnet restore src/Monetail.Api/Monetail.Api.csproj
 COPY src/Monetail.Api/ src/Monetail.Api/
+COPY src/Monetail.Calculations/ src/Monetail.Calculations/
 RUN dotnet publish src/Monetail.Api/Monetail.Api.csproj \
     --configuration Release --no-restore --output /app/publish /p:UseAppHost=false
 

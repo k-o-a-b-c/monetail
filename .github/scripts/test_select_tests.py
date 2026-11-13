@@ -14,6 +14,17 @@ from select_tests import FLAGS, PRODUCT, ROOT, changed_files, main, project_inpu
 
 
 class SelectionTests(unittest.TestCase):
+    def test_shared_calculations_select_both_consumers_and_container(self):
+        for path in ("src/Monetail.Calculations/Receipts/ReceiptCalculator.cs",
+                     "src/Monetail.Calculations/Monetail.Calculations.csproj"):
+            self.assert_flags([path], "api", "docker", "windows_client", "windows_storage", "winui")
+        # 旧VBの実出力照合はtests.ymlのapi条件で起動する。
+        workflow = (ROOT / ".github/workflows/tests.yml").read_text()
+        parity = workflow.split("  receipt-calculation-parity:", 1)[1]
+        self.assertIn("needs.changes.outputs.api == 'true'", parity)
+        self.assertIn("MONETAIL_LEGACY_PARITY_RESULTS", parity)
+
+
     def assert_flags(self, paths, *expected):
         actual = {flag for flag, enabled in select(paths).items() if enabled}
         self.assertEqual(set(expected), actual)

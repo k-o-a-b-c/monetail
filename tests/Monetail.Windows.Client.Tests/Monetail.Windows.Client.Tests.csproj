@@ -15,4 +15,7 @@
     </PackageReference>
     <ProjectReference Include="../../src/Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../docs/tests/receipt-parity-cases.json" Link="receipt-parity-cases.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

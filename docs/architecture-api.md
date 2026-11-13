@@ -5,6 +5,19 @@
 同じリポジトリの`src/Monetail.Api/`にC#／ASP.NET Core／.NET 10 LTSの独立プロジェクトを置く。Windows版のプロジェクト・モデルは参照しない。API専用SQLiteの初期化と初期管理者・登録コード発行を専用コマンドで行い、通常起動ではDBを自動作成・移行しない。既存Windows版DBの一度きりのSQL引継ぎと、Windows版を先にAPIへ接続する方針は[58](58-ledger-foundation-design.md)を参照する。リポジトリ直下にSDKを固定する`global.json`は置かず、API用CIでは.NET 10 SDK、既存テスト用CIでは従来の.NET 8 SDKを使う。認証の現行契約は[43](43-passkey-authentication-design.md)、起動・DB準備は[42](42-api-foundation.md)を正本とする。
 
 
+## 共通計算の参照関係（工程6-D4-B実装済み）
+
+```mermaid
+flowchart LR
+  UI[Monetail.WinUI] --> Client[Monetail.Windows.Client]
+  Client --> Calc[Monetail.Calculations / net10.0]
+  API[Monetail.Api] --> Calc
+```
+
+`Monetail.Calculations`は入力/解析/結果/例外モデル、入力単独の検証、レシート計算を保持する。BCL以外のパッケージやAPI/Client/DB/認証/HTTP/WinUIへの依存を持たない。APIとClientは同じプロジェクトを参照し、計算式を複製しない。計算契約は[レシートAPI](ledger-receipt-api.md#金額計算参考額dec-156157)を参照。
+
+APIの`ReceiptCalculator`/`ReceiptValidation`は薄いアダプターとして既存の呼出しを維持する。計算用の型は`Monetail.Calculations.Receipts`へ移動し、API内部では型エイリアスを使う（HTTP DTOではない）。`ReceiptMasterData`と`IncomeExpenseKind`に基づく科目/費用区分/取引日の税率照合はAPI側に残し、共通の`IReceiptValidationChecks`で基本検証の元の位置から呼ぶ。マスタ検証を最後へ移すことで最初のエラーが変わることを避ける。最新マスタの取得・有効期間/所属・認証/参加/権限・トランザクション・HTTPエラー変換は既存APIの責務のままとする。
+
 ## APIの責務と依存
 
 | 配置 | 責務 |

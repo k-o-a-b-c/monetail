@@ -24,4 +24,7 @@
     <EmbeddedResource Include="Pages/Login.js" />
     <EmbeddedResource Include="Pages/PasskeyClient.js" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Monetail.Calculations/Monetail.Calculations.csproj" />
+  </ItemGroup>
 </Project>
