@@ -20,6 +20,8 @@ public sealed partial class MainWindow
 {
     private ReceiptEditorState? receiptEditor;
     private ReceiptParentInputState? receiptParentInput;
+    private TaxRatesInfo? receiptTaxRates;
+    private Guid? receiptOpenRetryId;
     private CancellationTokenSource? receiptOpening;
     private bool receiptEditorRendering, receiptDialogOpen, receiptLeaving, receiptCloseApproved, receiptRestorePending;
     private double receiptReturnOffset;
@@ -65,7 +67,7 @@ public sealed partial class MainWindow
         var api = connection.Api; var session = connection.Session;
         var initial = new ReceiptHeaderDraft { TransactionAt = DateTime.Today, ShopLocation = "", Memo = "", TaxInclusionMode = 0, TaxRoundingMode = "floor" };
         using var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        receiptOpening = pending; NewReceiptButton.IsEnabled = false;
+        receiptOpening = pending; receiptOpenRetryId = receiptId; ReceiptOpenRetry.Visibility = Visibility.Collapsed; NewReceiptButton.IsEnabled = false;
         ReceiptOpenNotice.Visibility = Visibility.Visible; ReceiptOpenProgress.IsActive = true; ReceiptOpenMessage.Text = "レシートを読み込み中…";
         bool Current() => !closed && ReferenceEquals(receiptOpening, pending) && !pending.IsCancellationRequested &&
             currentLedger?.LedgerId == ledger && account?.AuthUserId == person && HomePage.Visibility == Visibility.Visible;
@@ -76,12 +78,15 @@ public sealed partial class MainWindow
             await connection.Masters.GetPaymentsAsync(ledger, ct => new PaymentMethodsWorkspace(api, session, ledger).ListAsync(ct), pending.Token);
             await connection.Masters.GetCategoriesAsync(ledger, ct => new CategoriesWorkspace(api, session, ledger).ListAsync(ct), pending.Token);
             if (!Current()) return;
+            var taxes = await new TaxRatesWorkspace(api, session, ledger).ListAsync(pending.Token);
+            if (!Current()) return;
+            receiptTaxRates = taxes;
             ReceiptCategoryDefaults Defaults(Guid category, DateTime? date)
             {
                 var master = connection.Masters.Categories(ledger)?.Categories.FirstOrDefault(c => c.CategoryId == category)
                     ?? throw new ReceiptInputException("categoryId", "科目情報を取得できませんでした。");
-                // 税率履歴は後続工程で接続。履歴未取得を非課税として代用しない。
-                return new(master.IncomeExpense, ReceiptTaxSelection.Unselected);
+                // 未確定の生文字列がある間は、最後の有効なモデル日付で初期値を代用しない。
+                return new(master.IncomeExpense, ReceiptTaxRules.Initial(taxes, master.TaxCategoryCode, ConfirmedReceiptDay));
             }
             receiptEditor = info is null ? ReceiptEditorState.Create(initial, Defaults) : ReceiptEditorState.Edit(info, Defaults);
             receiptParentInput = new(receiptEditor.Header, info is not null);
@@ -93,11 +98,15 @@ public sealed partial class MainWindow
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { }
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)
         { if (Current()) ShowLogin("ログインを継続できません。もう一度ログインしてください。"); }
-        catch (Exception error) when (error is ReceiptRequestException or CategoryRequestException or PeopleRequestException or PaymentMethodRequestException or ApiConnectionException or HttpRequestException or OperationCanceledException)
+        catch (Exception error) when (error is TaxRateRequestException or ReceiptRequestException or CategoryRequestException or PeopleRequestException or PaymentMethodRequestException or ApiConnectionException or HttpRequestException or OperationCanceledException)
         {
-            if (Current()) ReceiptOpenMessage.Text = error is ReceiptRequestException { StatusCode: HttpStatusCode.NotFound }
+            if (Current())
+            {
+                ReceiptOpenRetry.Visibility = Visibility.Visible;
+                ReceiptOpenMessage.Text = error is ReceiptRequestException { StatusCode: HttpStatusCode.NotFound }
                 ? "このレシートは開けません。参加状態と対象を確認してください。"
-                : "レシートを開けませんでした。登録ボタンまたは行のダブルクリックで再試行してください。";
+                : "レシートまたは税率履歴を取得できませんでした。再試行してください。";
+            }
         }
         finally
         {
@@ -108,12 +117,12 @@ public sealed partial class MainWindow
     private void CancelReceiptOpening()
     {
         var pending = receiptOpening; receiptOpening = null; pending?.Cancel();
-        ReceiptOpenProgress.IsActive = false; ReceiptOpenNotice.Visibility = Visibility.Collapsed;
+        ReceiptOpenProgress.IsActive = false; ReceiptOpenNotice.Visibility = Visibility.Collapsed; ReceiptOpenRetry.Visibility = Visibility.Collapsed;
         NewReceiptButton.IsEnabled = account is not null;
     }
     private void ResetReceiptEditor()
     {
-        CancelReceiptOpening(); receiptEditor = null; receiptParentInput = null; receiptDetailInput = null; receiptInitialGroupMemos.Clear(); receiptInitialGroupMemoTexts.Clear();
+        CancelReceiptOpening(); receiptTaxRates = null; receiptEditor = null; receiptParentInput = null; receiptDetailInput = null; receiptInitialGroupMemos.Clear(); receiptInitialGroupMemoTexts.Clear();
         ReceiptEditorPage.Visibility = Visibility.Collapsed; RecordContent.Visibility = Visibility.Visible;
     }
     private void PopulateReceiptEditor()
@@ -174,6 +183,7 @@ public sealed partial class MainWindow
         if (recurrence.IsValid) { header.RecurrenceInterval = recurrence.Interval; header.RecurrenceUnit = recurrence.Unit; }
         ReceiptIntervalError.Visibility = recurrence.IsValid ? Visibility.Collapsed : Visibility.Visible;
         if (previousDate != header.TransactionAt?.Date || previousPayment != header.PaymentMethodId) RefreshReceiptEditorChoices();
+        RefreshReceiptTaxChoices(); RefreshReceiptCalculation();
     }
     // 表示時の改行正規化やNULL/空文字の差を、利用者の変更とみなさない。元の表示へ戻した場合も保存値を復元する。
     private static string? ReceiptOptionalText(string text, string? initial, string? initialDisplay = null) =>

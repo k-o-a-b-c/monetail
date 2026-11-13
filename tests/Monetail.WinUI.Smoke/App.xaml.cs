@@ -110,6 +110,8 @@ public partial class App : Application
             await CheckReceiptDetails();
             await CheckReceiptStoredDetails();
             await CheckReceiptMemos();
+            await CheckReceiptTaxCalculation();
+            await CheckReceiptTaxLoading();
             File.WriteAllText(Path.Combine(output, "smoke-result.json"),
                 JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,
                     rasterizationScale, checks }));

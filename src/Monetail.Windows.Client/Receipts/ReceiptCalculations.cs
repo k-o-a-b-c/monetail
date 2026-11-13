@@ -8,6 +8,7 @@ namespace Monetail.Windows.Client.Receipts;
 public static class ReceiptCalculations
 {
     public static ReceiptAmounts Calculate(ReceiptSnapshot snapshot) => ReceiptCalculator.Calculate(FromSnapshot(snapshot));
+    public static ReceiptAmounts CalculateApplied(ReceiptEditorState editor) => ReceiptCalculator.Calculate(FromApplied(editor));
     public static ReceiptAmounts Calculate(ReceiptEditorState editor) => ReceiptCalculator.Calculate(FromEditor(editor));
 
     public static ReceiptCalculationInput FromSnapshot(ReceiptSnapshot snapshot)
@@ -24,6 +25,13 @@ public static class ReceiptCalculations
     {
         ArgumentNullException.ThrowIfNull(editor);
         if (editor.HasUnappliedChanges) throw new ReceiptInputException("detailDraft", "明細を追加/更新するか、入力を明示的に破棄してください。");
+        return FromApplied(editor);
+    }
+
+    /// <summary>表示専用。反映済み明細だけをコピーし、未反映フォームは読取/適用/破棄しない。</summary>
+    public static ReceiptCalculationInput FromApplied(ReceiptEditorState editor)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
         var header = editor.Header;
         return new(Local(Required(header.TransactionAt, "transactionAt")), header.ShopName, header.ShopLocation,
             Required(header.TaxInclusionMode, "taxInclusionMode"), header.TaxRoundingMode!, header.RecurrenceInterval, header.RecurrenceUnit,

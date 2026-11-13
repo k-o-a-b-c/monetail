@@ -165,6 +165,7 @@
                                 <StackPanel x:Name="ReceiptOpenNotice" Visibility="Collapsed" Spacing="8">
                                     <ProgressRing x:Name="ReceiptOpenProgress" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"/>
                                     <TextBlock x:Name="ReceiptOpenMessage" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                    <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="Collapsed" Click="RetryReceiptOpen"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button x:Name="ReceiptPrevious" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom"/>
@@ -337,7 +338,7 @@
                                     <ListView.ItemTemplate><DataTemplate x:DataType="local:ReceiptCategoryRow">
                                         <Grid Padding="4,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                             <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/>
-                                            <TextBlock Grid.Column="1" Text="参考額：未計算" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="12,0,0,0"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind ReferenceAmount, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="12,0,0,0"/>
                                         </Grid>
                                     </DataTemplate></ListView.ItemTemplate>
                                 </ListView>
@@ -379,6 +380,7 @@
                                 </Grid>
                                 <TextBlock Text="税率履歴は未接続です。新規の課税税率は未選択のままです。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBox x:Name="ReceiptItemMemo" Header="明細メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptDetailTextChanged"/>
+                                <TextBlock x:Name="ReceiptItemTaxWarning" TextWrapping="Wrap" Visibility="Collapsed"/>
                                 <TextBlock x:Name="ReceiptDetailError" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                                 <Button x:Name="ReceiptDetailApply" Content="追加" HorizontalAlignment="Right" Click="ApplyReceiptDetail" IsEnabled="False"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -401,8 +403,8 @@
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="60"/><ColumnDefinition Width="140"/><ColumnDefinition Width="75"/><ColumnDefinition Width="110"/></Grid.ColumnDefinitions>
                                                     <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name}"/>
                                                     <TextBlock Grid.Column="1" Text="{x:Bind Price}" HorizontalAlignment="Right"/><TextBlock Grid.Column="2" Text="{x:Bind Quantity}" HorizontalAlignment="Right"/>
-                                                    <TextBlock Grid.Column="3" Text="{x:Bind Discount}" HorizontalAlignment="Right"/><TextBlock Grid.Column="4" Text="{x:Bind Tax}" HorizontalAlignment="Right"/>
-                                                    <TextBlock Grid.Column="5" Text="未計算" HorizontalAlignment="Right"/>
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind Discount}" HorizontalAlignment="Right"/><StackPanel Grid.Column="4" HorizontalAlignment="Right"><TextBlock Text="{x:Bind Tax}"/><TextBlock Text="{x:Bind TaxWarning, Mode=OneWay}" TextWrapping="Wrap"/></StackPanel>
+                                                    <TextBlock Grid.Column="5" Text="{x:Bind ReferenceAmount, Mode=OneWay}" HorizontalAlignment="Right"/>
                                                 </Grid>
                                             </DataTemplate></ListView.ItemTemplate>
                                         </ListView>
@@ -413,7 +415,8 @@
                     </StackPanel>
                 </ScrollViewer>
                 <StackPanel Grid.Row="1" Spacing="8">
-                    <TextBlock Text="合計：未計算" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="ReceiptAccountingTotal" Text="会計合計（反映済み明細）：未計算" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="ReceiptCalculationNotice" TextWrapping="Wrap" Visibility="Collapsed"/>
                     <TextBlock Text="現在は保存できません。登録・更新・流用登録は後続工程で接続します。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Button x:Name="ReceiptRegister" Content="登録" IsEnabled="False"/>
