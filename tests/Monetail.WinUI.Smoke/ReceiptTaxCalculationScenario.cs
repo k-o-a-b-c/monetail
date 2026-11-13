@@ -58,22 +58,27 @@ public partial class App
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         var selected = editor.SelectedDetailKey; var draft = editor.Draft; var rowObjects = rows.Items.Cast<object>().ToArray();
         price.Text = "不正な生文字列";
+        await Wait(() => Find<TextBlock>(root, "ReceiptItemTaxWarning").Text.Contains("Int32"));
         Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("41") && group.Details.Count == 2 &&
             editor.SelectedDetailKey == selected && ReferenceEquals(draft, editor.Draft) && rows.Items.Cast<object>().SequenceEqual(rowObjects),
             "未反映の不正文字列は正式合計へ入れず、再計算で行・選択・下書きを再生成しない");
         date.Text = "2026/11/09";
+        await Wait(() => editor.Header.TransactionAt?.Date == new DateTime(2026, 11, 9));
         Check(tax.Items.OfType<ComboBoxItem>().Any(i => i.Tag is ReceiptTaxSelection { IsSelected: true, Rate: 0m }) &&
             tax.Items.OfType<ComboBoxItem>().Any(i => i.Tag is ReceiptTaxSelection { IsSelected: true, Rate: null }),
             "課税0%と非課税を異なる候補として表示");
         date.Text = "2026/11/11";
+        await Wait(() => editor.Header.TransactionAt?.Date == new DateTime(2026, 11, 11));
         Check(((ReceiptTaxSelection)((ComboBoxItem)tax.SelectedItem).Tag).Rate == 10 &&
             ((ComboBoxItem)tax.SelectedItem).Content!.ToString()!.Contains("要再選択") && price.Text == "不正な生文字列" &&
             rows.Items.OfType<ReceiptDetailRow>().All(r => r.TaxWarning == "要再選択" && r.ReferenceAmount == "未計算") &&
             Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("未計算"), "日付変更は全明細を照合し期限外値・下書きを保持、行とフォームで再選択を表示");
         date.Text = "未確定";
+        await Wait(() => rows.Items.OfType<ReceiptDetailRow>().All(r => r.TaxWarning == "未判定"));
         Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("未計算") && rows.Items.OfType<ReceiptDetailRow>().All(r => r.TaxWarning == "未判定"),
             "未確定日付では前の有効日付を現在の確定結果として表示しない");
         date.Text = "2026/11/10";
+        await Wait(() => editor.Header.TransactionAt?.Date == new DateTime(2026, 11, 10));
         Check(Find<TextBlock>(root, "ReceiptAccountingTotal").Text.EndsWith("41") && fixture.TaxRatesRequests == 1 &&
             group.Details.All(d => d.Values.Tax == ReceiptTaxSelection.Taxed(10)) && price.Text == "不正な生文字列",
             "日付を戻すと反映済みの正式額を復元し、追加GET・税率書換え・下書き破棄なし");
