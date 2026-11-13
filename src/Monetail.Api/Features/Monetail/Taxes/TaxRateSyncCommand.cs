@@ -38,7 +38,7 @@ internal static class TaxRateSyncCommand
             await TaxRateSync.RunAsync(scope.ServiceProvider.GetRequiredService<ApiDbContext>(), desired, apply, allowDelete, Console.Out, timeout.Token);
             return 0;
         }
-        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException or IOException or
+        catch (Exception exception) when (exception is InvalidOperationException or ArgumentException or FormatException or InvalidCastException or IOException or
             UnauthorizedAccessException or System.Text.Json.JsonException or SqliteException or OperationCanceledException)
         {
             Console.Error.WriteLine(exception is InvalidOperationException ? exception.Message :

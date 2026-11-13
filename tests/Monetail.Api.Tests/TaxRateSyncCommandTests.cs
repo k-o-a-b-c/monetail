@@ -217,4 +217,16 @@ public partial class AuthenticationCommandTests
         Assert.Equal(snapshot, app.Database.Snapshot(app.Database.Tables()));
     }
 
+    [Theory]
+    [InlineData("'not-a-decimal'")] [InlineData("'0.12345678901234567890123456789'")] [InlineData("X'FF'")]
+    public async Task TaxSyncRejectsInvalidExistingRatesWithoutRepair(string value)
+    {
+        using var db = new AuthDatabaseFixture(); await db.InitializeAsync();
+        var file = SyncFile(db, SyncRow()); Assert.Equal(0, (await Sync(db, file, "--apply")).ExitCode);
+        db.Execute($"UPDATE tax_rate_history SET rate={value}");
+        var before = db.Snapshot(db.Tables());
+        var result = await Sync(db, file, "--apply");
+        Assert.Equal(1, result.ExitCode); Assert.NotEmpty(result.StandardError); Assert.Equal(before, db.Snapshot(db.Tables()));
+    }
+
 }
