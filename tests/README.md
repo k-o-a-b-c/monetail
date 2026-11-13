@@ -7,13 +7,23 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1456 |
+| ASP.NET Core API | 1513 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル） | 748 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件 | 69 |
-| 合計 | 2483 |
+| 合計 | 2540 |
+
+## 工程6-D4-CLI：税率履歴の全履歴同期管理コマンド
+
+実CLIプロセス/隔離SQLiteの57件を追加。引数・終了0/1・標準出力/標準エラー・Web非待受、厳密な4項目JSON・日付/Decimal/NULLと課税0%、全履歴差分・決定的な順序・空配列、dry-runの全表非変更、ID/更新版/保存文字列を保持する再適用、区間短縮＋追加、率だけの更新、削除ガードと明示許可、更新/挿入途中の例外による全件ロールバック、不正DB値の拒否、書込ロック失敗・同時適用の直列化、CLI反映後の既存GETと認証/家計簿等の非変更を確認する。`initialize-db`は履歴0件で、通常起動/初期化/再実行でJSONを自動投入しない。
+
+ローカルReleaseは最小1件→関連54件→不正保存値3件が成功（最小は関連54件に含む、失敗/skipなし）。変更前main `a3dbad3ccfbda13dd7c1a9fd56a18eb801fe7e29`の[push Tests 43347266205](https://github.com/k-o-a-b-c/monetail/actions/runs/43347266205)成功を基準とし、影響外のClient/実DPAPI/WinUI/旧Windows/性能はCIのfingerprintに従って再利用する。変更文書のローカルリンク77件・Bash例の構文・差分検査も成功。
+
+ソース`7bc877cc65131d6395aca2a7ef0e77ccb3408208`の[Tests 43349662264](https://github.com/k-o-a-b-c/monetail/actions/runs/43349662264)でAPI全1513件（失敗/skipなし、テスト実行12分6秒）、Node、APIのDockerビルド・起動/サーバー/リリースアーカイブのスモーク、旧VBとの実計算照合が成功。Client/実DPAPI/WinUI/旧Windows/性能は未変更のため成功記録を再利用し、全件のローカル重複実行は追加していない。初回Draft CIは追修正のpushで中断し、その実行を成功とは扱わない。
+
+実運用DB・登録用`config/tax-history.json`への適用は行っていない。実NASの権限/マウント、実データでの同期、Tailscale経由のGETは未検証。D4-A・DB構造/Migration・D4-B/C・WinUIは変更しない。
 
 ## 工程6-D4-A：共通税率履歴の全件GET・Clientキャッシュ
 
