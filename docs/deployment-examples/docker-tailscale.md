@@ -136,20 +136,30 @@ dc run --rm --no-deps api issue-enrollment-invitation --account-id REPLACE_ACCOU
 
 Windowsアプリには同じ`https://実際のノード名`を設定する。将来のスマートフォンもTailscale接続と同じOrigin/RpIdを使う前提だが、スマートフォンアプリの動作確認は別途必要。
 
-### 税率履歴JSONの配置（管理CLI未実装）
+### 税率履歴の手動同期（D4-CLI実装済み）
 
 初期税率データの正本はGitHubの[`config/tax-history.json`](https://github.com/k-o-a-b-c/monetail/blob/main/config/tax-history.json)。GitHubに保存するだけではDBに登録されない。サーバーにはリリース版ごとの`$SERVER_PACKAGE`の内部ではなく、**更新で残る`$SERVER_ROOT/config/tax-history.json`**（例：`/srv/monetail/config/tax-history.json`）として配置する。これは一般的なJSONで秘密情報ではない。
 
+**D4-CLIを含むAPIイメージを指定する。** JSONの内容と差分を運営者が確認して反映する。`initialize-db`の再実行では投入しない。以下は上記の`dc`関数と既存のDB接続設定を使用し、APIを停止したままバックアップと同期を行う。
+
 ```bash
+dc stop api
+# 他の管理コマンド・DB接続も終了する。DBと残存WAL/SHM、認証に必要な鍵を一緒に保全する。
+sudo install -d -m 700 /srv/monetail-backups
+TAX_BACKUP="/srv/monetail-backups/before-tax-sync-$(date -u +%Y%m%dT%H%M%SZ).tar"
+sudo tar --create --file "$TAX_BACKUP" --numeric-owner \
+  --directory "$(dirname "$SERVER_DATA")" "$(basename "$SERVER_DATA")"
+sudo chmod 600 "$TAX_BACKUP"
+
 # GitHubでレビュー済みのconfig/tax-history.jsonを、管理用端末からサーバーへ転送済みとする。
 install -d -m 755 "$SERVER_ROOT/config"
 install -m 644 /path/to/tax-history.json "$SERVER_ROOT/config/tax-history.json"
 ```
 
-**この段階では`sync-tax-rates`は未実装なので、次のコマンドはCLIを含むAPIイメージを配布した後にのみ使用する。** API停止・[DBの停止バックアップ](#停止バックアップ)が完了した状態で、上記の`dc`関数を使用する。通常APIコンテナにJSONのマウントを追加する必要はなく、**管理コマンド実行時だけ読取専用で渡す**。
+通常APIコンテナにJSONのマウントを追加する必要はなく、**管理コマンド実行時だけ読取専用で渡す**。ファイル全体が希望状態なので、既存履歴を省略した抜粋を適用しない。
 
 ```bash
-# CLI実装後：まずDB無変更の差分確認を行う。
+# まずDB無変更の差分確認を行う。
 dc run --rm --no-deps \
   --volume "$SERVER_ROOT/config/tax-history.json:/tmp/tax-history.json:ro" \
   api sync-tax-rates --file /tmp/tax-history.json --dry-run
@@ -160,7 +170,16 @@ dc run --rm --no-deps \
   api sync-tax-rates --file /tmp/tax-history.json --apply
 ```
 
-通常の`--apply`は履歴の削除予定があれば拒否する。削除が明示的に必要な場合だけ`--apply --allow-delete`を指定する。税率改定時もGitHubのPR確認→サーバーファイル更新→差分確認→明示反映を同じ手順で行う。既存DB・認証設定を作り直さず、反映後はAPIを起動して運用記録に使用したJSONのコミットを記録する。
+通常の`--apply`は履歴の削除予定があれば拒否する。削除が明示的に必要な場合だけ`--apply --allow-delete`を指定する。税率改定時もGitHubのPR確認→サーバーファイル更新→差分確認→明示反映を同じ手順で行う。既存DB・認証設定を作り直さず、失敗時は標準エラーと差分を確認してから再実行する。途中のDB書込みは全件ロールバックされる。変更のない再適用はID・更新版・保存値を保持する。履歴変更によって過去レシートが現行マスタの保存検証で不適合となり得るが、保存済みレシート自体は書き換えない。
+
+```bash
+dc start api
+dc ps
+```
+
+起動後、家計簿に参加済みのアカウントで認証し、`GET /ledgers/{ledgerId}/tax-rates`の`rates`を入力JSONと照合する（[読取契約](../ledger-receipt-implementation.md#税率履歴全件getと全履歴同期cli仕様確定)）。CLIにはWebログイン不要だが、GETは通常の認証/参加確認が必要。トークンやCookieを共有ログへ出さない。Windows Clientの既存キャッシュはCLI実行だけでは更新されないため、再ログイン等で認証コンテキストを作り直して確認する。運用記録には使用したJSONのコミットと差分・実行結果を残す。将来の改定でも、全履歴JSONのレビュー→停止/バックアップ→ファイル配置→dry-run→apply→起動/GET確認の順を繰り返す。
+
+CLIの隔離SQLite・実プロセス検証と実NASでの運用確認は区別する。実NASの権限/マウント・実データでの同期・Tailscale経由のGET確認は未検証。
 
 ## 4. 動作確認
 

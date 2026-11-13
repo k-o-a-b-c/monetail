@@ -5,6 +5,11 @@ using Monetail.Api.Features.Monetail.Ledgers;
 using Monetail.Api.Persistence;
 
 var command = args.FirstOrDefault();
+if (command == "sync-tax-rates")
+{
+    Environment.ExitCode = await Monetail.Api.Features.Monetail.Taxes.TaxRateSyncCommand.RunAsync(args[1..]);
+    return;
+}
 var isAuthCommand = command is "initialize-db" or "initialize-admin" or "issue-enrollment-invitation" or "issue-recovery-link" or
     "revoke-account" or "reset-authentication";
 var isLinkCommand = command is "initialize-admin" or "issue-enrollment-invitation" or "issue-recovery-link";

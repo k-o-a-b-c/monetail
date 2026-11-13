@@ -115,6 +115,9 @@ dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID
 dotnet run --project src/Monetail.Api -- revoke-account --account-id ACCOUNT_ID --emergency-recovery
 # バックアップ復元後、サービスを停止した状態で実行する。
 dotnet run --project src/Monetail.Api -- reset-authentication --after-restore
+# サービス停止・バックアップ後に、全履歴JSONとの差分を確認して明示適用する。
+dotnet run --project src/Monetail.Api -- sync-tax-rates --file /path/to/tax-history.json --dry-run
+dotnet run --project src/Monetail.Api -- sync-tax-rates --file /path/to/tax-history.json --apply
 ```
 
 - `initialize-db`は空のDBにだけ、`ApiDbContext`の現行モデルから表・NOT NULL/CHECK/FK/UNIQUE・索引・モデルの初期値を生成する。モデルだけでは作られない支払方法所有者変更禁止・税率期間重複禁止の3トリガーは`DatabaseSchema`で明示的に作成する。全DDL・初期値・トリガーは1つのSQLiteトランザクションで確定する。
@@ -128,6 +131,7 @@ dotnet run --project src/Monetail.Api -- reset-authentication --after-restore
 - `issue-recovery-link --account-id ID`は、運営者が全失効または復元後リセット済みの登録済み・無効・鍵なしの対象に明示する緊急復旧。未登録者への発行は拒否し、`issue-enrollment-invitation`を使用する。**既存の10分間を暫定維持**し、認証ID・表示名・ロールを変えず、パスキー再登録と明示ログインを要求する。新アカウントを作成しない。本人向けの自己復旧・一般公開の本人確認条件は未実装。
 - URL発行コマンドは`Passkeys:Origin`だけを必須のWeb設定とし、正しい固定HTTPS Originがなければ状態を変更せず失敗する。RpId・Data Protection・OAuth証明書等の通常API設定はCLI発行には要求しない。DB初期化・全失効・復元リセットにはOriginを要求しない。
 - 発行成功時の標準出力は`https://固定ホスト/auth/enroll#token=...`の1行だけ。診断・監査は標準エラーへ出し、URL・生トークンをログへ含めない。URL出力は管理者だけの一時端末で扱い、共有ログ・teeへ流さない。旧`issue-enrollment-code`は受け付けない。
+- `sync-tax-rates`（D4-CLI実装済み）は既存DBだけを対象とする。JSON配置・API/Docker起動・初期化で自動投入しない。削除を含む適用には`--apply --allow-delete`が必要。引数は`--file`と操作フラグだけを受け付け、接続先は既存の設定ファイル/環境変数から取得する。Origin/OAuth証明書等のWeb設定を要求しない。契約と安全な書込順序は[共通税率履歴](ledger-core-schema.md#税率履歴の全履歴同期clid4-cli実装済み)、運用は[配備例](deployment-examples/docker-tailscale.md#税率履歴の手動同期d4-cli実装済み)を参照。
 - 管理コマンドはWeb待受けを行わず、成功0・失敗1。30秒でキャンセルを要求する。通常起動はDBを作成・変更せず、認証APIと管理操作では必要な現行構造・初期マスタを検証して未準備のDBを拒否する。更新・復元で`initialize-db`を追加移行として使わない。
 
 

@@ -11,7 +11,7 @@ using Xunit;
 namespace Monetail.Api.Tests;
 
 /// <summary>実プロセスの管理コマンドで、明示指定・非待受・全失効・再発行を検証する。</summary>
-public class AuthenticationCommandTests
+public partial class AuthenticationCommandTests
 {
     [Fact]
     public async Task InitializeDatabaseRunsWithoutWebSettingsAndDoesNotIssueCodes()
