@@ -111,4 +111,25 @@ public sealed partial class ReceiptEditorStateTests
         editor.SelectDetail(editor.Groups[0].Details[0].Key); editor.ReuseSelectedDetail(); Assert.Equal(ReceiptTaxSelection.Exempt, editor.Draft!.Tax);
     }
 
+    [Fact]
+    public void SavedIdentityRevisionAndDirtyFlagsAreStableDuringTaxEvaluation()
+    {
+        var saved = Saved(); var editor = ReceiptEditorState.Edit(saved, Defaults);
+        editor.SelectGroup(editor.Groups[0].Key); editor.SelectDetail(editor.Groups[0].Details[0].Key);
+        var before = JsonSerializer.Serialize(ReceiptCalculations.FromApplied(editor)); var groupKey = editor.SelectedGroupKey; var detailKey = editor.SelectedDetailKey; var draft = editor.Draft;
+        var result = ReceiptCalculationDisplay.Evaluate(editor, History(new TaxRateInfo("Standard", DateOnly.MinValue, null, 0), new("ReducedFood", DateOnly.MinValue, null, 8)), TaxDay, true);
+        Assert.NotNull(result.Amounts); Assert.False(editor.NeedsLeaveConfirmation); Assert.Equal(saved.ReceiptId, editor.ReceiptId); Assert.Equal(saved.Revision, editor.Revision);
+        Assert.Equal(before, JsonSerializer.Serialize(ReceiptCalculations.FromApplied(editor))); Assert.Equal(groupKey, editor.SelectedGroupKey); Assert.Equal(detailKey, editor.SelectedDetailKey); Assert.Same(draft, editor.Draft);
+    }
+    [Theory] [InlineData("floor", 3286)] [InlineData("half_up", 3288)]
+    public void MixedRatesNullZeroAndDiscountsUseTheSharedFormalResult(string rounding, int total)
+    {
+        var editor = AppliedTaxes((1503, 10), (19, 8), (1, null), (2, 0)); editor.Header.TaxRoundingMode = rounding;
+        editor.SelectDetail(editor.Groups[0].Details[0].Key); editor.Draft!.UnitDiscountAmount = 3; editor.Draft.Quantity = 2; editor.Draft.DiscountRate = 1.1m; editor.ApplyDraft();
+        var history = History(new TaxRateInfo("Standard", DateOnly.MinValue, null, 10), new("ReducedFood", DateOnly.MinValue, null, 8), new("ReducedNewspaper", DateOnly.MinValue, null, 0));
+        var result = ReceiptCalculationDisplay.Evaluate(editor, history, TaxDay, true);
+        Assert.Equal(total, result.Amounts!.TotalAmount); Assert.Equal(4, result.Amounts.TaxSubtotals.Count);
+        Assert.Equal(JsonSerializer.Serialize(ReceiptCalculations.Calculate(editor)), JsonSerializer.Serialize(result.Amounts));
+    }
+
 }
