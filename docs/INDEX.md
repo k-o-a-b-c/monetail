@@ -18,6 +18,7 @@
 | レシート4表の列・複合FK・CHECK・索引 | [レシートDB](ledger-receipt-schema.md) |
 | レシート一覧・詳細・書込・競合・再送API | [レシートAPI](ledger-receipt-api.md) |
 | レシート専用入力・一覧・保存不可時のWinUI | [レシート画面](ledger-receipt-ui.md) |
+| 振替の確定業務・WinUI画面仕様と未決定のDB/API設計 | [振替仕様](ledger-transfer.md) |
 | 履歴候補検索・店名補完と候補UI | [レシート履歴候補](ledger-receipt-suggestions.md) |
 | Codex向け実装工程・参照文書・受入確認 | [レシート実装の入口](ledger-receipt-implementation.md) |
 | 家計簿の作成・参照・回数制限 | [家計簿API](ledger-core-api.md) |
