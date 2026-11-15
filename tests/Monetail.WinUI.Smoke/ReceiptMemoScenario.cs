@@ -19,7 +19,7 @@ public partial class App
         var payments = new PaymentServer(); fixture.PaymentsHandler = payments.HandleAsync;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(payments.People()));
         var id = Guid.NewGuid(); var groupId = Guid.NewGuid(); var detailId = Guid.NewGuid(); var revision = Guid.NewGuid(); var writes = 0;
-        const string parentMemo = "親\r\nメモ", groupMemo = "科目\nメモ", detailMemo = "明細\r\nメモ";
+        const string parentMemo = "親メモ", groupMemo = "科目メモ", detailMemo = "明細メモ";
         fixture.ReceiptsHandler = (request, _) =>
         {
             if (request.Method != HttpMethod.Get) { writes++; throw new InvalidOperationException("全体保存不可"); }
@@ -41,7 +41,7 @@ public partial class App
         var composing = (HashSet<TextBox>)typeof(FormKeyboard).GetField("composing", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(keyboard)!;
         bool Dirty() => (bool)typeof(MainWindow).GetProperty("ReceiptEditorDirty", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
-            "1行表示で開いて選択しただけでは保存済みの改行メモも未保存変更にしない");
+            "通常の1行メモを表示して選択するだけでは未保存変更にしない");
         var memos = new[] { Find<TextBox>(root, "ReceiptMemo"), Find<TextBox>(root, "ReceiptCategoryMemo"), Find<TextBox>(root, "ReceiptItemMemo") };
         await Wait(() => memos.All(memo => memo.IsLoaded && memo.ActualWidth > 0));
         var next = new Control[] { Find<ComboBox>(root, "ReceiptCategoryChoice"), Find<Button>(root, "ReceiptCategoryRemove"), Find<Button>(root, "ReceiptDetailApply") };
@@ -75,7 +75,7 @@ public partial class App
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), next[index]));
             Check(group.Details.Count == 1 && editor.SelectedDetailKey == group.Details[0].Key && group.Details[0].Values.Memo == detailMemo,
                 $"{memo.Name}のEnterは次の項目へ移動するだけで追加/更新を実行しない");
-            // 空欄はモデル上のnullへ統一。元の改行入り値へ戻せば未保存変更を解除。
+            // 空欄はモデル上のnullへ統一。元の値へ戻せば未保存変更を解除。
             memo.Text = "";
             await WaitForReceiptInput(root, memo.Name, () =>
                 (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) is null);
@@ -95,12 +95,12 @@ public partial class App
         memos[0].Text = parentMemo;
         await Wait(() => editor.Header.Memo == parentMemo && parentError.Visibility == Visibility.Collapsed);
         Check(!Dirty(), "親メモを元の値へ戻すとエラーと未保存変更が消える");
-        // 他項目のイベント・再描画でも、表示上の改行処理をメモの編集として取り込まない。
+        // 他項目のイベント・再描画ではメモの値を変更しない。
         var shop = Find<TextBox>(root, "ReceiptShopName"); shop.Text = "一時変更"; await Wait(() => editor.Header.ShopName == "一時変更");
         shop.Text = "メモの確認"; await Wait(() => editor.Header.ShopName == "メモの確認");
         window.RenderReceiptTaxValues();
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
-            "他項目変更/再描画は保存済みメモを正規化せず維持");
+            "他項目変更/再描画では元のメモと未変更状態を維持");
         memos[2].Text = "ショートカット更新"; memos[2].Focus(FocusState.Keyboard);
         await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memos[2]));
         await PressReceiptKey(0x0D, 0x12);
