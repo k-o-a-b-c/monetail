@@ -7,10 +7,22 @@ using Monetail.Api.Features.Monetail.Receipts;
 
 namespace Monetail.Api.Features.Monetail.Transfers;
 
-/// <summary>共通の5項目検証を再利用し、振替専用purposeで継続位置を保護する。</summary>
-internal sealed record TransferListQuery(ReceiptListQuery Filter)
+/// <summary>共通の5項目検証にフォーカス指定を加え、振替専用purposeで継続位置を保護する。</summary>
+internal sealed record TransferListQuery(ReceiptListQuery Filter, string? FocusTransferId)
 {
-    internal static TransferListQuery Read(IQueryCollection query) => new(ReceiptListQuery.Read(query));
+    internal static TransferListQuery Read(IQueryCollection query)
+    {
+        if (!query.TryGetValue("focusTransferId", out var focus)) return new(ReceiptListQuery.Read(query), null);
+        if (focus.Count != 1 || query.ContainsKey("cursor"))
+            throw LedgerPayload.Bad("フォーカス指定は1件とし、カーソルと同時に指定しないでください。", "focusTransferId");
+        var value = focus.ToString();
+        if (value.Length != 36) throw LedgerPayload.Bad("UUIDをD形式で指定してください。", "focusTransferId");
+        var id = ReceiptPayload.Uuid(value, "focusTransferId");
+        // 振替だけの追加項目を取り除き、レシート共通の5項目検証自体は変更しない。
+        var remaining = new QueryCollection(query.Where(item => item.Key != "focusTransferId")
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal));
+        return new(ReceiptListQuery.Read(remaining), id);
+    }
 
     private string Fingerprint(string ledger) => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { LedgerId = ledger, Filter.Month, Filter.OwnerPersonId, Filter.PaymentMethodId, Filter.Search })));
     private static IDataProtector Protector(IDataProtectionProvider provider) => provider.CreateProtector("Monetail.TransferList.Cursor.v1");
