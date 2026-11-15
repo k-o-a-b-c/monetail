@@ -43,7 +43,7 @@ public sealed partial class LedgerManagementService
         var page = rows.Take(100).Select(row => new
         {
             receiptId = D(row.ReceiptId), transactionAt = row.TransactionAt, shopName = row.ShopName, shopLocation = row.ShopLocation,
-            paymentMethodId = D(row.PaymentMethodId), totalAmount = row.TotalAmount, memo = row.Memo
+            paymentMethodId = D(row.PaymentMethodId), totalAmount = row.TotalAmount, memo = ReceiptPayload.NormalizeMemo(row.Memo)
         }).ToArray();
         return new { receipts = page, nextCursor = rows.Length > 100 ? filter.Next(ledger, rows[99].TransactionAt, rows[99].ReceiptId, protection) : null };
     }, token);
