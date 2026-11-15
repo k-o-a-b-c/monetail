@@ -7,13 +7,21 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1583 |
+| ASP.NET Core API | 1609 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 2646 |
+| 合計 | 2672 |
+
+## 振替詳細GET
+
+[TransferApiTests.cs](Monetail.Api.Tests/TransferApiTests.cs)に実HTTP/本番DI/Identity/隔離SQLiteの26件を追加。既存`ReceiptApiTests`のfixtureを共用し、8項目のみ・外側ラッパーなし・UUID小文字D形式・ローカル秒精度・Int32整数・監査情報非公開、NULL/旧空文字メモのnull応答と空白保持、全ロール/人物未対応/他人所有の閲覧、同一IDの家計簿別分離を確認する。不正ID400/field、非参加/不存在404（全体Adminも参加必須）、匿名/期限切れ/失効401、取得途中の参加解除/認証失効/保存障害、共有120回枠429・既存GETのOrigin境界、全表非変更、一覧/書込ルートを追加していないことを検証する。
+
+ローカルReleaseの最小1件が成功。追加26件の初回は25件成功/1件失敗で、別家計簿のテスト準備SQLに必須`display_order`指定が漏れていた。準備SQLだけを修正し、当該ケースと既存読取/DB/認証/初期化関連164件が成功（段階間に重複あり、最終関連検証の失敗/skipなし）。製品制約/テスト判定は緩和していない。基点main `883a374c61cfeaf13567e2032af2cba2302655e9`の[push Tests 43672912611](https://github.com/k-o-a-b-c/monetail/actions/runs/43672912611)成功を変更前の根拠にする。最終全API検証はCIに集約し、未変更のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用する。
+
+ソース`63dd42bf67e161b3214b7ae39f236ab5a4a2f186`の[Tests 43673646591](https://github.com/k-o-a-b-c/monetail/actions/runs/43673646591)でAPI全1609件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブの検証が成功。文書内ローカル参照97件・差分検査も成功。実運用DB/NAS・実Windowsからの接続は未検証。振替一覧/候補/補完/書込API・Client/WinUI・DB/Migrationは変更していない。
 
 ## 振替DB：確定範囲の実装
 

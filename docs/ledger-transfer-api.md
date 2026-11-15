@@ -1,8 +1,14 @@
-# 振替API契約（確定範囲・未実装）
+# 振替API契約（詳細GETのみ実装済み）
 
-更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。レシート既存APIの実装済み状況と混同しない。
+更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。`GET /ledgers/{ledgerId}/transfers/{transferId}`のみ実装済み。レシート既存APIおよび後続の振替一覧・候補・補完・書込APIの実装状態と区別する。
 
 参照：[入口・残課題](ledger-transfer.md)／[DB・値域](ledger-transfer-db.md)／[WinUI画面](ledger-transfer-ui.md)／[レシートAPI](ledger-receipt-api.md)／[共通再送](ledger-operation-retries.md)。
+
+## 実装範囲
+
+詳細GETは既存レシートの認証/DB準備フィルター、`LedgerApiFilter`、UUID入力検証、共有参照レート制限を利用する。`LedgerManagementService.InLedgerAsync`で読取前後の認証・現在参加を検証し、家計簿ID＋振替IDで参照する。下記8項目の応答を整形するだけで保存値・監査列・更新版・再送記録は変更しない。実装/検証結果は[tests/README.md](../tests/README.md#振替詳細get)を参照。
+
+一覧GET・候補・補完・POST/PUT/DELETEは未実装。以下の確定契約の記述は、これらの完了を意味しない。
 
 ## 権限（確定・API強制）
 
