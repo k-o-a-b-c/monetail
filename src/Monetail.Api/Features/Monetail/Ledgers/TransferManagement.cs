@@ -12,8 +12,11 @@ public sealed partial class LedgerManagementService
         {
             var row = await context.Set<LedgerTransfer>().AsNoTracking()
                 .SingleOrDefaultAsync(row => row.LedgerId == ledger && row.Id == id, token) ?? throw Missing();
-            return new TransferInfo(D(row.Id), row.TransactionAt.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
-                row.Name, D(row.FromPaymentMethodId), D(row.ToPaymentMethodId), row.Amount,
-                row.Memo == "" ? null : row.Memo, D(row.Revision));
+            return TransferDetails(row);
         }, token);
+
+    private static TransferInfo TransferDetails(LedgerTransfer row) =>
+        new TransferInfo(D(row.Id), row.TransactionAt.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
+            row.Name, D(row.FromPaymentMethodId), D(row.ToPaymentMethodId), row.Amount,
+            row.Memo == "" ? null : row.Memo, D(row.Revision));
 }

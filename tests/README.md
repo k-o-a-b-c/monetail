@@ -7,13 +7,23 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1830 |
+| ASP.NET Core API | 1932 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 2893 |
+| 合計 | 2995 |
+
+## 振替PUT：更新
+
+[TransferUpdateTests.cs](Monetail.Api.Tests/TransferUpdateTests.cs)・[入力](Monetail.Api.Tests/TransferUpdateInputTests.cs)・[権限](Monetail.Api.Tests/TransferUpdateAccessTests.cs)・[安全性](Monetail.Api.Tests/TransferUpdateSafetyTests.cs)・[再送](Monetail.Api.Tests/TransferUpdateReplayTests.cs)に102件を追加。既存の本番DI/実HTTP/隔離SQLite fixtureを使い、8項目の厳密JSON、UUID v4/UTF-16/ローカル日時/金額/メモ、変更前後4か所の所有権、各ロール、別家計簿、両マスタの期間端点を検証する。通常更新の監査2項目変更/作成監査保持、別操作者、無変更時の振替UPDATE禁止・空文字/null同値、原子的な旧版条件、最新8項目、競合時の非公開、並行保存/同時再送、異内容/版/対象/操作者/操作の要求ID競合、再起動後再送、権限/認証/人物対応/所有権/期間変化と途中失敗の全表ロールバック、既存20回共有枠・CSRF/Originを確認する。未実装ルート保護の既存試験はPUTだけを実装済みに変更し、詳細POST/DELETEの拒否を維持する。
+
+ローカルReleaseは最小2件→追加85件（83成功/2失敗）→失敗2件と新規17件（18成功/1失敗）→該当1件成功。初回2失敗は試験準備の人物作成応答参照を既存の一覧形式へ修正。次の1失敗は旧空文字メモの模擬値が現行CHECKで拒否されたため、既存GET試験と同じくテスト準備専用接続だけでCHECKを一時無効化し、API接続では制約を維持した。製品側の条件や既存試験は緩和していない。段階間には重複があり、既存POST/詳細GET/未実装ルート保護の代表7件も成功。全APIのローカル再実行は行わない。
+
+ソース`508664dfc1e64747ec0dd8b96da5280200acd303`の[Tests 43692823414](https://github.com/k-o-a-b-c/monetail/actions/runs/43692823414)でAPI全1932件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合が成功。Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全も成功。変更文書のローカル参照122件・差分検査を確認した。
+
+変更前は基点main `4b3eb60c9833603eff7213274c71eacd96a5a0a2`の[push Tests 43691688172](https://github.com/k-o-a-b-c/monetail/actions/runs/43691688172)成功を採用。影響外のClient/WinUI/旧Windows/性能等はCIの既存選択・fingerprintによる成功記録再利用に従う。実運用DBは変更せず、実NAS/実Windowsからの接続・実運用データでの検証は未実施。DELETE/候補/補完・Client/WinUI・DB/索引/Migrationは変更していない。
 
 ## 振替POST（新規登録）
 
