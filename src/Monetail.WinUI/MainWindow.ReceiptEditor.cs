@@ -65,7 +65,7 @@ public sealed partial class MainWindow
         if (busy || closed || ManagementDialogOpen || receiptOpening is not null || receiptEditor is not null || account is null || currentLedger is null || HomePage.Visibility != Visibility.Visible) return;
         var ledger = currentLedger.LedgerId; var person = account.AuthUserId;
         var api = connection.Api; var session = connection.Session;
-        var initial = new ReceiptHeaderDraft { TransactionAt = DateTime.Today, ShopLocation = "", Memo = "", TaxInclusionMode = 0, TaxRoundingMode = "floor" };
+        var initial = new ReceiptHeaderDraft { TransactionAt = DateTime.Today, ShopLocation = "", Memo = null, TaxInclusionMode = 0, TaxRoundingMode = "floor" };
         using var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         receiptOpening = pending; receiptOpenRetryId = receiptId; ReceiptOpenRetry.Visibility = Visibility.Collapsed; NewReceiptButton.IsEnabled = false;
         ReceiptOpenNotice.Visibility = Visibility.Visible; ReceiptOpenProgress.IsActive = true; ReceiptOpenMessage.Text = "レシートを読み込み中…";
@@ -135,6 +135,7 @@ public sealed partial class MainWindow
         ReceiptTime.Text = DateTimeInput.FormatTime(header.TransactionAt is DateTime time ? TimeOnly.FromDateTime(time) : null);
         ReceiptShopName.Text = header.ShopName; ReceiptShopLocation.Text = header.ShopLocation ?? ""; ReceiptMemo.Text = header.Memo ?? "";
         receiptInitialMemoText = ReceiptMemo.Text;
+        ReceiptMemoError.Visibility = ReceiptMemo.Text.Length > 100 ? Visibility.Visible : Visibility.Collapsed;
         RenderReceiptTaxValues();
         ReceiptIntervalError.Visibility = Visibility.Collapsed;
         ReceiptInterval.Text = header.RecurrenceInterval?.ToString(CultureInfo.InvariantCulture) ?? ""; SetReceiptChoice(ReceiptUnit, header.RecurrenceUnit ?? "Month");
@@ -174,7 +175,8 @@ public sealed partial class MainWindow
             TimeOnly.TryParseExact(ReceiptTime.Text, "HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)) header.TransactionAt = date.ToDateTime(time);
         header.ShopName = ReceiptShopName.Text;
         header.ShopLocation = ReceiptOptionalText(ReceiptShopLocation.Text, receiptInitialLocation);
-        header.Memo = ReceiptOptionalText(ReceiptMemo.Text, receiptInitialMemo, receiptInitialMemoText);
+        header.Memo = ReceiptMemoValue.Normalize(ReceiptOptionalText(ReceiptMemo.Text, receiptInitialMemo, receiptInitialMemoText));
+        ReceiptMemoError.Visibility = ReceiptMemo.Text.Length > 100 ? Visibility.Visible : Visibility.Collapsed;
         if (ReceiptEditorPayment.SelectedItem is ReceiptFilterChoice payment) header.PaymentMethodId = payment.Id;
         header.TaxInclusionMode = ReceiptTaxIncluded.IsChecked == true ? 0 : ReceiptTaxExcluded.IsChecked == true ? 1 : null;
         header.TaxRoundingMode = ReceiptTaxFloor.IsChecked == true ? "floor" : ReceiptTaxHalfUp.IsChecked == true ? "half_up" : null;
@@ -287,7 +289,7 @@ public sealed partial class MainWindow
     {
         if (!receiptEditorRendering && receiptEditor is { SelectedGroup: { } group } state)
         {
-            var value = ReceiptOptionalText(ReceiptCategoryMemo.Text, receiptInitialGroupMemos.GetValueOrDefault(group.Key), receiptInitialGroupMemoTexts.GetValueOrDefault(group.Key));
+            var value = ReceiptMemoValue.Normalize(ReceiptOptionalText(ReceiptCategoryMemo.Text, receiptInitialGroupMemos.GetValueOrDefault(group.Key), receiptInitialGroupMemoTexts.GetValueOrDefault(group.Key)));
             if (value != group.Memo) state.SetGroupMemo(value);
         }
     }
