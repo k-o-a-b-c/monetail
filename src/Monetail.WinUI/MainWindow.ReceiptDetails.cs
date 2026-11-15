@@ -88,7 +88,7 @@ public sealed partial class MainWindow
         input.UnitDiscountAmount = ReceiptItemDiscount.Text; input.DiscountRate = ReceiptItemRateDiscount.Text;
         input.Values.Tax = ReceiptItemTax.SelectedItem is ComboBoxItem { Tag: ReceiptTaxSelection tax } ? tax : ReceiptTaxSelection.Unselected;
         input.Values.ExpenseType = ReceiptChoice(ReceiptItemExpense) ?? ""; input.Values.OccurrenceType = ReceiptChoice(ReceiptItemOccurrence) ?? "";
-        input.Values.Memo = ReceiptOptionalText(ReceiptItemMemo.Text, receiptDetailInitialMemo, receiptDetailInitialMemoText);
+        input.Values.Memo = ReceiptMemoValue.Normalize(ReceiptOptionalText(ReceiptItemMemo.Text, receiptDetailInitialMemo, receiptDetailInitialMemoText));
         input.Values.PersonIds.Clear(); input.Values.PersonIds.AddRange(ReceiptDetailPeople.Children.OfType<CheckBox>().Where(c => c.IsChecked == true).Select(c => (Guid)c.Tag));
         // 完全に解析できる間は可変下書きだけ同期。失敗時は生文字列を保護し、保存済み行には触れない。
         if (receiptEditor?.Draft is { } draft)
