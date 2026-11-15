@@ -9,13 +9,14 @@ public sealed record TransferInfo(Guid TransferId, DateTime TransactionAt, strin
 public sealed record TransferSuggestionsInfo(string[] Suggestions, bool HasMore);
 public sealed record TransferAutofillInfo(Guid? FromPaymentMethodId, Guid? ToPaymentMethodId);
 
-public sealed class TransferRequestException(HttpStatusCode status, string? code, string? field, PeoplePermissions? permissions = null)
-    : Exception("振替の取得を完了できませんでした。")
+public sealed class TransferRequestException(HttpStatusCode status, string? code, string? field, PeoplePermissions? permissions = null, TransferInfo? latestTransfer = null)
+    : Exception("振替の操作を完了できませんでした。")
 {
     public HttpStatusCode StatusCode { get; } = status;
     public string? Code { get; } = code;
     public string? Field { get; } = field;
     public PeoplePermissions? Permissions { get; } = permissions;
+    public TransferInfo? LatestTransfer { get; } = latestTransfer;
 }
 
 public sealed partial class MonetailApiClient
@@ -31,8 +32,7 @@ public sealed partial class MonetailApiClient
     {
         TransferQueries.Id(transferId, "transferId");
         var row = await SendTransferAsync<TransferInfo>($"{TransferPath(ledgerId)}/transfers/{transferId:D}", access, token, stream: true);
-        if (row.TransferId != transferId) throw new ApiConnectionException();
-        return row with { Memo = CheckTransfer(row.Name, row.FromPaymentMethodId, row.ToPaymentMethodId, row.Amount, row.Memo) };
+        return ValidateTransfer(row, transferId);
     }
     public async Task<TransferSuggestionsInfo> GetTransferSuggestionsAsync(string access, Guid ledgerId, TransferSuggestionQuery query, CancellationToken token = default)
     {
@@ -53,6 +53,11 @@ public sealed partial class MonetailApiClient
             stream ? TransferJson.ReadAsync<T> : async (content, ct) => TransferJson.Read<T>(await ReadBoundedAsync(content, ct)),
             failure: ReadTransferFailure, includeStoreFailure: true, successStatus: HttpStatusCode.OK);
     private static string TransferPath(Guid ledgerId) { TransferQueries.Id(ledgerId, "ledgerId"); return $"ledgers/{ledgerId:D}"; }
+    private static TransferInfo ValidateTransfer(TransferInfo row, Guid transferId)
+    {
+        if (row.TransferId != transferId) throw new ApiConnectionException();
+        return row with { Memo = CheckTransfer(row.Name, row.FromPaymentMethodId, row.ToPaymentMethodId, row.Amount, row.Memo) };
+    }
     private static string? CheckTransfer(string name, Guid from, Guid to, int amount, string? memo)
     {
         if (string.IsNullOrWhiteSpace(name) || name.Length > 100 || from == to || amount <= 0 || memo?.Length > 100 ||
