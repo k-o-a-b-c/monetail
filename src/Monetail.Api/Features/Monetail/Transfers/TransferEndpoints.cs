@@ -14,19 +14,14 @@ public static class TransferEndpoints
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
             .RequireAuthorization().AddEndpointFilter<AuthRequestFilter>().AddEndpointFilter<LedgerApiFilter>()
             .RequireRateLimiting(LedgerRateLimits.ReadPolicy);
+        app.MapGet("/ledgers/{ledgerId}/transfer-autofill", async (string ledgerId, HttpContext http, LedgerManagementService service) =>
+            Results.Ok(await service.TransferAutofillAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), http.Request.Query,
+                (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
+            .RequireAuthorization().AddEndpointFilter<AuthRequestFilter>().AddEndpointFilter<LedgerApiFilter>()
+            .AddEndpointFilter(WithPublicPermissionIdsAsync).RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         var routes = app.MapGroup("/ledgers/{ledgerId}/transfers").RequireAuthorization()
             .AddEndpointFilter<AuthRequestFilter>().AddEndpointFilter<LedgerApiFilter>()
-            .AddEndpointFilter(async (invocation, next) =>
-            {
-                try { return await next(invocation); }
-                catch (LedgerApiFault error)
-                {
-                    // レシートと同じく、共通エラーの人物IDもAPIではD形式にする。
-                    if (error.Permissions is { MyPersonId: not null } permission)
-                        error.WithPermissions(permission with { MyPersonId = Guid.Parse(permission.MyPersonId).ToString("D") });
-                    throw;
-                }
-            });
+            .AddEndpointFilter(WithPublicPermissionIdsAsync);
         routes.MapGet("", async (string ledgerId, HttpContext http, LedgerManagementService service, IDataProtectionProvider protection) =>
             Results.Ok(await service.ListTransfersAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), http.Request.Query, protection,
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
@@ -55,5 +50,17 @@ public static class TransferEndpoints
             Results.Ok(await service.GetTransferAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(transferId, "transferId"),
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
             .RequireRateLimiting(LedgerRateLimits.ReadPolicy);
+    }
+
+    private static async ValueTask<object?> WithPublicPermissionIdsAsync(EndpointFilterInvocationContext invocation, EndpointFilterDelegate next)
+    {
+        try { return await next(invocation); }
+        catch (LedgerApiFault error)
+        {
+            // 共通エラーの人物IDも、振替APIではD形式にする。
+            if (error.Permissions is { MyPersonId: not null } permission)
+                error.WithPermissions(permission with { MyPersonId = Guid.Parse(permission.MyPersonId).ToString("D") });
+            throw;
+        }
     }
 }
