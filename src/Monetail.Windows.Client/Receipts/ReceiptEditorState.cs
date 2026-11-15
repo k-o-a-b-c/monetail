@@ -33,7 +33,7 @@ public sealed class ReceiptEditorState
         Action<ReceiptDetailSnapshot>? validateDetail, Action<ReceiptSnapshot>? validateSnapshot)
     {
         this.defaults = defaults ?? throw new ArgumentNullException(nameof(defaults)); this.validateDetail = validateDetail; this.validateSnapshot = validateSnapshot;
-        Header = header.Copy(); ReceiptId = receipt?.ReceiptId; Revision = receipt?.Revision;
+        Header = header.Copy(); Header.Memo = ReceiptMemoValue.Normalize(Header.Memo); ReceiptId = receipt?.ReceiptId; Revision = receipt?.Revision;
         if (receipt is not null)
         {
             ReceiptQueries.Id(receipt.ReceiptId, "receiptId"); ReceiptQueries.Id(receipt.Revision, "revision");
@@ -110,7 +110,7 @@ public sealed class ReceiptEditorState
         var draft = new ReceiptDetailDraft { ExpenseType = expense, Tax = settings.Tax }; draft.PersonIds.AddRange(people); return draft;
     }
     private void SetDraft(ReceiptDetailDraft? value) { Draft = value; draftBaseline = value?.Copy(); }
-    public void SetGroupMemo(string? memo) { Ready(); var group = SelectedGroup ?? throw new ReceiptInputException("categoryId", "科目を選択してください。"); group.Memo = memo; }
+    public void SetGroupMemo(string? memo) { Ready(); var group = SelectedGroup ?? throw new ReceiptInputException("categoryId", "科目を選択してください。"); group.Memo = ReceiptMemoValue.Normalize(memo); }
 
     /// <summary>追加/更新と同じ検証だけを実行し、明細・下書き・選択を変更しない。</summary>
     public void ValidateDraft() => _ = PrepareDetail();
@@ -175,7 +175,7 @@ public sealed class ReceiptEditorState
         T Required<T>(T? value, string field) where T : struct => value ?? throw new ReceiptInputException(field, "入力してください。");
         var keepIds = kind == ReceiptSaveKind.Update;
         var snapshot = new ReceiptSnapshot(Required(Header.TransactionAt, "transactionAt"), Header.ShopName, Header.ShopLocation, Required(Header.PaymentMethodId, "paymentMethodId"),
-            Required(Header.TaxInclusionMode, "taxInclusionMode"), Header.TaxRoundingMode!, Header.RecurrenceInterval, Header.RecurrenceUnit, Header.Memo,
+            Required(Header.TaxInclusionMode, "taxInclusionMode"), Header.TaxRoundingMode!, Header.RecurrenceInterval, Header.RecurrenceUnit, ReceiptMemoValue.Normalize(Header.Memo),
             groups.Select((g, i) => CaptureGroup(g, i, keepIds)).ToArray());
         ReceiptWriteRequest.ValidateSnapshot(snapshot); validateSnapshot?.Invoke(snapshot);
         return new(kind, keepIds ? ReceiptId : null, keepIds ? Revision : null, snapshot);
@@ -183,7 +183,7 @@ public sealed class ReceiptEditorState
     private static ReceiptGroupSnapshot CaptureGroup(ReceiptEditGroup group, int index, bool keepIds)
     {
         var original = group.IsOriginalOrder;
-        return new(keepIds ? group.GroupId : null, group.CategoryId, group.Memo, group.Rows.Select((d, i) =>
+        return new(keepIds ? group.GroupId : null, group.CategoryId, ReceiptMemoValue.Normalize(group.Memo), group.Rows.Select((d, i) =>
             d.Stored.Snapshot(keepIds ? d.DetailId : null, group.Order(i, original), $"groups[{index}].details[{i}]")).ToArray());
     }
     private bool SameGroups()
@@ -193,7 +193,7 @@ public sealed class ReceiptEditorState
         {
             var original = baselineGroups.GetValueOrDefault(current.CategoryId);
             var orderUnchanged = current.IsOriginalOrder;
-            if (original is null || original.Id != current.GroupId || original.Memo != current.Memo || original.Details.Length != current.Rows.Count) return false;
+            if (original is null || original.Id != current.GroupId || ReceiptMemoValue.Normalize(original.Memo) != ReceiptMemoValue.Normalize(current.Memo) || original.Details.Length != current.Rows.Count) return false;
             for (var i = 0; i < current.Rows.Count; i++)
                 if (original.Details[i].Id != current.Rows[i].DetailId || original.Details[i].Order != current.Order(i, orderUnchanged) || !original.Details[i].Values.Same(current.Rows[i].Stored)) return false;
         }
