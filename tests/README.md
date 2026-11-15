@@ -9,11 +9,19 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取） | 927 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3203 |
+| 合計 | 3352 |
+
+## Windows Client：振替読取4種類
+
+[基本応答](Monetail.Windows.Client.Tests/TransfersWorkspaceTests.cs)・[クエリ](Monetail.Windows.Client.Tests/TransferReadQueryTests.cs)・[厳密JSON/境界](Monetail.Windows.Client.Tests/TransferReadBoundaryTests.cs)・[ストリーム/サイズ](Monetail.Windows.Client.Tests/TransferReadStreamingTests.cs)・[業務エラー](Monetail.Windows.Client.Tests/TransferReadErrorsTests.cs)・[認証/通信](Monetail.Windows.Client.Tests/TransferReadAuthenticationTests.cs)に合成HTTPの145ケースを追加。4種類のURL/省略と空文字/元表記/不透明cursor/focus、7/8項目と必須NULL・不正型/重複プロパティ/ID、ローカル秒精度・Int32/UTF-16境界、100件・元文字列候補と重複・両null補完を検証する。認証更新時の同一GET、別アカウント/家計簿の分離、403/404権限情報と429/503、通信断/実10秒タイムアウト/利用者キャンセルも確認する。64KiB超の一覧/詳細はストリームで成功し、候補/補完/エラーはContent-Lengthあり/なしとも64KiB制限を維持する。
+
+ローカルReleaseは最小2件→追加141件→強化した境界8件→既存レシートを含むClient全927件が成功（段階間に重複あり、最終の失敗/skipなし）。関連試験の初回はテスト準備のJSON文字列のC#構文エラーで未実行となり、JSON生成へ直して実行した。新規ケース数はテスト検出でも145件と照合。既存の件数表778件とは別に、現在の全件実行結果927件で表を更新した。レシートClient・API/DB・WinUIは変更せず、自動再検索/補完適用は追加していない。実API/NAS接続・実Windowsの手動操作は未検証。
+
+基点main `6e27aa9746716723732d842d7d071ca101d34e3a`の[push Tests 43748582010](https://github.com/k-o-a-b-c/monetail/actions/runs/43748582010)成功を変更前の根拠とする。ソース`9c22ff5e6ef6fa3b701bb8733e310dd0efd5731b`の[Tests 43750933370](https://github.com/k-o-a-b-c/monetail/actions/runs/43750933370)でClient全927件・実DPAPI3件・Python75件、WinUI製品/検証用Releaseビルド・製品起動・1シナリオ449確認が成功。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は今回未変更）。API/Docker/旧Windows/性能等は既存の選択・fingerprintに従って再実行せず成功記録を再利用した。変更文書のローカル参照先153件・差分検査も成功。既存のテスト判定・タイムアウトは緩和していない。
 
 ## 振替自動補完GET
 
