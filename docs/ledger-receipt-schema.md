@@ -39,7 +39,7 @@
 | `recurrence_interval` | INTEGER NULL | 周期間隔。設定時は整数、1〜2,147,483,647（Int32） |
 | `recurrence_unit` | TEXT NULL | `Week` / `Month` / `Year` |
 | `total_amount` | INTEGER NOT NULL（確定） | 保存時に計算した合計を必ず保持。符号付きInt32範囲内。旧版のNULL値は移行時に個別対応 |
-| `memo` | TEXT NULL | レシート自由記述。旧`tag`相当 |
+| `memo` | TEXT NULL | レシート自由記述。旧`tag`相当。空欄は`null`、上限100 UTF-16コード単位 |
 | `revision` | TEXT NOT NULL | レシート単位の楽観的更新版（UUID v4） |
 | `created_by_auth_user_id` | TEXT NOT NULL | 作成した認証アカウントID |
 | `created_at_utc` | TEXT NOT NULL | 作成UTC日時 |
@@ -65,7 +65,7 @@
 | `group_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `receipt_id` | TEXT NOT NULL | 同一家計簿レシートへのFK |
 | `category_id` | TEXT NOT NULL | 同一家計簿科目へのFK |
-| `memo` | TEXT NULL | グループ自由記述 |
+| `memo` | TEXT NULL | グループ自由記述。空欄は`null`、長さ上限は未決定 |
 
 - **同一レシート・同一科目のグループは1件**。率が異なってもグループを分割しない。
 - 重複禁止は通常の複合UNIQUE索引1本。`category_id`はNOT NULLであり、税率がグループにないため、税率NULL用の部分UNIQUE索引は不要。
@@ -97,7 +97,7 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 | `tax_rate` | TEXT NULL | **実税率（%）、Decimal。NULL=非課税、'0'=課税0%** |
 | `expense_type` | TEXT NOT NULL | `Fixed` / `Variable` / `Excluded` |
 | `occurrence_type` | TEXT NOT NULL | `Regular` / `Irregular` / `Temporary` |
-| `memo` | TEXT NULL | 明細自由記述 |
+| `memo` | TEXT NULL | 明細自由記述。空欄は`null`、長さ上限は未決定 |
 
 - 明細金額：`x=(unit_price-unit_discount_amount)*quantity`、`discount_by_rate=Ceiling(x*discount_rate/100)`、`net=x-discount_by_rate`。**Decimalで計算し、従来の値引と税端数の規則を維持**。単価・値引額・数量・合計等はInt32範囲を検証し、超過ならAPIで保存拒否。入力値の0・100への自動補正は行わない。
 - `discount_rate`と`tax_rate`はDecimal文字列のTEXT保存。APIはInvariantCultureで解析・正規化して数値を比較し、`8`・`8.0`・`08`を同じ値として扱う。非課税NULLと課税0%は別物。形式・数値範囲をAPIで検証する。TEXTの辞書順で税率を比較しない。
@@ -107,9 +107,15 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 - **費用区分の初期値・選択肢は科目収支区分に依存**：収入科目は`Excluded`のみ、支出科目は`Fixed`/`Variable`/`Excluded`（初期値`Variable`）。`net`の正負に関係なくAPIでも検証する。
 - 発生区分は`Regular`/`Irregular`/`Temporary`、初期値`Irregular`。レシート周期ありなら少なくとも1明細がRegular。
 - 明細は`display_order ASC, detail_id ASC`で表示。順序は非負、同順序は許容しIDで安定ソートする。
-- 明細名の上限は**100 UTF-16コード単位（DEC-211）**。メモの長さ制約の扱いはまだ未決定であり、未承認の追加上限を作らない。
+- 明細名の上限は**100 UTF-16コード単位（DEC-211）**。**レシート親メモのみ100 UTF-16コード単位**とし、**科目グループ・明細メモの長さ上限は未決定**。これら2種に100制限を転用しない。
 
 レシート書込・読取の詳細なHTTP/JSON契約は[レシートAPI](ledger-receipt-api.md)、画面・履歴候補は[WinUI](ledger-receipt-ui.md)・[候補](ledger-receipt-suggestions.md)を参照。
+
+### メモの共通NULL正規化（親・科目グループ・明細）
+
+- **空欄はすべて`null`**。親／グループ／明細の`memo`に対し、APIのPOST/PUTで`null`と空文字`""`を受け付け、空文字は**検証・同値判定・保存の前に`null`へ正規化**する。GETの一覧・詳細・競合`latest`でも旧空文字を`null`として返す。JSONの`memo`キーを省略する契約には変えない。空白のみの文字列（`" "`など）は元のまま保持し、Trim・Unicode正規化・改行除去は新規に行わない。
+- **DBの補助制約**：親／グループ／明細の各`memo`は`TEXT NULL`を維持し、`CHECK (memo IS NULL OR length(memo) > 0)`を備える。親には100文字の補助CHECKも設ける場合、SQLiteの`length(TEXT)`はUTF-16コード単位ではなくコードポイントを数えるため、**厳密な100 UTF-16単位検証はAPI/Clientで実施**する。科目・明細メモには未承認の長さ上限を設けない。
+- **旧データ・無変更保存**：既存DBの空文字はGETで`null`扱い、無変更判定でも`null`と同値として扱う。読み取りだけでDBを自動更新せず、同じ業務値のPUTでは既存の更新版・監査列を変えない。保存済み空文字の物理的な是正は、既存DBを確認したうえで別途明示的に実施する。正式リリース前はMigrationを追加せず、新規`initialize-db`に最新の制約を適用する。
 
 ## 5. `ledger_receipt_detail_people`（対象人物）
 
