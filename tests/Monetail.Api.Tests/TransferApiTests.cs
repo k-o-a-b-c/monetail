@@ -137,10 +137,10 @@ public sealed partial class ReceiptApiTests
     }
 
     [Fact]
-    public async Task TransferDetailDoesNotAddDeleteOrDetailPostEndpoints()
+    public async Task TransferDetailDoesNotAddPostEndpoint()
     {
         await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
-        foreach (var method in new[] { HttpMethod.Post, HttpMethod.Delete })
+        foreach (var method in new[] { HttpMethod.Post })
         {
             using var request = new HttpRequestMessage(method, TransferPath(f, row.Id)); using var response = await f.Client.SendAsync(request); Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
         }

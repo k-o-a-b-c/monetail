@@ -40,6 +40,12 @@ public static class TransferEndpoints
                 await LedgerPayload.ReadAsync(http, TransferUpdateInput.Fields), (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted);
             return Results.NoContent();
         }).RequireRateLimiting(LedgerRateLimits.WritePolicy);
+        routes.MapDelete("/{transferId}", async (string ledgerId, string transferId, HttpContext http, LedgerManagementService service) =>
+        {
+            await service.DeleteTransferAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(transferId, "transferId"),
+                await LedgerPayload.ReadAsync(http, TransferDeleteInput.Fields), (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted);
+            return Results.NoContent();
+        }).RequireRateLimiting(LedgerRateLimits.WritePolicy);
         routes.MapGet("/{transferId}", async (string ledgerId, string transferId, HttpContext http, LedgerManagementService service) =>
             Results.Ok(await service.GetTransferAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(transferId, "transferId"),
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))

@@ -27,7 +27,7 @@ public sealed partial class LedgerManagementService
             if (old is not null) await Access(old.FromPaymentMethodId, old.ToPaymentMethodId);
             await Access(input.FromPaymentMethodId, input.ToPaymentMethodId);
             if (replay is not null) return new object();
-            if (old!.Revision != update.Revision) throw await TransferUpdateConflictAsync(ledger, id, owners, actor, token);
+            if (old!.Revision != update.Revision) throw await TransferConflictAsync(ledger, id, owners, actor, token);
             await ValidateTransferPeriodsAsync(ledger, input, token);
             await RequireMemberAsync(ledger, actor, Permission, token);
             var changed = old.TransactionAt != input.TransactionAt || old.Name != input.Name ||
@@ -41,7 +41,7 @@ public sealed partial class LedgerManagementService
                         .SetProperty(row => row.FromPaymentMethodId, input.FromPaymentMethodId).SetProperty(row => row.ToPaymentMethodId, input.ToPaymentMethodId)
                         .SetProperty(row => row.Amount, input.Amount).SetProperty(row => row.Memo, input.Memo).SetProperty(row => row.Revision, revision)
                         .SetProperty(row => row.UpdatedByAuthUserId, actor.Session.AuthUserId).SetProperty(row => row.UpdatedAtUtc, now), token);
-                if (count != 1) throw await TransferUpdateConflictAsync(ledger, id, owners, actor, token);
+                if (count != 1) throw await TransferConflictAsync(ledger, id, owners, actor, token);
                 Record(input.RequestId, "transfer.update", hash, id, actor); await context.SaveChangesAsync(token);
             }
             else
@@ -52,7 +52,7 @@ public sealed partial class LedgerManagementService
                     SELECT {input.RequestId},{"transfer.update"},{actor.Session.AuthUserId},{hash},{id},{Now}
                     WHERE EXISTS(SELECT 1 FROM ledger_transfers WHERE ledger_id={ledger} AND transfer_id={id} AND revision={update.Revision})
                     """, token);
-                if (count != 1) throw await TransferUpdateConflictAsync(ledger, id, owners, actor, token);
+                if (count != 1) throw await TransferConflictAsync(ledger, id, owners, actor, token);
             }
             await Access(old.FromPaymentMethodId, old.ToPaymentMethodId);
             await Access(input.FromPaymentMethodId, input.ToPaymentMethodId);
@@ -61,7 +61,7 @@ public sealed partial class LedgerManagementService
         }, token);
     }
 
-    private async Task<LedgerApiFault> TransferUpdateConflictAsync(string ledger, string id, HashSet<string> owners, CurrentSession actor, CancellationToken token)
+    private async Task<LedgerApiFault> TransferConflictAsync(string ledger, string id, HashSet<string> owners, CurrentSession actor, CancellationToken token)
     {
         var latest = await context.Set<LedgerTransfer>().AsNoTracking().SingleOrDefaultAsync(row => row.LedgerId == ledger && row.Id == id, token) ?? throw Missing();
         await ReceiptPaymentAccessAsync(ledger, latest.FromPaymentMethodId, owners, actor, token);
