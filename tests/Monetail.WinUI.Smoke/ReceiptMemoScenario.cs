@@ -75,6 +75,11 @@ public partial class App
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), next[index]));
             Check(group.Details.Count == 1 && editor.SelectedDetailKey == group.Details[0].Key && group.Details[0].Values.Memo == detailMemo,
                 $"{memo.Name}のEnterは次の項目へ移動するだけで追加/更新を実行しない");
+            // 空欄はモデル上のnullへ統一。元の改行入り値へ戻せば未保存変更を解除。
+            memo.Text = "";
+            await WaitForReceiptInput(root, memo.Name, () =>
+                (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) is null);
+            Check(Dirty(), $"{memo.Name}を消すと空欄はnullで、元の値との差は未保存になる");
             // ボタン上のEnterは実行操作なので、ここではメモへ明示的に戻して値戻しを確認する。
             memo.Focus(FocusState.Keyboard);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
@@ -83,6 +88,13 @@ public partial class App
             Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
                 $"{memo.Name}を表示時の値へ戻すと保存済み文字列と未変更判定を復元");
         }
+        var parentError = Find<TextBlock>(root, "ReceiptMemoError");
+        memos[0].Text = new string('x', 101);
+        await Wait(() => editor.Header.Memo?.Length == 101 && parentError.Visibility == Visibility.Visible);
+        Check(memos[0].Text.Length == 101, "親メモの超過値は切り詰めず入力欄に保持する");
+        memos[0].Text = parentMemo;
+        await Wait(() => editor.Header.Memo == parentMemo && parentError.Visibility == Visibility.Collapsed);
+        Check(!Dirty(), "親メモを元の値へ戻すとエラーと未保存変更が消える");
         // 他項目のイベント・再描画でも、表示上の改行処理をメモの編集として取り込まない。
         var shop = Find<TextBox>(root, "ReceiptShopName"); shop.Text = "一時変更"; await Wait(() => editor.Header.ShopName == "一時変更");
         shop.Text = "メモの確認"; await Wait(() => editor.Header.ShopName == "メモの確認");
