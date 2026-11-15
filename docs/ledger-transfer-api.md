@@ -37,8 +37,8 @@
 ### JSON応答と書込リクエスト（2026-11-15確定）
 
 - **一覧GET**は200 OKでトップレベルに`transfers`（0〜100件の前述7項目の配列）と`nextCursor`（次ページがあるとき不透明文字列、なければ`null`）の**2項目のみ**を返す。0件の場合も`{"transfers":[],"nextCursor":null}`とし、キーを省略しない。例の`nextCursor`はページング情報であり、振替1件のフィールドではない。
-- **詳細GET**は200 OKで振替の**8項目のJSONオブジェクトを直接**返す。`{"transfer":{...}}`のような外側ラッパーは付けない。一覧・詳細とも`memo`は文字列または`null`とし、キー自体は省略しない。
-- **POST本文**は`requestId`（UUID v4）と、業務入力の**6項目** `transactionAt`、`name`、`fromPaymentMethodId`、`toPaymentMethodId`、`amount`、`memo`を必須とする。`memo`のみ値`null`を許す。新規`transferId`・`revision`・監査情報は送らず、サーバー側で採番・記録する。
+- **詳細GET**は200 OKで振替の**8項目のJSONオブジェクトを直接**返す。`{"transfer":{...}}`のような外側ラッパーは付けない。一覧・詳細とも`memo`は文字列または`null`とし、キー自体は省略しない。旧保存値`""`は`null`として返す。
+- **POST本文**は`requestId`（UUID v4）と、業務入力の**6項目** `transactionAt`、`name`、`fromPaymentMethodId`、`toPaymentMethodId`、`amount`、`memo`を必須とする。`memo`のみ値`null`を許す。新規`transferId`・`revision`・監査情報は送らず、サーバー側で採番・記録する。 `memo:""`も受け付けるが、API保存前に`null`へ正規化する。空白のみの文字列はそのまま保持する（[メモの値と無変更PUT](ledger-transfer-db.md)）。
 - **PUT本文**はPOSTの`requestId`＋業務6項目に、更新対象の`revision`（UUID v4）を加えた**8項目**を必須とする。`transferId`はURLで指定し、本文に含めない。無変更PUTの判定と204応答は[業務値・DB契約](ledger-transfer-db.md)・本節の契約に従う。
 - **DELETE本文**は`requestId`（UUID v4）と`revision`（UUID v4）の**2項目だけ**を必須とする。対象`transferId`はURLで指定する。POST/PUT/DELETEの成功本文は従来どおり空とする。
 - API JSONのIDは小文字UUID D形式、取引日時は`yyyy-MM-ddTHH:mm:ss`、金額はInt32正整数のJSON数値とする。名前・メモの値域・検証は[業務値・DB契約](ledger-transfer-db.md)に従う。**POST・PUT・DELETEのJSON本文で未知のプロパティ・同名プロパティの重複・指定型と異なる値があればHTTP 400 `invalid_input`で拒否する**（2026-11-15確定）。必須項目欠落・不正UUID・値域違反も既存の同コードで拒否し、無断の型変換・上書き・黙殺をしない。`field`には判定可能な場合に問題の項目名を返す。一般のエラー本文は[振替API契約](ledger-transfer-api.md)の共通形式を使用する。
