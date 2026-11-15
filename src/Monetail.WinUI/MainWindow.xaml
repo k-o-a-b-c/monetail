@@ -40,10 +40,10 @@
                 <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
                     <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" />
                     <TextBlock Text="サーバーのURLを入力してください。" Style="{StaticResource Description}" />
-                    <TextBox x:Name="ServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url" />
+                    <TextBox x:Name="ServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url"  AutomationProperties.AutomationId="ServerUrl"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="ConnectButton" Content="接続" Click="Connect" Style="{ThemeResource AccentButtonStyle}" />
-                        <Button x:Name="ConnectionCancel" Content="キャンセル" Click="CancelConnection" Visibility="Collapsed" />
+                        <Button x:Name="ConnectButton" Content="接続" Click="Connect" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="ConnectButton"/>
+                        <Button x:Name="ConnectionCancel" Content="キャンセル" Click="CancelConnection" Visibility="Collapsed"  AutomationProperties.AutomationId="ConnectionCancel"/>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -51,8 +51,8 @@
         <Grid x:Name="LoginPage" Visibility="Collapsed" Padding="32">
             <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
                 <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
-                <Button x:Name="LoginButton" Content="ログイン" Click="Login" Style="{ThemeResource AccentButtonStyle}" />
-                <HyperlinkButton Content="接続先の変更" Click="ShowConnection" />
+                <Button x:Name="LoginButton" Content="ログイン" Click="Login" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="LoginButton"/>
+                <HyperlinkButton Content="接続先の変更" Click="ShowConnection"  AutomationProperties.AutomationId="LoginChangeConnection"/>
             </StackPanel>
         </Grid>
         <Grid x:Name="FailurePage" Visibility="Collapsed" Padding="32">
@@ -60,9 +60,9 @@
                 <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
                 <TextBlock x:Name="FailureMessage" Style="{StaticResource Description}" AutomationProperties.LiveSetting="Polite" />
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="RetryButton" Content="再試行" Click="RetryConnection" Style="{ThemeResource AccentButtonStyle}" />
-                    <Button Content="接続先の変更" Click="ShowConnection" />
-                    <Button Content="終了" Click="Exit" />
+                    <Button x:Name="RetryButton" Content="再試行" Click="RetryConnection" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="RetryButton"/>
+                    <Button Content="接続先の変更" Click="ShowConnection"  AutomationProperties.AutomationId="FailureChangeConnection"/>
+                    <Button Content="終了" Click="Exit"  AutomationProperties.AutomationId="FailureExit"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
@@ -70,9 +70,9 @@
             <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
                 <TextBlock Text="家計簿を選択" Style="{ThemeResource TitleTextBlockStyle}" />
                 <ListView x:Name="LedgerChoices" DisplayMemberPath="Name" SelectionMode="Single" MaxHeight="320"
-                          SelectionChanged="ChooseLedger" AutomationProperties.Name="参加している家計簿" />
+                          SelectionChanged="ChooseLedger" AutomationProperties.Name="参加している家計簿"  AutomationProperties.AutomationId="LedgerChoices"/>
                 <Button x:Name="OpenLedgerButton" Content="開く" IsEnabled="False" Click="OpenSelectedLedger"
-                        Style="{ThemeResource AccentButtonStyle}" />
+                        Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="OpenLedgerButton"/>
             </StackPanel>
         </Grid>
         <Grid x:Name="LedgerCreatePage" Visibility="Collapsed" Padding="32">
@@ -81,10 +81,10 @@
                     <TextBlock Text="家計簿の作成" Style="{ThemeResource TitleTextBlockStyle}" />
                     <TextBlock x:Name="NoLedgersNotice" Text="参加している家計簿はありません。&#x0a;参加する場合は、管理者から招待リンクを受け取ってください。"
                                Style="{StaticResource Description}" />
-                    <TextBox x:Name="NewLedgerName" Header="家計簿名" />
+                    <TextBox x:Name="NewLedgerName" Header="家計簿名"  AutomationProperties.AutomationId="NewLedgerName"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="CreateLedgerButton" Content="作成" Click="CreateLedger" Style="{ThemeResource AccentButtonStyle}" />
-                        <Button x:Name="CancelLedgerCreation" Content="キャンセル" Click="CancelCreation" />
+                        <Button x:Name="CreateLedgerButton" Content="作成" Click="CreateLedger" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="CreateLedgerButton"/>
+                        <Button x:Name="CancelLedgerCreation" Content="キャンセル" Click="CancelCreation"  AutomationProperties.AutomationId="CancelLedgerCreation"/>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -104,7 +104,7 @@
                 </Grid.ColumnDefinitions>
                 <Button x:Name="LedgerSelector" Click="ShowLedgerMenu" IsEnabled="False" Style="{StaticResource HeaderButton}"
                         HorizontalAlignment="Left" HorizontalContentAlignment="Stretch" MaxWidth="320" MinWidth="0"
-                        AutomationProperties.Name="家計簿の切替">
+                        AutomationProperties.Name="家計簿の切替" AutomationProperties.AutomationId="LedgerSelector">
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -117,15 +117,15 @@
                 </Button>
                 <Grid Grid.Column="1">
                     <Button x:Name="RecordButton" Content="記録" Style="{StaticResource HeaderButton}" FontWeight="SemiBold"
-                            AutomationProperties.ItemStatus="選択中" Click="ShowRecord" />
+                            AutomationProperties.ItemStatus="選択中" Click="ShowRecord"  AutomationProperties.AutomationId="RecordButton"/>
                     <Border Height="3" Width="32" CornerRadius="2" HorizontalAlignment="Center"
                             VerticalAlignment="Bottom" IsHitTestVisible="False"
                             Background="{ThemeResource AccentFillColorDefaultBrush}" />
                 </Grid>
-                <Button Grid.Column="2" Content="集計・分析" IsEnabled="False"
+                <Button Grid.Column="2" Content="集計・分析" IsEnabled="False" AutomationProperties.AutomationId="AnalyticsPlaceholder"
                         Style="{StaticResource HeaderButton}" HorizontalAlignment="Left" />
                 <Button x:Name="SettingsButton" Grid.Column="3" Click="ShowManagement"
-                        Style="{StaticResource HeaderButton}" Padding="12,12">
+                        Style="{StaticResource HeaderButton}" Padding="12,12" AutomationProperties.AutomationId="SettingsButton">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE713;" FontSize="16" />
                         <TextBlock Text="管理・設定" FontSize="16" />
@@ -156,7 +156,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="レシート" Style="{ThemeResource SubtitleTextBlockStyle}" />
                             <Button x:Name="NewReceiptButton" Grid.Column="1" Content="＋ 登録" Click="NewReceipt"
-                                    AutomationProperties.Name="レシートの登録" />
+                                    AutomationProperties.Name="レシートの登録"  AutomationProperties.AutomationId="NewReceiptButton"/>
                         </Grid>
                         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
                         <Grid Grid.Row="2" RowSpacing="12">
@@ -165,32 +165,32 @@
                                 <StackPanel x:Name="ReceiptOpenNotice" Visibility="Collapsed" Spacing="8">
                                     <ProgressRing x:Name="ReceiptOpenProgress" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"/>
                                     <TextBlock x:Name="ReceiptOpenMessage" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                    <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="Collapsed" Click="RetryReceiptOpen"/>
+                                    <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="Collapsed" Click="RetryReceiptOpen" AutomationProperties.AutomationId="ReceiptOpenRetry"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="ReceiptPrevious" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom"/>
+                                    <Button x:Name="ReceiptPrevious" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptPrevious"/>
                                     <TextBox x:Name="ReceiptMonth" Header="年月" PlaceholderText="YYYY-MM" Width="112"
-                                             TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown"/>
-                                    <Button x:Name="ReceiptNextMonth" Content="翌月" Click="MoveReceiptMonth" VerticalAlignment="Bottom"/>
-                                    <CheckBox x:Name="ReceiptAllPeriods" Content="全期間" Checked="ReceiptPeriodChanged" Unchecked="ReceiptPeriodChanged" VerticalAlignment="Bottom"/>
+                                             TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptMonth"/>
+                                    <Button x:Name="ReceiptNextMonth" Content="翌月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptNextMonth"/>
+                                    <CheckBox x:Name="ReceiptAllPeriods" Content="全期間" Checked="ReceiptPeriodChanged" Unchecked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptAllPeriods"/>
                                 </StackPanel>
                                 <TextBlock x:Name="ReceiptMonthError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                                 <TextBlock x:Name="ReceiptAppliedMonth" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <Grid ColumnSpacing="12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="ReceiptOwner" Header="支払者" DisplayMemberPath="Name" SelectionChanged="ReceiptOwnerChanged" HorizontalAlignment="Stretch"/>
-                                    <ComboBox x:Name="ReceiptPayment" Grid.Column="1" Header="支払方法" DisplayMemberPath="Name" SelectionChanged="ReceiptPaymentChanged" HorizontalAlignment="Stretch"/>
+                                    <ComboBox x:Name="ReceiptOwner" Header="支払者" DisplayMemberPath="Name" SelectionChanged="ReceiptOwnerChanged" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ReceiptOwner"/>
+                                    <ComboBox x:Name="ReceiptPayment" Grid.Column="1" Header="支払方法" DisplayMemberPath="Name" SelectionChanged="ReceiptPaymentChanged" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ReceiptPayment"/>
                                 </Grid>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown"/>
-                                    <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Click="ApplyReceiptText" VerticalAlignment="Bottom"/>
+                                    <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptShop"/>
+                                    <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Click="ApplyReceiptText" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptSearchButton"/>
                                 </Grid>
                             </StackPanel>
                             <Grid Grid.Row="1">
                                 <ListView x:Name="ReceiptList" SelectionMode="Single" SelectionChanged="ReceiptSelected" DoubleTapped="ReceiptDoubleTapped" Loaded="ReceiptListLoaded" LayoutUpdated="ReceiptLayoutChanged"
                                           HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                          AutomationProperties.Name="レシート一覧">
+                                          AutomationProperties.Name="レシート一覧" AutomationProperties.AutomationId="ReceiptList">
                                     <ListView.Header>
                                         <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -218,9 +218,9 @@
                                             </StackPanel>
                                             <StackPanel x:Name="ReceiptNextFailure" Visibility="Collapsed" Spacing="8">
                                                 <TextBlock Text="読み込みに失敗しました" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                                <Button x:Name="ReceiptNextRetry" Content="再試行" Click="RetryReceipt"/>
+                                                <Button x:Name="ReceiptNextRetry" Content="再試行" Click="RetryReceipt" AutomationProperties.AutomationId="ReceiptNextRetry"/>
                                             </StackPanel>
-                                            <Button x:Name="ReceiptContinue" Content="続きを読み込む" Visibility="Collapsed" Click="ContinueReceipt"/>
+                                            <Button x:Name="ReceiptContinue" Content="続きを読み込む" Visibility="Collapsed" Click="ContinueReceipt" AutomationProperties.AutomationId="ReceiptContinue"/>
                                         </StackPanel>
                                     </ListView.Footer>
                                 </ListView>
@@ -230,7 +230,7 @@
                                 <TextBlock x:Name="ReceiptEmpty" Text="該当するレシートがありません" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                 <StackPanel x:Name="ReceiptInitialFailure" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
                                     <TextBlock x:Name="ReceiptInitialError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                    <Button x:Name="ReceiptInitialRetry" Content="再試行" Click="RetryReceipt"/>
+                                    <Button x:Name="ReceiptInitialRetry" Content="再試行" Click="RetryReceipt" AutomationProperties.AutomationId="ReceiptInitialRetry"/>
                                 </StackPanel>
                             </Grid>
                         </Grid>
@@ -250,7 +250,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="資金移動" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
                             <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
-                                    AutomationProperties.Name="資金移動の登録" />
+                                    AutomationProperties.Name="資金移動の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder" />
                         </Grid>
                         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
                         <TextBlock Grid.Row="2" Text="資金移動の機能は今後追加します。" Style="{StaticResource Description}" />
@@ -270,7 +270,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
                             <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
-                                    AutomationProperties.Name="残高の登録" />
+                                    AutomationProperties.Name="残高の登録" AutomationProperties.AutomationId="BalanceRegisterPlaceholder" />
                         </Grid>
                         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
                         <TextBlock Grid.Row="2" Text="残高登録の機能は今後追加します。" Style="{StaticResource Description}" />
@@ -285,28 +285,28 @@
                         <Grid x:Name="ReceiptHeaderRow1" ColumnSpacing="12" RowSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <input:DateInputBox x:Name="ReceiptDate" Header="取引日" AllowEmpty="False" TextChanged="ReceiptParentTextChanged"/>
-                            <input:TimeInputBox x:Name="ReceiptTime" Grid.Column="1" Header="時刻" AllowEmpty="False" TextChanged="ReceiptParentTextChanged"/>
+                            <input:DateInputBox x:Name="ReceiptDate" Header="取引日" AllowEmpty="False" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptDate"/>
+                            <input:TimeInputBox x:Name="ReceiptTime" Grid.Column="1" Header="時刻" AllowEmpty="False" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptTime"/>
                         </Grid>
                         <Grid x:Name="ReceiptHeaderRow2" ColumnSpacing="12" RowSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBox x:Name="ReceiptShopName" Header="店名" TextChanged="ReceiptParentTextChanged"/>
-                            <TextBox x:Name="ReceiptShopLocation" Grid.Column="1" Header="店舗所在地" TextChanged="ReceiptParentTextChanged"/>
+                            <TextBox x:Name="ReceiptShopName" Header="店名" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptShopName"/>
+                            <TextBox x:Name="ReceiptShopLocation" Grid.Column="1" Header="店舗所在地" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptShopLocation"/>
                         </Grid>
                         <Grid x:Name="ReceiptHeaderRow3" ColumnSpacing="12" RowSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <ComboBox x:Name="ReceiptEditorPayment" Header="支払方法" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged"/>
+                            <ComboBox x:Name="ReceiptEditorPayment" Header="支払方法" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged" AutomationProperties.AutomationId="ReceiptEditorPayment"/>
                             <StackPanel x:Name="ReceiptTaxInclusion" Grid.Column="1" Spacing="4">
                                 <TextBlock Text="税込／税抜"/>
-                                <RadioButton x:Name="ReceiptTaxIncluded" Content="税込" Tag="0" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
-                                <RadioButton x:Name="ReceiptTaxExcluded" Content="税抜" Tag="1" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
+                                <RadioButton x:Name="ReceiptTaxIncluded" Content="税込" Tag="0" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxIncluded"/>
+                                <RadioButton x:Name="ReceiptTaxExcluded" Content="税抜" Tag="1" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxExcluded"/>
                             </StackPanel>
                             <StackPanel x:Name="ReceiptTaxRounding" Grid.Column="2" Spacing="4">
                                 <TextBlock Text="税端数方式"/>
-                                <RadioButton x:Name="ReceiptTaxFloor" Content="切り捨て" Tag="floor" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
-                                <RadioButton x:Name="ReceiptTaxHalfUp" Content="四捨五入" Tag="half_up" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected"/>
+                                <RadioButton x:Name="ReceiptTaxFloor" Content="切り捨て" Tag="floor" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxFloor"/>
+                                <RadioButton x:Name="ReceiptTaxHalfUp" Content="四捨五入" Tag="half_up" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxHalfUp"/>
                             </StackPanel>
                         </Grid>
                         <TextBlock x:Name="ReceiptPaymentWarning" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
@@ -316,25 +316,25 @@
                             <StackPanel Spacing="8">
                                 <TextBlock Text="繰り返し周期"/>
                                 <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <TextBox x:Name="ReceiptInterval" Header="間隔" InputScope="Number" TextChanged="ReceiptParentTextChanged"/>
-                                    <ComboBox x:Name="ReceiptUnit" Grid.Column="1" Header="単位" SelectionChanged="ReceiptParentChoiceChanged" HorizontalAlignment="Stretch">
+                                    <TextBox x:Name="ReceiptInterval" Header="間隔" InputScope="Number" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptInterval"/>
+                                    <ComboBox x:Name="ReceiptUnit" Grid.Column="1" Header="単位" SelectionChanged="ReceiptParentChoiceChanged" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ReceiptUnit">
                                         <ComboBoxItem Content="週" Tag="Week"/><ComboBoxItem Content="月" Tag="Month"/><ComboBoxItem Content="年" Tag="Year"/>
                                     </ComboBox>
                                 </Grid>
                                 <TextBlock Text="間隔が空欄なら繰り返しなし" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBlock x:Name="ReceiptIntervalError" Visibility="Collapsed" Text="間隔は1以上の整数を入力してください。" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                             </StackPanel>
-                            <TextBox x:Name="ReceiptMemo" Grid.Column="1" Header="レシートメモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptParentTextChanged"/>
+                            <TextBox x:Name="ReceiptMemo" Grid.Column="1" Header="レシートメモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptMemo"/>
                         </Grid>
                         <Grid x:Name="ReceiptCategoryArea" ColumnSpacing="24" RowSpacing="16">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <StackPanel x:Name="ReceiptCategoryPane" Spacing="12">
                                 <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="ReceiptCategoryChoice" Header="追加する科目" IsTextSearchEnabled="True" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptCategoryChoiceChanged"/>
-                                    <Button x:Name="ReceiptCategoryAdd" Grid.Column="1" Content="追加" Click="AddReceiptCategory" IsEnabled="False" VerticalAlignment="Bottom"/>
+                                    <ComboBox x:Name="ReceiptCategoryChoice" Header="追加する科目" IsTextSearchEnabled="True" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptCategoryChoiceChanged" AutomationProperties.AutomationId="ReceiptCategoryChoice"/>
+                                    <Button x:Name="ReceiptCategoryAdd" Grid.Column="1" Content="追加" Click="AddReceiptCategory" IsEnabled="False" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptCategoryAdd"/>
                                 </Grid>
-                                <ListView x:Name="ReceiptCategories" SelectionChanged="ReceiptGroupSelectionChanged" SelectionMode="Single" SingleSelectionFollowsFocus="False" IsItemClickEnabled="True" ItemClick="ReceiptCategoryClicked" KeyDown="ReceiptCategoryKeyDown" MaxHeight="260" MinHeight="100" AutomationProperties.Name="追加済み科目">
+                                <ListView x:Name="ReceiptCategories" SelectionChanged="ReceiptGroupSelectionChanged" SelectionMode="Single" SingleSelectionFollowsFocus="False" IsItemClickEnabled="True" ItemClick="ReceiptCategoryClicked" KeyDown="ReceiptCategoryKeyDown" MaxHeight="260" MinHeight="100" AutomationProperties.Name="追加済み科目" AutomationProperties.AutomationId="ReceiptCategories">
                                     <ListView.ItemTemplate><DataTemplate x:DataType="local:ReceiptCategoryRow">
                                         <Grid Padding="4,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                             <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/>
@@ -342,8 +342,8 @@
                                         </Grid>
                                     </DataTemplate></ListView.ItemTemplate>
                                 </ListView>
-                                <TextBox x:Name="ReceiptCategoryMemo" Header="科目メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptGroupMemoChanged" IsEnabled="False"/>
-                                <Button x:Name="ReceiptCategoryRemove" Content="科目を削除" Click="RemoveReceiptCategory" IsEnabled="False"/>
+                                <TextBox x:Name="ReceiptCategoryMemo" Header="科目メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptGroupMemoChanged" IsEnabled="False" AutomationProperties.AutomationId="ReceiptCategoryMemo"/>
+                                <Button x:Name="ReceiptCategoryRemove" Content="科目を削除" Click="RemoveReceiptCategory" IsEnabled="False" AutomationProperties.AutomationId="ReceiptCategoryRemove"/>
                             </StackPanel>
                             <StackPanel x:Name="ReceiptDetailsArea" Grid.Column="1" Spacing="8" MinHeight="220" PreviewKeyDown="ReceiptDetailKeyDown">
                                 <TextBlock Text="明細" Style="{ThemeResource SubtitleTextBlockStyle}"/>
@@ -351,22 +351,22 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                     <StackPanel Spacing="8">
-                                        <TextBox x:Name="ReceiptItemName" Header="品名" TextChanged="ReceiptDetailTextChanged"/>
+                                        <TextBox x:Name="ReceiptItemName" Header="品名" TextChanged="ReceiptDetailTextChanged" AutomationProperties.AutomationId="ReceiptItemName"/>
                                         <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                            <TextBox x:Name="ReceiptItemPrice" Header="単価" TextChanged="ReceiptDetailTextChanged"/>
-                                            <TextBox x:Name="ReceiptItemQuantity" Grid.Column="1" Header="数量" TextChanged="ReceiptDetailTextChanged"/>
+                                            <TextBox x:Name="ReceiptItemPrice" Header="単価" TextChanged="ReceiptDetailTextChanged" AutomationProperties.AutomationId="ReceiptItemPrice"/>
+                                            <TextBox x:Name="ReceiptItemQuantity" Grid.Column="1" Header="数量" TextChanged="ReceiptDetailTextChanged" AutomationProperties.AutomationId="ReceiptItemQuantity"/>
                                         </Grid>
                                         <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                            <TextBox x:Name="ReceiptItemDiscount" Header="単価値引（円）" TextChanged="ReceiptDetailTextChanged"/>
-                                            <TextBox x:Name="ReceiptItemRateDiscount" Grid.Column="1" Header="率値引（%）" TextChanged="ReceiptDetailTextChanged"/>
+                                            <TextBox x:Name="ReceiptItemDiscount" Header="単価値引（円）" TextChanged="ReceiptDetailTextChanged" AutomationProperties.AutomationId="ReceiptItemDiscount"/>
+                                            <TextBox x:Name="ReceiptItemRateDiscount" Grid.Column="1" Header="率値引（%）" TextChanged="ReceiptDetailTextChanged" AutomationProperties.AutomationId="ReceiptItemRateDiscount"/>
                                         </Grid>
                                         <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                            <ComboBox x:Name="ReceiptItemTax" Header="税率" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged"/>
-                                            <ComboBox x:Name="ReceiptItemExpense" Grid.Column="1" Header="費用区分" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged">
+                                            <ComboBox x:Name="ReceiptItemTax" Header="税率" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged" AutomationProperties.AutomationId="ReceiptItemTax"/>
+                                            <ComboBox x:Name="ReceiptItemExpense" Grid.Column="1" Header="費用区分" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged" AutomationProperties.AutomationId="ReceiptItemExpense">
                                                 <ComboBoxItem Content="固定費" Tag="Fixed"/><ComboBoxItem Content="変動費" Tag="Variable"/><ComboBoxItem Content="対象外" Tag="Excluded"/>
                                             </ComboBox>
                                         </Grid>
-                                        <ComboBox x:Name="ReceiptItemOccurrence" Header="発生区分" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged">
+                                        <ComboBox x:Name="ReceiptItemOccurrence" Header="発生区分" HorizontalAlignment="Stretch" SelectionChanged="ReceiptDetailChoiceChanged" AutomationProperties.AutomationId="ReceiptItemOccurrence">
                                             <ComboBoxItem Content="定期" Tag="Regular"/><ComboBoxItem Content="不定期" Tag="Irregular"/><ComboBoxItem Content="臨時" Tag="Temporary"/>
                                         </ComboBox>
                                     </StackPanel>
@@ -378,15 +378,15 @@
                                         <TextBlock Text="0人でも追加できます" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     </StackPanel>
                                 </Grid>
-                                <TextBox x:Name="ReceiptItemMemo" Header="明細メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptDetailTextChanged"/>
+                                <TextBox x:Name="ReceiptItemMemo" Header="明細メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptDetailTextChanged" AutomationProperties.AutomationId="ReceiptItemMemo"/>
                                 <TextBlock x:Name="ReceiptItemTaxWarning" TextWrapping="Wrap" Visibility="Collapsed"/>
                                 <TextBlock x:Name="ReceiptDetailError" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                <Button x:Name="ReceiptDetailApply" Content="追加" HorizontalAlignment="Right" Click="ApplyReceiptDetail" IsEnabled="False"/>
+                                <Button x:Name="ReceiptDetailApply" Content="追加" HorizontalAlignment="Right" Click="ApplyReceiptDetail" IsEnabled="False" AutomationProperties.AutomationId="ReceiptDetailApply"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="ReceiptDetailReuse" Content="流用" Click="ReuseReceiptDetail" IsEnabled="False"/>
-                                    <Button x:Name="ReceiptDetailDelete" Content="削除" Click="DeleteReceiptDetail" IsEnabled="False"/>
-                                    <Button x:Name="ReceiptDetailUp" Content="↑" AutomationProperties.Name="明細を上へ" Click="MoveReceiptDetailUp" IsEnabled="False"/>
-                                    <Button x:Name="ReceiptDetailDown" Content="↓" AutomationProperties.Name="明細を下へ" Click="MoveReceiptDetailDown" IsEnabled="False"/>
+                                    <Button x:Name="ReceiptDetailReuse" Content="流用" Click="ReuseReceiptDetail" IsEnabled="False" AutomationProperties.AutomationId="ReceiptDetailReuse"/>
+                                    <Button x:Name="ReceiptDetailDelete" Content="削除" Click="DeleteReceiptDetail" IsEnabled="False" AutomationProperties.AutomationId="ReceiptDetailDelete"/>
+                                    <Button x:Name="ReceiptDetailUp" Content="↑" AutomationProperties.Name="明細を上へ" Click="MoveReceiptDetailUp" IsEnabled="False" AutomationProperties.AutomationId="ReceiptDetailUp"/>
+                                    <Button x:Name="ReceiptDetailDown" Content="↓" AutomationProperties.Name="明細を下へ" Click="MoveReceiptDetailDown" IsEnabled="False" AutomationProperties.AutomationId="ReceiptDetailDown"/>
                                 </StackPanel>
                                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" IsTabStop="False">
                                     <StackPanel MinWidth="620">
@@ -395,7 +395,7 @@
                                             <TextBlock Text="品名"/><TextBlock Grid.Column="1" Text="単価" HorizontalAlignment="Right"/><TextBlock Grid.Column="2" Text="数量" HorizontalAlignment="Right"/>
                                             <TextBlock Grid.Column="3" Text="値引" HorizontalAlignment="Right"/><TextBlock Grid.Column="4" Text="税率" HorizontalAlignment="Right"/><TextBlock Grid.Column="5" Text="参考額" HorizontalAlignment="Right"/>
                                         </Grid>
-                                        <ListView x:Name="ReceiptDetailsList" SelectionMode="Single" SelectionChanged="ReceiptDetailSelected" PreviewKeyDown="ReceiptDetailListKeyDown" MaxHeight="350" AutomationProperties.Name="選択中科目の明細">
+                                        <ListView x:Name="ReceiptDetailsList" SelectionMode="Single" SelectionChanged="ReceiptDetailSelected" PreviewKeyDown="ReceiptDetailListKeyDown" MaxHeight="350" AutomationProperties.Name="選択中科目の明細" AutomationProperties.AutomationId="ReceiptDetailsList">
                                             <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
                                             <ListView.ItemTemplate><DataTemplate x:DataType="local:ReceiptDetailRow">
                                                 <Grid ColumnSpacing="8" Padding="0,6">
@@ -418,10 +418,10 @@
                     <TextBlock x:Name="ReceiptCalculationNotice" TextWrapping="Wrap" Visibility="Collapsed"/>
                     <TextBlock Text="現在は保存できません。登録・更新・流用登録は後続工程で接続します。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="ReceiptRegister" Content="登録" IsEnabled="False"/>
-                        <Button x:Name="ReceiptUpdate" Content="更新" IsEnabled="False" Visibility="Collapsed"/>
-                        <Button x:Name="ReceiptReuse" Content="流用登録" IsEnabled="False" Visibility="Collapsed"/>
-                        <Button x:Name="ReceiptBack" Content="キャンセル／一覧に戻る" Click="BackFromReceiptEditor"/>
+                        <Button x:Name="ReceiptRegister" Content="登録" IsEnabled="False" AutomationProperties.AutomationId="ReceiptRegister"/>
+                        <Button x:Name="ReceiptUpdate" Content="更新" IsEnabled="False" Visibility="Collapsed" AutomationProperties.AutomationId="ReceiptUpdate"/>
+                        <Button x:Name="ReceiptReuse" Content="流用登録" IsEnabled="False" Visibility="Collapsed" AutomationProperties.AutomationId="ReceiptReuse"/>
+                        <Button x:Name="ReceiptBack" Content="キャンセル／一覧に戻る" Click="BackFromReceiptEditor" AutomationProperties.AutomationId="ReceiptBack"/>
                     </StackPanel>
                 </StackPanel>
             </Grid>
@@ -433,7 +433,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
-            <Button x:Name="ReturnButton" Click="ShowRecord" Background="Transparent" BorderThickness="0">
+            <Button x:Name="ReturnButton" Click="ShowRecord" Background="Transparent" BorderThickness="0" AutomationProperties.AutomationId="ReturnButton">
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <FontIcon Glyph="&#xE72B;" FontSize="14" />
                     <TextBlock Text="記録・集計に戻る" />
@@ -446,30 +446,30 @@
             <NavigationView x:Name="ManagementNavigation" Grid.Row="2" PaneDisplayMode="Left"
                             IsPaneOpen="True" OpenPaneLength="240" IsPaneToggleButtonVisible="False"
                             IsBackButtonVisible="Collapsed" IsSettingsVisible="False" IsTitleBarAutoPaddingEnabled="False"
-                            SelectionChanged="SelectManagement">
+                            SelectionChanged="SelectManagement" AutomationProperties.AutomationId="ManagementNavigation">
                 <NavigationView.MenuItems>
                     <NavigationViewItemHeader Content="マスタ管理" />
-                    <NavigationViewItem x:Name="PeopleNavigation" Content="人物管理" Icon="Contact" />
-                    <NavigationViewItem x:Name="CategoriesNavigation" Content="科目管理" />
-                    <NavigationViewItem x:Name="PaymentsNavigation" Content="支払方法管理" />
-                    <NavigationViewItem Content="店舗管理" IsEnabled="False" />
+                    <NavigationViewItem x:Name="PeopleNavigation" Content="人物管理" Icon="Contact"  AutomationProperties.AutomationId="PeopleNavigation"/>
+                    <NavigationViewItem x:Name="CategoriesNavigation" Content="科目管理"  AutomationProperties.AutomationId="CategoriesNavigation"/>
+                    <NavigationViewItem x:Name="PaymentsNavigation" Content="支払方法管理"  AutomationProperties.AutomationId="PaymentsNavigation"/>
+                    <NavigationViewItem Content="店舗管理" IsEnabled="False"  AutomationProperties.AutomationId="ShopsPlaceholder"/>
                     <NavigationViewItemHeader Content="家計簿管理" />
-                    <NavigationViewItem x:Name="ParticipantsNavigation" Content="参加者管理" Icon="People" Visibility="Collapsed" />
+                    <NavigationViewItem x:Name="ParticipantsNavigation" Content="参加者管理" Icon="People" Visibility="Collapsed"  AutomationProperties.AutomationId="ParticipantsNavigation"/>
                     <NavigationViewItemHeader Content="アプリ設定" />
-                    <NavigationViewItem x:Name="ConnectionNavigation" Content="接続先の設定" />
-                    <NavigationViewItem Content="表示設定" IsEnabled="False" />
-                    <NavigationViewItem Content="入力時の初期値" IsEnabled="False" />
+                    <NavigationViewItem x:Name="ConnectionNavigation" Content="接続先の設定"  AutomationProperties.AutomationId="ConnectionNavigation"/>
+                    <NavigationViewItem Content="表示設定" IsEnabled="False"  AutomationProperties.AutomationId="ViewSettingsPlaceholder"/>
+                    <NavigationViewItem Content="入力時の初期値" IsEnabled="False"  AutomationProperties.AutomationId="InputDefaultsPlaceholder"/>
                     <NavigationViewItemHeader Content="アカウント" />
-                    <NavigationViewItem x:Name="AccountNavigation" Content="ログイン情報" IsEnabled="False" />
-                    <NavigationViewItem x:Name="LogoutNavigation" Content="ログアウト" IsEnabled="False" />
+                    <NavigationViewItem x:Name="AccountNavigation" Content="ログイン情報" IsEnabled="False"  AutomationProperties.AutomationId="AccountNavigation"/>
+                    <NavigationViewItem x:Name="LogoutNavigation" Content="ログアウト" IsEnabled="False"  AutomationProperties.AutomationId="LogoutNavigation"/>
                 </NavigationView.MenuItems>
                 <Border Style="{StaticResource Card}" Margin="16,0,0,0">
                     <Grid>
                     <StackPanel x:Name="ConnectionSettingsContent" Visibility="Collapsed" Spacing="24" MaxWidth="520" HorizontalAlignment="Left">
                         <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" />
                         <TextBlock Text="接続先を変更すると、変更先でのログインが必要です。" Style="{StaticResource Description}" />
-                        <TextBox x:Name="SettingsServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url" MinWidth="280" />
-                        <Button x:Name="SettingsConnectButton" Content="接続" Click="ConnectSettings" Style="{ThemeResource AccentButtonStyle}" />
+                        <TextBox x:Name="SettingsServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url" MinWidth="280"  AutomationProperties.AutomationId="SettingsServerUrl"/>
+                        <Button x:Name="SettingsConnectButton" Content="接続" Click="ConnectSettings" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="SettingsConnectButton"/>
                     </StackPanel>
                     <StackPanel x:Name="AccountContent" Visibility="Collapsed" Spacing="24">
                         <TextBlock Text="ログイン情報" Style="{ThemeResource TitleTextBlockStyle}" />
@@ -486,12 +486,12 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                         <StackPanel Spacing="8"><TextBlock Text="参加者管理" Style="{ThemeResource TitleTextBlockStyle}"/>
                             <TextBlock Text="家計簿の参加者と対応する人物を管理します。" Style="{StaticResource Description}" TextWrapping="Wrap"/></StackPanel>
-                        <Button x:Name="OpenInvitationsButton" Grid.Row="1" Content="招待" Click="OpenInvitations"/>
+                        <Button x:Name="OpenInvitationsButton" Grid.Row="1" Content="招待" Click="OpenInvitations" AutomationProperties.AutomationId="OpenInvitationsButton"/>
                         <Grid Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Grid ColumnSpacing="12" Padding="12,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="アカウント"/><TextBlock Grid.Column="1" Text="役割"/><TextBlock Grid.Column="2" Text="対応する人物"/>
                             </Grid>
-                            <ListView x:Name="ParticipantsList" Grid.Row="1" SelectionMode="None" AutomationProperties.Name="参加者一覧" HorizontalContentAlignment="Stretch">
+                            <ListView x:Name="ParticipantsList" Grid.Row="1" SelectionMode="None" AutomationProperties.Name="参加者一覧" HorizontalContentAlignment="Stretch" AutomationProperties.AutomationId="ParticipantsList">
                                 <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate><DataTemplate x:DataType="local:ParticipantRow">
                                     <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/></Grid.ColumnDefinitions>
@@ -509,15 +509,15 @@
                     </Grid>
                     <Grid x:Name="InvitationsContent" Visibility="Collapsed" RowSpacing="16">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <Button x:Name="BackToParticipantsButton" Content="← 参加者一覧に戻る" Click="BackToParticipants"/>
+                        <Button x:Name="BackToParticipantsButton" Content="← 参加者一覧に戻る" Click="BackToParticipants" AutomationProperties.AutomationId="BackToParticipantsButton"/>
                         <StackPanel Grid.Row="1" Spacing="8"><TextBlock Text="招待管理" Style="{ThemeResource TitleTextBlockStyle}"/>
                             <TextBlock Text="招待リンクは7日間有効です。参加時の役割は閲覧者です。リンクの送付先を限定してください。" TextWrapping="Wrap" Style="{StaticResource Description}"/></StackPanel>
-                        <StackPanel Grid.Row="2" Spacing="8"><Button x:Name="IssueInvitationButton" Content="新しい招待リンクを発行" Click="IssueInvitation"/>
+                        <StackPanel Grid.Row="2" Spacing="8"><Button x:Name="IssueInvitationButton" Content="新しい招待リンクを発行" Click="IssueInvitation" AutomationProperties.AutomationId="IssueInvitationButton"/>
                             <TextBlock x:Name="InvitationRetryNotice" Visibility="Collapsed" Text="結果を確認できません。同じ要求IDで招待の発行を再試行します。" TextWrapping="Wrap" Style="{StaticResource Description}"/>
                             <TextBlock x:Name="InvitationNotice" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                         </StackPanel>
                         <Grid Grid.Row="3">
-                            <ListView x:Name="InvitationsList" SelectionMode="None" HorizontalContentAlignment="Stretch" AutomationProperties.Name="有効な招待リンク一覧">
+                            <ListView x:Name="InvitationsList" SelectionMode="None" HorizontalContentAlignment="Stretch" AutomationProperties.Name="有効な招待リンク一覧" AutomationProperties.AutomationId="InvitationsList">
                                 <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate><DataTemplate x:DataType="local:LedgerInvitationRow">
                                     <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -534,17 +534,17 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                         <TextBlock Text="科目管理" Style="{ThemeResource TitleTextBlockStyle}"/>
                         <Grid Grid.Row="1" ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Button x:Name="AddCategoryButton" Content="追加" Click="AddCategory"/>
-                            <Button Grid.Column="1" x:Name="EditCategoryButton" Content="編集" Click="EditCategory"/>
-                            <Button Grid.Column="2" HorizontalAlignment="Left" x:Name="DeleteCategoryButton" Content="削除" Click="DeleteCategory"/>
-                            <Button x:Name="CategoryOrderButton" Grid.Column="3" Content="並び順変更" Click="OpenCategoryOrder"/>
+                            <Button x:Name="AddCategoryButton" Content="追加" Click="AddCategory" AutomationProperties.AutomationId="AddCategoryButton"/>
+                            <Button Grid.Column="1" x:Name="EditCategoryButton" Content="編集" Click="EditCategory" AutomationProperties.AutomationId="EditCategoryButton"/>
+                            <Button Grid.Column="2" HorizontalAlignment="Left" x:Name="DeleteCategoryButton" Content="削除" Click="DeleteCategory" AutomationProperties.AutomationId="DeleteCategoryButton"/>
+                            <Button x:Name="CategoryOrderButton" Grid.Column="3" Content="並び順変更" Click="OpenCategoryOrder" AutomationProperties.AutomationId="CategoryOrderButton"/>
                         </Grid>
-                        <CheckBox x:Name="IncludeInactiveCategories" Grid.Row="2" Content="有効期間外も表示" Checked="FilterCategories" Unchecked="FilterCategories"/>
+                        <CheckBox x:Name="IncludeInactiveCategories" Grid.Row="2" Content="有効期間外も表示" Checked="FilterCategories" Unchecked="FilterCategories" AutomationProperties.AutomationId="IncludeInactiveCategories"/>
                         <Grid Grid.Row="3"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Grid ColumnSpacing="12" Padding="12,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="64"/><ColumnDefinition Width="88"/><ColumnDefinition Width="112"/><ColumnDefinition Width="112"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="科目名"/><TextBlock Grid.Column="1" Text="収支区分"/><TextBlock Grid.Column="2" Text="初期税区分"/><TextBlock Grid.Column="3" Text="有効開始日"/><TextBlock Grid.Column="4" Text="有効終了日"/>
                             </Grid>
-                            <ListView x:Name="CategoriesList" Grid.Row="1" SelectionMode="Single" SelectionChanged="SelectCategory" HorizontalContentAlignment="Stretch" AutomationProperties.Name="科目一覧">
+                            <ListView x:Name="CategoriesList" Grid.Row="1" SelectionMode="Single" SelectionChanged="SelectCategory" HorizontalContentAlignment="Stretch" AutomationProperties.Name="科目一覧" AutomationProperties.AutomationId="CategoriesList">
                                 <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
                                 <ListView.ItemTemplate><DataTemplate x:DataType="local:CategoryRow">
                                     <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="64"/><ColumnDefinition Width="88"/><ColumnDefinition Width="112"/><ColumnDefinition Width="112"/></Grid.ColumnDefinitions>
@@ -561,31 +561,31 @@
                         <TextBlock Grid.Row="1" Text="有効期間外を含むすべての科目を並べ替えます。" Style="{StaticResource Description}" TextWrapping="Wrap"/>
                         <InfoBar x:Name="CategoryOrderNotice" Grid.Row="2" Visibility="Collapsed" IsOpen="False" Closed="CloseError"/>
                         <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="MoveCategoryUpButton" Content="上へ" Click="MoveCategoryUp"/>
-                            <Button x:Name="MoveCategoryDownButton" Content="下へ" Click="MoveCategoryDown"/>
+                            <Button x:Name="MoveCategoryUpButton" Content="上へ" Click="MoveCategoryUp" AutomationProperties.AutomationId="MoveCategoryUpButton"/>
+                            <Button x:Name="MoveCategoryDownButton" Content="下へ" Click="MoveCategoryDown" AutomationProperties.AutomationId="MoveCategoryDownButton"/>
                         </StackPanel>
-                        <ListView x:Name="CategoryOrderList" Grid.Row="4" SelectionMode="Single" SelectionChanged="SelectCategoryOrder" AutomationProperties.Name="有効期間外を含む全科目の順序">
+                        <ListView x:Name="CategoryOrderList" Grid.Row="4" SelectionMode="Single" SelectionChanged="SelectCategoryOrder" AutomationProperties.Name="有効期間外を含む全科目の順序" AutomationProperties.AutomationId="CategoryOrderList">
                             <ListView.ItemTemplate><DataTemplate x:DataType="local:CategoryRow"><TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/></DataTemplate></ListView.ItemTemplate>
                         </ListView>
                         <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="SaveCategoryOrderButton" Content="保存" Click="SaveCategoryOrder" Style="{ThemeResource AccentButtonStyle}"/>
-                            <Button x:Name="CancelCategoryOrderButton" Content="キャンセル" Click="CancelCategoryOrder"/>
+                            <Button x:Name="SaveCategoryOrderButton" Content="保存" Click="SaveCategoryOrder" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SaveCategoryOrderButton"/>
+                            <Button x:Name="CancelCategoryOrderButton" Content="キャンセル" Click="CancelCategoryOrder" AutomationProperties.AutomationId="CancelCategoryOrderButton"/>
                         </StackPanel>
                     </Grid>
                     <Grid x:Name="PaymentsContent" Visibility="Collapsed" RowSpacing="16">
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                         <TextBlock Text="支払方法管理" Style="{ThemeResource TitleTextBlockStyle}"/>
                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="AddPaymentButton" Content="追加" Click="AddPayment"/>
-                            <Button x:Name="EditPaymentButton" Content="編集" Click="EditPayment"/>
-                            <Button x:Name="DeletePaymentButton" Content="削除" Click="DeletePayment"/>
+                            <Button x:Name="AddPaymentButton" Content="追加" Click="AddPayment" AutomationProperties.AutomationId="AddPaymentButton"/>
+                            <Button x:Name="EditPaymentButton" Content="編集" Click="EditPayment" AutomationProperties.AutomationId="EditPaymentButton"/>
+                            <Button x:Name="DeletePaymentButton" Content="削除" Click="DeletePayment" AutomationProperties.AutomationId="DeletePaymentButton"/>
                         </StackPanel>
-                        <CheckBox x:Name="IncludeInactivePayments" Grid.Row="2" Content="有効期間外も表示" Checked="FilterPayments" Unchecked="FilterPayments"/>
+                        <CheckBox x:Name="IncludeInactivePayments" Grid.Row="2" Content="有効期間外も表示" Checked="FilterPayments" Unchecked="FilterPayments" AutomationProperties.AutomationId="IncludeInactivePayments"/>
                         <Grid Grid.Row="3"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                             <Grid ColumnSpacing="12" Padding="12,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="支払方法名"/><TextBlock Grid.Column="1" Text="有効開始日"/><TextBlock Grid.Column="2" Text="有効終了日"/>
                             </Grid>
-                            <ListView x:Name="PaymentsList" Grid.Row="1" SelectionMode="Single" SelectionChanged="SelectPayment" HorizontalContentAlignment="Stretch" AutomationProperties.Name="人物別の支払方法一覧">
+                            <ListView x:Name="PaymentsList" Grid.Row="1" SelectionMode="Single" SelectionChanged="SelectPayment" HorizontalContentAlignment="Stretch" AutomationProperties.Name="人物別の支払方法一覧" AutomationProperties.AutomationId="PaymentsList">
                                 <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
                                 <ListView.GroupStyle><GroupStyle HidesIfEmpty="True"><GroupStyle.HeaderTemplate><DataTemplate x:DataType="local:PaymentGroup">
                                     <Grid ColumnSpacing="12" Margin="0,12,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -608,15 +608,15 @@
                         <TextBlock x:Name="PaymentOrderOwner" Grid.Row="1" TextWrapping="Wrap" FontWeight="SemiBold"/>
                         <InfoBar x:Name="PaymentOrderNotice" Grid.Row="2" Visibility="Collapsed" IsOpen="False" Closed="CloseError"/>
                         <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="MovePaymentUpButton" Content="上へ" Click="MovePaymentUp"/>
-                            <Button x:Name="MovePaymentDownButton" Content="下へ" Click="MovePaymentDown"/>
+                            <Button x:Name="MovePaymentUpButton" Content="上へ" Click="MovePaymentUp" AutomationProperties.AutomationId="MovePaymentUpButton"/>
+                            <Button x:Name="MovePaymentDownButton" Content="下へ" Click="MovePaymentDown" AutomationProperties.AutomationId="MovePaymentDownButton"/>
                         </StackPanel>
-                        <ListView x:Name="PaymentOrderList" Grid.Row="4" SelectionMode="Single" SelectionChanged="SelectPaymentOrder" AutomationProperties.Name="有効期間外を含む全支払方法の順序">
+                        <ListView x:Name="PaymentOrderList" Grid.Row="4" SelectionMode="Single" SelectionChanged="SelectPaymentOrder" AutomationProperties.Name="有効期間外を含む全支払方法の順序" AutomationProperties.AutomationId="PaymentOrderList">
                             <ListView.ItemTemplate><DataTemplate x:DataType="local:PaymentRow"><TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/></DataTemplate></ListView.ItemTemplate>
                         </ListView>
                         <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="SavePaymentOrderButton" Content="保存" Click="SavePaymentOrder" Style="{ThemeResource AccentButtonStyle}"/>
-                            <Button x:Name="CancelPaymentOrderButton" Content="キャンセル" Click="CancelPaymentOrder"/>
+                            <Button x:Name="SavePaymentOrderButton" Content="保存" Click="SavePaymentOrder" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SavePaymentOrderButton"/>
+                            <Button x:Name="CancelPaymentOrderButton" Content="キャンセル" Click="CancelPaymentOrder" AutomationProperties.AutomationId="CancelPaymentOrderButton"/>
                         </StackPanel>
                     </Grid>
                     <Grid x:Name="PersonOrderContent" Visibility="Collapsed" RowSpacing="16">
@@ -637,12 +637,12 @@
                         <InfoBar x:Name="PersonOrderNotice" Grid.Row="3" Visibility="Collapsed" IsOpen="False"
                                  IsClosable="True" Closed="CloseError" />
                         <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="MovePersonUpButton" Content="上へ" IsEnabled="False" Click="MovePersonUp" />
-                            <Button x:Name="MovePersonDownButton" Content="下へ" IsEnabled="False" Click="MovePersonDown" />
+                            <Button x:Name="MovePersonUpButton" Content="上へ" IsEnabled="False" Click="MovePersonUp"  AutomationProperties.AutomationId="MovePersonUpButton"/>
+                            <Button x:Name="MovePersonDownButton" Content="下へ" IsEnabled="False" Click="MovePersonDown"  AutomationProperties.AutomationId="MovePersonDownButton"/>
                         </StackPanel>
                         <Grid Grid.Row="5">
                             <ListView x:Name="PersonOrderList" SelectionMode="Single" SelectionChanged="SelectPersonOrder"
-                                      AutomationProperties.Name="共通の人物順">
+                                      AutomationProperties.Name="共通の人物順" AutomationProperties.AutomationId="PersonOrderList">
                                 <ListView.ItemTemplate>
                                     <DataTemplate x:DataType="local:PersonRow">
                                         <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12" />
@@ -653,8 +653,8 @@
                                        Style="{StaticResource Description}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Grid>
                         <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="SavePersonOrderButton" Content="保存" Click="SavePersonOrder" Style="{ThemeResource AccentButtonStyle}" />
-                            <Button x:Name="CancelPersonOrderButton" Content="キャンセル" Click="CancelPersonOrder" />
+                            <Button x:Name="SavePersonOrderButton" Content="保存" Click="SavePersonOrder" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="SavePersonOrderButton"/>
+                            <Button x:Name="CancelPersonOrderButton" Content="キャンセル" Click="CancelPersonOrder"  AutomationProperties.AutomationId="CancelPersonOrderButton"/>
                         </StackPanel>
                     </Grid>
                     <Grid x:Name="PeopleContent" RowSpacing="20">
@@ -677,12 +677,12 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <Button x:Name="AddPersonButton" Content="追加" IsEnabled="False" Click="AddPerson" />
-                            <Button x:Name="EditPersonButton" Grid.Column="1" Content="編集" IsEnabled="False" Click="EditPerson" />
-                            <Button x:Name="DeletePersonButton" Grid.Column="2" Content="削除" IsEnabled="False" HorizontalAlignment="Left" Click="DeletePerson" />
-                            <Button x:Name="PersonOrderButton" Grid.Column="3" Content="並び順変更" IsEnabled="False" Click="OpenPersonOrder" />
+                            <Button x:Name="AddPersonButton" Content="追加" IsEnabled="False" Click="AddPerson"  AutomationProperties.AutomationId="AddPersonButton"/>
+                            <Button x:Name="EditPersonButton" Grid.Column="1" Content="編集" IsEnabled="False" Click="EditPerson"  AutomationProperties.AutomationId="EditPersonButton"/>
+                            <Button x:Name="DeletePersonButton" Grid.Column="2" Content="削除" IsEnabled="False" HorizontalAlignment="Left" Click="DeletePerson"  AutomationProperties.AutomationId="DeletePersonButton"/>
+                            <Button x:Name="PersonOrderButton" Grid.Column="3" Content="並び順変更" IsEnabled="False" Click="OpenPersonOrder"  AutomationProperties.AutomationId="PersonOrderButton"/>
                         </Grid>
-                        <CheckBox x:Name="IncludeInactivePeople" Grid.Row="3" Content="有効期間外も表示" Checked="FilterPeople" Unchecked="FilterPeople"/>
+                        <CheckBox x:Name="IncludeInactivePeople" Grid.Row="3" Content="有効期間外も表示" Checked="FilterPeople" Unchecked="FilterPeople" AutomationProperties.AutomationId="IncludeInactivePeople"/>
                         <Border Grid.Row="4" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                                 BorderThickness="0,0,0,1" Padding="12,8,12,16">
                             <Grid ColumnSpacing="12">
@@ -697,7 +697,7 @@
                             </Grid>
                         </Border>
                         <Grid Grid.Row="5">
-                            <ListView x:Name="PeopleList" SelectionMode="Single" SelectionChanged="SelectPerson" AutomationProperties.Name="人物一覧">
+                            <ListView x:Name="PeopleList" SelectionMode="Single" SelectionChanged="SelectPerson" AutomationProperties.Name="人物一覧" AutomationProperties.AutomationId="PeopleList">
                                 <ListView.ItemContainerStyle>
                                     <Style TargetType="ListViewItem">
                                         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -747,8 +747,8 @@
                 <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
                 <TextBlock Text="ブラウザーでログインしてください。" Style="{StaticResource Description}" />
                 <StackPanel x:Name="BrowserActions" Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="ReopenBrowserButton" Content="ブラウザーを開く" Click="ReopenBrowser" />
-                    <Button x:Name="CancelLoginButton" Content="キャンセル" Click="CancelLogin" />
+                    <Button x:Name="ReopenBrowserButton" Content="ブラウザーを開く" Click="ReopenBrowser"  AutomationProperties.AutomationId="ReopenBrowserButton"/>
+                    <Button x:Name="CancelLoginButton" Content="キャンセル" Click="CancelLogin"  AutomationProperties.AutomationId="CancelLoginButton"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
@@ -764,11 +764,11 @@
                                Style="{StaticResource Description}" />
                     <TextBlock x:Name="PersonDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap" />
                     <StackPanel x:Name="PersonFields" Spacing="16">
-                        <TextBox x:Name="PersonName" Header="人物名" />
+                        <TextBox x:Name="PersonName" Header="人物名"  AutomationProperties.AutomationId="PersonName"/>
                         <TextBlock x:Name="PersonNameError" Visibility="Collapsed" TextWrapping="Wrap"
                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
-                        <input:DateInputBox x:Name="PersonValidFrom" Header="有効開始日" AllowEmpty="True" />
-                        <input:DateInputBox x:Name="PersonValidTo" Header="有効終了日" AllowEmpty="True" />
+                        <input:DateInputBox x:Name="PersonValidFrom" Header="有効開始日" AllowEmpty="True"  AutomationProperties.AutomationId="PersonValidFrom"/>
+                        <input:DateInputBox x:Name="PersonValidTo" Header="有効終了日" AllowEmpty="True"  AutomationProperties.AutomationId="PersonValidTo"/>
                         <TextBlock x:Name="PersonPeriodError" Visibility="Collapsed" TextWrapping="Wrap"
                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
                         <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}" />
@@ -786,7 +786,7 @@
                             <TextBlock Text="有効終了日" Style="{StaticResource Description}" />
                             <TextBlock x:Name="LatestPersonTo" />
                             <TextBlock x:Name="PersonConflictExplanation" Text="切り替えると、現在の未保存の入力を最新内容に置き換えます。" TextWrapping="Wrap" />
-                            <Button x:Name="UseLatestPersonButton" Content="最新内容に切り替える" Click="UseLatestPerson" />
+                            <Button x:Name="UseLatestPersonButton" Content="最新内容に切り替える" Click="UseLatestPerson"  AutomationProperties.AutomationId="UseLatestPersonButton"/>
                         </StackPanel>
                     </Border>
                     <TextBlock x:Name="PersonSaveError" Visibility="Collapsed" TextWrapping="Wrap"
@@ -801,18 +801,18 @@
                     <TextBlock x:Name="CategoryRestoredNotice" Text="未保存の入力を復元しました。内容を確認してください。" Visibility="Collapsed" TextWrapping="Wrap"/>
                     <TextBlock x:Name="CategoryDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
                     <StackPanel x:Name="CategoryFields" Spacing="16">
-                        <TextBox x:Name="CategoryName" Header="科目名"/>
+                        <TextBox x:Name="CategoryName" Header="科目名" AutomationProperties.AutomationId="CategoryName"/>
                         <TextBlock x:Name="CategoryNameError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <ComboBox x:Name="CategoryIncome" Header="収支区分" HorizontalAlignment="Stretch">
+                        <ComboBox x:Name="CategoryIncome" Header="収支区分" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="CategoryIncome">
                             <ComboBoxItem Content="収入" Tag="Income"/><ComboBoxItem Content="支出" Tag="Expense"/>
                         </ComboBox>
-                        <ComboBox x:Name="CategoryTax" Header="初期税区分" HorizontalAlignment="Stretch">
+                        <ComboBox x:Name="CategoryTax" Header="初期税区分" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="CategoryTax">
                             <ComboBoxItem Content="標準" Tag="Standard"/><ComboBoxItem Content="食品軽減" Tag="ReducedFood"/>
                             <ComboBoxItem Content="新聞軽減" Tag="ReducedNewspaper"/><ComboBoxItem Content="非課税" Tag="Exempt"/>
                         </ComboBox>
                         <TextBlock x:Name="CategoryChoiceError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <input:DateInputBox x:Name="CategoryFrom" Header="有効開始日" AllowEmpty="True"/>
-                        <input:DateInputBox x:Name="CategoryTo" Header="有効終了日" AllowEmpty="True"/>
+                        <input:DateInputBox x:Name="CategoryFrom" Header="有効開始日" AllowEmpty="True" AutomationProperties.AutomationId="CategoryFrom"/>
+                        <input:DateInputBox x:Name="CategoryTo" Header="有効終了日" AllowEmpty="True" AutomationProperties.AutomationId="CategoryTo"/>
                         <TextBlock x:Name="CategoryPeriodError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                         <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}"/>
                     </StackPanel>
@@ -824,7 +824,7 @@
                             <TextBlock Text="有効開始日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestCategoryFrom"/>
                             <TextBlock Text="有効終了日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestCategoryTo"/>
                             <TextBlock Text="切り替えると、未保存の入力や削除対象の確認内容を最新内容に置き換えます。" TextWrapping="Wrap"/>
-                            <Button Content="最新内容に切り替える" Click="UseLatestCategory"/>
+                            <Button Content="最新内容に切り替える" Click="UseLatestCategory" AutomationProperties.AutomationId="UseLatestCategoryButton"/>
                         </StackPanel>
                     </Border>
                     <TextBlock x:Name="CategorySaveError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
@@ -838,12 +838,12 @@
                     <TextBlock x:Name="PaymentRestoredNotice" Text="未保存の入力を復元しました。内容を確認してください。" Visibility="Collapsed" TextWrapping="Wrap"/>
                     <TextBlock x:Name="PaymentDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
                     <StackPanel x:Name="PaymentFields" Spacing="16">
-                        <ComboBox x:Name="PaymentOwnerChoice" Header="所有者" DisplayMemberPath="Name" SelectionChanged="SelectPaymentOwner" HorizontalAlignment="Stretch"/>
+                        <ComboBox x:Name="PaymentOwnerChoice" Header="所有者" DisplayMemberPath="Name" SelectionChanged="SelectPaymentOwner" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="PaymentOwnerChoice"/>
                         <StackPanel x:Name="PaymentOwnerFixed"><TextBlock Text="所有者" Style="{StaticResource Description}"/><TextBlock x:Name="PaymentOwnerName" TextWrapping="Wrap"/></StackPanel>
-                        <TextBox x:Name="PaymentName" Header="支払方法名"/>
+                        <TextBox x:Name="PaymentName" Header="支払方法名" AutomationProperties.AutomationId="PaymentName"/>
                         <TextBlock x:Name="PaymentNameError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <input:DateInputBox x:Name="PaymentFrom" Header="有効開始日" AllowEmpty="True"/>
-                        <input:DateInputBox x:Name="PaymentTo" Header="有効終了日" AllowEmpty="True"/>
+                        <input:DateInputBox x:Name="PaymentFrom" Header="有効開始日" AllowEmpty="True" AutomationProperties.AutomationId="PaymentFrom"/>
+                        <input:DateInputBox x:Name="PaymentTo" Header="有効終了日" AllowEmpty="True" AutomationProperties.AutomationId="PaymentTo"/>
                         <TextBlock x:Name="PaymentPeriodError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                         <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}"/>
                     </StackPanel>
@@ -854,7 +854,7 @@
                             <TextBlock Text="有効開始日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentFrom"/>
                             <TextBlock Text="有効終了日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentTo"/>
                             <TextBlock Text="切り替えると、未保存の入力や削除対象の確認内容を最新内容に置き換えます。" TextWrapping="Wrap"/>
-                            <Button Content="最新内容に切り替える" Click="UseLatestPayment"/>
+                            <Button Content="最新内容に切り替える" Click="UseLatestPayment" AutomationProperties.AutomationId="UseLatestPaymentButton"/>
                         </StackPanel>
                     </Border>
                     <TextBlock x:Name="PaymentSaveError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
@@ -868,18 +868,18 @@
                     <TextBlock x:Name="ParticipantName" TextWrapping="Wrap" FontWeight="SemiBold"/>
                     <TextBlock x:Name="ParticipantExcludeNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
                     <StackPanel x:Name="ParticipantFields" Spacing="16">
-                        <ComboBox x:Name="ParticipantRole" Header="家計簿内の役割" HorizontalAlignment="Stretch">
+                        <ComboBox x:Name="ParticipantRole" Header="家計簿内の役割" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ParticipantRole">
                             <ComboBoxItem Content="閲覧者" Tag="Viewer"/><ComboBoxItem Content="編集者" Tag="Editor"/><ComboBoxItem Content="管理者" Tag="Admin"/>
                         </ComboBox>
                         <TextBlock x:Name="ParticipantOwnRole" Visibility="Collapsed" TextWrapping="Wrap"/>
-                        <ComboBox x:Name="ParticipantPerson" Header="対応する人物" HorizontalAlignment="Stretch"/>
+                        <ComboBox x:Name="ParticipantPerson" Header="対応する人物" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ParticipantPerson"/>
                         <TextBlock x:Name="ParticipantPersonError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                     </StackPanel>
                     <Border x:Name="ParticipantConflict" Visibility="Collapsed" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
                         <StackPanel Spacing="12"><TextBlock Text="ほかの操作で変更されています。最新の保存内容" FontWeight="SemiBold" TextWrapping="Wrap"/>
                             <TextBlock x:Name="LatestParticipant" TextWrapping="Wrap"/>
                             <TextBlock Text="読み込むと、未保存の入力・更新版を最新の内容に置き換えます。" TextWrapping="Wrap"/>
-                            <Button x:Name="UseLatestParticipantButton" Content="最新の内容を読み込む" Click="UseLatestParticipant"/>
+                            <Button x:Name="UseLatestParticipantButton" Content="最新の内容を読み込む" Click="UseLatestParticipant" AutomationProperties.AutomationId="UseLatestParticipantButton"/>
                         </StackPanel>
                     </Border>
                     <TextBlock x:Name="ParticipantError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
