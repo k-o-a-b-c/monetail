@@ -113,6 +113,19 @@ public sealed partial class ReceiptApiTests
         }
     }
 
+    [Fact]
+    public async Task PutRejectsOversizeParentMemoWithoutMutatingExistingReceipt()
+    {
+        await using var f = await Fixture.Create();
+        var id = await f.CreateReceipt(f.Input());
+        var before = f.Snapshot();
+        var update = f.Update(await f.Get(id)); update["memo"] = new string('x', 101);
+        var error = (await f.Call("PUT", update, 400, "/" + id))!;
+        Assert.Equal("invalid_input", error["code"]!.GetValue<string>());
+        Assert.Equal("memo", error["field"]!.GetValue<string>());
+        Assert.Equal(before, f.Snapshot());
+    }
+
     [Theory]
     [InlineData("ledger_receipts")]
     [InlineData("ledger_receipt_groups")]
