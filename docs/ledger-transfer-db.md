@@ -1,6 +1,6 @@
 # 振替DB・業務値仕様（DB実装済み）
 
-更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。振替DBの確定範囲は実装済み、振替APIは一覧GET・詳細GET・新規POSTを実装済み。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
+更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。振替DBの確定範囲は実装済み、振替APIは一覧GET・詳細GET・新規POST・更新PUTを実装済み。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
 
 参照：[入口・残課題](ledger-transfer.md)／[API契約](ledger-transfer-api.md)／[WinUI画面](ledger-transfer-ui.md)／[既存レシートDB](ledger-receipt-schema.md)／[家計簿DBモデル](ledger-core-schema.md)。
 
