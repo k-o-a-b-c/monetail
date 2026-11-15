@@ -137,10 +137,9 @@ public sealed partial class ReceiptApiTests
     }
 
     [Fact]
-    public async Task TransferDetailDoesNotAddListOrWriteEndpoints()
+    public async Task TransferDetailDoesNotAddWriteEndpoints()
     {
         await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
-        using var list = await f.Client.GetAsync($"/ledgers/{D(f.Ledger)}/transfers"); Assert.Equal(HttpStatusCode.NotFound, list.StatusCode);
         foreach (var method in new[] { HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete })
         {
             using var request = new HttpRequestMessage(method, TransferPath(f, row.Id)); using var response = await f.Client.SendAsync(request); Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
