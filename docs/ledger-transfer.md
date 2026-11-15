@@ -147,7 +147,7 @@
 | 更新 | `PUT /ledgers/{ledgerId}/transfers/{transferId}` | 204 No Content・本文なし |
 | 削除 | `DELETE /ledgers/{ledgerId}/transfers/{transferId}` | 204 No Content・本文なし |
 
-- 読取は現行の家計簿参加・閲覧権限を確認する。書込は第4節の振替元・先双方の権限制御を強制する。**POST 201 Createdでは新規振替の詳細リソースを指す`Location: /ledgers/{ledgerId}/transfers/{transferId}`ヘッダーを必須とし、新IDはAPI UUID D形式で示す**。成功本文は従来どおり空とする。
+- 読取は現行の家計簿参加・閲覧権限を確認する。書込は第4節の振替元・先双方の権限制御を強制する。**POST 201 Createdでは新規振替の詳細リソースを指す`Location: /ledgers/{ledgerId}/transfers/{transferId}`ヘッダーを必須とし、新IDはAPI UUID D形式で示す**。成功済みPOSTが同じ`requestId`・内容で再送された場合も、既存`operation_requests.result_id`を使って**同じ振替IDの`Location`**を再現する（新規発行・二重登録しない）。成功本文は従来どおり空とする。
 - 一覧の振替1件は**7フィールドのみ**：`transferId`、`transactionAt`、`name`、`fromPaymentMethodId`、`toPaymentMethodId`、`amount`、`memo`。詳細GETはこれら7つに`revision`を加えた**8フィールド**とする。監査情報はどちらにも含めない。UUIDはAPIでD形式、日時は第1節の固定書式、金額はInt32範囲のJSON整数。支払方法・所有人物の表示名は既存マスタを利用し、一覧応答に重複させない。
 - 保存成功のレスポンス本文に保存済み振替や新しい版を付けない。更新版は次回の詳細GETで取得する。
 
