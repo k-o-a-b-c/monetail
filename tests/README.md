@@ -7,13 +7,25 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 2054 |
+| ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3117 |
+| 合計 | 3203 |
+
+## 振替自動補完GET
+
+[基本応答](Monetail.Api.Tests/TransferAutofillTests.cs)・[選択/期間](Monetail.Api.Tests/TransferAutofillSelectionTests.cs)・[入力](Monetail.Api.Tests/TransferAutofillInputTests.cs)・[権限/途中変更](Monetail.Api.Tests/TransferAutofillSecurityTests.cs)・[家計簿分離](Monetail.Api.Tests/TransferAutofillIsolationTests.cs)・[SQL計画](Monetail.Api.Tests/TransferAutofillQueryPlanTests.cs)に実HTTP/本番DI/隔離SQLiteの86件を追加。完全一致/表記ゆれ非一致、更新UTC/IDの順序と取引日時・作成日時・使用回数の非優先、無効履歴のスキップと同一履歴の両側、指定元だけを応答しないこと、両支払方法/所有人物の期間境界、Editorの双方所有、全権限・指定元の403/404/期間外の両null、厳密クエリ/UTF-16/日付/UUIDを確認する。
+
+候補取得後と指定元確認中の役割/人物対応変更、認証失効/参加解除を検証し、書込可能な状態が続いても古い候補を両nullにして再検索しないことをSQL回数でも確認。空履歴・期間外指定元でも最後の権限確認を省略しない。共有120回枠、保存障害の情報非公開、DB/監査/版/再送記録の非変更、他家計簿の同一振替IDと指定元の存在情報非公開を検証する。
+
+1,002履歴（新しい1,001件が使用不可）の実SQLを捕捉し、Admin/Editorと指定元あり/なしの4条件で古い有効な履歴を取得。EXPLAIN QUERY PLANで既存索引のSEARCH・全表SCAN不使用・更新UTC順の一時B-treeを確認する。LIMIT 1は有効条件を適用した後の結果1組だけに使用し、履歴探索の件数上限は追加しない。
+
+ローカルReleaseは最小2件→追加86件→既存振替CRUD/候補/レシート補完・共有権限処理の代表12件が成功（段階間に重複あり、失敗/skipなし）。変更前は基点main `8a6fd1533bb58aa2c7e4be4aacb673b989c038a7`の[push Tests 43708775155](https://github.com/k-o-a-b-c/monetail/actions/runs/43708775155)成功を採用。全APIのローカル重複実行は行わず、影響外のClient/WinUI/旧Windows/性能等はCIの既存選択・fingerprintに従って成功記録を再利用する。DB/索引/Migration・Client/WinUIは変更せず、実運用DBには操作していない。実NAS/実Windows接続・実運用データ規模の性能は未検証。
+
+ソース`cc33f27aa4d28be0373238c60021eeaa1b14afd8`の[Tests 43712768379](https://github.com/k-o-a-b-c/monetail/actions/runs/43712768379)でAPI全2140件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全が成功。変更文書のローカル参照先ファイル445件・差分検査も成功した。
 
 ## 振替名候補GET
 
