@@ -9,6 +9,11 @@ public static class TransferEndpoints
 {
     public static void Map(WebApplication app)
     {
+        app.MapGet("/ledgers/{ledgerId}/transfer-suggestions", async (string ledgerId, HttpContext http, LedgerManagementService service) =>
+            Results.Ok(await service.TransferSuggestionsAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), http.Request.Query,
+                (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
+            .RequireAuthorization().AddEndpointFilter<AuthRequestFilter>().AddEndpointFilter<LedgerApiFilter>()
+            .RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         var routes = app.MapGroup("/ledgers/{ledgerId}/transfers").RequireAuthorization()
             .AddEndpointFilter<AuthRequestFilter>().AddEndpointFilter<LedgerApiFilter>()
             .AddEndpointFilter(async (invocation, next) =>
