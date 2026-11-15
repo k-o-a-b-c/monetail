@@ -324,7 +324,7 @@
                                 <TextBlock Text="間隔が空欄なら繰り返しなし" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBlock x:Name="ReceiptIntervalError" Visibility="Collapsed" Text="間隔は1以上の整数を入力してください。" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="4">
+                            <StackPanel x:Name="ReceiptMemoArea" Grid.Column="1" Spacing="4">
                                 <TextBox x:Name="ReceiptMemo" Header="レシートメモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptMemo"/>
                                 <TextBlock x:Name="ReceiptMemoError" Visibility="Collapsed" Text="レシートメモは100文字以内で入力してください。" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                             </StackPanel>
