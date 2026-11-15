@@ -26,6 +26,36 @@ public sealed partial class ReceiptEditorStateTests
         Assert.True(state.HasUnsavedChanges); Assert.Equal(source.ReceiptId, state.ReceiptId);
     }
 
+    [Fact]
+    public void BlankMemoAndLegacyEmptyMemoDoNotChangeEditorBaseline()
+    {
+        var source = Saved() with { Memo = "" };
+        var originalGroup = source.Groups[0];
+        source.Groups[0] = originalGroup with {
+            Memo = "",
+            Details = [originalGroup.Details[0] with { Memo = "" }, originalGroup.Details[1]]
+        };
+        var state = ReceiptEditorState.Edit(source, Defaults);
+        Assert.Null(state.Header.Memo);
+        Assert.Null(state.Groups[0].Memo);
+        Assert.Null(state.Groups[0].Details[0].Values.Memo);
+        Assert.False(state.NeedsLeaveConfirmation);
+        state.Header.Memo = "";
+        state.SelectGroup(state.Groups[0].Key);
+        state.SetGroupMemo("");
+        state.SelectDetail(state.Groups[0].Details[0].Key);
+        state.Draft!.Memo = "";
+        Assert.False(state.NeedsLeaveConfirmation);
+        var prepared = state.PrepareSave(ReceiptSaveKind.Update).Snapshot;
+        Assert.Null(prepared.Memo);
+        Assert.Null(prepared.Groups[0].Memo);
+        Assert.Null(prepared.Groups[0].Details[0].Memo);
+        state.Header.Memo = " ";
+        Assert.True(state.HasUnsavedChanges);
+        state.Header.Memo = "";
+        Assert.False(state.NeedsLeaveConfirmation);
+    }
+
     [Theory]
     [InlineData(ReceiptSaveKind.Update)]
     [InlineData(ReceiptSaveKind.ReuseRegistration)]

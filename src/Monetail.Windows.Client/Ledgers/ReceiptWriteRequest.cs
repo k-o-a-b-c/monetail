@@ -38,7 +38,12 @@ public sealed class ReceiptWriteRequest
         {
             body["transactionAt"] = snapshot.TransactionAt; body["shopName"] = snapshot.ShopName; body["shopLocation"] = snapshot.ShopLocation;
             body["paymentMethodId"] = snapshot.PaymentMethodId; body["taxInclusionMode"] = snapshot.TaxInclusionMode; body["taxRoundingMode"] = snapshot.TaxRoundingMode;
-            body["recurrenceInterval"] = snapshot.RecurrenceInterval; body["recurrenceUnit"] = snapshot.RecurrenceUnit; body["memo"] = snapshot.Memo; body["groups"] = snapshot.Groups;
+            body["recurrenceInterval"] = snapshot.RecurrenceInterval; body["recurrenceUnit"] = snapshot.RecurrenceUnit;
+            body["memo"] = ReceiptMemoValue.Normalize(snapshot.Memo);
+            body["groups"] = snapshot.Groups.Select(group => group with {
+                Memo = ReceiptMemoValue.Normalize(group.Memo),
+                Details = group.Details.Select(row => row with { Memo = ReceiptMemoValue.Normalize(row.Memo) }).ToArray()
+            }).ToArray();
         }
         json = ReceiptJson.Serialize(body);
     }
@@ -55,6 +60,7 @@ public sealed class ReceiptWriteRequest
         static void Check(bool valid, string field) { if (!valid) throw new ReceiptInputException(field, "入力内容を確認してください。"); }
         Check(snapshot.TransactionAt.Ticks % TimeSpan.TicksPerSecond == 0, "transactionAt");
         Check(snapshot.ShopName is { Length: > 0 and <= 100 }, "shopName"); ReceiptQueries.Text(snapshot.ShopLocation, "shopLocation");
+        Check(snapshot.Memo is null || snapshot.Memo.Length <= 100, "memo");
         ReceiptQueries.Id(snapshot.PaymentMethodId, "paymentMethodId");
         Check(snapshot.TaxInclusionMode is 0 or 1, "taxInclusionMode"); Check(snapshot.TaxRoundingMode is "floor" or "half_up", "taxRoundingMode");
         Check(snapshot.RecurrenceInterval is null or > 0, "recurrenceInterval");

@@ -15,8 +15,6 @@ public sealed partial class MainWindow
 {
     private ReceiptDetailInput? receiptDetailInput;
     private bool receiptDetailRendering, receiptDetailTransition, receiptDetailValidationRequested;
-    private string? receiptDetailInitialMemo;
-    private string receiptDetailInitialMemoText = "";
 
     private void LoadReceiptDetailForm(bool refreshList = true)
     {
@@ -26,13 +24,11 @@ public sealed partial class MainWindow
             receiptDetailValidationRequested = false;
             receiptDetailInput = receiptEditor?.Draft is { } draft ? new(draft) : null;
             var input = receiptDetailInput; var value = input?.Values;
-            receiptDetailInitialMemo = value?.Memo;
             foreach (var control in new Control[] { ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount,
                 ReceiptItemRateDiscount, ReceiptItemTax, ReceiptItemExpense, ReceiptItemOccurrence, ReceiptItemMemo }) control.IsEnabled = input is not null;
             ReceiptItemName.Text = value?.Name ?? ""; ReceiptItemPrice.Text = input?.UnitPrice ?? "";
             ReceiptItemQuantity.Text = input?.Quantity ?? ""; ReceiptItemDiscount.Text = input?.UnitDiscountAmount ?? "";
             ReceiptItemRateDiscount.Text = input?.DiscountRate ?? ""; ReceiptItemMemo.Text = value?.Memo ?? "";
-            receiptDetailInitialMemoText = ReceiptItemMemo.Text;
             RefreshReceiptTaxChoices();
             SetReceiptChoice(ReceiptItemExpense, value?.ExpenseType); SetReceiptChoice(ReceiptItemOccurrence, value?.OccurrenceType);
             var income = receiptEditor?.SelectedGroup is { } group && currentLedger is { } ledger &&
@@ -88,7 +84,7 @@ public sealed partial class MainWindow
         input.UnitDiscountAmount = ReceiptItemDiscount.Text; input.DiscountRate = ReceiptItemRateDiscount.Text;
         input.Values.Tax = ReceiptItemTax.SelectedItem is ComboBoxItem { Tag: ReceiptTaxSelection tax } ? tax : ReceiptTaxSelection.Unselected;
         input.Values.ExpenseType = ReceiptChoice(ReceiptItemExpense) ?? ""; input.Values.OccurrenceType = ReceiptChoice(ReceiptItemOccurrence) ?? "";
-        input.Values.Memo = ReceiptOptionalText(ReceiptItemMemo.Text, receiptDetailInitialMemo, receiptDetailInitialMemoText);
+        input.Values.Memo = ReceiptMemoValue.Normalize(ReceiptItemMemo.Text);
         input.Values.PersonIds.Clear(); input.Values.PersonIds.AddRange(ReceiptDetailPeople.Children.OfType<CheckBox>().Where(c => c.IsChecked == true).Select(c => (Guid)c.Tag));
         // 完全に解析できる間は可変下書きだけ同期。失敗時は生文字列を保護し、保存済み行には触れない。
         if (receiptEditor?.Draft is { } draft)

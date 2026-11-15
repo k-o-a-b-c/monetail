@@ -32,7 +32,7 @@ public sealed class ReceiptHeaderDraft
     internal ReceiptHeaderDraft Copy() => (ReceiptHeaderDraft)MemberwiseClone();
     internal bool Same(ReceiptHeaderDraft other) => TransactionAt == other.TransactionAt && ShopName == other.ShopName && ShopLocation == other.ShopLocation &&
         PaymentMethodId == other.PaymentMethodId && TaxInclusionMode == other.TaxInclusionMode && TaxRoundingMode == other.TaxRoundingMode &&
-        RecurrenceInterval == other.RecurrenceInterval && RecurrenceUnit == other.RecurrenceUnit && Memo == other.Memo;
+        RecurrenceInterval == other.RecurrenceInterval && RecurrenceUnit == other.RecurrenceUnit && ReceiptMemoValue.Normalize(Memo) == ReceiptMemoValue.Normalize(other.Memo);
 }
 
 /// <summary>入力途中の空欄・不正値を保持する可変フォーム。保存用DTOではない。</summary>
@@ -55,7 +55,7 @@ public sealed class ReceiptDetailDraft
         copy.PersonIds.AddRange(PersonIds); return copy;
     }
     internal bool Same(ReceiptDetailDraft other) => Name == other.Name && UnitPrice == other.UnitPrice && Quantity == other.Quantity && UnitDiscountAmount == other.UnitDiscountAmount &&
-        DiscountRate == other.DiscountRate && Tax == other.Tax && ExpenseType == other.ExpenseType && OccurrenceType == other.OccurrenceType && Memo == other.Memo &&
+        DiscountRate == other.DiscountRate && Tax == other.Tax && ExpenseType == other.ExpenseType && OccurrenceType == other.OccurrenceType && ReceiptMemoValue.Normalize(Memo) == ReceiptMemoValue.Normalize(other.Memo) &&
         PersonIds.Count == other.PersonIds.Count && PersonIds.ToHashSet().SetEquals(other.PersonIds);
     internal ReceiptDetailSnapshot Snapshot(Guid? id, int order, string field)
     {
@@ -63,12 +63,12 @@ public sealed class ReceiptDetailDraft
         if (!Tax.IsSelected) throw new ReceiptInputException(field + ".taxRate", "税率を選択してください。");
         return new(id, order, Name, Required(UnitPrice, field + ".unitPrice"), Required(Quantity, field + ".quantity"),
             Required(UnitDiscountAmount, field + ".unitDiscountAmount"), Required(DiscountRate, field + ".discountRate"), Tax.Rate,
-            ExpenseType, OccurrenceType, Memo, PersonIds.ToArray());
+            ExpenseType, OccurrenceType, ReceiptMemoValue.Normalize(Memo), PersonIds.ToArray());
     }
     internal static ReceiptDetailDraft From(ReceiptDetailInfo row)
     {
         var result = new ReceiptDetailDraft { Name = row.Name, UnitPrice = row.UnitPrice, Quantity = row.Quantity, UnitDiscountAmount = row.UnitDiscountAmount,
-            DiscountRate = row.DiscountRate, Tax = ReceiptTaxSelection.Stored(row.TaxRate), ExpenseType = row.ExpenseType, OccurrenceType = row.OccurrenceType, Memo = row.Memo };
+            DiscountRate = row.DiscountRate, Tax = ReceiptTaxSelection.Stored(row.TaxRate), ExpenseType = row.ExpenseType, OccurrenceType = row.OccurrenceType, Memo = ReceiptMemoValue.Normalize(row.Memo) };
         result.PersonIds.AddRange(row.PersonIds); return result;
     }
 }
@@ -94,7 +94,7 @@ public sealed class ReceiptEditGroup
     internal List<ReceiptEditDetail> Rows => rows;
     internal ReceiptEditGroup(Guid? id, Guid category, string? memo, IEnumerable<ReceiptEditDetail> details)
     {
-        GroupId = id; CategoryId = category; Memo = memo; rows = details.ToList(); Details = rows.AsReadOnly(); originalOrder = rows.Select(r => r.Key).ToArray();
+        GroupId = id; CategoryId = category; Memo = ReceiptMemoValue.Normalize(memo); rows = details.ToList(); Details = rows.AsReadOnly(); originalOrder = rows.Select(r => r.Key).ToArray();
     }
     // 表示順が元に戻ったら、元の疎なdisplay_orderも戻して無変更判定を保つ。
     internal bool IsOriginalOrder => rows.Select(r => r.Key).SequenceEqual(originalOrder);
