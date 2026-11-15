@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Monetail.Api.Authentication;
 using Monetail.Api.Features.Monetail.Ledgers;
 using Monetail.Api.Features.Monetail.Receipts;
@@ -21,6 +22,10 @@ public static class TransferEndpoints
                     throw;
                 }
             });
+        routes.MapGet("", async (string ledgerId, HttpContext http, LedgerManagementService service, IDataProtectionProvider protection) =>
+            Results.Ok(await service.ListTransfersAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), http.Request.Query, protection,
+                (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
+            .RequireRateLimiting(LedgerRateLimits.ReadPolicy);
         routes.MapGet("/{transferId}", async (string ledgerId, string transferId, HttpContext http, LedgerManagementService service) =>
             Results.Ok(await service.GetTransferAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(transferId, "transferId"),
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
