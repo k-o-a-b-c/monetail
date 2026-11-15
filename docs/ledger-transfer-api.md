@@ -1,6 +1,6 @@
-# 振替API契約（一覧・詳細GET実装済み）
+# 振替API契約（GET・新規POST実装済み）
 
-更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GETを実装済み。レシート既存APIおよび後続の振替候補・補完・書込APIの実装状態と区別する。
+更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GET・新規POSTを実装済み。レシート既存APIおよび後続の振替候補・補完・PUT/DELETEの実装状態と区別する。
 
 参照：[入口・残課題](ledger-transfer.md)／[DB・値域](ledger-transfer-db.md)／[WinUI画面](ledger-transfer-ui.md)／[レシートAPI](ledger-receipt-api.md)／[共通再送](ledger-operation-retries.md)。
 
@@ -8,7 +8,15 @@
 
 一覧/詳細GETは既存レシートの認証/DB準備フィルター、`LedgerApiFilter`、UUID入力検証、共有参照レート制限を利用する。`LedgerManagementService.InLedgerAsync`で読取前後の認証・現在参加を検証し、指定家計簿の振替だけを参照する。下記の応答を整形するだけで保存値・監査列・更新版・再送記録は変更しない。実装/検証結果は[一覧GET](../tests/README.md#振替一覧get)・[詳細GET](../tests/README.md#振替詳細get)を参照。
 
-一覧GETの`focusTransferId`も実装済み（DEC-279）。候補・補完・POST/PUT/DELETEは未実装。以下の確定契約の記述は、これらの完了を意味しない。
+一覧GETの`focusTransferId`も実装済み（DEC-279）。新規POSTは下記の範囲で実装済み。候補・補完・PUT/DELETEは未実装。以下の確定契約の記述は、これらの完了を意味しない。
+
+### 新規POSTの実装
+
+`TransferCreateInput`は共通`LedgerPayload`で未知/重複項目・型・必須項目を確認し、下記の業務値を検証する。UUID D形式とrequestIdのUUID v4、ローカル秒精度、UTF-16文字数/Unicode空白・メモ改行を検証し、名前/空白のみのメモは保持、空文字メモだけnullへ正規化する。
+
+レシートの支払方法所有権照合・`InLedgerAsync`・`PreviousAsync`・`Record`・`OperationRequest.Hash`・期間判定を共用する。双方の支払方法/人物を同一家計簿で解決し、現行の権限・有効期間を検証。振替INSERTと`transfer.create`の成功記録INSERT後も、認証/参加/人物対応/所有権/マスタ期間を再取得してから同一SQLiteトランザクションを確定する。
+
+成功済みの同一要求は現在の認証/参加/ロール/双方の所有権を確認し、処理を繰り返さず元の201・Locationを再現する。結果行が削除済みでも作り直さない。201の本文は空とし、ID/更新版/監査情報はサーバーで設定する。新しいDB表・列・索引や独自再送期限は追加しない。検証結果は[POSTのテスト](../tests/README.md#振替post新規登録)を参照。
 
 ## 権限（確定・API強制）
 

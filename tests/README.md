@@ -7,13 +7,21 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1707 |
+| ASP.NET Core API | 1830 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 2770 |
+| 合計 | 2893 |
+
+## 振替POST（新規登録）
+
+実HTTP/本番DI/Identity/隔離SQLiteの123件を追加。[正常系/権限/期間](Monetail.Api.Tests/TransferCreateTests.cs)で201/空本文/D形式Location・UUID v7/v4・監査4列・ローカル秒精度・GET結果と、全ロール/双方所有、双方の支払方法/人物の期間両端、UTF-16/Unicode空白/全改行文字・元文字列保持を確認する。[JSON](Monetail.Api.Tests/TransferCreateInputTests.cs)は整数/型/UUID v4/必須7項目/未知/重複/不正本文を検証。[再送/原子性](Monetail.Api.Tests/TransferCreateSafetyTests.cs)は同一成功/異内容/異操作者/異操作/別家計簿、同時送信、再起動/削除済み結果、両INSERT失敗・各保存段階の認証/役割/人物対応/所有権/期間変化での全表rollbackを確認する。所有者変更の模擬はテストの同一Tx内だけで禁止トリガーを外し、rollbackでDDL/データが復元することも確認。本番の制約は維持する。[認証境界](Monetail.Api.Tests/TransferCreateBoundaryTests.cs)は別家計簿・401/404/CSRF/Origin・共有20回制限を検証する。
+
+ローカルReleaseは最小2件→入力/権限/期間等81件が成功。安全性42件の初回は41件成功、所有者変更模擬の1件が既存の同名制約にも衝突して503となった。模擬データの名前だけを重複しない値に修正し、当該ケースと既存の詳細GET/レシート再送/同時登録を含む関連32件が成功（段階間に重複あり）。製品制約/判定は緩和していない。基点main `b37462be32d09b1bd84733b5f1526ab1b9f555a1`の[push Tests 43687665857](https://github.com/k-o-a-b-c/monetail/actions/runs/43687665857)成功を変更前の根拠にする。
+
+ソース`73ce624d7906235963ebbc3958852898a8e043a9`の[Tests 43689887463](https://github.com/k-o-a-b-c/monetail/actions/runs/43689887463)でAPI全1830件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ（更新・DB/PFX等のバックアップ/復元保全を含む）が成功。文書ローカル参照114件・差分検査も成功。影響外のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用し、全APIのローカル重複実行は行わない。実運用DB変更は行わず、実NAS/実Windows接続・実運用データ性能は未検証。PUT/DELETE・候補/補完・Client/WinUI・DB/索引/Migrationは変更していない。
 
 ## 振替一覧のfocusTransferId（DEC-279）
 
