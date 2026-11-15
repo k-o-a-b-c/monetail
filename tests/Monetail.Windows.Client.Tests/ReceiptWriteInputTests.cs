@@ -16,12 +16,14 @@ public sealed partial class ReceiptsWorkspaceTests
     [InlineData("discount", "groups[0].details[0].discountRate")] [InlineData("order", "groups[0].details[0].displayOrder")]
     [InlineData("person", "groups[0].details[0].personIds[1]")] [InlineData("id", "groups[0].groupId")]
     [InlineData("period", "recurrenceUnit")] [InlineData("regular", "groups")]
+    [InlineData("memo", "memo")] [InlineData("emojiMemo", "memo")]
     public void WriteInputRejectsInvalidValuesWithoutCorrection(string kind, string field)
     {
         var input = Snapshot(); var group = input.Groups[0]; var row = group.Details[0];
         input = kind switch {
             "date" => input with { TransactionAt = At.AddTicks(1) }, "name" => input with { ShopName = new string('あ', 101) },
             "groups" => input with { Groups = [] }, "details" => input with { Groups = [group with { Details = [] }] },
+            "memo" => input with { Memo = new string('a', 101) }, "emojiMemo" => input with { Memo = string.Concat(Enumerable.Repeat("😀", 51)) },
             "quantity" => input with { Groups = [group with { Details = [row with { Quantity = 0 }] }] },
             "discount" => input with { Groups = [group with { Details = [row with { DiscountRate = 100.01m }] }] },
             "order" => input with { Groups = [group with { Details = [row with { DisplayOrder = -1 }] }] },
