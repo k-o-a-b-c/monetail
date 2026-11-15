@@ -99,7 +99,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("")] [InlineData("month=")] [InlineData("month=ALL")] [InlineData("month=2026-1")] [InlineData("month=2026-13")]
     [InlineData("month=all&limit=10")] [InlineData("month=all&month=all")] [InlineData("month=all&q=a&q=b")]
     [InlineData("month=all&ownerPersonId=bad")] [InlineData("month=all&paymentMethodId=")]
-    [InlineData("month=all&focusTransferId=00000000-0000-0000-0000-000000000001")]
+    [InlineData("month=all&focusTransferId=bad")]
     public async Task TransferListRejectsInvalidAndUnsupportedQueryFields(string query)
     {
         await using var f = await Fixture.Create(); var before = f.Snapshot(); var error = await TransferPage(f, query, 400);
