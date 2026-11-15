@@ -64,9 +64,26 @@ internal static class TransferQueries
     internal static string Encode(params (string Key, string? Value)[] fields) => string.Join("&", fields.Where(f => f.Value is not null).Select(f => f.Key + "=" + Uri.EscapeDataString(f.Value!)));
 }
 
-/// <summary>認証更新を共用する読取窓口。再検索/ページ追加/キャッシュ更新/入力への適用はしない。</summary>
+/// <summary>認証更新を共用する振替の操作窓口。再検索/ページ追加/キャッシュ更新/入力への適用はしない。</summary>
 public sealed class TransfersWorkspace(MonetailApiClient api, ClientSession session, Guid ledgerId)
 {
+    public Task<TransferCreatedInfo> CreateAsync(TransferWriteRequest request, CancellationToken token = default)
+    {
+        request.CheckTarget(ledgerId, TransferWriteOperation.Create);
+        return session.ExecuteAuthenticatedAsync((access, ct) => api.CreateTransferAsync(access, request, ct), token);
+    }
+    public Task UpdateAsync(TransferWriteRequest request, CancellationToken token = default) => WriteAsync(request, TransferWriteOperation.Update, token);
+    public Task DeleteAsync(TransferWriteRequest request, CancellationToken token = default) => WriteAsync(request, TransferWriteOperation.Delete, token);
+    private Task WriteAsync(TransferWriteRequest request, TransferWriteOperation operation, CancellationToken token)
+    {
+        request.CheckTarget(ledgerId, operation);
+        return session.ExecuteAuthenticatedAsync(async (access, ct) =>
+        {
+            if (operation == TransferWriteOperation.Update) await api.UpdateTransferAsync(access, request, ct);
+            else await api.DeleteTransferAsync(access, request, ct);
+            return true;
+        }, token);
+    }
     public Task<TransferListInfo> ListAsync(TransferListQuery query, CancellationToken token = default) =>
         session.ExecuteAuthenticatedAsync((access, ct) => api.ListTransfersAsync(access, ledgerId, query, ct), token);
     public Task<TransferInfo> GetAsync(Guid transferId, CancellationToken token = default) =>

@@ -29,6 +29,7 @@ internal static class TransferJson
         try { return JsonSerializer.Deserialize<T>(bytes, Options) ?? throw new JsonException(); }
         catch (JsonException) { throw new ApiConnectionException(); }
     }
+    internal static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Options);
     private sealed class Identifier : JsonConverter<Guid>
     {
         public override Guid Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
