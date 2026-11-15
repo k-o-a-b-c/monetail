@@ -7,13 +7,21 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1672 |
+| ASP.NET Core API | 1707 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 2735 |
+| 合計 | 2770 |
+
+## 振替一覧のfocusTransferId（DEC-279）
+
+[フォーカス取得](Monetail.Api.Tests/TransferListFocusTests.cs)27件と[権限/取得途中の変化/実SQL](Monetail.Api.Tests/TransferListFocusSecurityTests.cs)8件の計35件を追加。D形式（大文字許可、小文字応答）・前後空白/N形式/空UUID/重複/cursor併用の400、全検索条件・日時優先・同日時ID BINARY降順・対象先頭・100/101/201件境界、フォーカスなしの通常cursor継続を検証する。不存在/削除済み/別家計簿/各条件外は同じ404本文とし、全ロール・401/404/429/503・全表非変更、対象確認後の参加解除/認証失効/対象削除での非公開/rollback、既存索引と包括的キーセット境界/OFFSET未使用も確認。レシートAPIはfocus指定を引き続き不正クエリとして拒否する。旧一覧の未対応focus拒否ケースは今回の対象拡張に合わせ、不正D形式拒否へ更新した。
+
+ローカルReleaseは最小2件→focus27件→新規セキュリティと既存一覧/詳細を含む関連98件→日時とIDの大小が逆になる順序1件が成功（段階間に重複あり）。関連試験の初回は新規テスト補助のDbCommandパラメーター追加のコンパイルエラーで未実行。プロバイダー共通APIへ直した後に関連98件が成功し、製品制約/判定を緩和していない。基点main `04d8fde86e6bae57dbe3e11fdc5eee7c5fe81868`の[push Tests 43684311319](https://github.com/k-o-a-b-c/monetail/actions/runs/43684311319)成功を変更前の根拠にする。
+
+ソース`3b97cf6b43f906f90d2f7143e5bda44ed81e7a4d`の[Tests 43685670397](https://github.com/k-o-a-b-c/monetail/actions/runs/43685670397)でAPI全1707件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ（更新・DB/PFX等のバックアップ/復元保全を含む）が成功。文書ローカル参照413件・差分検査も成功。影響外のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用し、全APIのローカル重複実行は行わない。実NAS/実Windows接続・実運用データの性能、将来WinUIの404復帰は未検証。レシートAPI/書込API・Client/WinUI実装・DB/索引/Migrationは変更しない。
 
 ## 振替一覧GET
 
