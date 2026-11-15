@@ -35,17 +35,17 @@ public sealed partial class LedgerManagementService
         var r = old.Root; var c = input.Calculation; var parsed = ReceiptValidation.Parse(c);
         if (r.TransactionAt != parsed.TransactionAt || r.ShopName != c.ShopName || r.ShopLocation != c.ShopLocation || r.PaymentMethodId != input.PaymentMethodId ||
             r.TaxInclusionMode != c.TaxInclusionMode || r.TaxRoundingMode != c.TaxRoundingMode || r.RecurrenceInterval != c.RecurrenceInterval ||
-            r.RecurrenceUnit != c.RecurrenceUnit || r.Memo != input.Memo || old.Groups.Length != input.Groups.Length || old.Details.Length != input.Groups.Sum(g => g.Details.Length)) return false;
+            r.RecurrenceUnit != c.RecurrenceUnit || ReceiptPayload.NormalizeMemo(r.Memo) != input.Memo || old.Groups.Length != input.Groups.Length || old.Details.Length != input.Groups.Sum(g => g.Details.Length)) return false;
         for (var i = 0; i < input.Groups.Length; i++)
         {
             var group = input.Groups[i]; var stored = old.Groups.SingleOrDefault(g => g.Id == group.Id);
-            if (stored is null || stored.CategoryId != group.CategoryId || stored.Memo != group.Memo) return false;
+            if (stored is null || stored.CategoryId != group.CategoryId || ReceiptPayload.NormalizeMemo(stored.Memo) != group.Memo) return false;
             for (var j = 0; j < group.Details.Length; j++)
             {
                 var d = group.Details[j]; var row = old.Details.SingleOrDefault(line => line.Id == d.Id); var p = parsed.Groups[i].Details[j];
                 if (row is null || row.GroupId != group.Id || row.DisplayOrder != d.Calculation.DisplayOrder || row.Name != d.Calculation.Name ||
                     row.UnitPrice != p.UnitPrice || row.Quantity != p.Quantity || row.UnitDiscountAmount != p.UnitDiscountAmount || row.DiscountRate != p.DiscountRate ||
-                    row.TaxRate != p.TaxRate || row.ExpenseType != d.Calculation.ExpenseType || row.OccurrenceType != d.Calculation.OccurrenceType || row.Memo != d.Memo ||
+                    row.TaxRate != p.TaxRate || row.ExpenseType != d.Calculation.ExpenseType || row.OccurrenceType != d.Calculation.OccurrenceType || ReceiptPayload.NormalizeMemo(row.Memo) != d.Memo ||
                     !old.People.Where(person => person.DetailId == row.Id).Select(person => person.PersonId).ToHashSet(StringComparer.Ordinal).SetEquals(d.PersonIds)) return false;
             }
         }
