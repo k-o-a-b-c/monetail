@@ -1,6 +1,6 @@
 # 振替WinUI 3画面・ホーム一覧仕様（確定範囲・未実装）
 
-更新: 2026-11-15。振替の**入力・履歴候補・操作・競合復旧**およびホーム3一覧・共通フィルターの正本。振替画面自体は未実装。WinUI 3標準コントロールと[共通UI](../UI_DESIGN.md)・[共通入力](59-input-controls-design.md)を使用する。
+更新: 2026-11-15。振替の**入力・履歴候補・操作・競合復旧**およびホーム3一覧・共通フィルターの正本。[UI非依存の編集モデル](architecture-winui.md#振替の編集状態モデル)は実装済みだが、振替画面自体は未実装。WinUI 3標準コントロールと[共通UI](../UI_DESIGN.md)・[共通入力](59-input-controls-design.md)を使用する。
 
 参照：[入口・残課題](ledger-transfer.md)／[DB・入力値](ledger-transfer-db.md)／[API・権限](ledger-transfer-api.md)／[レシート画面](ledger-receipt-ui.md)／[履歴候補共通仕様](ledger-receipt-suggestions.md)。
 

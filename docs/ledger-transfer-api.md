@@ -8,7 +8,7 @@
 
 一覧/詳細GETは既存レシートの認証/DB準備フィルター、`LedgerApiFilter`、UUID入力検証、共有参照レート制限を利用する。`LedgerManagementService.InLedgerAsync`で読取前後の認証・現在参加を検証し、指定家計簿の振替だけを参照する。下記の応答を整形するだけで保存値・監査列・更新版・再送記録は変更しない。実装/検証結果は[一覧GET](../tests/README.md#振替一覧get)・[詳細GET](../tests/README.md#振替詳細get)を参照。
 
-一覧GETの`focusTransferId`も実装済み（DEC-279）。POST・PUT・DELETEは下記の範囲で実装済み。振替名候補GET・自動補完GETも実装済み。Windows Clientの[読取4種類](architecture-winui.md#振替のclient読取接続)・[書込3種類](architecture-winui.md#振替のclient書込接続)は接続済み。振替編集モデル/WinUIは未実装。
+一覧GETの`focusTransferId`も実装済み（DEC-279）。POST・PUT・DELETEは下記の範囲で実装済み。振替名候補GET・自動補完GETも実装済み。Windows Clientの[読取4種類](architecture-winui.md#振替のclient読取接続)・[書込3種類](architecture-winui.md#振替のclient書込接続)は接続済み。[振替編集モデル](architecture-winui.md#振替の編集状態モデル)も実装済み。WinUIは未実装。
 
 ### 新規POSTの実装
 
