@@ -9,13 +9,17 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1156 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1165 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3581 |
+| 合計 | 3590 |
 
 ## Windows Client：振替編集状態モデル
+
+PR #182追加修正：空白だけの振替名では補完を開始せず、入力や選択を変更しない。null/空文字・ASCII空白/改行・全角空白・NBSP・EM SPACE/NNBSP・混在空白、文字の前後のUnicode空白を保持する回帰9ケースを追加。ローカルReleaseで編集モデル全94件が成功（失敗/skipなし）。`string.IsNullOrWhiteSpace`を使い、Trimや正規化は追加していない。
+
+修正ソース`22204798f8039e0c114eaf2b56ffd217b9c1e776`の[Tests 43771823054](https://github.com/k-o-a-b-c/monetail/actions/runs/43771823054)でClient全1165件・実DPAPI3件、WinUI製品/検証用Releaseビルド・製品起動・既存449確認が成功。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は未変更）。修正前はPR先端`2d3fd52`の[Tests 43770644447](https://github.com/k-o-a-b-c/monetail/actions/runs/43770644447)成功を採用し、影響外の検証は既存の選択・fingerprintで成功記録を再利用した。API・JSON契約は変更していない。
 
 [新規/既存](Monetail.Windows.Client.Tests/TransferEditorStateTests.cs)・[保存準備/入力保全](Monetail.Windows.Client.Tests/TransferEditorSaveTests.cs)・[補完](Monetail.Windows.Client.Tests/TransferEditorAutofillTests.cs)・[競合/読み取り専用](Monetail.Windows.Client.Tests/TransferEditorConflictTests.cs)に85ケースを追加。6項目/ID/版の保持、未選択、未確定日時/金額の生文字列、メモnull/空文字/空白、値を戻した際の未保存解消と由来だけの変更の除外を確認する。手動/保存済み選択の保護、自動値の再補完/両nullでの解除、条件変更して戻した場合/別モデル/新しい要求文脈の旧応答拒否、関係しない時刻/金額/メモ入力中の保全も検証。登録/更新/流用Snapshot、削除ID/版、日時警告、最新8項目の確認付き採用、403/404から競合採用による書込復帰の禁止、各失敗時の状態保全を確認する。
 
