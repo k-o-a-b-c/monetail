@@ -50,6 +50,7 @@
 | 新Windows版の構成・WinUI 3・Client | [新Windows版](architecture-winui.md) |
 | APIの責務・依存・後続分離案 | [API構成](architecture-api.md) |
 | リポジトリ配置・CI・関連資料 | [配置とCI](architecture-repository.md) |
+| 新Windows版の画面一覧・遷移・実装状況・ナビゲーション見直し論点 | [画面台帳](screen-inventory.md) |
 | 新Windows版の共通UI・配置・フォント・高DPI基準 | [UI_DESIGN.md](../UI_DESIGN.md) |
 | 新Windows版のキー操作・日付と時刻の入力形式・補完 | [59 入力コントロール設計](59-input-controls-design.md) |
 | 検証件数・実行方法・採用する結果 | [tests/README](../tests/README.md) |
