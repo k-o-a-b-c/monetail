@@ -1,4 +1,7 @@
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using System.Runtime.InteropServices;
 using Monetail.Windows.Client.Transport;
 using Windows.Graphics;
 
@@ -14,12 +17,29 @@ public sealed partial class MainWindow : Window
         this.connection = connection;
         InitializeComponent();
         Title = "Monetail";
-        AppWindow.Resize(new SizeInt32(1100, 780));
+        SizeInitialWindow();
         Closed += CloseConnection;
         InitializeInput();
         InitializeReceipts();
         InitializeReceiptEditor();
         ShowPage(StartupPage);
+    }
+
+    [DllImport("user32.dll", ExactSpelling = true)]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    private void SizeInitialWindow()
+    {
+        // WinUIの目標サイズは論理ピクセル。AppWindow.Resizeは物理ピクセルなのでDPIで換算する。
+        // この時点ではXamlRoot.RasterizationScaleが未確定のため、WindowのHWNDから直接取得する。
+        var windowId = AppWindow.Id;
+        var hwnd = Win32Interop.GetWindowFromWindowId(windowId);
+        var dpi = GetDpiForWindow(hwnd);
+        var scale = dpi == 0 ? 1.0 : dpi / 96.0;
+        var workArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Nearest).WorkArea;
+        AppWindow.Resize(new SizeInt32(
+            Math.Min((int)Math.Round(1100 * scale), workArea.Width),
+            Math.Min((int)Math.Round(780 * scale), workArea.Height)));
     }
 
     /// <summary>APIから受け取った表示用データを反映する。サンプルを通常起動へ埋め込まない。</summary>
