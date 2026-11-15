@@ -28,7 +28,8 @@ internal sealed record ReceiptPayload(string RequestId, string? Revision, string
         if (inclusion is < int.MinValue or > int.MaxValue) throw Bad("taxInclusionMode");
         var rounding = Text(root, "taxRoundingMode"); var intervalValue = Value(root, "recurrenceInterval");
         var interval = intervalValue.ValueKind == JsonValueKind.Null ? (long?)null : Integer(intervalValue, "recurrenceInterval");
-        var unit = Text(root, "recurrenceUnit", nullable: true); var memo = Text(root, "memo", nullable: true);
+        var unit = Text(root, "recurrenceUnit", nullable: true); var memo = MemoText(root, "memo");
+        if (memo is { Length: > 100 }) throw Bad("memo");
         var groups = new List<ReceiptPayloadGroup>(); var index = 0;
         foreach (var value in Array(Value(root, "groups"), "groups"))
         {
@@ -36,7 +37,7 @@ internal sealed record ReceiptPayload(string RequestId, string? Revision, string
             Object(value, path, "groupId", "categoryId", "memo", "details");
             var groupId = OptionalId(value, "groupId", path, update);
             var category = Uuid(Value(value, "categoryId", path), path + ".categoryId");
-            var groupMemo = Text(value, "memo", path, nullable: true); var details = new List<ReceiptPayloadDetail>(); var j = 0;
+            var groupMemo = MemoText(value, "memo", path); var details = new List<ReceiptPayloadDetail>(); var j = 0;
             foreach (var line in Array(Value(value, "details", path), path + ".details"))
             {
                 var field = $"{path}.details[{j++}]";
@@ -48,7 +49,7 @@ internal sealed record ReceiptPayload(string RequestId, string? Revision, string
                 var discount = Integer(Value(line, "unitDiscountAmount", field), field + ".unitDiscountAmount");
                 var discountRate = Text(line, "discountRate", field); var tax = Text(line, "taxRate", field, nullable: true);
                 var expense = Text(line, "expenseType", field); var occurrence = Text(line, "occurrenceType", field);
-                var detailMemo = Text(line, "memo", field, nullable: true); var people = new List<string>(); var k = 0;
+                var detailMemo = MemoText(line, "memo", field); var people = new List<string>(); var k = 0;
                 foreach (var person in Array(Value(line, "personIds", field), field + ".personIds"))
                 {
                     var personField = $"{field}.personIds[{k++}]"; var id = Uuid(person, personField);
@@ -96,6 +97,9 @@ internal sealed record ReceiptPayload(string RequestId, string? Revision, string
         if (item.ValueKind != JsonValueKind.String) throw Bad(path.Length == 0 ? key : path + "." + key);
         return item.GetString();
     }
+    // メモの未入力と空文字は同義。空白のみの文字列は保持する。
+    internal static string? NormalizeMemo(string? memo) => memo is "" ? null : memo;
+    private static string? MemoText(JsonElement value, string key, string path = "") => NormalizeMemo(Text(value, key, path, nullable: true));
     private static IEnumerable<JsonElement> Array(JsonElement value, string path) => value.ValueKind == JsonValueKind.Array ? value.EnumerateArray() : throw Bad(path);
     private static long Integer(JsonElement value, string path) => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var result) ? result : throw Bad(path);
     private static LedgerApiFault Bad(string? field) => LedgerPayload.Bad("入力項目・型を確認してください。", field);
