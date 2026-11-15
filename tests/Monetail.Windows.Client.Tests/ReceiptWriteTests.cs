@@ -56,6 +56,30 @@ public sealed partial class ReceiptsWorkspaceTests
         Assert.Equal("0", other.GetProperty("taxRate").GetString()); Assert.Equal(Owner.ToString("D"), other.GetProperty("personIds")[0].GetString());
     }
 
+    [Fact]
+    public async Task WriteNormalizesOnlyEmptyMemosAtAllLevels()
+    {
+        var baseSnapshot = Snapshot();
+        var group = baseSnapshot.Groups[0];
+        var snapshot = baseSnapshot with {
+            Memo = "",
+            Groups = [group with { Memo = "", Details = [
+                group.Details[0] with { Memo = "" },
+                group.Details[1] with { Memo = " " }
+            ] }]
+        };
+        using var f = new WriteFixture((_, _) => Task.FromResult(Written(ReceiptWriteOperation.Create)));
+        await Write(f, WriteRequest(ReceiptWriteOperation.Create, snapshot));
+        using var json = JsonDocument.Parse(Assert.Single(f.Requests).Body);
+        var body = json.RootElement;
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("memo").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("groups")[0].GetProperty("memo").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("groups")[0].GetProperty("details")[0].GetProperty("memo").ValueKind);
+        Assert.Equal(" ", body.GetProperty("groups")[0].GetProperty("details")[1].GetProperty("memo").GetString());
+        Assert.Equal("", snapshot.Memo);
+        Assert.Equal("", group.Details[0].Memo ?? "");
+    }
+
     [Theory]
     [InlineData(ReceiptWriteOperation.Create)] [InlineData(ReceiptWriteOperation.Update)] [InlineData(ReceiptWriteOperation.Delete)]
     public async Task ManualRetryKeepsFrozenBodyAndNewOperationGetsNewRequestId(ReceiptWriteOperation operation)
