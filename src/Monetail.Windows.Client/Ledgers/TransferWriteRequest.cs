@@ -20,8 +20,7 @@ public sealed class TransferWriteRequest
     {
         TransferQueries.Id(ledgerId, "ledgerId");
         if (transferId is Guid id) TransferQueries.Id(id, "transferId");
-        if (revision is Guid version && (version.Version != 4 || (version.ToByteArray()[8] & 0xc0) != 0x80))
-            throw new TransferInputException("revision", "取得したUUID v4の更新版を指定してください。");
+        if (revision is Guid version) ValidateRevision(version);
         if (snapshot is not null) ValidateSnapshot(snapshot);
         LedgerId = ledgerId; TransferId = transferId; Revision = revision; Operation = operation;
         var body = new Dictionary<string, object?> { ["requestId"] = RequestId };
@@ -42,7 +41,12 @@ public sealed class TransferWriteRequest
     {
         if (LedgerId != ledgerId || Operation != operation) throw new TransferInputException("requestId", "元の家計簿・操作の要求を使用してください。");
     }
-    private static void ValidateSnapshot(TransferSnapshot snapshot)
+    internal static void ValidateRevision(Guid revision)
+    {
+        if (revision.Version != 4 || (revision.ToByteArray()[8] & 0xc0) != 0x80)
+            throw new TransferInputException("revision", "取得したUUID v4の更新版を指定してください。");
+    }
+    internal static void ValidateSnapshot(TransferSnapshot snapshot)
     {
         static void Check(bool valid, string field) { if (!valid) throw new TransferInputException(field, "入力内容を確認してください。"); }
         Check(snapshot.TransactionAt.Ticks % TimeSpan.TicksPerSecond == 0, "transactionAt");
