@@ -25,6 +25,7 @@ public sealed class ApiDbContext(DbContextOptions<ApiDbContext> options)
         LedgerModel.Configure(builder);
         LedgerCategoryModel.Configure(builder);
         Monetail.Api.Features.Monetail.Receipts.LedgerReceiptModel.Configure(builder);
+        Monetail.Api.Features.Monetail.Transfers.LedgerTransferModel.Configure(builder);
         Monetail.Api.Features.Monetail.Taxes.TaxModel.Configure(builder);
         builder.Entity<SelfRegistrationCompletion>(completion =>
         {

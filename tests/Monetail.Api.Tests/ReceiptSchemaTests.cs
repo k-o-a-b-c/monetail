@@ -13,7 +13,7 @@ using Xunit;
 namespace Monetail.Api.Tests;
 
 /// <summary>本番のDI・初期化経路とFK有効な隔離SQLiteで、レシート4表を検証する。</summary>
-public sealed class ReceiptSchemaTests
+public sealed partial class ReceiptSchemaTests
 {
     private static readonly string[] ReceiptTables = ["ledger_receipts", "ledger_receipt_groups", "ledger_receipt_details", "ledger_receipt_detail_people"];
 

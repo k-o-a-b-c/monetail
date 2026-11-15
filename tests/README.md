@@ -7,13 +7,129 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1520 |
+| ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1165 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 2583 |
+| 合計 | 3590 |
+
+## Windows Client：振替編集状態モデル
+
+PR #182追加修正：空白だけの振替名では補完を開始せず、入力や選択を変更しない。null/空文字・ASCII空白/改行・全角空白・NBSP・EM SPACE/NNBSP・混在空白、文字の前後のUnicode空白を保持する回帰9ケースを追加。ローカルReleaseで編集モデル全94件が成功（失敗/skipなし）。`string.IsNullOrWhiteSpace`を使い、Trimや正規化は追加していない。
+
+修正ソース`22204798f8039e0c114eaf2b56ffd217b9c1e776`の[Tests 43771823054](https://github.com/k-o-a-b-c/monetail/actions/runs/43771823054)でClient全1165件・実DPAPI3件、WinUI製品/検証用Releaseビルド・製品起動・既存449確認が成功。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は未変更）。修正前はPR先端`2d3fd52`の[Tests 43770644447](https://github.com/k-o-a-b-c/monetail/actions/runs/43770644447)成功を採用し、影響外の検証は既存の選択・fingerprintで成功記録を再利用した。API・JSON契約は変更していない。
+
+[新規/既存](Monetail.Windows.Client.Tests/TransferEditorStateTests.cs)・[保存準備/入力保全](Monetail.Windows.Client.Tests/TransferEditorSaveTests.cs)・[補完](Monetail.Windows.Client.Tests/TransferEditorAutofillTests.cs)・[競合/読み取り専用](Monetail.Windows.Client.Tests/TransferEditorConflictTests.cs)に85ケースを追加。6項目/ID/版の保持、未選択、未確定日時/金額の生文字列、メモnull/空文字/空白、値を戻した際の未保存解消と由来だけの変更の除外を確認する。手動/保存済み選択の保護、自動値の再補完/両nullでの解除、条件変更して戻した場合/別モデル/新しい要求文脈の旧応答拒否、関係しない時刻/金額/メモ入力中の保全も検証。登録/更新/流用Snapshot、削除ID/版、日時警告、最新8項目の確認付き採用、403/404から競合採用による書込復帰の禁止、各失敗時の状態保全を確認する。
+
+ローカルReleaseは最小2件→新規84件→追加した未入力保全1件と既存振替書込28件の計29件が成功（段階間に重複あり、失敗/skipなし）。基点main `14062ba0250f558702164d0dacc7b54d17f6cf2f`の[push Tests 43768604262](https://github.com/k-o-a-b-c/monetail/actions/runs/43768604262)成功を変更前の根拠とする。入力検証は既存書込の処理を内部共用し、要求生成・requestId発行はしない。HTTP/保存・認証復帰・UI/入力確定・マスタ取得/残高更新は後続。API/JSON/DB/Migration・WinUI/XAML・外部ライブラリは変更していない。
+
+ソース`47a3d1c538ed11b873d03edb4616de36143200a3`の[Tests 43770181840](https://github.com/k-o-a-b-c/monetail/actions/runs/43770181840)でClient全1156件（失敗/skipなし）・実DPAPI3件・Python75件、WinUI製品/検証用Releaseビルド・製品起動・既存449確認が成功。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は今回未変更）。影響外のAPI/Docker/旧Windows/性能等はCIの選択・fingerprintに従って成功記録を再利用し、ローカル全件検証の重複実行は避けた。変更文書のローカル参照先187件と差分検査も成功。実API/NAS接続・実Windowsの手動操作と、後続の振替WinUIからのモデル接続は未検証。
+
+## Windows Client：振替書込3種類
+
+PR #181の追加修正：[TransferRevisionTests.cs](Monetail.Windows.Client.Tests/TransferRevisionTests.cs)の16ケースで詳細GET・PUT/DELETEの409 latestがUUID v4を受理し、v7/v1・不正variant・空UUIDを拒否すること、振替/支払方法のv7 IDは引き続き受理することを確認。ローカルReleaseで新規16件と既存振替読取/書込273件が成功（失敗/skipなし）。受信revisionの共通検証だけを強化し、API・JSON契約は変更していない。
+
+修正ソース`d4d5aa096e8cc5e8568258393808b0bffd4140bf`の[Tests 43759628036](https://github.com/k-o-a-b-c/monetail/actions/runs/43759628036)でClient全1071件・実DPAPI3件、WinUI製品/検証用Releaseビルド・製品起動・既存449確認が成功。変更前はPR先端`4078950`の[Tests 43758316174](https://github.com/k-o-a-b-c/monetail/actions/runs/43758316174)成功を採用し、影響外のAPI/Docker/旧Windows/性能等は既存CIの選択・fingerprintに従って成功記録を再利用した。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は未変更）。実API/NAS接続・実Windowsの手動操作は未検証。
+
+[基本送信](Monetail.Windows.Client.Tests/TransferWriteTests.cs)・[入力](Monetail.Windows.Client.Tests/TransferWriteInputTests.cs)・[成功/競合/エラー](Monetail.Windows.Client.Tests/TransferWriteResponseTests.cs)・[再送/認証/通信](Monetail.Windows.Client.Tests/TransferWriteRetryTests.cs)に合成HTTPの128ケースを追加。POST/PUT/DELETEのURL/項目/UUID v4、ローカル秒精度・Int32・UTF-16/空白/全改行文字、空本文/201/204とLocationの同一家計簿・D形式・オリジン・生パス検証、固定要求/別操作や家計簿への流用拒否、409最新8項目と必須null/型/対象ID・request_conflict、403/404権限と429/503を確認する。認証更新後の本文不変、アカウント変更/再度401、通信断/タイムアウト/キャンセル/不正成功後の明示再送、振替409を含む64KiB境界のContent-Lengthあり/なしも検証する。
+
+ローカルReleaseは最小2件→追加123件（122成功/Location1件失敗）→修正と強化の関連23件→既存振替読取・レシートを含むClient全1055件が成功（段階間に重複あり、最終の失敗/skipなし）。失敗は通常のLocation読取がURIの`/x/../`を正規化していたため、生ヘッダーを検証して修正した。既存テストの判定は緩和していない。基点main `31d2e2a89091556f7afc05af7e715f8bfe0b75bf`の[push Tests 43756692482](https://github.com/k-o-a-b-c/monetail/actions/runs/43756692482)成功を変更前の根拠とする。API/DB/Migration・WinUI/XAML・外部ライブラリは変更せず、実運用データへ操作していない。実API/NAS接続・実Windows手動操作は未検証。編集モデル・保存後の一覧/残高キャッシュ失効は後続工程。
+
+ソース`30c3f1feef0c83d2cea7c5c6ffcf35d8f6784300`の[Tests 43757927110](https://github.com/k-o-a-b-c/monetail/actions/runs/43757927110)でClient全1055件（失敗/skipなし）、実DPAPI3件、Python75件、WinUI製品/検証用Releaseビルド・製品起動・1シナリオ449確認が成功。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は今回未変更）。API/Docker/旧Windows/性能等は既存の選択・fingerprintに従って成功記録を再利用し、影響外の全件検証は再実行していない。変更文書のローカル参照先161件と差分検査も成功した。
+
+## Windows Client：振替読取4種類
+
+[基本応答](Monetail.Windows.Client.Tests/TransfersWorkspaceTests.cs)・[クエリ](Monetail.Windows.Client.Tests/TransferReadQueryTests.cs)・[厳密JSON/境界](Monetail.Windows.Client.Tests/TransferReadBoundaryTests.cs)・[ストリーム/サイズ](Monetail.Windows.Client.Tests/TransferReadStreamingTests.cs)・[業務エラー](Monetail.Windows.Client.Tests/TransferReadErrorsTests.cs)・[認証/通信](Monetail.Windows.Client.Tests/TransferReadAuthenticationTests.cs)に合成HTTPの145ケースを追加。4種類のURL/省略と空文字/元表記/不透明cursor/focus、7/8項目と必須NULL・不正型/重複プロパティ/ID、ローカル秒精度・Int32/UTF-16境界、100件・元文字列候補と重複・両null補完を検証する。認証更新時の同一GET、別アカウント/家計簿の分離、403/404権限情報と429/503、通信断/実10秒タイムアウト/利用者キャンセルも確認する。64KiB超の一覧/詳細はストリームで成功し、候補/補完/エラーはContent-Lengthあり/なしとも64KiB制限を維持する。
+
+ローカルReleaseは最小2件→追加141件→強化した境界8件→既存レシートを含むClient全927件が成功（段階間に重複あり、最終の失敗/skipなし）。関連試験の初回はテスト準備のJSON文字列のC#構文エラーで未実行となり、JSON生成へ直して実行した。新規ケース数はテスト検出でも145件と照合。既存の件数表778件とは別に、現在の全件実行結果927件で表を更新した。レシートClient・API/DB・WinUIは変更せず、自動再検索/補完適用は追加していない。実API/NAS接続・実Windowsの手動操作は未検証。
+
+基点main `6e27aa9746716723732d842d7d071ca101d34e3a`の[push Tests 43748582010](https://github.com/k-o-a-b-c/monetail/actions/runs/43748582010)成功を変更前の根拠とする。ソース`9c22ff5e6ef6fa3b701bb8733e310dd0efd5731b`の[Tests 43750933370](https://github.com/k-o-a-b-c/monetail/actions/runs/43750933370)でClient全927件・実DPAPI3件・Python75件、WinUI製品/検証用Releaseビルド・製品起動・1シナリオ449確認が成功。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は今回未変更）。API/Docker/旧Windows/性能等は既存の選択・fingerprintに従って再実行せず成功記録を再利用した。変更文書のローカル参照先153件・差分検査も成功。既存のテスト判定・タイムアウトは緩和していない。
+
+## 振替自動補完GET
+
+[基本応答](Monetail.Api.Tests/TransferAutofillTests.cs)・[選択/期間](Monetail.Api.Tests/TransferAutofillSelectionTests.cs)・[入力](Monetail.Api.Tests/TransferAutofillInputTests.cs)・[権限/途中変更](Monetail.Api.Tests/TransferAutofillSecurityTests.cs)・[家計簿分離](Monetail.Api.Tests/TransferAutofillIsolationTests.cs)・[SQL計画](Monetail.Api.Tests/TransferAutofillQueryPlanTests.cs)に実HTTP/本番DI/隔離SQLiteの86件を追加。完全一致/表記ゆれ非一致、更新UTC/IDの順序と取引日時・作成日時・使用回数の非優先、無効履歴のスキップと同一履歴の両側、指定元だけを応答しないこと、両支払方法/所有人物の期間境界、Editorの双方所有、全権限・指定元の403/404/期間外の両null、厳密クエリ/UTF-16/日付/UUIDを確認する。
+
+候補取得後と指定元確認中の役割/人物対応変更、認証失効/参加解除を検証し、書込可能な状態が続いても古い候補を両nullにして再検索しないことをSQL回数でも確認。空履歴・期間外指定元でも最後の権限確認を省略しない。共有120回枠、保存障害の情報非公開、DB/監査/版/再送記録の非変更、他家計簿の同一振替IDと指定元の存在情報非公開を検証する。
+
+1,002履歴（新しい1,001件が使用不可）の実SQLを捕捉し、Admin/Editorと指定元あり/なしの4条件で古い有効な履歴を取得。EXPLAIN QUERY PLANで既存索引のSEARCH・全表SCAN不使用・更新UTC順の一時B-treeを確認する。LIMIT 1は有効条件を適用した後の結果1組だけに使用し、履歴探索の件数上限は追加しない。
+
+ローカルReleaseは最小2件→追加86件→既存振替CRUD/候補/レシート補完・共有権限処理の代表12件が成功（段階間に重複あり、失敗/skipなし）。変更前は基点main `8a6fd1533bb58aa2c7e4be4aacb673b989c038a7`の[push Tests 43708775155](https://github.com/k-o-a-b-c/monetail/actions/runs/43708775155)成功を採用。全APIのローカル重複実行は行わず、影響外のClient/WinUI/旧Windows/性能等はCIの既存選択・fingerprintに従って成功記録を再利用する。DB/索引/Migration・Client/WinUIは変更せず、実運用DBには操作していない。実NAS/実Windows接続・実運用データ規模の性能は未検証。
+
+ソース`cc33f27aa4d28be0373238c60021eeaa1b14afd8`の[Tests 43712768379](https://github.com/k-o-a-b-c/monetail/actions/runs/43712768379)でAPI全2140件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全が成功。変更文書のローカル参照先ファイル445件・差分検査も成功した。
+
+## 振替名候補GET
+
+[基本応答](Monetail.Api.Tests/TransferSuggestionsTests.cs)・[検索](Monetail.Api.Tests/TransferSuggestionsSearchTests.cs)・[入力](Monetail.Api.Tests/TransferSuggestionsInputTests.cs)・[アクセス](Monetail.Api.Tests/TransferSuggestionsSecurityTests.cs)・[SQL計画](Monetail.Api.Tests/TransferSuggestionsQueryPlanTests.cs)に実HTTP/本番DI/隔離SQLiteの50件を追加。q省略/空/部分一致/0件、100/101候補とhasMore、201同名履歴の重複除去と古い一致の検索、MAX更新UTC/元文字列BINARY順（BMP外文字を含む）、英数字だけの同一視と元表記の保持、かな/記号/互換文字/その他の文字種の非同一視、空白/SQLワイルドカードの文字どおりの検索、UTF-16境界・不正クエリを検証する。全ロール/人物未対応、同一振替IDがある別家計簿、401/404/共有120回枠、取得後の認証/参加/役割/人物対応変化、保存障害、並行検索、DB非変更も確認する。役割/人物対応が変わっても参加・参照権限を維持する場合は200、参加解除は404、認証失効は401とする。
+
+実際にAPIが発行したSQLを捕捉し、1,001振替のqなし/ありの両方でEXPLAIN QUERY PLANを検証。既存`ix_ledger_transfers_transaction`による家計簿検索、GROUP BY/ORDER BYの一時B-tree、集約後のLIMIT 101・OFFSET/COUNT不使用を確認する。新しい索引・列・独自の性能SLAは追加しない。
+
+ローカルReleaseは最小2件→追加50件→既存振替GET/POST/PUT/DELETEとレシート候補の代表5件が成功（段階間に重複あり、失敗/skipなし）。変更前は基点main `b745e047d35ede0181d65d1bbab40e62cac569f0`の[push Tests 43702421867](https://github.com/k-o-a-b-c/monetail/actions/runs/43702421867)成功を採用。全APIのローカル重複実行は追加せず、影響外のClient/WinUI/旧Windows/性能等はCIの既存選択・fingerprintに従って成功記録を再利用する。自動補完・Client/WinUI・DB/索引/Migrationは変更せず、実運用DBには操作していない。実NAS/実Windowsからの接続・実運用データ規模の性能は未検証。
+
+ソース`0b6288e43b6982d5aac9ae77a676bb30bb2553f8`の[Tests 43705873585](https://github.com/k-o-a-b-c/monetail/actions/runs/43705873585)でAPI全2054件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全が成功。変更文書のローカル参照108件・差分検査も成功した。
+
+## 振替DELETE：削除
+
+[正常系](Monetail.Api.Tests/TransferDeleteTests.cs)・[入力](Monetail.Api.Tests/TransferDeleteInputTests.cs)・[権限](Monetail.Api.Tests/TransferDeleteAccessTests.cs)・[再送](Monetail.Api.Tests/TransferDeleteReplayTests.cs)・[原子性/競合](Monetail.Api.Tests/TransferDeleteSafetyTests.cs)に実HTTP/本番DI/隔離SQLiteの72件を追加。厳密な2項目JSON/UUID v4、全ロール/両所有権/家計簿分離、版競合と最新8項目の公開前権限確認、実DELETE時の原子的版条件、同時DELETE/PUT、同一/異内容/別操作者/操作/対象/版/家計簿の再送、再起動・所有支払方法削除/人物対応解除後の成功再送、両書込段階の失敗・権限/認証/対応/所有権変化での全表rollback、CSRF/Origin/共有20回枠を検証する。削除後の詳細404/一覧除外と、他振替/人物/支払方法/レシート等の保持を確認。未実装ルートの既存試験はDELETEだけを実装済みに変更し、詳細POSTの拒否は維持する。
+
+ローカルReleaseは最小2件→追加72件→対象外振替の保持を強化した正常ケースと既存GET/POST/PUTの代表7件が成功（段階間に重複あり、失敗/skipなし）。全APIのローカル再実行は行わず、下記の最終CIで確認した。影響外のClient/WinUI/旧Windows/性能等は既存の選択・fingerprintに従って成功記録を再利用する。実運用DBには操作していない。実NAS/実Windows接続・実運用データでの検証は未実施。候補/補完・Client/WinUI・DB/索引/Migrationは変更していない。
+
+基点main `4dd0414b8834b2ceafc7f7b6e7f5be305c1bc507`の[push Tests 43697002173](https://github.com/k-o-a-b-c/monetail/actions/runs/43697002173)成功を変更前の根拠とする。ソース`0e3b0bc4d3e13be047ae760a2ae06955cbcbd89a`の[Tests 43697845272](https://github.com/k-o-a-b-c/monetail/actions/runs/43697845272)でAPI全2004件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全が成功。変更文書のローカル参照129件と差分検査も成功した。
+
+## 振替PUT：更新
+
+[TransferUpdateTests.cs](Monetail.Api.Tests/TransferUpdateTests.cs)・[入力](Monetail.Api.Tests/TransferUpdateInputTests.cs)・[権限](Monetail.Api.Tests/TransferUpdateAccessTests.cs)・[安全性](Monetail.Api.Tests/TransferUpdateSafetyTests.cs)・[再送](Monetail.Api.Tests/TransferUpdateReplayTests.cs)に102件を追加。既存の本番DI/実HTTP/隔離SQLite fixtureを使い、8項目の厳密JSON、UUID v4/UTF-16/ローカル日時/金額/メモ、変更前後4か所の所有権、各ロール、別家計簿、両マスタの期間端点を検証する。通常更新の監査2項目変更/作成監査保持、別操作者、無変更時の振替UPDATE禁止・空文字/null同値、原子的な旧版条件、最新8項目、競合時の非公開、並行保存/同時再送、異内容/版/対象/操作者/操作の要求ID競合、再起動後再送、権限/認証/人物対応/所有権/期間変化と途中失敗の全表ロールバック、既存20回共有枠・CSRF/Originを確認する。未実装ルート保護の当時の試験はPUTだけを実装済みに変更した。DELETE実装後は上記の削除試験へ置き換え、詳細POSTの拒否を維持する。
+
+ローカルReleaseは最小2件→追加85件（83成功/2失敗）→失敗2件と新規17件（18成功/1失敗）→該当1件成功。初回2失敗は試験準備の人物作成応答参照を既存の一覧形式へ修正。次の1失敗は旧空文字メモの模擬値が現行CHECKで拒否されたため、既存GET試験と同じくテスト準備専用接続だけでCHECKを一時無効化し、API接続では制約を維持した。製品側の条件や既存試験は緩和していない。段階間には重複があり、既存POST/詳細GET/未実装ルート保護の代表7件も成功。全APIのローカル再実行は行わない。
+
+ソース`508664dfc1e64747ec0dd8b96da5280200acd303`の[Tests 43692823414](https://github.com/k-o-a-b-c/monetail/actions/runs/43692823414)でAPI全1932件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合が成功。Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全も成功。変更文書のローカル参照122件・差分検査を確認した。
+
+変更前は基点main `4b3eb60c9833603eff7213274c71eacd96a5a0a2`の[push Tests 43691688172](https://github.com/k-o-a-b-c/monetail/actions/runs/43691688172)成功を採用。影響外のClient/WinUI/旧Windows/性能等はCIの既存選択・fingerprintによる成功記録再利用に従う。実運用DBは変更せず、実NAS/実Windowsからの接続・実運用データでの検証は未実施。DELETE/候補/補完・Client/WinUI・DB/索引/Migrationは変更していない。
+
+## 振替POST（新規登録）
+
+実HTTP/本番DI/Identity/隔離SQLiteの123件を追加。[正常系/権限/期間](Monetail.Api.Tests/TransferCreateTests.cs)で201/空本文/D形式Location・UUID v7/v4・監査4列・ローカル秒精度・GET結果と、全ロール/双方所有、双方の支払方法/人物の期間両端、UTF-16/Unicode空白/全改行文字・元文字列保持を確認する。[JSON](Monetail.Api.Tests/TransferCreateInputTests.cs)は整数/型/UUID v4/必須7項目/未知/重複/不正本文を検証。[再送/原子性](Monetail.Api.Tests/TransferCreateSafetyTests.cs)は同一成功/異内容/異操作者/異操作/別家計簿、同時送信、再起動/削除済み結果、両INSERT失敗・各保存段階の認証/役割/人物対応/所有権/期間変化での全表rollbackを確認する。所有者変更の模擬はテストの同一Tx内だけで禁止トリガーを外し、rollbackでDDL/データが復元することも確認。本番の制約は維持する。[認証境界](Monetail.Api.Tests/TransferCreateBoundaryTests.cs)は別家計簿・401/404/CSRF/Origin・共有20回制限を検証する。
+
+ローカルReleaseは最小2件→入力/権限/期間等81件が成功。安全性42件の初回は41件成功、所有者変更模擬の1件が既存の同名制約にも衝突して503となった。模擬データの名前だけを重複しない値に修正し、当該ケースと既存の詳細GET/レシート再送/同時登録を含む関連32件が成功（段階間に重複あり）。製品制約/判定は緩和していない。基点main `b37462be32d09b1bd84733b5f1526ab1b9f555a1`の[push Tests 43687665857](https://github.com/k-o-a-b-c/monetail/actions/runs/43687665857)成功を変更前の根拠にする。
+
+ソース`73ce624d7906235963ebbc3958852898a8e043a9`の[Tests 43689887463](https://github.com/k-o-a-b-c/monetail/actions/runs/43689887463)でAPI全1830件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ（更新・DB/PFX等のバックアップ/復元保全を含む）が成功。文書ローカル参照114件・差分検査も成功。影響外のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用し、全APIのローカル重複実行は行わない。実運用DB変更は行わず、実NAS/実Windows接続・実運用データ性能は未検証。PUT/DELETE・候補/補完・Client/WinUI・DB/索引/Migrationは変更していない。
+
+## 振替一覧のfocusTransferId（DEC-279）
+
+[フォーカス取得](Monetail.Api.Tests/TransferListFocusTests.cs)27件と[権限/取得途中の変化/実SQL](Monetail.Api.Tests/TransferListFocusSecurityTests.cs)8件の計35件を追加。D形式（大文字許可、小文字応答）・前後空白/N形式/空UUID/重複/cursor併用の400、全検索条件・日時優先・同日時ID BINARY降順・対象先頭・100/101/201件境界、フォーカスなしの通常cursor継続を検証する。不存在/削除済み/別家計簿/各条件外は同じ404本文とし、全ロール・401/404/429/503・全表非変更、対象確認後の参加解除/認証失効/対象削除での非公開/rollback、既存索引と包括的キーセット境界/OFFSET未使用も確認。レシートAPIはfocus指定を引き続き不正クエリとして拒否する。旧一覧の未対応focus拒否ケースは今回の対象拡張に合わせ、不正D形式拒否へ更新した。
+
+ローカルReleaseは最小2件→focus27件→新規セキュリティと既存一覧/詳細を含む関連98件→日時とIDの大小が逆になる順序1件が成功（段階間に重複あり）。関連試験の初回は新規テスト補助のDbCommandパラメーター追加のコンパイルエラーで未実行。プロバイダー共通APIへ直した後に関連98件が成功し、製品制約/判定を緩和していない。基点main `04d8fde86e6bae57dbe3e11fdc5eee7c5fe81868`の[push Tests 43684311319](https://github.com/k-o-a-b-c/monetail/actions/runs/43684311319)成功を変更前の根拠にする。
+
+ソース`3b97cf6b43f906f90d2f7143e5bda44ed81e7a4d`の[Tests 43685670397](https://github.com/k-o-a-b-c/monetail/actions/runs/43685670397)でAPI全1707件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ（更新・DB/PFX等のバックアップ/復元保全を含む）が成功。文書ローカル参照413件・差分検査も成功。影響外のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用し、全APIのローカル重複実行は行わない。実NAS/実Windows接続・実運用データの性能、将来WinUIの404復帰は未検証。レシートAPI/書込API・Client/WinUI実装・DB/索引/Migrationは変更しない。
+
+## 振替一覧GET
+
+実HTTP/本番DI/Identity/隔離SQLiteの63件を追加。[一覧/検索](Monetail.Api.Tests/TransferListTests.cs)は0/1/99/100/101/200/201件、同日時ID降順、ページ間重複/欠落なし、月末/年末/閏日、元/先をまたぐ人物・支払方法の独立AND、全履歴への検索、英数字だけの全角/半角・大小文字同一視、かな/記号/互換文字の区別、7項目・UUID D/ローカル秒/空文字メモnull・全表非変更を確認する。[カーソル](Monetail.Api.Tests/TransferListCursorTests.cs)は条件/家計簿/SHA-256・q省略/空文字の区別、改ざん/不正payload/別鍵/レシートpurpose拒否、再起動・境界行削除を検証。[権限](Monetail.Api.Tests/TransferListSecurityTests.cs)は全ロール/人物未対応、401/404/429/503・取得後の認証/参加再検証、家計簿間の同一ID/別所有者を含む分離を確認する。`focusTransferId`は400 invalid_inputで拒否する。
+
+[実SQLの計画](Monetail.Api.Tests/TransferListQueryPlanTests.cs)は1,001件の架空データでHTTPから実際のSQL/パラメーターを捕捉し、LIMIT 101・日時/IDのキーセット条件、OFFSET/COUNT未使用、既存一覧索引のSEARCH・一時ソート不要、データ非変更を検証。索引/DB変更・独自SLAは追加しない。既存詳細GETテストの「一覧未追加」確認は今回の実装に合わせて更新し、書込ルート未追加の確認を維持した。
+
+ローカルReleaseは最小2件→一覧63件→実SQL計画と既存振替詳細/レシートの関連44件→同一支払方法IDの別家計簿所有者を加えて強化した分離1件が成功（段階間に重複あり、失敗/skipなし）。基点main `3a6513f8d064ede09cef4d3884dd4ff38f9a6c16`の[push Tests 43680516482](https://github.com/k-o-a-b-c/monetail/actions/runs/43680516482)成功を変更前の根拠にする。全APIは最終CIに集約し、影響外のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用する。
+
+ソース`c4b4c65ca4de95a50378b99e5cb3052672cae785`の[Tests 43681600036](https://github.com/k-o-a-b-c/monetail/actions/runs/43681600036)でAPI全1672件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ（更新・DB/PFX等のバックアップ/復元保全を含む）が成功。追加件数63はソースとテスト検出でも照合した。文書ローカル参照102件・差分検査も成功。実NAS/実Windows接続・実運用データでの性能は未検証。`focusTransferId`・候補/補完/書込API・Client/WinUI・DB/Migrationは変更しない。
+
+## 振替詳細GET
+
+[TransferApiTests.cs](Monetail.Api.Tests/TransferApiTests.cs)に実HTTP/本番DI/Identity/隔離SQLiteの26件を追加。既存`ReceiptApiTests`のfixtureを共用し、8項目のみ・外側ラッパーなし・UUID小文字D形式・ローカル秒精度・Int32整数・監査情報非公開、NULL/旧空文字メモのnull応答と空白保持、全ロール/人物未対応/他人所有の閲覧、同一IDの家計簿別分離を確認する。不正ID400/field、非参加/不存在404（全体Adminも参加必須）、匿名/期限切れ/失効401、取得途中の参加解除/認証失効/保存障害、共有120回枠429・既存GETのOrigin境界、全表非変更、一覧/書込ルートを追加していないことを検証する。
+
+ローカルReleaseの最小1件が成功。追加26件の初回は25件成功/1件失敗で、別家計簿のテスト準備SQLに必須`display_order`指定が漏れていた。準備SQLだけを修正し、当該ケースと既存読取/DB/認証/初期化関連164件が成功（段階間に重複あり、最終関連検証の失敗/skipなし）。製品制約/テスト判定は緩和していない。基点main `883a374c61cfeaf13567e2032af2cba2302655e9`の[push Tests 43672912611](https://github.com/k-o-a-b-c/monetail/actions/runs/43672912611)成功を変更前の根拠にする。最終全API検証はCIに集約し、未変更のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用する。
+
+ソース`63dd42bf67e161b3214b7ae39f236ab5a4a2f186`の[Tests 43673646591](https://github.com/k-o-a-b-c/monetail/actions/runs/43673646591)でAPI全1609件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブの検証が成功。文書内ローカル参照97件・差分検査も成功。実運用DB/NAS・実Windowsからの接続は未検証。振替一覧/候補/補完/書込API・Client/WinUI・DB/Migrationは変更していない。
+
+## 振替DB：確定範囲の実装
+
+[TransferSchemaTests.cs](Monetail.Api.Tests/TransferSchemaTests.cs)に53件を追加し、既存`ReceiptSchemaTests`の本番DI/Identity/家計簿fixtureを共用する。新規SQLiteの13列の型/NULL/既定値・複合PK・5本のRESTRICT FK・4 CHECK・一覧索引を検証。別家計簿だけの支払方法/存在しない参照、双方の参照削除制限、同じ振替IDの家計簿別独立性、同名許可、金額の1/Int32最大/範囲外/保存型、名前/メモの端点・空文字/空白/CR・LF・元文字列保持を確認する。SQLiteのコードポイント/ASCII空白/CR・LF限定という文字列検証の限界も固定し、APIの厳密検証が実装済みとは扱わない。
+
+一覧索引のBINARY降順キーセット走査と一時ソート不要、EFでのローカル秒精度/監査値/更新版の往復、失敗時の全表不変・明示トランザクションのrollback、既存認証/レシートを含む初期化再実行/同時実行のno-op、表/索引がない旧構造の初期化/通常API拒否を検証。UUID/版の発行・原子的版照合・成功再送記録の同時確定は後続APIの検証対象であり、本工程には含めない。
+
+ローカルReleaseは最小2件→振替51件→追加2件を含むDB/認証/レシート関連158件が成功（段階間に重複あり、失敗/skipなし）。基点main `62ddff27cfba097f28b910c1b4cd7ca1d68b1a41`の[push Tests 43668559578](https://github.com/k-o-a-b-c/monetail/actions/runs/43668559578)成功を変更前の根拠にする。影響外のClient/WinUI/旧Windows/性能等は既存CIの選択・成功記録再利用に従い、全APIのローカル重複実行は追加しない。
+
+ソース`cb2e63e3aa350a04e11c7565a4c70a9a64a68b4f`の[Tests 43670354764](https://github.com/k-o-a-b-c/monetail/actions/runs/43670354764)でAPI全1583件（失敗/skipなし）・Node63件・Python75件・旧VB実計算24ケース照合・Dockerビルド/起動/サーバー/配布アーカイブの検証が成功。コンテナでの初期化拒否・更新・DB/PFX等のバックアップ/復元保全も確認した。文書内ローカル参照71件・差分検査が成功。実運用DB/NAS・将来の振替API/画面・旧DB移行は未検証。Migration/実データ変更は行っていない。
 
 ## PR #160レビュー修正：税率警告と一般入力エラーの分離
 

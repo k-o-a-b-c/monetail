@@ -94,7 +94,7 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
         Func<HttpContent, CancellationToken, Task<T>> readSuccess, HttpContent? body = null,
         Func<HttpStatusCode, byte[], Exception>? failure = null, bool includeStoreFailure = false,
         HttpStatusCode? successStatus = null, Func<HttpResponseMessage, CancellationToken, Task<Exception>>? readFailure = null,
-        Func<Exception, Exception>? connectionFailure = null)
+        Func<Exception, Exception>? connectionFailure = null, Action<HttpResponseMessage>? validateSuccess = null)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(ConnectionTimeout);
@@ -111,6 +111,7 @@ public sealed partial class MonetailApiClient(ApiEndpoint endpoint, HttpClient h
             if (response.IsSuccessStatusCode)
             {
                 if (successStatus is not null && response.StatusCode != successStatus) throw new ApiConnectionException();
+                validateSuccess?.Invoke(response);
                 return await readSuccess(response.Content, timeout.Token);
             }
             if (readFailure is not null) throw await readFailure(response, timeout.Token);
