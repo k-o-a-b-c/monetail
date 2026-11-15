@@ -31,7 +31,7 @@ public sealed partial class MonetailApiClient
         var page = await SendReceiptAsync<ReceiptPagePayload>($"{ReceiptPath(ledgerId)}/receipts?{query.Query}", access, token, stream: true);
         if (page.Receipts is null || page.Receipts.Select(row => row.ReceiptId).Distinct().Count() != page.Receipts.Count) throw new ApiConnectionException();
         foreach (var row in page.Receipts) CheckReceiptText(row.ShopName, row.ShopLocation);
-        return new(page.Receipts.ToArray(), page.NextCursor);
+        return new(page.Receipts.Select(row => row with { Memo = ReceiptMemoValue.Normalize(row.Memo) }).ToArray(), page.NextCursor);
     }
     public async Task<ReceiptInfo> GetReceiptAsync(string access, Guid ledgerId, Guid receiptId, CancellationToken token = default)
     {
@@ -55,7 +55,13 @@ public sealed partial class MonetailApiClient
                 detail.OccurrenceType is not ("Regular" or "Irregular" or "Temporary") || detail.PersonIds is null ||
                 detail.PersonIds.Distinct().Count() != detail.PersonIds.Length) throw new ApiConnectionException();
         }
-        return receipt;
+        return receipt with {
+            Memo = ReceiptMemoValue.Normalize(receipt.Memo),
+            Groups = receipt.Groups.Select(group => group with {
+                Memo = ReceiptMemoValue.Normalize(group.Memo),
+                Details = group.Details.Select(detail => detail with { Memo = ReceiptMemoValue.Normalize(detail.Memo) }).ToArray()
+            }).ToArray()
+        };
     }
     public async Task<ReceiptSuggestionsInfo> GetReceiptSuggestionsAsync(string access, Guid ledgerId, ReceiptSuggestionQuery query, CancellationToken token = default)
     {
