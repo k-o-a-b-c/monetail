@@ -9,11 +9,19 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込） | 1071 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1156 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3496 |
+| 合計 | 3581 |
+
+## Windows Client：振替編集状態モデル
+
+[新規/既存](Monetail.Windows.Client.Tests/TransferEditorStateTests.cs)・[保存準備/入力保全](Monetail.Windows.Client.Tests/TransferEditorSaveTests.cs)・[補完](Monetail.Windows.Client.Tests/TransferEditorAutofillTests.cs)・[競合/読み取り専用](Monetail.Windows.Client.Tests/TransferEditorConflictTests.cs)に85ケースを追加。6項目/ID/版の保持、未選択、未確定日時/金額の生文字列、メモnull/空文字/空白、値を戻した際の未保存解消と由来だけの変更の除外を確認する。手動/保存済み選択の保護、自動値の再補完/両nullでの解除、条件変更して戻した場合/別モデル/新しい要求文脈の旧応答拒否、関係しない時刻/金額/メモ入力中の保全も検証。登録/更新/流用Snapshot、削除ID/版、日時警告、最新8項目の確認付き採用、403/404から競合採用による書込復帰の禁止、各失敗時の状態保全を確認する。
+
+ローカルReleaseは最小2件→新規84件→追加した未入力保全1件と既存振替書込28件の計29件が成功（段階間に重複あり、失敗/skipなし）。基点main `14062ba0250f558702164d0dacc7b54d17f6cf2f`の[push Tests 43768604262](https://github.com/k-o-a-b-c/monetail/actions/runs/43768604262)成功を変更前の根拠とする。入力検証は既存書込の処理を内部共用し、要求生成・requestId発行はしない。HTTP/保存・認証復帰・UI/入力確定・マスタ取得/残高更新は後続。API/JSON/DB/Migration・WinUI/XAML・外部ライブラリは変更していない。
+
+ソース`47a3d1c538ed11b873d03edb4616de36143200a3`の[Tests 43770181840](https://github.com/k-o-a-b-c/monetail/actions/runs/43770181840)でClient全1156件（失敗/skipなし）・実DPAPI3件・Python75件、WinUI製品/検証用Releaseビルド・製品起動・既存449確認が成功。両WinUIビルドは各30警告/0エラー（警告対象のXAML等は今回未変更）。影響外のAPI/Docker/旧Windows/性能等はCIの選択・fingerprintに従って成功記録を再利用し、ローカル全件検証の重複実行は避けた。変更文書のローカル参照先187件と差分検査も成功。実API/NAS接続・実Windowsの手動操作と、後続の振替WinUIからのモデル接続は未検証。
 
 ## Windows Client：振替書込3種類
 
