@@ -1,8 +1,16 @@
-# 振替DB・業務値仕様（確定範囲・未実装）
+# 振替DB・業務値仕様（DB実装済み・API未実装）
 
-更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。現在の振替DB/APIは未実装。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
+更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。振替DBの確定範囲は実装済み、振替APIは未実装。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
 
 参照：[入口・残課題](ledger-transfer.md)／[API契約](ledger-transfer-api.md)／[WinUI画面](ledger-transfer-ui.md)／[既存レシートDB](ledger-receipt-schema.md)／[家計簿DBモデル](ledger-core-schema.md)。
+
+## DB実装の範囲
+
+`Features/Monetail/Transfers/LedgerTransfer`・`LedgerTransferModel`を`ApiDbContext`へ登録し、既存のモデル連動`initialize-db`が空の新規DBに13列・複合PK・5本のRESTRICT FK・下記4件のCHECK・一覧索引`ix_ledger_transfers_transaction`を作成する。既存EF規約のFK用索引を維持し、追加の検索索引・独自トリガー・Migrationは設けない。
+
+通常起動や再初期化で既存DBを変更しない。振替表・索引がない旧構造は既存の構造検証で拒否するため、既存ファイルを保持して別の新規DBを準備する。[初期化手順](42-api-foundation.md#db初期化登録復旧コマンド)に従い、手動削除・自動修復で検査を回避しない。
+
+この工程はEFマッピング・物理制約・新規DB初期化まで。UUID/更新版の発行、監査値の設定、日時/文字列の厳密な入力検証、原子的な版照合、`operation_requests`との同時確定、HTTP応答は後続APIで実装する。DBに追加のUUID/日時CHECKは設けていない。SQLite標準CHECKの文字列検証の限界は下記の確定仕様を維持する。検証範囲と結果は[tests/README.md](../tests/README.md#振替db確定範囲の実装)を参照する。
 
 ## 業務と入力値（確定）
 
@@ -18,7 +26,7 @@
 - **振替元・振替先の物理列名はそれぞれ`from_payment_method_id`、`to_payment_method_id`**とし、**どちらもSQLite `TEXT NOT NULL`**とする（2026-11-15確定）。保存時は両方必須で、未選択（NULL）のまま保存できない。両列は、それぞれ`ledger_id`を含む複合FKで`ledger_payment_methods(ledger_id, payment_method_id)`へ接続する。別家計簿の支払方法は参照不可。どちらかの側からでも振替に参照されている支払方法の物理削除は**`ON DELETE RESTRICT`**で禁止し、振替を連鎖削除しない。人物IDは振替行へ重複保存せず、支払方法の所有人物を参照する。
 - **振替元と振替先の同一IDをDBでも禁止**するため、`ledger_transfers`に`CHECK (from_payment_method_id <> to_payment_method_id)`を設ける（2026-11-15確定）。両列の`NOT NULL`と組み合わせ、NULLと同一IDのいずれも保存させない。API側の同一ID検証も維持する。
 - **振替名**は必須、最大100 UTF-16コード単位（2026-11-15確定）。**空文字・空白文字だけの名前は保存不可**（API・画面で検証）。前後に空白があっても自動でTrim・空白削除・表記正規化せず、入力された元文字列をそのまま保存する。自由入力と履歴候補を使い、振替名マスタは設けない。**Unicode空白だけの判定はAPI側で厳密に行う**。DB側はSQLite標準関数だけの基本的なCHECKとし、具体的な式と限界は下記「SQLite標準CHECKによる文字列の基本検証」に定める。
-- **メモ**は任意・1行・最大100 UTF-16コード単位（2026-11-15確定）。**改行文字を含む入力は保存不可**とし、改行を勝手に削除・置換しない。超過はエラーにして自動切り詰めしない。APIでも検証する。**空欄は`null`に統一する**。APIが`memo:""`を受け取った場合は`null`へ正規化し、保存・取得とも空のメモは`null`とする。空白のみ（例：`" "`）は空文字と異なり元の文字列を保持し、Trimしない。レシート親メモの100 UTF-16コード単位も確定済みであり、[レシートDB仕様](ledger-receipt-schema.md)に反映する。実コードへの反映は後続作業。
+- **メモ**は任意・1行・最大100 UTF-16コード単位（2026-11-15確定）。**改行文字を含む入力は保存不可**とし、改行を勝手に削除・置換しない。超過はエラーにして自動切り詰めしない。APIでも検証する。**空欄は`null`に統一する**。APIが`memo:""`を受け取った場合は`null`へ正規化し、保存・取得とも空のメモは`null`とする。空白のみ（例：`" "`）は空文字と異なり元の文字列を保持し、Trimしない。レシート親メモの100 UTF-16コード単位も確定済みであり、[レシートDB仕様](ledger-receipt-schema.md)に反映する。レシート側はPR #166〜168で反映済み。振替API側の検証は後続工程。
 - **`ledger_transfers`の保存型**（2026-11-15確定）：`amount`はSQLite `INTEGER NOT NULL`、`name`は`TEXT NOT NULL`、`memo`は`TEXT NULL`。**金額はAPI・DBの両方で正整数Int32範囲を厳密に検証**する。振替名・メモについては**APIで厳密に**`name`の空白のみ禁止・100 UTF-16コード単位以内、`memo`の100 UTF-16コード単位以内・改行禁止・空文字からNULLへの正規化を行う。前後空白・元文字列は保持する。**DBはSQLite標準CHECKによる基本検証に限定し、Unicode全体にわたる厳密な文字数・空白・改行の一致は保証しない**（2026-11-15 B案採用）。独自SQLite関数・全接続への関数登録は導入しない。
 - **SQLite標準CHECKによる文字列の基本検証**（2026-11-15確定）：`name`は`CHECK (length(name) BETWEEN 1 AND 100 AND length(trim(name)) > 0)`とし、`memo`は`CHECK (memo IS NULL OR (length(memo) BETWEEN 1 AND 100 AND instr(memo, char(10)) = 0 AND instr(memo, char(13)) = 0))`とする。`name TEXT NOT NULL`、`memo TEXT NULL`を維持。SQLiteの`length(TEXT)`はUnicodeコードポイント単位、`trim()`は既定でASCIIスペースのみ、改行CHECKはCR/LFのみを検査する。したがって絵文字などのUTF-16サロゲートペア、その他Unicode空白・改行はAPIのC#検証で拒否する。**APIを介さない直接SQL書込には文字列仕様に反する値が入り得る**ことを運用上の制約として明記する。文字列検証のための独自DB関数を設けず、DBの制約をAPIと同等と表現しない。
 - **既存の空文字データ**：新規書込では`memo:""`を`null`へ統一し、一覧・詳細GETでも過去の空文字は`null`として扱う。ただし既存DB全体を読み取り時に自動更新しない。正式リリース前の既存DBは初期化・確認済みの明示的なデータ整備を別途実施し、保存済み振替ID・監査情報・更新版を黙って書き換えない。旧データが未整備でも読取と無変更比較では空文字を`null`相当として扱う。再送同一性の判定は正規化後の入力で行う。
@@ -33,4 +41,4 @@
 - **原子性**：POST（流用登録を含む）・PUT・DELETEは、振替本体の業務変更・`revision`／監査列の更新・`operation_requests`への成功再送記録を**同じSQLiteトランザクション**で確定する。バリデーション・権限照合・版照合・再送記録の作成を含む処理の途中で失敗した場合は**全体をロールバック**し、振替だけ保存／削除されて再送記録が残らない状態、または再送記録だけ残る状態を作らない。更新・削除の`revision`照合は保存処理と原子的に行い、競合時は変更を確定しない。
 - **更新版の発行**：POSTで新しい`revision`（UUID v4）をサーバー発行する。PUTでは[業務値・DB契約](ledger-transfer-db.md)の6業務項目の比較によって**実際に保存値が変わる場合だけ**新しい`revision`を発行し、`updated_by_auth_user_id`・`updated_at_utc`を更新する。無変更PUTは**204 No Content**で振替行へのUPDATE・`revision`再発行・監査列の更新を行わず、成功再送記録だけを同じトランザクション内で保存する。DELETEは既存`revision`一致を条件に対象行を削除し、成功再送記録を同時に確定する。
 - **索引の最小構成**：確定済みの`(ledger_id, transaction_at, transfer_id)`一覧キーセット用複合索引を基本とし、主キー・FK・一意制約の実現に必要な構造を除いて**先回りした追加索引は採用しない**。人物・振替元／先の検索、振替名候補・補完等に追加索引が必要かどうかは、実装時の`EXPLAIN QUERY PLAN`と代表的データ量での性能測定を根拠に判断する。必要性が確認されたものだけ、別途設計・検証して追加する。
-- 本項はDBとAPIの処理契約を確定するものであり、**振替のDB／API実装や実DBでの検証が完了したことを意味しない**。
+- 本項はDBとAPIの処理契約を確定するものであり、**後続APIの原子性・版照合・再送保証や、実運用DBでの検証が完了したことを意味しない**。
