@@ -47,8 +47,8 @@
 | 離脱・未保存変更 | フォーム［閉じる］は単純に`Me.Close()`。未保存の入力を保護する3択処理はない | レシートと同じ「保存して移動／破棄して移動／編集に戻る」。保存失敗時は入力保持 | 新規 |
 | 書込権限 | 旧ローカルSQLite経路にAdmin／Editor／Viewerの役割別操作制限なし | Adminは全振替。Editorは**旧・新の両支払方法が本人所有のときのみ**登録・更新・流用・削除可能。Viewerは閲覧のみ。API側で強制 | 新規 |
 | 閲覧専用 | 旧フォームは役割による読取専用への切替なし | Viewerと権限外Editorは同じ画面を読み取り専用とし、書込ボタンを非表示 | 新規 |
-| 同時編集 | SQLite`revision_token`照合で古い更新・削除を拒否。フォームは競合MessageBoxと一覧再取得通知 | 振替ごとの`revision` UUID v4で更新・削除時に版を照合し、不一致は**HTTP 409**で拒否。**エラーコード`revision_conflict`・更新競合時の最新詳細返却とUI復帰は確定** | 継承＋要調整 |
-| 再送・通信 | 旧版はローカルDBに直接保存するためHTTP結果不明とrequestIdによる再送識別はない | POST・PUT・DELETEは`requestId`で再送を識別（確定）。結果不明時の同一要求再送・401再認証と入力復元・403/404時の読み取り専用は[振替API契約](ledger-transfer-api.md)で確定。保存操作の自動重複は許さない | 要調整 |
+| 同時編集 | SQLite`revision_token`照合で古い更新・削除を拒否。フォームは競合MessageBoxと一覧再取得通知 | 振替ごとの`revision` UUID v4で更新・削除時に版を照合し、不一致は**HTTP 409**で拒否。**エラーコード`revision_conflict`・更新競合時の最新詳細返却とUI復帰は確定** | 継承＋変更 |
+| 再送・通信 | 旧版はローカルDBに直接保存するためHTTP結果不明とrequestIdによる再送識別はない | POST・PUT・DELETEは`requestId`で再送を識別（確定）。結果不明時の同一要求再送は[振替API契約](ledger-transfer-api.md)、401再認証と入力復元・403/404時の読み取り専用は[振替画面](ledger-transfer-ui.md)で確定。保存操作の自動重複は許さない | 要調整 |
 | 永続化・ID | `t_transfers.seq`はトランザクション内の`MAX(seq)+1`、保存は1レコードのINSERT／UPDATE／DELETE。旧更新版は文字列トークン | `ledger_transfers`、サーバー発行UUID v7、家計簿内複合PK、revision UUID v4、監査4列と認証アカウントへのRESTRICT、振替変更と再送記録の同一トランザクションが確定。残りのDB物理詳細は実装時に整合。旧連番は移植しない | 変更 |
 
 ### 一覧・残高連動・移行
@@ -73,7 +73,7 @@
 - [3一覧・人物／支払方法の独立条件、振替後の再読込・選択](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_List.vb)
 - [年月の共通管理、人物変更時の候補再構成](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm.vb)
 - [旧残高一覧が人物・支払方法で絞らない実装](../HouseholdAccountsBeta/HouseholdAccountsBeta/Control/ViewForm_Balances.vb)
-- [旧版／新版の広域比較](legacy-new-final-parity-matrix.md)と[旧振替入力検証](28-transfer-input-validation.md)。これらは旧仕様の検証記録でもあり、**新版の正本は振替仕様**。
+- [旧版／新版の広域比較](legacy-new-final-parity-matrix.md)と[旧振替入力検証](28-transfer-input-validation.md)。これらは旧仕様の検証記録でもあり、**新版の正本は[DB](ledger-transfer-db.md)・[API](ledger-transfer-api.md)・[WinUI](ledger-transfer-ui.md)**。
 
 ### 旧Windows版の振替データ移行方針（2026-11-15確定）
 
