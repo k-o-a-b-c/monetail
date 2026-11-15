@@ -37,7 +37,7 @@ public partial class App
         Check(editor.Header.TransactionAt == today && Find<DateInputBox>(root, "ReceiptDate").Text == today.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) &&
             Find<TimeInputBox>(root, "ReceiptTime").Text == "00:00:00", "新規親情報は画面を開いたローカル日付・午前0時");
         Check(!editor.NeedsLeaveConfirmation && editor.Header.PaymentMethodId is null && editor.Header.TaxInclusionMode == 0 && editor.Header.TaxRoundingMode == "floor" &&
-            editor.Header.RecurrenceInterval is null && editor.Header.RecurrenceUnit is null && editor.Header.ShopName == "" && editor.Header.ShopLocation == "" && editor.Header.Memo == "",
+            editor.Header.RecurrenceInterval is null && editor.Header.RecurrenceUnit is null && editor.Header.ShopName == "" && editor.Header.ShopLocation == "" && editor.Header.Memo is null,
             "新規親情報の空欄・支払未選択・税込/切り捨て・周期なしは未保存変更にしない");
         Check(Visible(root, "HomePage") && Visible(root, "ReceiptEditorPage") && !Visible(root, "RecordContent") && Find<Button>(root, "LedgerSelector").IsLoaded &&
             !Find<Button>(root, "ReceiptRegister").IsEnabled && Find<Button>(root, "ReceiptUpdate").Visibility == Visibility.Collapsed, "共通ヘッダーを残しメイン領域全体を新規入力へ切替、保存は無効");
