@@ -7,17 +7,25 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1932 |
+| ASP.NET Core API | 2004 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 2995 |
+| 合計 | 3067 |
+
+## 振替DELETE：削除
+
+[正常系](Monetail.Api.Tests/TransferDeleteTests.cs)・[入力](Monetail.Api.Tests/TransferDeleteInputTests.cs)・[権限](Monetail.Api.Tests/TransferDeleteAccessTests.cs)・[再送](Monetail.Api.Tests/TransferDeleteReplayTests.cs)・[原子性/競合](Monetail.Api.Tests/TransferDeleteSafetyTests.cs)に実HTTP/本番DI/隔離SQLiteの72件を追加。厳密な2項目JSON/UUID v4、全ロール/両所有権/家計簿分離、版競合と最新8項目の公開前権限確認、実DELETE時の原子的版条件、同時DELETE/PUT、同一/異内容/別操作者/操作/対象/版/家計簿の再送、再起動・所有支払方法削除/人物対応解除後の成功再送、両書込段階の失敗・権限/認証/対応/所有権変化での全表rollback、CSRF/Origin/共有20回枠を検証する。削除後の詳細404/一覧除外と、他振替/人物/支払方法/レシート等の保持を確認。未実装ルートの既存試験はDELETEだけを実装済みに変更し、詳細POSTの拒否は維持する。
+
+ローカルReleaseは最小2件→追加72件→対象外振替の保持を強化した正常ケースと既存GET/POST/PUTの代表7件が成功（段階間に重複あり、失敗/skipなし）。全APIのローカル再実行は行わず、下記の最終CIで確認した。影響外のClient/WinUI/旧Windows/性能等は既存の選択・fingerprintに従って成功記録を再利用する。実運用DBには操作していない。実NAS/実Windows接続・実運用データでの検証は未実施。候補/補完・Client/WinUI・DB/索引/Migrationは変更していない。
+
+基点main `4dd0414b8834b2ceafc7f7b6e7f5be305c1bc507`の[push Tests 43697002173](https://github.com/k-o-a-b-c/monetail/actions/runs/43697002173)成功を変更前の根拠とする。ソース`0e3b0bc4d3e13be047ae760a2ae06955cbcbd89a`の[Tests 43697845272](https://github.com/k-o-a-b-c/monetail/actions/runs/43697845272)でAPI全2004件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全が成功。変更文書のローカル参照129件と差分検査も成功した。
 
 ## 振替PUT：更新
 
-[TransferUpdateTests.cs](Monetail.Api.Tests/TransferUpdateTests.cs)・[入力](Monetail.Api.Tests/TransferUpdateInputTests.cs)・[権限](Monetail.Api.Tests/TransferUpdateAccessTests.cs)・[安全性](Monetail.Api.Tests/TransferUpdateSafetyTests.cs)・[再送](Monetail.Api.Tests/TransferUpdateReplayTests.cs)に102件を追加。既存の本番DI/実HTTP/隔離SQLite fixtureを使い、8項目の厳密JSON、UUID v4/UTF-16/ローカル日時/金額/メモ、変更前後4か所の所有権、各ロール、別家計簿、両マスタの期間端点を検証する。通常更新の監査2項目変更/作成監査保持、別操作者、無変更時の振替UPDATE禁止・空文字/null同値、原子的な旧版条件、最新8項目、競合時の非公開、並行保存/同時再送、異内容/版/対象/操作者/操作の要求ID競合、再起動後再送、権限/認証/人物対応/所有権/期間変化と途中失敗の全表ロールバック、既存20回共有枠・CSRF/Originを確認する。未実装ルート保護の既存試験はPUTだけを実装済みに変更し、詳細POST/DELETEの拒否を維持する。
+[TransferUpdateTests.cs](Monetail.Api.Tests/TransferUpdateTests.cs)・[入力](Monetail.Api.Tests/TransferUpdateInputTests.cs)・[権限](Monetail.Api.Tests/TransferUpdateAccessTests.cs)・[安全性](Monetail.Api.Tests/TransferUpdateSafetyTests.cs)・[再送](Monetail.Api.Tests/TransferUpdateReplayTests.cs)に102件を追加。既存の本番DI/実HTTP/隔離SQLite fixtureを使い、8項目の厳密JSON、UUID v4/UTF-16/ローカル日時/金額/メモ、変更前後4か所の所有権、各ロール、別家計簿、両マスタの期間端点を検証する。通常更新の監査2項目変更/作成監査保持、別操作者、無変更時の振替UPDATE禁止・空文字/null同値、原子的な旧版条件、最新8項目、競合時の非公開、並行保存/同時再送、異内容/版/対象/操作者/操作の要求ID競合、再起動後再送、権限/認証/人物対応/所有権/期間変化と途中失敗の全表ロールバック、既存20回共有枠・CSRF/Originを確認する。未実装ルート保護の当時の試験はPUTだけを実装済みに変更した。DELETE実装後は上記の削除試験へ置き換え、詳細POSTの拒否を維持する。
 
 ローカルReleaseは最小2件→追加85件（83成功/2失敗）→失敗2件と新規17件（18成功/1失敗）→該当1件成功。初回2失敗は試験準備の人物作成応答参照を既存の一覧形式へ修正。次の1失敗は旧空文字メモの模擬値が現行CHECKで拒否されたため、既存GET試験と同じくテスト準備専用接続だけでCHECKを一時無効化し、API接続では制約を維持した。製品側の条件や既存試験は緩和していない。段階間には重複があり、既存POST/詳細GET/未実装ルート保護の代表7件も成功。全APIのローカル再実行は行わない。
 
