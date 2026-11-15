@@ -26,6 +26,14 @@ public static class TransferEndpoints
             Results.Ok(await service.ListTransfersAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), http.Request.Query, protection,
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
             .RequireRateLimiting(LedgerRateLimits.ReadPolicy);
+        routes.MapPost("", async (string ledgerId, HttpContext http, LedgerManagementService service) =>
+        {
+            var ledger = ReceiptPayload.Uuid(ledgerId, "ledgerId");
+            var result = (TransferCreatedResult)await service.CreateTransferAsync(ledger,
+                await LedgerPayload.ReadAsync(http, TransferCreateInput.Fields), (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted);
+            http.Response.Headers.Location = $"/ledgers/{Guid.ParseExact(ledger, "N"):D}/transfers/{Guid.ParseExact(result.TransferId, "N"):D}";
+            return Results.StatusCode(201);
+        }).RequireRateLimiting(LedgerRateLimits.WritePolicy);
         routes.MapGet("/{transferId}", async (string ledgerId, string transferId, HttpContext http, LedgerManagementService service) =>
             Results.Ok(await service.GetTransferAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(transferId, "transferId"),
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
