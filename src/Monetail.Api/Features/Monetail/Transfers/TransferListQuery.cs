@@ -34,4 +34,3 @@ internal sealed record TransferListQuery(ReceiptListQuery Filter)
 }
 
 internal sealed record TransferListPosition(string LedgerId, string Conditions, string TransactionAt, string TransferId);
-
