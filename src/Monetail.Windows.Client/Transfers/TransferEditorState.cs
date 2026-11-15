@@ -62,7 +62,7 @@ public sealed class TransferEditorState
     public TransferAutofillContext? BeginAutofill()
     {
         autofill = null;
-        if (IsExisting || IsReadOnly || Draft.Name is not { Length: > 0 and <= 100 } || Draft.UnresolvedDateText is not null || Draft.TransactionDate is not DateOnly date) return null;
+        if (IsExisting || IsReadOnly || string.IsNullOrWhiteSpace(Draft.Name) || Draft.Name.Length > 100 || Draft.UnresolvedDateText is not null || Draft.TransactionDate is not DateOnly date) return null;
         return autofill = new(Draft.Name, date, Draft.From.Source == TransferSelectionSource.Manual ? Draft.From.PaymentMethodId : null);
     }
     public bool TryApplyAutofill(TransferAutofillContext context, TransferAutofillInfo result)

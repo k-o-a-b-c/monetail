@@ -106,4 +106,23 @@ public sealed partial class TransferEditorStateTests
         else state.Draft.SetDate(missing == "date" ? null : Day, missing == "pending-date" ? "2026/" : null);
         var before = Capture(state); Assert.Null(state.BeginAutofill()); Assert.Equal(before, Capture(state));
     }
+
+    [Theory]
+    [InlineData(null)] [InlineData("")] [InlineData(" ")] [InlineData("\t\r\n")]
+    [InlineData("\u3000")] [InlineData("\u00a0")] [InlineData("\u2003\u202f")] [InlineData(" \t\u3000\u00a0\u2003")]
+    public void TransferEditorAutofillBlankNameDoesNotStartOrChangeInputs(string? name)
+    {
+        var state = AutofillNew(); Assert.True(state.TryApplyAutofill(state.BeginAutofill()!, new(From, To)));
+        var previous = state.BeginAutofill()!; state.Draft.Name = name!; var before = Capture(state);
+        Assert.Null(state.BeginAutofill()); Assert.Equal(name, state.Draft.Name); Assert.Equal(before, Capture(state));
+        Assert.False(state.TryApplyAutofill(previous, new(To, Other))); Assert.Equal(before, Capture(state));
+    }
+
+    [Fact]
+    public void TransferEditorAutofillKeepsSurroundingUnicodeWhitespaceInNonblankName()
+    {
+        var state = AutofillNew(); state.Draft.Name = " \u3000Ａ銀行\u00a0 "; var before = Capture(state);
+        var context = state.BeginAutofill(); Assert.NotNull(context); Assert.Equal(" \u3000Ａ銀行\u00a0 ", context.Name);
+        Assert.Equal(before, Capture(state)); Assert.True(state.TryApplyAutofill(context, new(From, To))); Assert.Equal(context.Name, state.Draft.Name);
+    }
 }
