@@ -23,6 +23,7 @@ public static class LedgerReceiptModel
                 table.HasCheckConstraint("CK_ledger_receipts_tax_inclusion", "tax_inclusion_mode IN (0,1)");
                 table.HasCheckConstraint("CK_ledger_receipts_tax_rounding", "tax_rounding_mode IN ('floor','half_up')");
                 table.HasCheckConstraint("CK_ledger_receipts_total", Int32("total_amount"));
+                table.HasCheckConstraint("CK_ledger_receipts_memo", "memo IS NULL OR length(memo) BETWEEN 1 AND 100");
                 table.HasCheckConstraint("CK_ledger_receipts_recurrence",
                     "(recurrence_interval IS NULL AND recurrence_unit IS NULL) OR " +
                     "(recurrence_interval IS NOT NULL AND recurrence_unit IS NOT NULL AND " +
@@ -42,7 +43,7 @@ public static class LedgerReceiptModel
             receipt.Property(row => row.RecurrenceInterval).HasColumnName("recurrence_interval");
             receipt.Property(row => row.RecurrenceUnit).HasColumnName("recurrence_unit");
             receipt.Property(row => row.TotalAmount).HasColumnName("total_amount");
-            receipt.Property(row => row.Memo).HasColumnName("memo");
+            receipt.Property(row => row.Memo).HasColumnName("memo").HasMaxLength(100);
             receipt.Property(row => row.Revision).HasColumnName("revision").IsRequired().IsConcurrencyToken();
             receipt.Property(row => row.CreatedByAuthUserId).HasColumnName("created_by_auth_user_id").IsRequired();
             receipt.Property(row => row.CreatedAtUtc).HasColumnName("created_at_utc");
@@ -56,7 +57,8 @@ public static class LedgerReceiptModel
         });
         builder.Entity<LedgerReceiptGroup>(group =>
         {
-            group.ToTable("ledger_receipt_groups");
+            group.ToTable("ledger_receipt_groups", table =>
+                table.HasCheckConstraint("CK_ledger_receipt_groups_memo", "memo IS NULL OR length(memo) > 0"));
             group.HasKey(row => new { row.LedgerId, row.Id });
             group.Property(row => row.LedgerId).HasColumnName("ledger_id");
             group.Property(row => row.Id).HasColumnName("group_id").ValueGeneratedNever();
@@ -72,6 +74,7 @@ public static class LedgerReceiptModel
             detail.ToTable("ledger_receipt_details", table =>
             {
                 table.HasCheckConstraint("CK_ledger_receipt_details_order", "typeof(display_order) = 'integer' AND display_order BETWEEN 0 AND 2147483647");
+                table.HasCheckConstraint("CK_ledger_receipt_details_memo", "memo IS NULL OR length(memo) > 0");
                 table.HasCheckConstraint("CK_ledger_receipt_details_price", Int32("unit_price"));
                 table.HasCheckConstraint("CK_ledger_receipt_details_discount_amount", Int32("unit_discount_amount"));
                 table.HasCheckConstraint("CK_ledger_receipt_details_quantity", "typeof(quantity) = 'integer' AND quantity BETWEEN 1 AND 2147483647");

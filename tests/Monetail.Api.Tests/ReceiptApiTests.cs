@@ -45,6 +45,99 @@ public sealed partial class ReceiptApiTests
     }
 
     [Fact]
+    public async Task BlankMemosAreNullInStorageReadsAndPostReplay()
+    {
+        await using var f = await Fixture.Create();
+        var input = f.Input(); input["memo"] = ""; Group(input)["memo"] = ""; Line(input)["memo"] = "";
+        var id = await f.CreateReceipt(input);
+        Assert.Equal(1L, f.App.Database.Scalar("SELECT COUNT(*) FROM ledger_receipts WHERE memo IS NULL"));
+        Assert.Equal(1L, f.App.Database.Scalar("SELECT COUNT(*) FROM ledger_receipt_groups WHERE memo IS NULL"));
+        Assert.Equal(1L, f.App.Database.Scalar("SELECT COUNT(*) FROM ledger_receipt_details WHERE memo IS NULL"));
+        var detail = await f.Get(id);
+        Assert.Null(detail["memo"]); Assert.Null(Group(detail)["memo"]); Assert.Null(Line(detail)["memo"]);
+        var listing = (await f.Call("GET", null, 200, "?month=2026-11"))!;
+        Assert.Null(listing["receipts"]![0]!["memo"]);
+        var before = f.Snapshot();
+        input["memo"] = null; Group(input)["memo"] = null; Line(input)["memo"] = null;
+        await f.Call("POST", input, 201);
+        Assert.Equal(before, f.Snapshot());
+    }
+
+    [Fact]
+    public async Task LegacyBlankMemosReadAsNullAndDoNotCauseAnUpdate()
+    {
+        await using var f = await Fixture.Create();
+        var id = await f.CreateReceipt(f.Input());
+        // 新しいCHECKを迂回して、旧DBに残り得る空文字のデータを再現する。
+        f.App.Database.Execute("PRAGMA ignore_check_constraints=ON");
+        try
+        {
+            f.App.Database.Execute("UPDATE ledger_receipts SET memo=''");
+            f.App.Database.Execute("UPDATE ledger_receipt_groups SET memo=''");
+            f.App.Database.Execute("UPDATE ledger_receipt_details SET memo=''");
+        }
+        finally { f.App.Database.Execute("PRAGMA ignore_check_constraints=OFF"); }
+        var detail = await f.Get(id);
+        Assert.Null(detail["memo"]); Assert.Null(Group(detail)["memo"]); Assert.Null(Line(detail)["memo"]);
+        var listing = (await f.Call("GET", null, 200, "?month=2026-11"))!;
+        Assert.Null(listing["receipts"]![0]!["memo"]);
+        f.App.Database.Execute("CREATE TRIGGER no_parent_update BEFORE UPDATE ON ledger_receipts BEGIN SELECT RAISE(ABORT,'unchanged_parent_update'); END");
+        var before = f.BusinessSnapshot();
+        var update = f.Update(detail); update["memo"] = ""; Group(update)["memo"] = ""; Line(update)["memo"] = "";
+        await f.Call("PUT", update, 204, "/" + id);
+        Assert.Equal(before, f.BusinessSnapshot());
+    }
+
+    [Theory]
+    [InlineData(100, false, true)]
+    [InlineData(101, false, false)]
+    [InlineData(50, true, true)]
+    [InlineData(51, true, false)]
+    public async Task ParentMemoLimitCountsUtf16CodeUnits(int count, bool emoji, bool valid)
+    {
+        await using var f = await Fixture.Create();
+        var memo = emoji ? string.Concat(Enumerable.Repeat("😀", count)) : new string('a', count);
+        var input = f.Input(); input["memo"] = memo;
+        if (valid)
+        {
+            var id = await f.CreateReceipt(input);
+            Assert.Equal(memo, (await f.Get(id))["memo"]!.GetValue<string>());
+        }
+        else
+        {
+            var before = f.Snapshot();
+            var error = (await f.Call("POST", input, 400))!;
+            Assert.Equal("invalid_input", error["code"]!.GetValue<string>());
+            Assert.Equal("memo", error["field"]!.GetValue<string>());
+            Assert.Equal(before, f.Snapshot());
+        }
+    }
+
+    [Fact]
+    public async Task PutRejectsOversizeParentMemoWithoutMutatingExistingReceipt()
+    {
+        await using var f = await Fixture.Create();
+        var id = await f.CreateReceipt(f.Input());
+        var before = f.Snapshot();
+        var update = f.Update(await f.Get(id)); update["memo"] = new string('x', 101);
+        var error = (await f.Call("PUT", update, 400, "/" + id))!;
+        Assert.Equal("invalid_input", error["code"]!.GetValue<string>());
+        Assert.Equal("memo", error["field"]!.GetValue<string>());
+        Assert.Equal(before, f.Snapshot());
+    }
+
+    [Theory]
+    [InlineData("ledger_receipts")]
+    [InlineData("ledger_receipt_groups")]
+    [InlineData("ledger_receipt_details")]
+    public async Task MemoDatabaseConstraintsRejectEmptyText(string table)
+    {
+        await using var f = await Fixture.Create();
+        await f.CreateReceipt(f.Input());
+        Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => f.App.Database.Execute($"UPDATE {table} SET memo=''"));
+    }
+
+    [Fact]
     public async Task DeleteReplayUsesSuccessRecordWithoutRequiringDeletedResource()
     {
         await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var detail = await f.Get(id);
