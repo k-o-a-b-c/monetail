@@ -149,14 +149,14 @@ public sealed partial class LedgerManagementService
             receiptId = D(r.Id), transactionAt = r.TransactionAt.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture),
             shopName = r.ShopName, shopLocation = r.ShopLocation, paymentMethodId = D(r.PaymentMethodId), taxInclusionMode = r.TaxInclusionMode,
             taxRoundingMode = r.TaxRoundingMode, recurrenceInterval = r.RecurrenceInterval, recurrenceUnit = r.RecurrenceUnit,
-            memo = r.Memo, revision = D(r.Revision), groups = graph.Groups.OrderBy(g => categories[g.CategoryId].DisplayOrder).ThenBy(g => g.CategoryId, StringComparer.Ordinal).Select(g => new
+            memo = ReceiptPayload.NormalizeMemo(r.Memo), revision = D(r.Revision), groups = graph.Groups.OrderBy(g => categories[g.CategoryId].DisplayOrder).ThenBy(g => g.CategoryId, StringComparer.Ordinal).Select(g => new
             {
-                groupId = D(g.Id), categoryId = D(g.CategoryId), memo = g.Memo,
+                groupId = D(g.Id), categoryId = D(g.CategoryId), memo = ReceiptPayload.NormalizeMemo(g.Memo),
                 details = graph.Details.Where(d => d.GroupId == g.Id).OrderBy(d => d.DisplayOrder).ThenBy(d => d.Id, StringComparer.Ordinal).Select(d => new
                 {
                     detailId = D(d.Id), displayOrder = d.DisplayOrder, name = d.Name, unitPrice = d.UnitPrice, quantity = d.Quantity, unitDiscountAmount = d.UnitDiscountAmount,
                     discountRate = Number(d.DiscountRate), taxRate = d.TaxRate is decimal rate ? Number(rate) : null,
-                    expenseType = d.ExpenseType, occurrenceType = d.OccurrenceType, memo = d.Memo,
+                    expenseType = d.ExpenseType, occurrenceType = d.OccurrenceType, memo = ReceiptPayload.NormalizeMemo(d.Memo),
                     personIds = graph.People.Where(p => p.DetailId == d.Id).OrderBy(p => people[p.PersonId].DisplayOrder).ThenBy(p => p.PersonId, StringComparer.Ordinal).Select(p => D(p.PersonId)).ToArray()
                 }).ToArray()
             }).ToArray()
