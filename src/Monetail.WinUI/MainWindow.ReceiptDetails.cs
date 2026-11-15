@@ -1,5 +1,6 @@
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -55,6 +56,7 @@ public sealed partial class MainWindow
         foreach (var (id, name) in choices)
         {
             var box = new CheckBox { Content = name, Tag = id, IsChecked = input.Values.PersonIds.Contains(id) };
+            AutomationProperties.SetAutomationId(box, $"ReceiptDetailPerson_{id:N}");
             box.GotFocus += (_, _) => UpdateReceiptPeopleTabStops(box);
             box.Checked += ReceiptPersonChanged; box.Unchecked += ReceiptPersonChanged;
             ReceiptDetailPeople.Children.Add(box);
