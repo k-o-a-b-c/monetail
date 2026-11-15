@@ -1,6 +1,6 @@
-# 振替API契約（GET・POST・PUT・DELETE実装済み）
+# 振替API契約（基本CRUD・振替名候補GET実装済み）
 
-更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GET・新規POST・更新PUT・削除DELETEを実装済み。レシート既存APIおよび後続の振替候補・補完の実装状態と区別する。
+更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GET・新規POST・更新PUT・削除DELETE・振替名候補GETを実装済み。レシート既存APIおよび後続の自動補完の実装状態と区別する。
 
 参照：[入口・残課題](ledger-transfer.md)／[DB・値域](ledger-transfer-db.md)／[WinUI画面](ledger-transfer-ui.md)／[レシートAPI](ledger-receipt-api.md)／[共通再送](ledger-operation-retries.md)。
 
@@ -8,7 +8,7 @@
 
 一覧/詳細GETは既存レシートの認証/DB準備フィルター、`LedgerApiFilter`、UUID入力検証、共有参照レート制限を利用する。`LedgerManagementService.InLedgerAsync`で読取前後の認証・現在参加を検証し、指定家計簿の振替だけを参照する。下記の応答を整形するだけで保存値・監査列・更新版・再送記録は変更しない。実装/検証結果は[一覧GET](../tests/README.md#振替一覧get)・[詳細GET](../tests/README.md#振替詳細get)を参照。
 
-一覧GETの`focusTransferId`も実装済み（DEC-279）。POST・PUT・DELETEは下記の範囲で実装済み。候補・補完は未実装。以下の確定契約の記述は、これらの完了を意味しない。
+一覧GETの`focusTransferId`も実装済み（DEC-279）。POST・PUT・DELETEは下記の範囲で実装済み。振替名候補GETも実装済み。自動補完は未実装であり、以下の確定契約の記述はその完了を意味しない。
 
 ### 新規POSTの実装
 
@@ -31,6 +31,12 @@
 `TransferDeleteInput`は共通の厳密JSON処理とUUID v4検証で`requestId`/`revision`だけを受け付ける。新規要求は同一家計簿の対象と両支払方法を読み、現在のAdminまたは両側を所有するEditorに限って削除する。家計簿/振替ID/旧版一致を条件にDELETEし、`transfer.delete`成功記録INSERT後も認証/参加/ロール/人物対応/両所有権を再確認して、共通SQLiteトランザクションを確定する。版競合はPUTの最新8項目の整形・公開前権限確認を共用する。
 
 要求ハッシュは家計簿/振替ID/要求revisionを含む。成功済み同一要求は現在の認証/家計簿参加/AdminまたはEditorを検証し、削除済み対象や支払方法の所有権を再取得せず204/空本文を再現する。振替のDELETEや成功記録INSERTを繰り返さない。入力/権限/版/途中書込の失敗は全体をロールバックし、関連マスタや他の取引は変更しない。検証結果は[DELETEのテスト](../tests/README.md#振替delete削除)を参照。
+
+### 振替名候補GETの実装
+
+`TransferSuggestionsQuery`で任意の`q`1件だけを受け付け、100 UTF-16コード単位以内か確認する。`TransferSearchText.Normalize`を振替一覧と共用するSQLite関数で、保存名と検索文字列の英数字だけを揃えて部分一致を判定する。検索文字列をSQLへ埋め込まずパラメーターで渡し、元の保存名は変更しない。
+
+家計簿内の全履歴に検索を適用し、SQLのBINARY集約・最新更新UTC/元文字列順の後に101候補を取得して、下記契約の100候補と`hasMore`を返す。既存`InLedgerAsync`の読取前後の認証/参加確認・共有参照枠・共通エラー処理を使用する。取得専用でDB/索引を変更しない。実SQLの実行計画と検証結果は[候補GETのテスト](../tests/README.md#振替名候補get)を参照。
 
 ## 権限（確定・API強制）
 

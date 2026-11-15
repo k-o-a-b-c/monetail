@@ -7,13 +7,23 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 2004 |
+| ASP.NET Core API | 2054 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3067 |
+| 合計 | 3117 |
+
+## 振替名候補GET
+
+[基本応答](Monetail.Api.Tests/TransferSuggestionsTests.cs)・[検索](Monetail.Api.Tests/TransferSuggestionsSearchTests.cs)・[入力](Monetail.Api.Tests/TransferSuggestionsInputTests.cs)・[アクセス](Monetail.Api.Tests/TransferSuggestionsSecurityTests.cs)・[SQL計画](Monetail.Api.Tests/TransferSuggestionsQueryPlanTests.cs)に実HTTP/本番DI/隔離SQLiteの50件を追加。q省略/空/部分一致/0件、100/101候補とhasMore、201同名履歴の重複除去と古い一致の検索、MAX更新UTC/元文字列BINARY順（BMP外文字を含む）、英数字だけの同一視と元表記の保持、かな/記号/互換文字/その他の文字種の非同一視、空白/SQLワイルドカードの文字どおりの検索、UTF-16境界・不正クエリを検証する。全ロール/人物未対応、同一振替IDがある別家計簿、401/404/共有120回枠、取得後の認証/参加/役割/人物対応変化、保存障害、並行検索、DB非変更も確認する。役割/人物対応が変わっても参加・参照権限を維持する場合は200、参加解除は404、認証失効は401とする。
+
+実際にAPIが発行したSQLを捕捉し、1,001振替のqなし/ありの両方でEXPLAIN QUERY PLANを検証。既存`ix_ledger_transfers_transaction`による家計簿検索、GROUP BY/ORDER BYの一時B-tree、集約後のLIMIT 101・OFFSET/COUNT不使用を確認する。新しい索引・列・独自の性能SLAは追加しない。
+
+ローカルReleaseは最小2件→追加50件→既存振替GET/POST/PUT/DELETEとレシート候補の代表5件が成功（段階間に重複あり、失敗/skipなし）。変更前は基点main `b745e047d35ede0181d65d1bbab40e62cac569f0`の[push Tests 43702421867](https://github.com/k-o-a-b-c/monetail/actions/runs/43702421867)成功を採用。全APIのローカル重複実行は追加せず、影響外のClient/WinUI/旧Windows/性能等はCIの既存選択・fingerprintに従って成功記録を再利用する。自動補完・Client/WinUI・DB/索引/Migrationは変更せず、実運用DBには操作していない。実NAS/実Windowsからの接続・実運用データ規模の性能は未検証。
+
+ソース`0b6288e43b6982d5aac9ae77a676bb30bb2553f8`の[Tests 43705873585](https://github.com/k-o-a-b-c/monetail/actions/runs/43705873585)でAPI全2054件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ、更新・DB/PFX等のバックアップ/復元保全が成功。変更文書のローカル参照108件・差分検査も成功した。
 
 ## 振替DELETE：削除
 
