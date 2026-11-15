@@ -1,6 +1,6 @@
 # 振替DB・業務値仕様（DB実装済み）
 
-更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。振替DBの確定範囲は実装済み、振替APIは詳細GETのみ実装済み。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
+更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。振替DBの確定範囲は実装済み、振替APIは一覧GET・詳細GETを実装済み。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
 
 参照：[入口・残課題](ledger-transfer.md)／[API契約](ledger-transfer-api.md)／[WinUI画面](ledger-transfer-ui.md)／[既存レシートDB](ledger-receipt-schema.md)／[家計簿DBモデル](ledger-core-schema.md)。
 
@@ -10,7 +10,7 @@
 
 通常起動や再初期化で既存DBを変更しない。振替表・索引がない旧構造は既存の構造検証で拒否するため、既存ファイルを保持して別の新規DBを準備する。[初期化手順](42-api-foundation.md#db初期化登録復旧コマンド)に従い、手動削除・自動修復で検査を回避しない。
 
-この工程はEFマッピング・物理制約・新規DB初期化まで。UUID/更新版の発行、監査値の設定、日時/文字列の厳密な入力検証、原子的な版照合、`operation_requests`との同時確定、書込HTTP応答は後続APIで実装する。詳細GETの読取/JSON整形は[API正本](ledger-transfer-api.md#実装範囲)を参照。DBに追加のUUID/日時CHECKは設けていない。SQLite標準CHECKの文字列検証の限界は下記の確定仕様を維持する。検証範囲と結果は[tests/README.md](../tests/README.md#振替db確定範囲の実装)を参照する。
+この工程はEFマッピング・物理制約・新規DB初期化まで。UUID/更新版の発行、監査値の設定、日時/文字列の厳密な入力検証、原子的な版照合、`operation_requests`との同時確定、書込HTTP応答は後続APIで実装する。一覧/詳細GETの読取/JSON整形は[API正本](ledger-transfer-api.md#実装範囲)を参照。DBに追加のUUID/日時CHECKは設けていない。SQLite標準CHECKの文字列検証の限界は下記の確定仕様を維持する。検証範囲と結果は[tests/README.md](../tests/README.md#振替db確定範囲の実装)を参照する。
 
 ## 業務と入力値（確定）
 

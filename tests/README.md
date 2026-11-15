@@ -7,13 +7,23 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 1609 |
+| ASP.NET Core API | 1672 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示） | 778 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 2672 |
+| 合計 | 2735 |
+
+## 振替一覧GET
+
+実HTTP/本番DI/Identity/隔離SQLiteの63件を追加。[一覧/検索](Monetail.Api.Tests/TransferListTests.cs)は0/1/99/100/101/200/201件、同日時ID降順、ページ間重複/欠落なし、月末/年末/閏日、元/先をまたぐ人物・支払方法の独立AND、全履歴への検索、英数字だけの全角/半角・大小文字同一視、かな/記号/互換文字の区別、7項目・UUID D/ローカル秒/空文字メモnull・全表非変更を確認する。[カーソル](Monetail.Api.Tests/TransferListCursorTests.cs)は条件/家計簿/SHA-256・q省略/空文字の区別、改ざん/不正payload/別鍵/レシートpurpose拒否、再起動・境界行削除を検証。[権限](Monetail.Api.Tests/TransferListSecurityTests.cs)は全ロール/人物未対応、401/404/429/503・取得後の認証/参加再検証、家計簿間の同一ID/別所有者を含む分離を確認する。`focusTransferId`は400 invalid_inputで拒否する。
+
+[実SQLの計画](Monetail.Api.Tests/TransferListQueryPlanTests.cs)は1,001件の架空データでHTTPから実際のSQL/パラメーターを捕捉し、LIMIT 101・日時/IDのキーセット条件、OFFSET/COUNT未使用、既存一覧索引のSEARCH・一時ソート不要、データ非変更を検証。索引/DB変更・独自SLAは追加しない。既存詳細GETテストの「一覧未追加」確認は今回の実装に合わせて更新し、書込ルート未追加の確認を維持した。
+
+ローカルReleaseは最小2件→一覧63件→実SQL計画と既存振替詳細/レシートの関連44件→同一支払方法IDの別家計簿所有者を加えて強化した分離1件が成功（段階間に重複あり、失敗/skipなし）。基点main `3a6513f8d064ede09cef4d3884dd4ff38f9a6c16`の[push Tests 43680516482](https://github.com/k-o-a-b-c/monetail/actions/runs/43680516482)成功を変更前の根拠にする。全APIは最終CIに集約し、影響外のClient/WinUI/旧Windows/性能等は既存の選択・成功記録を再利用する。
+
+ソース`c4b4c65ca4de95a50378b99e5cb3052672cae785`の[Tests 43681600036](https://github.com/k-o-a-b-c/monetail/actions/runs/43681600036)でAPI全1672件（失敗/skipなし）、Node63件、Python75件、旧VB実計算24ケース照合、Dockerビルド/起動/サーバー/配布アーカイブ（更新・DB/PFX等のバックアップ/復元保全を含む）が成功。追加件数63はソースとテスト検出でも照合した。文書ローカル参照102件・差分検査も成功。実NAS/実Windows接続・実運用データでの性能は未検証。`focusTransferId`・候補/補完/書込API・Client/WinUI・DB/Migrationは変更しない。
 
 ## 振替詳細GET
 
