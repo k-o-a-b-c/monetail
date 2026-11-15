@@ -12,8 +12,7 @@ internal sealed record TransferCreateInput(string RequestId, DateTime Transactio
 
     internal static TransferCreateInput Decode(LedgerPayload input)
     {
-        var request = Uuid(input, "requestId"); var requestGuid = Guid.ParseExact(request, "N");
-        if (requestGuid.Version != 4 || (requestGuid.ToByteArray()[8] & 0xc0) != 0x80) throw Bad("requestId");
+        var request = V4Uuid(input, "requestId");
         var text = input.Text("transactionAt");
         if (text.Length != 19 || !DateTime.TryParseExact(text, "yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)) throw Bad("transactionAt");
         var name = input.Text("name");
@@ -27,6 +26,13 @@ internal sealed record TransferCreateInput(string RequestId, DateTime Transactio
         var memo = ReceiptPayload.NormalizeMemo(memoValue.ValueKind == JsonValueKind.Null ? null : memoValue.GetString());
         if (memo is not null && (memo.Length > 100 || memo.Any(character => character is '\r' or '\n' or '\v' or '\f' or '\u0085' or '\u2028' or '\u2029'))) throw Bad("memo");
         return new(request, at, name, from, to, amount, memo);
+    }
+
+    internal static string V4Uuid(LedgerPayload input, string name)
+    {
+        var value = Uuid(input, name); var id = Guid.ParseExact(value, "N");
+        if (id.Version != 4 || (id.ToByteArray()[8] & 0xc0) != 0x80) throw Bad(name);
+        return value;
     }
 
     private static string Uuid(LedgerPayload input, string name)

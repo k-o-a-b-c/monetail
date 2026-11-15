@@ -34,6 +34,12 @@ public static class TransferEndpoints
             http.Response.Headers.Location = $"/ledgers/{Guid.ParseExact(ledger, "N"):D}/transfers/{Guid.ParseExact(result.TransferId, "N"):D}";
             return Results.StatusCode(201);
         }).RequireRateLimiting(LedgerRateLimits.WritePolicy);
+        routes.MapPut("/{transferId}", async (string ledgerId, string transferId, HttpContext http, LedgerManagementService service) =>
+        {
+            await service.UpdateTransferAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(transferId, "transferId"),
+                await LedgerPayload.ReadAsync(http, TransferUpdateInput.Fields), (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted);
+            return Results.NoContent();
+        }).RequireRateLimiting(LedgerRateLimits.WritePolicy);
         routes.MapGet("/{transferId}", async (string ledgerId, string transferId, HttpContext http, LedgerManagementService service) =>
             Results.Ok(await service.GetTransferAsync(ReceiptPayload.Uuid(ledgerId, "ledgerId"), ReceiptPayload.Uuid(transferId, "transferId"),
                 (CurrentSession)http.Items[typeof(CurrentSession)]!, http.RequestAborted)))
