@@ -55,7 +55,7 @@ public sealed partial class MonetailApiClient
     private static string TransferPath(Guid ledgerId) { TransferQueries.Id(ledgerId, "ledgerId"); return $"ledgers/{ledgerId:D}"; }
     private static TransferInfo ValidateTransfer(TransferInfo row, Guid transferId)
     {
-        if (row.TransferId != transferId) throw new ApiConnectionException();
+        if (row.TransferId != transferId || row.Revision.Version != 4 || (row.Revision.ToByteArray()[8] & 0xc0) != 0x80) throw new ApiConnectionException();
         return row with { Memo = CheckTransfer(row.Name, row.FromPaymentMethodId, row.ToPaymentMethodId, row.Amount, row.Memo) };
     }
     private static string? CheckTransfer(string name, Guid from, Guid to, int amount, string? memo)
