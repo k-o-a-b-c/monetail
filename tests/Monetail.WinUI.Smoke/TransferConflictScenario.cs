@@ -2,6 +2,8 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transfers;
@@ -14,6 +16,25 @@ public partial class App
 {
     private static Task WaitTransferDialog(FrameworkElement root, string title) => Wait(() =>
         Find<ContentDialog>(root, "TransferConfirmationDialog") is { IsLoaded: true } dialog && Equals(dialog.Title, title));
+
+    private static bool TransferControlHasFocus(FrameworkElement root, Control target)
+    {
+        for (var current = FocusManager.GetFocusedElement(root.XamlRoot) as DependencyObject; current is not null; current = VisualTreeHelper.GetParent(current))
+            if (ReferenceEquals(current, target)) return true;
+        return false;
+    }
+    private async Task CheckTransferNormalTabOrder(FrameworkElement root)
+    {
+        await FocusTransferControl(Find<Button>(root, "TransferBack"));
+        foreach (var name in new[] { "TransferDate", "TransferTime", "TransferName", "TransferFrom", "TransferTo", "TransferAmount", "TransferMemo", "TransferSave" })
+        {
+            await PressReceiptKey(0x09);
+            try { await Wait(() => TransferControlHasFocus(root, Find<Control>(root, name))); }
+            catch (TaskCanceledException error) { throw new InvalidOperationException($"通常の振替Tab順: expected={name}; actual={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}", error); }
+        }
+        Check(Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Collapsed && !TransferEditing!.HasUnsavedChanges,
+            "通常編集・最新採用後のTab順は日付→時刻→振替名→元→先→金額→メモ→更新のまま、移動だけでは未変更");
+    }
 
     private async Task CheckTransferConflicts()
     {
@@ -29,6 +50,7 @@ public partial class App
             var editorWindow = window ?? throw new InvalidOperationException("振替入力のWindowがありません。");
             await editorWindow.OpenTransferEditorAsync(saved.TransferId);
             var editor = TransferEditing ?? throw new InvalidOperationException("振替の編集状態がありません。");
+            if (!deleting) await CheckTransferNormalTabOrder(root);
             var amount = Find<TextBox>(root, "TransferAmount"); var memo = Find<TextBox>(root, "TransferMemo");
             await FocusTransferControl(amount); await Wait(() => memo.IsLoaded && memo.ActualWidth > 0);
             amount.Text = "2000"; memo.Text = "未保存のメモ";
@@ -60,6 +82,12 @@ public partial class App
                 "競合解消前はコピー可能な読み取り専用とし、更新・削除・流用登録を非表示にする");
             Check(Find<InfoBar>(root, "TransferEditorNotice").IsOpen && Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Visible && editor.Revision == saved.Revision && memo.Text == "未保存のメモ",
                 "編集へ戻る・破棄確認取消の後も入力・警告・最新読込を保持する");
+            await FocusTransferControl(Find<Button>(root, "TransferBack")); await PressReceiptKey(0x09);
+            await Wait(() => TransferControlHasFocus(root, Find<Button>(root, "TransferLoadLatest")));
+            await PressReceiptKey(0x09); await Wait(() => TransferControlHasFocus(root, Find<DateInputBox>(root, "TransferDate")));
+            await PressReceiptKey(0x09, 0x10); await Wait(() => TransferControlHasFocus(root, Find<Button>(root, "TransferLoadLatest")));
+            Check(Find<InfoBar>(root, "TransferEditorNotice").IsOpen && editor.Revision == saved.Revision && server.Writes.Count == 1,
+                "競合後の実Tabは戻る→警告直後の最新読込→日付、Shift+Tabは最新読込へ戻り、移動だけでは採用しない");
             if (!deleting)
             {
                 editorWindow.AppWindow.Resize(new SizeInt32(700, 620));
@@ -85,6 +113,7 @@ public partial class App
                 Find<DateInputBox>(root, "TransferDate").Text == latest.TransactionAt.ToString("yyyy/MM/dd", System.Globalization.CultureInfo.InvariantCulture) &&
                 !Find<InfoBar>(root, "TransferEditorNotice").IsOpen && Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferSave").IsEnabled,
                 "最新採用は表示も同期し警告を解除、通常編集と保存操作を復元する");
+            if (!deleting) await CheckTransferNormalTabOrder(root);
             if (!deleting) { amount.Text = "4000"; await Wait(() => editor.Draft.Amount == 4000); }
             await InvokeAsync(() => Find<Button>(root, deleting ? "TransferDelete" : "TransferSave"));
             await ConfirmTransfer(root, ContentDialogResult.Primary); await Wait(() => TransferEditing is null);
