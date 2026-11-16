@@ -30,6 +30,7 @@ public partial class App
             await editorWindow.OpenTransferEditorAsync(saved.TransferId);
             var editor = TransferEditing ?? throw new InvalidOperationException("振替の編集状態がありません。");
             var amount = Find<TextBox>(root, "TransferAmount"); var memo = Find<TextBox>(root, "TransferMemo");
+            await FocusTransferControl(amount); await Wait(() => memo.IsLoaded && memo.ActualWidth > 0);
             amount.Text = "2000"; memo.Text = "未保存のメモ";
             await Wait(() => editor.Draft.Amount == 2000 && editor.Draft.Memo == "未保存のメモ");
             var latest = saved with { TransactionAt = saved.TransactionAt.AddDays(1).AddSeconds(1), Name = "サーバーの最新振替", FromPaymentMethodId = saved.ToPaymentMethodId,
@@ -100,7 +101,7 @@ public partial class App
             fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
             var editorWindow = window ?? throw new InvalidOperationException("振替入力のWindowがありません。"); await editorWindow.OpenTransferEditorAsync(saved.TransferId);
-            Find<TextBox>(root, "TransferAmount").Text = "2000";
+            await FocusTransferControl(Find<TextBox>(root, "TransferAmount")); Find<TextBox>(root, "TransferAmount").Text = "2000";
             await Wait(() => TransferEditing?.Draft.Amount == 2000);
             await InvokeAsync(() => Find<Button>(root, "TransferSave")); await ConfirmTransfer(root, ContentDialogResult.Primary);
             Check(TransferEditing is { Latest: null } && Find<TextBox>(root, "TransferAmount").IsReadOnly && Find<TextBox>(root, "TransferAmount").Text == "2000" &&
