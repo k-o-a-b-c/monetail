@@ -27,7 +27,7 @@ public sealed partial class MainWindow
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
-    private bool TransferFrozen => transferSending || transferPending is not null || transferStopped || transferEditor?.IsReadOnly == true;
+    private bool TransferFrozen => transferDialogOpen || transferSending || transferPending is not null || transferStopped || transferEditor?.IsReadOnly == true;
     private void InitializeTransferEditor()
     {
         WorkspaceRoot.Children.Remove(TransferConfirmationDialog);

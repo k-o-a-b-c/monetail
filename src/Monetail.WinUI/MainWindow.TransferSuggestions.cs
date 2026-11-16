@@ -101,7 +101,7 @@ public sealed partial class MainWindow
         }
         if (args.Key != VirtualKey.Enter || TransferKeyDown(VirtualKey.Menu)) return;
         args.Handled = true;
-        if (TransferKeyDown(VirtualKey.Control)) { if (TransferSave.IsEnabled) _ = SaveTransferAsync(false); return; }
+        if (TransferKeyDown(VirtualKey.Control)) { if (!TransferName.IsSuggestionListOpen && TransferSave.IsEnabled) _ = SaveTransferAsync(false); return; }
         if (TransferName.IsSuggestionListOpen && transferNamePreview is { } preview) editor.Draft.Name = preview;
         RestoreTransferTypedName(); DismissTransferNames(); RenderTransferEditor();
         transferNameFocusTransition = true; TransferFrom.Focus(FocusState.Programmatic); transferNameFocusTransition = false;

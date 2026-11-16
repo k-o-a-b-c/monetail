@@ -49,6 +49,19 @@ public partial class App
         to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.OtherActiveId);
         Find<TextBox>(root, "TransferAmount").Text = "1000"; await Wait(() => Find<Button>(root, "TransferSave").IsEnabled);
     }
+    private async Task DoubleClickTransfer(FrameworkElement root)
+    {
+        var list = Find<ListView>(root, "TransferList"); list.ScrollIntoView(list.SelectedItem);
+        await Wait(() => list.ContainerFromItem(list.SelectedItem) is FrameworkElement { IsLoaded: true, ActualWidth: > 0 });
+        var item = (FrameworkElement)list.ContainerFromItem(list.SelectedItem);
+        var label = All(item).OfType<TextBlock>().First(t => t.ActualWidth > 0);
+        await ActivateReceiptInputWindowAsync();
+        var logical = label.TransformToVisual(root).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2)); var scale = root.XamlRoot.RasterizationScale;
+        var point = new ReceiptScreenPoint { X = (int)Math.Round(logical.X * scale), Y = (int)Math.Round(logical.Y * scale) };
+        if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(window!), ref point) || !SetCursorPos(point.X, point.Y)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var events = new uint[] { 2, 4, 2, 4 }.Select(flag => new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = flag } } }).ToArray();
+        if (SendInput(4, events, Marshal.SizeOf<ReceiptNativeInput>()) != 4) throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
     private async Task CheckTransferEditor()
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true }; var masters = new PaymentServer(); var server = new TransferInputServer(masters);
@@ -63,13 +76,15 @@ public partial class App
         Check(!Find<Button>(root, "TransferSave").IsEnabled && TransferEditing == input && input.Draft.UnresolvedAmountText == "2147483648", "Int32超過の生入力を保持し保存不可");
         Find<TextBox>(root, "TransferAmount").Text = "1000"; Find<TextBox>(root, "TransferMemo").Text = " ";
         var keyboard = (FormKeyboard)typeof(MainWindow).GetField("transferKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
-        Find<TextBox>(root, "TransferMemo").Focus(FocusState.Keyboard); await keyboard.HandleEnter(false, false)!;
+        await FocusAndObserve(Find<TextBox>(root, "TransferMemo")); await keyboard.HandleEnter(false, false)!;
+        await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave")));
         Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave")) && server.Writes.Count == 0, "メモのEnterは保存ボタンへ移動するだけで登録しない");
         await PressReceiptKey(0x0D, 0x11); await Wait(() => TransferEditing is null && Find<ListView>(root, "TransferList").Items.Count == 1);
         var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == "ATM" && server.Writes.Count == 1, "振替POSTは現在の6項目を送り201空本文とLocationから保存行へ戻る");
         Check(((TransferRow)Find<ListView>(root, "TransferList").SelectedItem).Transfer.TransferId == saved.TransferId, "登録成功後は保存行を選択する");
         Find<ListView>(root, "TransferList").SelectedIndex = 0; await Settle(); Check(server.Details == 0, "振替の単一選択は詳細GETしない");
-        await window!.OpenTransferEditorAsync(saved.TransferId); await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded);
+        await DoubleClickTransfer(root); await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded);
+        Check(server.Details == 1, "振替行の実ダブルクリックは詳細GETを1回だけ実行する");
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Revision == saved.Revision && Equals(Find<Button>(root, "TransferSave").Content, "更新"), "既存編集はID・版・保存値と更新操作を復元");
         Find<TextBox>(root, "TransferAmount").Text = "2000";
         await InvokeAsync(() => Find<Button>(root, "TransferSave")); await ConfirmTransfer(root, ContentDialogResult.None);
