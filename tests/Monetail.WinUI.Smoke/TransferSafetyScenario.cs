@@ -16,7 +16,12 @@ public partial class App
             fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenTransferEditorAsync(null); await FillTransfer(root, masters);
             await InvokeAsync(() => Find<Button>(root, "TransferSave"));
-            await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible || Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded || Find<InfoBar>(root, "TransferEditorNotice").IsOpen || TransferEditing is null);
+            try { await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible || Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded || Find<InfoBar>(root, "TransferEditorNotice").IsOpen || TransferEditing is null); }
+            catch (TaskCanceledException error)
+            {
+                var flags = string.Join(",", new[] { "transferSending", "transferDialogOpen", "transferStopped", "transferUnknown" }.Select(n => n + "=" + typeof(MainWindow).GetField(n, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)));
+                throw new InvalidOperationException($"結果不明待機: {flags}; writes={server.Writes.Count}; rows={server.Rows.Count}; saveEnabled={Find<Button>(root, "TransferSave").IsEnabled}; time={TransferEditing?.Draft.TransactionTime}; amount={TransferEditing?.Draft.Amount}; popup={Find<AutoSuggestBox>(root, "TransferName").IsSuggestionListOpen}", error);
+            }
             if (Find<Button>(root, "TransferWriteRetry").Visibility != Visibility.Visible) throw new InvalidOperationException($"結果不明診断: writes={server.Writes.Count}; rows={server.Rows.Count}; notice={Find<InfoBar>(root, "TransferEditorNotice").Message}; dialog={Find<ContentDialog>(root, "TransferConfirmationDialog").Content}; time={TransferEditing?.Draft.TransactionTime}; from={TransferEditing?.Draft.From.Source}; to={TransferEditing?.Draft.To.Source}");
             var pending = typeof(MainWindow).GetField("transferPending", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
             Check(server.Rows.Count == 1 && server.Writes.Count == 1 && !Find<Button>(root, "TransferSave").IsEnabled && Find<TextBox>(root, "TransferAmount").IsReadOnly,

@@ -9,7 +9,7 @@ public partial class App
     private async Task CheckTransferFocus()
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true }; var masters = new PaymentServer(); var server = new TransferInputServer(masters);
-        for (var i = 0; i < 301; i++) { var row = server.Add("先行" + i); server.Rows[row.TransferId] = row with { TransactionAt = DateTime.Today.AddHours(13) }; }
+        for (var i = 0; i < 301; i++) { var row = server.Add("先行" + i); server.Rows[row.TransferId] = row with { TransactionAt = DateTime.SpecifyKind(DateTime.Today.AddHours(13), DateTimeKind.Unspecified) }; }
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenTransferEditorAsync(null); await FillTransfer(root, masters);
         Find<TimeInputBox>(root, "TransferTime").Text = "00:00:00";

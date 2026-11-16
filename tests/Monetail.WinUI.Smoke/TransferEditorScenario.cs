@@ -54,6 +54,7 @@ public partial class App
         from.SelectedItem = from.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.ActiveId);
         to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.OtherActiveId);
         Find<TextBox>(root, "TransferAmount").Text = "1000"; await Wait(() => Find<Button>(root, "TransferSave").IsEnabled);
+        await FocusTransferControl(Find<TextBox>(root, "TransferAmount"));
     }
     private async Task DoubleClickTransfer(FrameworkElement root)
     {

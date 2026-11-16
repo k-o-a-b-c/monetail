@@ -56,7 +56,7 @@ public partial class App
         }
         internal TransferInfo Add(string name = "ATM", int amount = 100)
         {
-            var id = Guid.CreateVersion7(); var row = new TransferInfo(id, DateTime.Today.AddHours(12), name, masters.ActiveId, masters.OtherActiveId, amount, null, Guid.NewGuid()); Rows[id] = row; return row;
+            var id = Guid.CreateVersion7(); var row = new TransferInfo(id, DateTime.SpecifyKind(DateTime.Today.AddHours(12), DateTimeKind.Unspecified), name, masters.ActiveId, masters.OtherActiveId, amount, null, Guid.NewGuid()); Rows[id] = row; return row;
         }
         private static TransferInfo Read(Guid id, Guid revision, JsonElement row) => new(id, DateTime.SpecifyKind(DateTime.Parse(row.GetProperty("transactionAt").GetString()!, System.Globalization.CultureInfo.InvariantCulture), DateTimeKind.Unspecified), row.GetProperty("name").GetString()!, row.GetProperty("fromPaymentMethodId").GetGuid(), row.GetProperty("toPaymentMethodId").GetGuid(), row.GetProperty("amount").GetInt32(), row.GetProperty("memo").ValueKind == JsonValueKind.Null ? null : row.GetProperty("memo").GetString(), revision);
         private static HttpResponseMessage Fault(HttpStatusCode status, string code, TransferInfo? latest = null) => PaymentServer.Json(new { code, message = (string?)null, field = (string?)null, latest, permissions = (object?)null }, status);
