@@ -30,8 +30,11 @@ public partial class App
         name.Focus(FocusState.Keyboard); await Wait(() => name.IsSuggestionListOpen);
         var searches = server.Suggestions; await PressReceiptKey(0x28); await PressReceiptKey(0x09); await Settle();
         Check(name.Text == "AT" && TransferEditing.Draft.Name == "AT" && !name.IsSuggestionListOpen && server.Suggestions == searches, "Tabは候補を確定せず自由入力を保ち、同条件の候補を再利用");
-        name.Focus(FocusState.Keyboard); await Wait(() => name.IsSuggestionListOpen); await PressReceiptKey(0x28); await PressReceiptKey(0x0D);
-        await Wait(() => TransferEditing.Draft.Name == "ATM" && !name.IsSuggestionListOpen);
+        name.Focus(FocusState.Keyboard); await Wait(() => name.IsSuggestionListOpen); await PressReceiptKey(0x28);
+        await Wait(() => typeof(MainWindow).GetField("transferNamePreview", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window) is string);
+        var selected = (string)typeof(MainWindow).GetField("transferNamePreview", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+        Check(name.Text == selected && TransferEditing.Draft.Name == "AT", "標準の候補プレビューは表示だけを変更し業務値へ反映しない");
+        await PressReceiptKey(0x0D); await Wait(() => TransferEditing.Draft.Name == selected && !name.IsSuggestionListOpen);
         Check(Find<ComboBox>(root, "TransferFrom").FocusState != FocusState.Unfocused && server.Writes.Count == 0, "Enter確定は元表記を採用して次の振替元へ移動し保存しない");
         await Wait(() => TransferEditing.Draft.To.PaymentMethodId is not null);
         var auto = TransferEditing.Draft.To.PaymentMethodId; var from = Find<ComboBox>(root, "TransferFrom"); from.SelectedItem = from.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.OtherActiveId);

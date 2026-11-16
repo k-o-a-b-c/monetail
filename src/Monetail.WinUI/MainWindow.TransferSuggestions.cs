@@ -15,7 +15,7 @@ public sealed partial class MainWindow
     private readonly Dictionary<string, TransferSuggestionsInfo> transferSuggestions = new(StringComparer.Ordinal);
     private CancellationTokenSource? transferSuggestionCancellation, transferAutofillCancellation;
     private long transferSuggestionGeneration;
-    private bool transferClosingSuggestions, transferSuggestionsSuppressed, transferNameFocusTransition, transferNameInputObserved, transferNameCompositionPending;
+    private bool transferClosingSuggestions, transferSuggestionsSuppressed, transferNameFocusTransition, transferNameInputObserved, transferNameCompositionPending, transferNameKeyboardSubmit, transferNameKeyboardHadSuggestions;
     private string? transferNamePreview;
     private (string Name, DateOnly Day, Guid? From)? transferAutofillKey;
     private static bool TransferKeyDown(VirtualKey key) => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
@@ -79,9 +79,12 @@ public sealed partial class MainWindow
     private void TransferNameQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
     {
         if (TransferFrozen || transferKeyboard.IsComposing || transferEditor is not { } editor) return;
-        var selected = args.ChosenSuggestion as string;
-        if (selected is null) return;
-        editor.Draft.Name = selected; RestoreTransferTypedName(); DismissTransferNames(); RenderTransferEditor(); _ = AutofillTransferAsync();
+        var keyboard = transferNameKeyboardSubmit; transferNameKeyboardSubmit = false;
+        var selected = !keyboard || transferNameKeyboardHadSuggestions ? args.ChosenSuggestion as string : null;
+        if (!keyboard && selected is null) return;
+        editor.Draft.Name = selected ?? editor.Draft.Name; RestoreTransferTypedName(); DismissTransferNames(); RenderTransferEditor();
+        if (keyboard) { transferNameFocusTransition = true; TransferFrom.Focus(FocusState.Programmatic); transferNameFocusTransition = false; }
+        _ = AutofillTransferAsync();
     }
     private void RestoreTransferTypedName()
     {
@@ -106,12 +109,9 @@ public sealed partial class MainWindow
             FocusManager.TryMoveFocus(TransferKeyDown(VirtualKey.Shift) ? FocusNavigationDirection.Previous : FocusNavigationDirection.Next, new FindNextElementOptions { SearchRoot = WorkspaceRoot }); return;
         }
         if (args.Key != VirtualKey.Enter || TransferKeyDown(VirtualKey.Menu)) return;
-        args.Handled = true;
-        if (TransferKeyDown(VirtualKey.Control)) { if (!TransferName.IsSuggestionListOpen && TransferSave.IsEnabled) _ = SaveTransferAsync(false); return; }
-        if (TransferName.IsSuggestionListOpen && transferNamePreview is { } preview) editor.Draft.Name = preview;
-        RestoreTransferTypedName(); DismissTransferNames(); RenderTransferEditor();
-        transferNameFocusTransition = true; TransferFrom.Focus(FocusState.Programmatic); transferNameFocusTransition = false;
-        _ = AutofillTransferAsync();
+        if (TransferKeyDown(VirtualKey.Control)) { args.Handled = true; if (!TransferName.IsSuggestionListOpen && TransferSave.IsEnabled) _ = SaveTransferAsync(false); return; }
+        // 実際の選択項目の確定は標準AutoSuggestBoxのQuerySubmittedに任せる。
+        transferNameKeyboardSubmit = true; transferNameKeyboardHadSuggestions = TransferName.IsSuggestionListOpen;
     }
     private void TransferNameKeyUp(object sender, KeyRoutedEventArgs args)
     {
