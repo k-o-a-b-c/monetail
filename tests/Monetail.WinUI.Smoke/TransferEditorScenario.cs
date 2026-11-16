@@ -104,13 +104,11 @@ public partial class App
                 memo.Text = ""; await Wait(() => editor.Draft.Memo is null);
                 var data = new DataPackage(); data.SetText(raw); Clipboard.SetContent(data);
                 await FocusTransferControl(memo); await PressReceiptKey(0x56, 0x11); await Settle();
-                if (memo.Text != raw || editor.Draft.Memo != raw)
-                    throw new InvalidOperationException($"標準メモ貼り付けの変換を検出: expected={JsonSerializer.Serialize(raw)}, text={JsonSerializer.Serialize(memo.Text)}, draft={JsonSerializer.Serialize(editor.Draft.Memo)}");
-                Check(memo.Text == raw && editor.Draft.Memo == raw && editor.HasUnsavedChanges && Find<TextBlock>(root, "TransferValidity").Text.Contains("改行"), "CR/LF貼り付けの元文字列を保持しメモ検証エラーと未保存変更を表示");
-                await PressReceiptKey(0x0D, 0x11); await Settle();
-                Check(!Find<Button>(root, "TransferSave").IsEnabled && server.Writes.Count == 0 && editor.Draft.Memo == raw, "改行メモはボタンとCtrl+Enterで送信せず入力を保持");
-                memo.Text = "修正済み"; await Wait(() => Find<Button>(root, "TransferSave").IsEnabled);
-                Check(editor.Draft.Memo == "修正済み" && Find<TextBlock>(root, "TransferValidity").Visibility == Visibility.Collapsed, "改行を利用者が修正すると既存メモエラーが消える");
+                await Wait(() => memo.Text == "前" && editor.Draft.Memo == "前");
+                Check(memo.Text == "前" && editor.Draft.Memo == "前" && editor.HasUnsavedChanges && !memo.AcceptsReturn && memo.TextWrapping == TextWrapping.NoWrap, "CR/LF貼り付けは承認済みの標準1行TextBox動作で1行目を反映");
+                Check(Find<Button>(root, "TransferSave").IsEnabled && Find<TextBlock>(root, "TransferValidity").Visibility == Visibility.Collapsed && server.Writes.Count == 0 && await Clipboard.GetContent().GetTextAsync() == raw, "標準貼り付け後の1行は保存可能・自動送信なし、クリップボードの元文字列は変更しない");
+                memo.Text = ""; await Wait(() => editor.Draft.Memo is null);
+                Check(Find<Button>(root, "TransferSave").IsEnabled && Find<TextBlock>(root, "TransferValidity").Visibility == Visibility.Collapsed, "貼り付け後の全削除は従来どおりメモnullとして扱う");
             }
         }
         finally { Clipboard.Clear(); }

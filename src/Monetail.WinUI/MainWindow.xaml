@@ -343,7 +343,7 @@
                         <TextBox x:Name="TransferToReadOnly" TabIndex="5" Header="振替先" IsReadOnly="True" Visibility="Collapsed"/>
                         <TextBlock x:Name="TransferToError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                         <TextBox x:Name="TransferAmount" TabIndex="6" Header="金額" InputScope="Number" TextAlignment="Right" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferAmount"/>
-                        <TextBox x:Name="TransferMemo" TabIndex="7" Header="メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="TransferTextChanged" Paste="TransferMemoPasted" AutomationProperties.AutomationId="TransferMemo"/>
+                        <TextBox x:Name="TransferMemo" TabIndex="7" Header="メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferMemo"/>
                         <TextBlock x:Name="TransferValidity" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                     </StackPanel>
                 </ScrollViewer>
