@@ -19,6 +19,8 @@ public partial class App
         await ConfirmTransfer(root, ContentDialogResult.None); Check(TransferEditing is not null && server.Writes.Count == 0, "0時警告の取消は入力を保持");
         await InvokeAsync(() => Find<Button>(root, "TransferSave")); await ConfirmTransfer(root, ContentDialogResult.Primary);
         await Wait(() => TransferEditing is null && Find<Button>(root, "TransferReturnToStart").Visibility == Visibility.Visible);
+        // Visibilityの切替とレイアウト確定は別ターン。配置後の実寸で操作可能性を検証する。
+        await Wait(() => Find<Button>(root, "TransferReturnToStart") is { IsLoaded: true, ActualWidth: > 0, ActualHeight: > 0 });
         var list = Find<ListView>(root, "TransferList");
         Check(list.Items.Count == 1 && ((TransferRow)list.SelectedItem).Transfer.Name == "ATM" && server.Reads.Any(u => u.Query.Contains("focusTransferId=")), "初回300件にない保存行はfocusTransferIdで先頭表示して選択");
         Check(Find<Button>(root, "TransferReturnToStart").ActualWidth > 0, "途中開始の先頭に戻るは一覧を末尾までスクロールせず使用できる");
