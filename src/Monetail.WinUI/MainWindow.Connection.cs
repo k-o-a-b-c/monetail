@@ -160,7 +160,7 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !closed) { ShowLogin(); }
         catch (AuthenticationRejectedException) { ShowLogin("ログインできませんでした。もう一度ログインしてください。"); }
-        finally { browserLogin = null; browserCancellation = null; ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = true; }
+        finally { browserLogin = null; browserCancellation = null; if (!closed) ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = true; }
     }, StartAsync, true);
 
     private async Task OpenBrowserAsync()

@@ -97,7 +97,9 @@ public partial class App
         Find<DateInputBox>(root, "TransferDate").Text = "2026/"; Find<TimeInputBox>(root, "TransferTime").Text = "時刻未確定"; Find<TextBox>(root, "TransferAmount").Text = "1x";
         await Wait(() => editor.Draft.UnresolvedDateText == "2026/" && editor.Draft.UnresolvedTimeText == "時刻未確定" && editor.Draft.UnresolvedAmountText == "1x");
         originalWindow.AppWindow.Resize(new SizeInt32(700, 560)); var scroller = Find<ScrollViewer>(root, "TransferInputScroller");
-        await Wait(() => scroller.ScrollableHeight > 0); scroller.ChangeView(null, scroller.ScrollableHeight, null, true); await Wait(() => scroller.VerticalOffset > 0);
+        await Wait(() => scroller.ScrollableHeight > 20); scroller.UpdateLayout();
+        // 末尾追従による高さ変更と区別できる、確定した途中位置で退避する。
+        scroller.ChangeView(null, 20, null, true); await Wait(() => Math.Abs(scroller.VerticalOffset - 20) < 1);
         var offset = scroller.VerticalOffset; server.SuggestionGate.SetResult(true);
         await Wait(() => Visible(root, "LoginPage"));
         var capturedView = TransferRuntime("transferAuthentication") ?? throw new InvalidOperationException("復帰情報がありません。");
@@ -216,6 +218,7 @@ public partial class App
         await Wait(() => Visible(root, "LoginPage")); server.SuggestionGate.SetResult(true); await Settle();
         Check(ReferenceEquals(editor, TransferEditing) && Find<AutoSuggestBox>(root, "TransferName").ItemsSource is null && TransferEditing?.Draft.Name == "保持する入力",
             "再認証への退避は進行中の候補を中断し、遅延応答で隠れた画面や入力を更新しない");
+        await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
         originalWindow.Close();
         Check(TransferEditing is null && TransferRuntime("transferAuthentication") is null && TransferRuntime("transferPending") is null, "再認証中のアプリ終了ではメモリの編集・復帰情報・要求を破棄する");
         window = null;
