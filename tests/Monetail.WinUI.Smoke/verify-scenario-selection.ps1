@@ -17,12 +17,19 @@ foreach ($suitePath in @("$OutputPath/transfer-editor", $OutputPath)) {
     $completed += $result.scenarios.name
 }
 if (($catalog.name -join ',') -cne ($completed -join ',')) { throw '通常CIのシナリオが欠落または並び替えられています。' }
-foreach ($name in @('input-controls', 'transfer-reauthentication')) {
+foreach ($name in @('input-controls', 'transfer-reauthentication', 'shell')) {
     $path = Join-Path $selectionPath $name
-    & "$PSScriptRoot/run.ps1" -AppPath $AppPath -SmokePath $SmokePath -OutputPath $path -Scenario $name
+    $capture = $name -eq 'shell'
+    & "$PSScriptRoot/run.ps1" -AppPath $AppPath -SmokePath $SmokePath -OutputPath $path -Scenario $name -Capture:$capture
     $result = Get-Content "$path/selected/smoke-result.json" -Raw | ConvertFrom-Json
     if (-not $result.passed -or @($result.scenarios).Count -ne 1 -or $result.scenarios[0].name -cne $name -or
         -not [double]::IsFinite($result.scenarios[0].elapsedMilliseconds) -or $result.scenarios[0].elapsedMilliseconds -lt 0) { throw '個別実行または計測結果が不正です。' }
+    if ($capture) {
+        foreach ($image in @('01-home', '02-management-people', '03-management-compact', '04-management-dark')) {
+            $file = Get-Item "$path/selected/$image.png"
+            if ($file.Length -eq 0) { throw 'スクリーンショットが空です。' }
+        }
+    }
 }
 $invalidPath = Join-Path $selectionPath 'invalid'
 New-Item -ItemType Directory -Force -Path $invalidPath | Out-Null
@@ -30,4 +37,4 @@ $invalid = Start-Process -FilePath $SmokePath -ArgumentList @('--output', ('"' +
 if (-not $invalid.WaitForExit(120000)) { $invalid.Kill(); throw '不正指定の拒否を確認できませんでした。' }
 $result = Get-Content "$invalidPath/smoke-result.json" -Raw | ConvertFrom-Json
 if ($invalid.ExitCode -eq 0 -or $result.passed -or @($result.scenarios).Count -ne 0 -or @($result.checks).Count -ne 0) { throw '不正指定でシナリオが実行されたか、成功扱いされています。' }
-Write-Host 'Scenario listing, full coverage, individual execution, rejection and timing: OK'
+Write-Host 'Scenario listing, full coverage, individual execution, screenshots, rejection and timing: OK'

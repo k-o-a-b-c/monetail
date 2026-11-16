@@ -59,12 +59,17 @@ public partial class App
     // 初期ホーム/管理画面と操作ヘルパーの確認は同じ初期画面に依存するため、一組で実行する。
     private async Task CheckShell(string output, bool capture)
     {
-        var root = (FrameworkElement)window!.Content;
+        var previous = window;
+        var shell = new MainWindow(); window = shell;
+        var root = (FrameworkElement)shell.Content;
+        ObserveDialogs(root); shell.Activate();
+        await Wait(() => root.IsLoaded);
+        previous?.Close();
         var today = DateOnly.FromDateTime(DateTime.Now);
         var mother = new PersonInfo(Guid.NewGuid(), "母", today, null, 0, Guid.NewGuid());
         var father = new PersonInfo(Guid.NewGuid(), "父", null, null, 1, Guid.NewGuid());
         var child = new PersonInfo(Guid.NewGuid(), "子供", null, today.AddDays(-1), 2, Guid.NewGuid());
-        window.DisplayWorkspace(new LedgerInfo(Guid.NewGuid(), "家族の家計簿", "Admin", Guid.NewGuid().ToString("N")),
+        shell.DisplayWorkspace(new LedgerInfo(Guid.NewGuid(), "家族の家計簿", "Admin", Guid.NewGuid().ToString("N")),
             new PeopleInfo([mother, father, child], father.PersonId, "Admin", Guid.NewGuid()));
         await Settle();
         Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "ホームの表示");
@@ -89,7 +94,7 @@ public partial class App
         Check(paneBounds == NavigationViewPaneDisplayMode.Left, "左メニューと右コンテンツを同時表示");
         if (capture) await Capture(root, output, "02-management-people");
 
-        window.AppWindow.ResizeClient(new SizeInt32(900, 620));
+        shell.AppWindow.ResizeClient(new SizeInt32(900, 620));
         await Settle();
         Check(people.ActualWidth > 0 && people.ActualHeight > 0, "リサイズ後の一覧表示");
         var settingsArea = Find<Grid>(root, "PeopleContent");
