@@ -15,6 +15,7 @@ public partial class App
         internal int Details, Suggestions, Autofills;
         internal bool LoseResponse;
         internal HttpStatusCode? WriteError;
+        internal string? WriteErrorCode;
         internal TaskCompletionSource<bool>? DetailGate, AutofillGate;
         private readonly Dictionary<Guid, Guid> created = [];
         internal async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken token)
@@ -42,8 +43,13 @@ public partial class App
             }
             var body = await request.Content!.ReadAsStringAsync(token); Writes.Add((request.Method, body));
             if (WriteError is { } status)
-                return Fault(status, status == HttpStatusCode.Conflict ? "revision_conflict" : status == HttpStatusCode.Forbidden ? "forbidden" : status == HttpStatusCode.NotFound ? "not_found" : "invalid_input", id is Guid target && Rows.TryGetValue(target, out var current) ? current with { Name = "最新", Revision = Guid.NewGuid() } : null);
+            {
+                var code = WriteErrorCode ?? (status == HttpStatusCode.Conflict ? "revision_conflict" : status == HttpStatusCode.Forbidden ? "forbidden" : status == HttpStatusCode.NotFound ? "not_found" : "invalid_input");
+                return Fault(status, code, code == "revision_conflict" && id is Guid target && Rows.TryGetValue(target, out var current) ? current with { Name = "最新", Revision = Guid.NewGuid() } : null);
+            }
             using var json = JsonDocument.Parse(body); var value = json.RootElement;
+            if (id is Guid existing && Rows.TryGetValue(existing, out var stored) && value.GetProperty("revision").GetGuid() != stored.Revision)
+                return Fault(HttpStatusCode.Conflict, "revision_conflict", stored);
             if (request.Method == HttpMethod.Delete) { Rows.Remove(id!.Value); return new(HttpStatusCode.NoContent); }
             if (request.Method == HttpMethod.Post)
             {

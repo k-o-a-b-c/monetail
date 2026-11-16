@@ -26,6 +26,7 @@ public partial class App
             var pending = typeof(MainWindow).GetField("transferPending", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
             Check(server.Rows.Count == 1 && server.Writes.Count == 1 && !Find<Button>(root, "TransferSave").IsEnabled && Find<TextBox>(root, "TransferAmount").IsReadOnly,
                 "応答喪失では登録済みか断定せず入力・元要求を保持して編集と別保存を禁止");
+            Check(Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Collapsed, "通信結果不明では競合用の最新採用を提示しない");
             await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.None);
             Check(ReferenceEquals(pending, typeof(MainWindow).GetField("transferPending", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)), "結果未確認の離脱取消は元のrequestId付き要求を保持");
             await InvokeAsync(() => Find<Button>(root, "TransferWriteRetry")); await Wait(() => TransferEditing is null);
@@ -39,11 +40,20 @@ public partial class App
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenTransferEditorAsync(saved.TransferId);
             Find<TextBox>(root, "TransferAmount").Text = "2000"; server.WriteError = error;
             if (error == HttpStatusCode.Unauthorized) fixture.RejectSession = true;
-            await InvokeAsync(() => Find<Button>(root, "TransferSave")); await ConfirmTransfer(root, ContentDialogResult.Primary);
+            await InvokeAsync(() => Find<Button>(root, "TransferSave"));
+            if (error == HttpStatusCode.Conflict)
+            {
+                await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded);
+                await InvokeAsync(() => TransferDialogFooter(root, ContentDialogResult.Primary));
+                await Wait(() => Equals(Find<ContentDialog>(root, "TransferConfirmationDialog").Title, "振替が更新されています"));
+                await ConfirmTransfer(root, ContentDialogResult.None);
+            }
+            else await ConfirmTransfer(root, ContentDialogResult.Primary);
             await Wait(() => Find<InfoBar>(root, "TransferEditorNotice").IsOpen && Find<TextBox>(root, "TransferAmount").IsReadOnly);
             Check(TransferEditing!.Revision == saved.Revision && Find<TextBox>(root, "TransferAmount").Text == "2000" && !Find<Button>(root, "TransferSave").IsEnabled && !Find<Button>(root, "TransferDelete").IsEnabled,
                 $"振替{(int)error}は入力と旧版を保持し書込を安全に停止");
             Check(Find<Grid>(root, "TransferEditorPage").Visibility == Visibility.Visible && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Collapsed, $"確定した{(int)error}を結果不明の再送や自動ログインと混同しない");
+            Check((Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Visible) == (error == HttpStatusCode.Conflict), "最新版の採用はrevision_conflictだけに提示する");
             await InvokeAsync(() => Find<Button>(root, "TransferBack"));
             await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded);
             Check(Find<ContentDialog>(root, "TransferConfirmationDialog").SecondaryButtonText == "" && Find<ContentDialog>(root, "TransferConfirmationDialog").PrimaryButtonText == "破棄して閉じる", "停止後の離脱では保存して移動を提示しない");

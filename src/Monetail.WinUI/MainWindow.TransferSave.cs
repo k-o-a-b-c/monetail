@@ -68,7 +68,7 @@ public sealed partial class MainWindow
         if (transferPending is not { } request || transferSending || transferEditor is not { } editor || currentLedger?.LedgerId != request.LedgerId) return false;
         var wasUnknown = transferUnknown;
         transferSending = true; transferUnknown = false; TransferEditorNotice.IsOpen = false; CancelTransferSuggestions(); transferAutofillCancellation?.Cancel(); RenderTransferEditor();
-        var accountId = account?.AuthUserId; string? inputErrorField = null;
+        var accountId = account?.AuthUserId; string? inputErrorField = null; var offerLatest = false;
         var workspace = new TransfersWorkspace(connection.Api, connection.Session, request.LedgerId);
         Guid? savedId = request.TransferId;
         try
@@ -91,9 +91,12 @@ public sealed partial class MainWindow
             { editor.EnterReadOnly(TransferReadOnlyReason.NotFound); TransferNotice("振替が削除されたか、アクセスできなくなりました。"); }
             else if (error.StatusCode == HttpStatusCode.Conflict)
             {
-                if (error.Code == "revision_conflict" && error.LatestTransfer is { } latest) editor.RegisterConflict(latest);
-                transferStopped = true;
-                TransferNotice(error.Code == "revision_conflict" ? "他の端末で更新されています。入力を保持して読み取り専用にしました。最新情報の採用は次工程で対応します。" : "要求を確認できません。入力を保持して書込を停止しました。");
+                if (request.Operation is TransferWriteOperation.Update or TransferWriteOperation.Delete && error.Code == "revision_conflict" && error.LatestTransfer is { } latest)
+                {
+                    editor.RegisterConflict(latest); offerLatest = true;
+                    TransferNotice("他の端末で更新されています。入力を保持して読み取り専用にしました。編集を再開するには最新情報を読み込んでください。", InfoBarSeverity.Warning);
+                }
+                else { transferStopped = true; TransferNotice("要求を確認できません。入力を保持して書込を停止しました。"); }
             }
             else
             {
@@ -104,7 +107,16 @@ public sealed partial class MainWindow
         }
         catch (Exception error) when (error is TransferWriteUncertainException or ApiConnectionException or HttpRequestException or IOException or OperationCanceledException)
         { transferUnknown = true; TransferNotice("保存結果を確認できませんでした。同じ要求で再試行してください。"); return false; }
-        finally { transferSending = false; if (ReferenceEquals(editor, transferEditor)) { RenderTransferEditor(); if (!TransferFrozen && inputErrorField is not null) FocusTransferField(inputErrorField); } }
+        finally
+        {
+            transferSending = false;
+            if (ReferenceEquals(editor, transferEditor))
+            {
+                RenderTransferEditor();
+                if (!TransferFrozen && inputErrorField is not null) FocusTransferField(inputErrorField);
+                if (offerLatest && !closed) await OfferTransferConflictAsync(editor);
+            }
+        }
         if (!ReferenceEquals(editor, transferEditor) || closed) return false;
         var snapshot = transferPendingSnapshot; var deleted = request.Operation == TransferWriteOperation.Delete;
         transferPending = null; transferPendingSnapshot = null;
@@ -137,6 +149,27 @@ public sealed partial class MainWindow
         receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; TransferNameSearch.Text = recordSearch.TransferText;
         RecordMonthPeriod.IsChecked = !receiptSearch.AllPeriods; ReceiptAllPeriods.IsChecked = receiptSearch.AllPeriods;
         receiptFiltersUpdating = false; RefreshReceiptChoices(); RenderReceiptState();
+    }
+    private async Task OfferTransferConflictAsync(TransferEditorState editor)
+    {
+        if (!ReferenceEquals(editor, transferEditor) || !TransferCanAdoptLatest || transferDialogOpen) return;
+        var choice = await ConfirmTransferAsync("振替が更新されています", "他の端末で更新されています。現在の入力は保持しています。", "最新を読み込む", close: "編集画面に戻る");
+        if (choice == ContentDialogResult.Primary) await AdoptLatestTransferAsync(editor);
+    }
+    private async void LoadLatestTransfer(object sender, RoutedEventArgs args)
+    { if (transferEditor is { } editor) await AdoptLatestTransferAsync(editor); }
+    private async Task AdoptLatestTransferAsync(TransferEditorState editor)
+    {
+        if (!ReferenceEquals(editor, transferEditor) || !TransferCanAdoptLatest || transferDialogOpen || transferSending || currentLedger is null) return;
+        var ledgerId = currentLedger.LedgerId; var accountId = account?.AuthUserId;
+        var choice = await ConfirmTransferAsync("現在の入力を破棄しますか？", "現在の入力内容を破棄して、サーバーの最新情報を読み込みますか？", "最新を読み込む");
+        if (choice != ContentDialogResult.Primary || closed || !ReferenceEquals(editor, transferEditor) || !TransferCanAdoptLatest || currentLedger?.LedgerId != ledgerId || account?.AuthUserId != accountId) return;
+        // 応答内の検証済みlatestだけを採用し、詳細GETや保存を行わない。
+        editor.AdoptLatest(true);
+        if (TransferMethods is { } methods && editor.Draft.From.PaymentMethodId is Guid from && editor.Draft.To.PaymentMethodId is Guid to &&
+            (!TransferEditorRules.CanUse(methods, from) || !TransferEditorRules.CanUse(methods, to)))
+            editor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
+        PopulateTransferEditor();
     }
     private void SelectSavedTransferRow()
     {
