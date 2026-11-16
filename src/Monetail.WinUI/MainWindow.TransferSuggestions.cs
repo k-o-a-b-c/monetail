@@ -82,7 +82,7 @@ public sealed partial class MainWindow
         var keyboard = transferNameKeyboardSubmit; transferNameKeyboardSubmit = false;
         var selected = !keyboard || transferNameKeyboardHadSuggestions ? args.ChosenSuggestion as string : null;
         if (!keyboard && selected is null) return;
-        editor.Draft.Name = selected ?? editor.Draft.Name; RestoreTransferTypedName(); DismissTransferNames(); RenderTransferEditor();
+        editor.Draft.Name = selected ?? (transferNamePreview is null ? args.QueryText ?? editor.Draft.Name : editor.Draft.Name); RestoreTransferTypedName(); DismissTransferNames(); RenderTransferEditor();
         if (keyboard) { transferNameFocusTransition = true; TransferFrom.Focus(FocusState.Programmatic); transferNameFocusTransition = false; }
         _ = AutofillTransferAsync();
     }
@@ -92,10 +92,15 @@ public sealed partial class MainWindow
         transferRendering = true; TransferName.Text = editor.Draft.Name; transferNamePreview = null; transferRendering = false;
     }
     private void DismissTransferNames() { transferSuggestionsSuppressed = true; CancelTransferSuggestions(); }
+    private void CaptureTransferTypedName()
+    {
+        if (transferRendering || TransferFrozen || transferNamePreview is not null || transferEditor is not { } editor || editor.Draft.Name == TransferName.Text) return;
+        transferAutofillCancellation?.Cancel(); transferAutofillKey = null; editor.Draft.Name = TransferName.Text;
+    }
     private void TransferNameLostFocus(object sender, RoutedEventArgs args)
     {
         if (TransferFrozen || transferEditor is null) return;
-        RestoreTransferTypedName(); DismissTransferNames();
+        CaptureTransferTypedName(); RestoreTransferTypedName(); DismissTransferNames();
         if (!transferNameFocusTransition) _ = AutofillTransferAsync();
     }
     private void TransferNamePreviewKeyDown(object sender, KeyRoutedEventArgs args)

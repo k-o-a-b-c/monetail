@@ -13,15 +13,15 @@ public partial class App
         internal readonly List<(HttpMethod Method, string Body)> Writes = [];
         internal readonly List<Uri> Reads = [];
         internal int Details, Suggestions, Autofills;
-        internal bool LoseResponse, FocusMissing;
+        internal bool LoseResponse;
         internal HttpStatusCode? WriteError;
-        internal TaskCompletionSource<bool>? DetailGate, SuggestionGate, AutofillGate;
+        internal TaskCompletionSource<bool>? DetailGate, AutofillGate;
         private readonly Dictionary<Guid, Guid> created = [];
         internal async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken token)
         {
             var uri = request.RequestUri!; var path = uri.AbsolutePath; var query = TransferQueryValues(uri);
             if (path.EndsWith("/transfer-suggestions"))
-            { Suggestions++; if (SuggestionGate is { } gate) await gate.Task.WaitAsync(token); return PaymentServer.Json(new TransferSuggestionsInfo(["ATM", "ＡＴＭ", "銀行振替"], false)); }
+            { Suggestions++; return PaymentServer.Json(new TransferSuggestionsInfo(["ATM", "ＡＴＭ", "銀行振替"], false)); }
             if (path.EndsWith("/transfer-autofill"))
             { Autofills++; if (AutofillGate is { } gate) await gate.Task.WaitAsync(token); return PaymentServer.Json(new TransferAutofillInfo(masters.ActiveId, masters.OtherActiveId)); }
             var detail = !path.EndsWith("/transfers");
@@ -37,7 +37,7 @@ public partial class App
                 var all = Rows.Values.OrderByDescending(r => r.TransactionAt).ThenByDescending(r => r.TransferId.ToString("N"), StringComparer.Ordinal).ToArray();
                 var start = query.TryGetValue("cursor", out var cursor) ? int.Parse(cursor) : 0;
                 if (query.TryGetValue("focusTransferId", out var focus))
-                { start = Array.FindIndex(all, r => r.TransferId == Guid.Parse(focus)); if (FocusMissing || start < 0) return Fault(HttpStatusCode.NotFound, "not_found"); }
+                { start = Array.FindIndex(all, r => r.TransferId == Guid.Parse(focus)); if (start < 0) return Fault(HttpStatusCode.NotFound, "not_found"); }
                 return PaymentServer.Json(new TransferListInfo(all.Skip(start).Take(100).Select(r => new TransferSummaryInfo(r.TransferId, r.TransactionAt, r.Name, r.FromPaymentMethodId, r.ToPaymentMethodId, r.Amount, r.Memo)).ToArray(), all.Length > start + 100 ? (start + 100).ToString() : null));
             }
             var body = await request.Content!.ReadAsStringAsync(token); Writes.Add((request.Method, body));

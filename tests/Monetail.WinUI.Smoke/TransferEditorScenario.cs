@@ -88,6 +88,7 @@ public partial class App
         await Wait(() => input!.Draft.UnresolvedAmountText == "2147483648" && !Find<Button>(root, "TransferSave").IsEnabled);
         Check(!Find<Button>(root, "TransferSave").IsEnabled && TransferEditing == input && input.Draft.UnresolvedAmountText == "2147483648", "Int32超過の生入力を保持し保存不可");
         Find<TextBox>(root, "TransferAmount").Text = "1000"; Find<TextBox>(root, "TransferMemo").Text = " ";
+        Find<AutoSuggestBox>(root, "TransferName").Text = " ATM ";
         await Wait(() => TransferEditing!.Draft.Amount == 1000 && TransferEditing.Draft.Memo == " " && Find<Button>(root, "TransferSave").IsEnabled);
         var keyboard = (FormKeyboard)typeof(MainWindow).GetField("transferKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
         await FocusTransferControl(Find<TextBox>(root, "TransferMemo")); await keyboard.HandleEnter(false, false)!;
@@ -95,7 +96,7 @@ public partial class App
         catch (TaskCanceledException error) { throw new InvalidOperationException($"メモEnter後: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; saveEnabled={Find<Button>(root, "TransferSave").IsEnabled}; composing={keyboard.IsComposing}", error); }
         Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave")) && server.Writes.Count == 0, "メモのEnterは保存ボタンへ移動するだけで登録しない");
         await PressReceiptKey(0x0D, 0x11); await Wait(() => TransferEditing is null && Find<ListView>(root, "TransferList").Items.Count == 1);
-        var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == "ATM" && server.Writes.Count == 1, "振替POSTは現在の6項目を送り201空本文とLocationから保存行へ戻る");
+        var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == " ATM " && server.Writes.Count == 1, "振替POSTは未通知の表示入力も取り込みTrimせず現在の6項目を送り201空本文とLocationから保存行へ戻る");
         Check(((TransferRow)Find<ListView>(root, "TransferList").SelectedItem).Transfer.TransferId == saved.TransferId, "登録成功後は保存行を選択する");
         Find<ListView>(root, "TransferList").SelectedIndex = 0; await Settle(); Check(server.Details == 0, "振替の単一選択は詳細GETしない");
         await DoubleClickTransfer(root); await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded);
@@ -103,7 +104,7 @@ public partial class App
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Revision == saved.Revision && Equals(Find<Button>(root, "TransferSave").Content, "更新"), "既存編集はID・版・保存値と更新操作を復元");
         Check(Find<Button>(root, "TransferSave").IsEnabled, "業務値が未変更でも更新の確認・無変更PUTを利用可能");
         Find<TextBox>(root, "TransferAmount").Text = "2000"; Find<DateInputBox>(root, "TransferDate").Text = DateTime.Today.AddDays(1).ToString("yyyy/MM/dd", CultureInfo.InvariantCulture); Find<TimeInputBox>(root, "TransferTime").Text = "00:00:00";
-        await Wait(() => TransferEditing!.HasSavedDateChanged == true && TransferEditing.IsMidnight == true && Find<Button>(root, "TransferSave").IsEnabled);
+        await Wait(() => TransferEditing is { HasSavedDateChanged: true, IsMidnight: true } && Find<Button>(root, "TransferSave").IsEnabled);
         await InvokeAsync(() => Find<Button>(root, "TransferSave"));
         await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded);
         var confirmation = Find<ContentDialog>(root, "TransferConfirmationDialog").Content.ToString()!;
