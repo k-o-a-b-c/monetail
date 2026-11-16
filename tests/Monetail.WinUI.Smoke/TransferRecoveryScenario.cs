@@ -14,11 +14,14 @@ namespace Monetail.WinUI.Smoke;
 public partial class App
 {
     private object? TransferRuntime(string name) => typeof(MainWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
-    private async Task CompleteTransferLogin(SyntheticConnection fixture, FrameworkElement root)
+    private async Task CompleteTransferLogin(SyntheticConnection fixture, FrameworkElement root, bool mastersExpireAgain = false)
     {
         fixture.RejectSession = fixture.RejectAuthentication = false; fixture.CompleteLogin = true;
+        var browserOpens = fixture.BrowserOpens;
         await InvokeAsync(() => Find<Button>(root, "LoginButton"));
-        await Wait(() => Visible(root, "HomePage") && Equals(TransferRuntime("busy"), false) && Equals(TransferRuntime("transferMastersLoading"), false));
+        await Wait(() => fixture.BrowserOpens > browserOpens && Equals(TransferRuntime("busy"), false) && (mastersExpireAgain
+            ? Visible(root, "LoginPage")
+            : Visible(root, "HomePage") && Equals(TransferRuntime("transferMastersLoading"), false)));
         if (fixture.CallbackTask is { } callback) await callback;
     }
     private async Task SubmitTransferToExpiredLogin(SyntheticConnection fixture, TransferInputServer server, FrameworkElement root, string operation)
@@ -34,8 +37,14 @@ public partial class App
         foreach (var operation in new[] { "new", "update", "reuse", "delete" })
         {
             using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
-            var masters = new PaymentServer(); var server = new TransferInputServer(masters); var peopleReads = 0;
-            fixture.PeopleHandler = (_, _) => { peopleReads++; return Task.FromResult(PaymentServer.Json(masters.People())); }; fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
+            var masters = new PaymentServer(); var server = new TransferInputServer(masters); var peopleReads = 0; var expirePeople = false;
+            fixture.PeopleHandler = (_, _) =>
+            {
+                peopleReads++;
+                if (expirePeople) { expirePeople = false; fixture.RejectAuthentication = true; return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)); }
+                return Task.FromResult(PaymentServer.Json(masters.People()));
+            };
+            fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
             TransferInfo? saved = operation == "new" ? null : server.Add();
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
             var originalWindow = window ?? throw new InvalidOperationException("振替Windowがありません。"); await originalWindow.OpenTransferEditorAsync(saved?.TransferId);
@@ -58,10 +67,15 @@ public partial class App
                 Check(ReferenceEquals(editor, TransferEditing) && ReferenceEquals(pending, TransferRuntime("transferPending")) && !VisibleAncestors(controls[0]), "ログイン取消後もログイン画面に留まり編集と元要求を保持する");
             }
             server.WriteError = null;
+            var capturedView = TransferRuntime("transferAuthentication"); expirePeople = true;
+            await CompleteTransferLogin(fixture, root, mastersExpireAgain: true);
+            Check(capturedView is not null && ReferenceEquals(capturedView, TransferRuntime("transferAuthentication")) && ReferenceEquals(pending, TransferRuntime("transferPending")) &&
+                ReferenceEquals(editor, TransferEditing) && ReferenceEquals(draft, editor.Draft) && editor.Revision == revision && draft.From == from && draft.To == to && draft.Amount == amount && server.Writes.Count == 1,
+                $"振替{operation}の人物再取得401は最初の復帰情報と元要求を再利用し、入力・由来・旧版を変更しない");
             await CompleteTransferLogin(fixture, root);
             Check(ReferenceEquals(editor, TransferEditing) && ReferenceEquals(draft, editor.Draft) && controls.All(c => ReferenceEquals(c, Find<Control>(root, c.Name))) &&
                 draft.From == from && draft.To == to && draft.Amount == amount && editor.Revision == revision, "同じ本人への復帰は元の入力コントロールとモデルを再利用し値・由来・旧版を変更しない");
-            Check(peopleReads == beforePeople + 1 && masters.Reads == beforePayments + 1 && server.Reads.Count == reads && server.Writes.Count == 1,
+            Check(peopleReads == beforePeople + 2 && masters.Reads == beforePayments + 1 && server.Reads.Count == reads && server.Writes.Count == 1,
                 "復帰時は人物・支払方法だけを再取得し、振替詳細GET・自動保存・自動再送しない");
             Check(ReferenceEquals(pending, TransferRuntime("transferPending")) && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible && Find<TextBox>(root, "TransferAmount").IsReadOnly,
                 "未完了要求のrequestIdと本文を固定し、復帰後も別保存でなく明示再試行だけを許可する");
@@ -70,18 +84,23 @@ public partial class App
                 server.Rows.Count == (operation == "delete" ? 0 : operation == "reuse" ? 2 : 1), "再認証後の明示再試行は同一要求を送り、登録・更新・流用・削除の正常復帰を維持する");
         }
         await CheckTransferRawRecovery();
+        await CheckTransferRawRecovery(retryMasters: false);
         await CheckTransferRecoveryIdentity();
         await CheckTransferRecoveryPermissions();
         await CheckTransferUnknownRecovery();
         await CheckTransferRecoveryCancellation();
     }
 
-    private async Task CheckTransferRawRecovery()
+    private async Task CheckTransferRawRecovery(bool retryMasters = true)
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
-        var masters = new PaymentServer(); var server = new TransferInputServer(masters); var failMasters = false;
+        var masters = new PaymentServer(); var server = new TransferInputServer(masters); var failMasters = false; var expirePayments = false;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
-        fixture.PaymentsHandler = (request, ct) => failMasters ? Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)) : masters.HandleAsync(request, ct);
+        fixture.PaymentsHandler = (request, ct) =>
+        {
+            if (expirePayments) { expirePayments = false; fixture.RejectAuthentication = true; return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)); }
+            return failMasters ? Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)) : masters.HandleAsync(request, ct);
+        };
         fixture.TransfersHandler = server.HandleAsync;
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
         var originalWindow = window ?? throw new InvalidOperationException("振替Windowがありません。"); await originalWindow.OpenTransferEditorAsync(null);
@@ -105,13 +124,25 @@ public partial class App
         var capturedView = TransferRuntime("transferAuthentication") ?? throw new InvalidOperationException("復帰情報がありません。");
         Check(ReferenceEquals(editor, TransferEditing) && editor.Draft.UnresolvedDateText == "2026/" && editor.Draft.UnresolvedTimeText == "時刻未確定" && editor.Draft.UnresolvedAmountText == "1x" && editor.Draft.From == from && editor.Draft.To == to,
             "候補取得の401でも未確定日時・金額・自動補完由来を元モデルに保持する");
-        failMasters = true; server.RejectSuggestions = false;
+        expirePayments = true; server.RejectSuggestions = false;
+        await CompleteTransferLogin(fixture, root, mastersExpireAgain: true);
+        Check(ReferenceEquals(capturedView, TransferRuntime("transferAuthentication")) && ReferenceEquals(editor, TransferEditing) && ReferenceEquals(window, originalWindow) &&
+            ReferenceEquals(names, Find<AutoSuggestBox>(root, "TransferName")) && editor.Draft.UnresolvedDateText == "2026/" && editor.Draft.UnresolvedTimeText == "時刻未確定" &&
+            editor.Draft.UnresolvedAmountText == "1x" && editor.Draft.From == from && editor.Draft.To == to && editor.Revision is null && server.Details == 0 && server.Writes.Count == 0,
+            "支払方法再取得の連続401でも最初の位置情報と元のWindow・コントロール・未確定入力・選択由来を保持する");
+        failMasters = retryMasters;
+        var method = masters.Rows.FindIndex(p => p.PaymentMethodId == masters.ActiveId); masters.Rows[method] = masters.Rows[method] with { Name = "最新名" };
         await CompleteTransferLogin(fixture, root);
-        Check(Find<InfoBar>(root, "TransferEditorNotice").Message == "マスタ情報を取得できませんでした" && Find<Button>(root, "TransferMasterRetry").Visibility == Visibility.Visible &&
-            ReferenceEquals(editor, TransferEditing) && Find<DateInputBox>(root, "TransferDate").Text == "2026/" && Find<TextBox>(root, "TransferAmount").IsReadOnly && Find<TextBox>(root, "TransferAmount").IsEnabled,
-            "マスタ取得失敗は元の入力をコピー可能な読み取り専用で表示し、空マスタで編集再開しない");
-        failMasters = false; var method = masters.Rows.FindIndex(p => p.PaymentMethodId == masters.ActiveId); masters.Rows[method] = masters.Rows[method] with { Name = "最新名" };
-        await InvokeAsync(() => Find<Button>(root, "TransferMasterRetry")); await Wait(() => !Find<TextBox>(root, "TransferAmount").IsReadOnly);
+        if (retryMasters)
+        {
+            Check(Find<InfoBar>(root, "TransferEditorNotice").Message == "マスタ情報を取得できませんでした" && Find<Button>(root, "TransferMasterRetry").Visibility == Visibility.Visible &&
+                ReferenceEquals(editor, TransferEditing) && Find<DateInputBox>(root, "TransferDate").Text == "2026/" && Find<TextBox>(root, "TransferAmount").IsReadOnly && Find<TextBox>(root, "TransferAmount").IsEnabled,
+                "マスタ取得失敗は元の入力をコピー可能な読み取り専用で表示し、空マスタで編集再開しない");
+            failMasters = false;
+            await InvokeAsync(() => Find<Button>(root, "TransferMasterRetry")); await Wait(() => !Find<TextBox>(root, "TransferAmount").IsReadOnly);
+        }
+        Check(!editor.IsReadOnly && !Find<TextBox>(root, "TransferAmount").IsReadOnly && TransferRuntime("transferAuthentication") is null,
+            "連続401後はマスタ取得と現在権限の確認が完了してから編集を再開する");
         try { await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input) && input.SelectionStart == 1 && input.SelectionLength == 2 && Math.Abs(scroller.VerticalOffset - offset) < 1); }
         catch (TaskCanceledException error)
         {

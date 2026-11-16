@@ -22,9 +22,14 @@ public sealed partial class MainWindow
     {
         if (transferEditor is null || account is null || currentLedger is null || connection.Endpoint is null) return;
         SyncTransferInput();
-        var focus = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as Control;
-        transferAuthentication = new(account.AuthUserId, currentLedger.LedgerId, connection.Endpoint.Value,
-            focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0, TransferInputScroller.VerticalOffset);
+        // マスタ再取得中の連続401では、最初の編集位置をログイン画面付近の位置で上書きしない。
+        if (transferAuthentication is not { } context || context.AccountId != account.AuthUserId ||
+            context.LedgerId != currentLedger.LedgerId || context.ApiOrigin != connection.Endpoint.Value)
+        {
+            var focus = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as Control;
+            transferAuthentication = new(account.AuthUserId, currentLedger.LedgerId, connection.Endpoint.Value,
+                focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0, TransferInputScroller.VerticalOffset);
+        }
         transferAwaitingLogin = true; transferRecoveryLedgerReady = false; transferMastersFailed = false;
         transferRetryAfterLogin |= transferPending is not null;
         TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = true;
