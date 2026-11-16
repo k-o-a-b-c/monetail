@@ -19,6 +19,8 @@
 
 [TransferRecoveryScenario.cs](Monetail.WinUI.Smoke/TransferRecoveryScenario.cs)を追加。実Workspace/Transport・合成HTTP・実OAuthループバックを使い、新規/更新/流用/削除401、ログイン取消、同じWindow/コントロール/モデル/Draftと不変要求の同一性、同じ本人/接続先だけの復帰、マスタ再取得、詳細GET/自動保存なし、同じJSONの明示再送を確認する。未確定日時/金額・補完由来・文字選択/スクロール、マスタ503→一時readonly→再試行・名称だけ更新、別本人/接続先での破棄、Viewer/人物未対応Editor/保存済み片側が他人所有/参加解除での書込禁止、結果不明再送中401、進行中候補の中断・遅延応答破棄・終了時のメモリ破棄も対象。通常ナビゲーションの未保存保護と第4-A等の既存回帰は省略しない。
 
+PR #187の連続401修正では、人物再取得中の再401を新規/更新/流用/削除で確認し、最初の復帰情報と未完了要求の同一性・入力/選択由来/旧版・同じJSONの明示再送を検証する。支払方法再取得中の再401は、未確定日時/金額・補完由来・元のWindow/コントロールを保持し、最初のフォーカス/文字選択/スクロール位置へ通常復帰する経路と、マスタ503後の手動再試行経路を検証する。ソース`09e665ccb4db708f3f9565fad8aebe458b168554`の[Tests 43954227708](https://github.com/k-o-a-b-c/monetail/actions/runs/43954227708)が成功。製品/検証用x64 Release（各30警告/0エラー）・起動・振替163確認＋既存483確認＝646確認が成功した。既存の409最新採用、ログアウト/家計簿切替保護も含み、既存IME確認の一時失敗は今回は再発しなかった。原因は未特定のままとし、解決済みとは扱わない。Client/API/DB等の非変更部分は従来の成功fingerprintを再利用した。
+
 Clientは既存baselineから保存済みの両支払方法IDを読み取るだけの2プロパティを追加。入力変更/最新採用の前後で権限評価の基準を保つ[回帰1件](Monetail.Windows.Client.Tests/TransferEditorStateTests.cs)が成功した。ローカルReleaseは最小1件→編集/版/キャッシュの関連104件、追加の認証Session20件が成功（最小との重複あり、失敗/skipなし）。変更前のmain `084787d3c9b1bf7ebe3102b4dc5360cc258690f1`の[push Tests 43895342659](https://github.com/k-o-a-b-c/monetail/actions/runs/43895342659)を採用し、非変更部分はCI選択/fingerprintに従って再利用する。
 
 ソース`af2ae3e7456fe5a41af6eb6785d2fd9b8ee0c5d1`の[Tests 43907437675](https://github.com/k-o-a-b-c/monetail/actions/runs/43907437675)が成功。製品/検証用x64 Release（各30警告/0エラー）・製品起動・振替149確認＋既存483確認＝全632確認が成功した。Client全1223件はClient最終変更を含むソース`aef66ce`の[Tests 43902209985・Clientジョブ](https://github.com/k-o-a-b-c/monetail/actions/runs/43902209985/job/133421706208)で成功し、以後のWinUI専用変更では成功fingerprintを再利用した。API/DB/旧Windows/性能等の非変更部分もCI選択条件に従って再利用した。
