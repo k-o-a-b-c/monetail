@@ -52,6 +52,7 @@ public sealed partial class MainWindow
             DiscardTransferAuthentication(); ClearLedger(); return false;
         }
         transferAwaitingLogin = false; transferMastersLoading = true;
+        if (currentLedger is { } ledger) DisplayLedgerHeader(ledger);
         ShowPage(HomePage); RenderTransferEditor();
         await LoadTransferRecoveryMastersAsync(context, token);
         return true;

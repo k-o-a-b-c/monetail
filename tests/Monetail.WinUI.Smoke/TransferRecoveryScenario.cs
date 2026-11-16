@@ -128,6 +128,9 @@ public partial class App
         await ConfirmTransfer(root, ContentDialogResult.None);
         await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await WaitTransferDialog(root, "未保存の内容があります"); await ConfirmTransfer(root, ContentDialogResult.None);
         Check(TransferEditing == editor && Find<DateInputBox>(root, "TransferDate").Text == "2026/", "通常ナビゲーション取消でも未確定入力を補正・破棄しない");
+        Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "LogoutNavigation");
+        await WaitTransferDialog(root, "未保存の内容があります"); await ConfirmTransfer(root, ContentDialogResult.None);
+        Check(ReferenceEquals(editor, TransferEditing) && fixture.Tokens.Current is not null && Visible(root, "HomePage"), "復帰後の通常ログアウトも未保存確認の取消で入力・認証を保持する");
         await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.Secondary); await Wait(() => TransferEditing is null);
     }
 
@@ -181,6 +184,8 @@ public partial class App
             Check(ReferenceEquals(editor, TransferEditing) && editor.IsReadOnly && editor.Revision == saved.Revision && editor.Draft.Amount == 2000 &&
                 Find<Button>(root, "TransferSave").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferMasterRetry").Visibility == Visibility.Collapsed && server.Writes.Count == 1,
                 $"再認証後の{role}では現在の参加・権限を検証して入力/旧版を保持し、保存・再送を禁止する");
+            Check(Find<NavigationViewItem>(root, "LogoutNavigation").IsEnabled && Find<NavigationViewItem>(root, "AccountNavigation").IsEnabled,
+                "参加喪失・マスタ失敗でも再ログイン済みのアカウント操作を復元する");
             if (role == "Editor") Check(editor.Draft.To.PaymentMethodId == bank && editor.SavedToPaymentMethodId == saved.ToPaymentMethodId && server.Details == 1,
                 "現在の両選択が本人所有でも保存済みの相手側所有権を確認し、追加詳細GETなしで編集を禁止する");
             await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.Primary); await Wait(() => TransferEditing is null);
