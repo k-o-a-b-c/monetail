@@ -28,6 +28,7 @@ public sealed partial class MainWindow
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
     private bool TransferFrozen => transferDialogOpen || transferSending || transferPending is not null || transferStopped || transferEditor?.IsReadOnly == true;
+    private bool TransferCanAdoptLatest => !transferStopped && !transferUnknown && transferPending is null && transferEditor is { ReadOnlyReason: TransferReadOnlyReason.Conflict, Latest: not null };
     private void InitializeTransferEditor()
     {
         WorkspaceRoot.Children.Remove(TransferConfirmationDialog);
@@ -197,6 +198,8 @@ public sealed partial class MainWindow
         TransferDelete.IsEnabled = state.IsExisting && !frozen;
         TransferWriteProgress.IsActive = transferSending; TransferWriteProgress.Visibility = transferSending ? Visibility.Visible : Visibility.Collapsed;
         TransferWriteRetry.Visibility = transferUnknown ? Visibility.Visible : Visibility.Collapsed; TransferWriteRetry.IsEnabled = transferUnknown && !transferSending;
+        TransferLoadLatest.Visibility = TransferCanAdoptLatest ? Visibility.Visible : Visibility.Collapsed;
+        TransferLoadLatest.IsEnabled = TransferCanAdoptLatest && !transferSending && !transferDialogOpen;
         if (state.IsReadOnly && !TransferEditorNotice.IsOpen) TransferNotice("この振替は読み取り専用です。", InfoBarSeverity.Informational);
         TransferToError.Text = !state.IsReadOnly && state.Draft.From.PaymentMethodId is Guid fromId && state.Draft.To.PaymentMethodId == fromId
             ? "振替元と振替先は異なる支払方法を選択してください。" : "";
