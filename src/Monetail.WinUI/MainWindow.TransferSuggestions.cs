@@ -15,7 +15,7 @@ public sealed partial class MainWindow
     private readonly Dictionary<string, TransferSuggestionsInfo> transferSuggestions = new(StringComparer.Ordinal);
     private CancellationTokenSource? transferSuggestionCancellation, transferAutofillCancellation;
     private long transferSuggestionGeneration;
-    private bool transferSuggestionsSuppressed, transferNameFocusTransition, transferNameInputObserved, transferNameCompositionPending;
+    private bool transferClosingSuggestions, transferSuggestionsSuppressed, transferNameFocusTransition, transferNameInputObserved, transferNameCompositionPending;
     private string? transferNamePreview;
     private (string Name, DateOnly Day, Guid? From)? transferAutofillKey;
     private static bool TransferKeyDown(VirtualKey key) => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
@@ -24,7 +24,9 @@ public sealed partial class MainWindow
     private void CancelTransferSuggestions()
     {
         transferSuggestionGeneration++; transferSuggestionCancellation?.Cancel(); transferSuggestionCancellation?.Dispose(); transferSuggestionCancellation = null;
-        TransferName.IsSuggestionListOpen = false;
+        transferClosingSuggestions = true;
+        try { TransferName.IsSuggestionListOpen = false; }
+        finally { transferClosingSuggestions = false; }
     }
     private void TransferNameChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {

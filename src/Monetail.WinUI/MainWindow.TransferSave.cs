@@ -13,7 +13,7 @@ public sealed partial class MainWindow
     private async Task<ContentDialogResult> ConfirmTransferAsync(string title, string message, string primary, string secondary = "", string close = "キャンセル")
     {
         if (transferDialogOpen) return ContentDialogResult.None;
-        transferDialogOpen = true; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = true; CancelTransferSuggestions();
+        transferDialogOpen = true; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = true; CancelTransferSuggestions(); RestoreTransferTypedName();
         try
         {
             var dialog = TransferConfirmationDialog; dialog.XamlRoot = WorkspaceRoot.XamlRoot; dialog.Title = title; dialog.Content = message;
@@ -152,7 +152,7 @@ public sealed partial class MainWindow
             else if (state.NeedsLeaveConfirmation)
             {
                 var writable = !TransferFrozen;
-                var answer = await ConfirmTransferAsync("未保存の内容があります", "入力内容を保存して移動しますか？", writable ? "保存して移動" : "破棄して閉じる", writable ? "破棄して移動" : "", "編集に戻る");
+                var answer = await ConfirmTransferAsync("未保存の内容があります", writable ? "入力内容を保存して移動しますか？" : "入力内容を破棄して閉じますか？", writable ? "保存して移動" : "破棄して閉じる", writable ? "破棄して移動" : "", "編集に戻る");
                 if (answer == ContentDialogResult.None) return false;
                 if (writable && answer == ContentDialogResult.Primary) return await SaveTransferAsync(false, returnToList: false);
             }

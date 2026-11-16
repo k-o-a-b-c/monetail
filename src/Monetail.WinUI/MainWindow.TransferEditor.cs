@@ -39,6 +39,11 @@ public sealed partial class MainWindow
             input.TextCompositionStarted += (_, _) => transferNameCompositionPending = true;
             input.TextCompositionEnded += (_, _) => DispatcherQueue.TryEnqueue(() => { if (!transferKeyboard.IsComposing && transferNameCompositionPending) { transferNameCompositionPending = false; _ = SearchTransferNamesAsync(true); } });
         };
+        TransferName.RegisterPropertyChangedCallback(AutoSuggestBox.IsSuggestionListOpenProperty, (_, _) =>
+        {
+            if (TransferName.IsSuggestionListOpen || transferClosingSuggestions || transferRendering || transferEditor is null) return;
+            RestoreTransferTypedName(); transferSuggestionsSuppressed = true; CancelTransferSuggestions();
+        });
         TransferDate.IsCancellationTarget = TransferTime.IsCancellationTarget = IsTransferLeaveTarget;
         AppWindow.Closing += async (_, args) =>
         {

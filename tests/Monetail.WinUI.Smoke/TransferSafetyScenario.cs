@@ -15,7 +15,9 @@ public partial class App
             var masters = new PaymentServer(); var server = new TransferInputServer(masters) { LoseResponse = true };
             fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenTransferEditorAsync(null); await FillTransfer(root, masters);
-            await InvokeAsync(() => Find<Button>(root, "TransferSave")); await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible);
+            await InvokeAsync(() => Find<Button>(root, "TransferSave"));
+            await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible || Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded || Find<InfoBar>(root, "TransferEditorNotice").IsOpen || TransferEditing is null);
+            if (Find<Button>(root, "TransferWriteRetry").Visibility != Visibility.Visible) throw new InvalidOperationException($"結果不明診断: writes={server.Writes.Count}; rows={server.Rows.Count}; notice={Find<InfoBar>(root, "TransferEditorNotice").Message}; dialog={Find<ContentDialog>(root, "TransferConfirmationDialog").Content}; time={TransferEditing?.Draft.TransactionTime}; from={TransferEditing?.Draft.From.Source}; to={TransferEditing?.Draft.To.Source}");
             var pending = typeof(MainWindow).GetField("transferPending", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
             Check(server.Rows.Count == 1 && server.Writes.Count == 1 && !Find<Button>(root, "TransferSave").IsEnabled && Find<TextBox>(root, "TransferAmount").IsReadOnly,
                 "応答喪失では登録済みか断定せず入力・元要求を保持して編集と別保存を禁止");
