@@ -22,7 +22,7 @@ public sealed partial class MainWindow
     private TransferWriteRequest? transferPending;
     private TransferSnapshot? transferPendingSnapshot;
     private FormKeyboard transferKeyboard = null!;
-    private double transferReturnOffset;
+    private double transferReturnOffset, transferReturnHorizontalOffset;
     private Guid? transferSavedSelection;
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
@@ -83,7 +83,7 @@ public sealed partial class MainWindow
             if (saved is null && !TransferEditorRules.CanCreate(methods)) { TransferOpenMessage.Text = "振替を登録する権限がありません。"; return; }
             transferEditor = saved is null ? TransferEditorState.Create(DateOnly.FromDateTime(DateTime.Now)) : TransferEditorState.Edit(saved);
             if (saved is not null && (!TransferEditorRules.CanUse(methods, saved.FromPaymentMethodId) || !TransferEditorRules.CanUse(methods, saved.ToPaymentMethodId))) transferEditor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
-            transferReturnOffset = transferScroller?.VerticalOffset ?? 0; receiptReturnOffset = receiptScroller?.VerticalOffset ?? 0;
+            transferReturnOffset = transferScroller?.VerticalOffset ?? 0; transferReturnHorizontalOffset = transferScroller?.HorizontalOffset ?? 0; receiptReturnOffset = receiptScroller?.VerticalOffset ?? 0;
             transferState?.Suspend(); receiptState?.Suspend(); RecordContent.Visibility = Visibility.Collapsed; TransferEditorPage.Visibility = Visibility.Visible;
             transferStopped = transferUnknown = false; transferPending = null; transferPendingSnapshot = null; ResetTransferSuggestions();
             PopulateTransferEditor(); TransferDate.Focus(FocusState.Programmatic);
@@ -215,5 +215,5 @@ public sealed partial class MainWindow
     { TransferEditorNotice.Message = message; TransferEditorNotice.Severity = severity; TransferEditorNotice.IsOpen = true; }
     private async void TransferBackClicked(object sender, RoutedEventArgs args)
     { if (await LeaveTransferEditorAsync()) { ShowPage(HomePage); RestoreTransferPosition(); } }
-    private void RestoreTransferPosition() => DispatcherQueue.TryEnqueue(() => { if (!RecordEditorActive && HomePage.Visibility == Visibility.Visible) transferScroller?.ChangeView(null, transferReturnOffset, null, true); });
+    private void RestoreTransferPosition() => DispatcherQueue.TryEnqueue(() => { if (!RecordEditorActive && HomePage.Visibility == Visibility.Visible) transferScroller?.ChangeView(transferReturnHorizontalOffset, transferReturnOffset, null, true); });
 }

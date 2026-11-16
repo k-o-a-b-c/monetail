@@ -37,7 +37,11 @@ public sealed partial class MainWindow
     private void TransferNameFocused(object sender, RoutedEventArgs args)
     {
         if (TransferFrozen || transferEditor is null) return;
-        transferSuggestionsSuppressed = false; _ = SearchTransferNamesAsync(false);
+        transferSuggestionsSuppressed = false; var editor = transferEditor; var text = editor.Draft.Name;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (ReferenceEquals(editor, transferEditor) && editor.Draft.Name == text && !transferSuggestionsSuppressed && !TransferFrozen && TransferNameHasFocus()) _ = SearchTransferNamesAsync(false);
+        });
     }
     private bool TransferNameHasFocus()
     {

@@ -40,7 +40,7 @@ public sealed partial class MainWindow
     private void ResetTransfers()
     {
         transferState?.Dispose(); transferState = null; transferRows.Clear(); transferScrollIntent = transferQueuedUserScroll = false;
-        transferSavedSelection = null; transferRestorePending = transferRestoringSaved = false; transferReturnOffset = 0;
+        transferSavedSelection = null; transferRestorePending = transferRestoringSaved = false; transferReturnOffset = transferReturnHorizontalOffset = 0;
     }
     private void StartTransferHome(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken)
     {

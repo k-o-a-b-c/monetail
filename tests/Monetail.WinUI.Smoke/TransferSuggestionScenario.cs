@@ -15,7 +15,9 @@ public partial class App
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true }; var masters = new PaymentServer(); var server = new TransferInputServer(masters);
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenTransferEditorAsync(null);
-        var name = Find<AutoSuggestBox>(root, "TransferName"); name.Focus(FocusState.Keyboard);
+        var name = Find<AutoSuggestBox>(root, "TransferName");
+        await Wait(() => name.IsLoaded && name.ActualWidth > 0 && All(name).OfType<TextBox>().Any(t => t.IsLoaded));
+        await FocusTransferControl(All(name).OfType<TextBox>().First(t => t.IsLoaded));
         await Wait(() => server.Suggestions > 0 && name.IsSuggestionListOpen);
         Check(TransferEditing!.Draft.Name == "" && !TransferEditing.HasUnsavedChanges && server.Autofills == 0, "空欄フォーカスで最近の振替名を取得し、表示だけで確定・補完しない");
         await TypeTransferName(root, "AT"); await Wait(() => name.IsSuggestionListOpen && server.Suggestions >= 2); var before = server.Autofills;
