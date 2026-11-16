@@ -33,8 +33,9 @@ foreach ($name in @('input-controls', 'transfer-reauthentication', 'shell')) {
 }
 $invalidPath = Join-Path $selectionPath 'invalid'
 New-Item -ItemType Directory -Force -Path $invalidPath | Out-Null
+Remove-Item "$invalidPath/smoke-result.json", "$invalidPath/smoke-error.txt" -ErrorAction SilentlyContinue
 $invalid = Start-Process -FilePath $SmokePath -ArgumentList @('--output', ('"' + $invalidPath + '"'), '--scenario', 'not-a-scenario') -PassThru -RedirectStandardError "$invalidPath/runtime-error.txt"
 if (-not $invalid.WaitForExit(120000)) { $invalid.Kill(); throw '不正指定の拒否を確認できませんでした。' }
 $result = Get-Content "$invalidPath/smoke-result.json" -Raw | ConvertFrom-Json
-if ($invalid.ExitCode -eq 0 -or $result.passed -or @($result.scenarios).Count -ne 0 -or @($result.checks).Count -ne 0) { throw '不正指定でシナリオが実行されたか、成功扱いされています。' }
+if ($invalid.ExitCode -ne 1 -or $result.passed -or @($result.scenarios).Count -ne 0 -or @($result.checks).Count -ne 0) { throw '不正指定でシナリオが実行されたか、成功扱いされています。' }
 Write-Host 'Scenario listing, full coverage, individual execution, screenshots, rejection and timing: OK'
