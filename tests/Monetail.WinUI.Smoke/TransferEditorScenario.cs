@@ -16,6 +16,12 @@ namespace Monetail.WinUI.Smoke;
 public partial class App
 {
     private TransferEditorState? TransferEditing => (TransferEditorState?)typeof(MainWindow).GetField("transferEditor", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
+    private static async Task FocusTransferControl(Control target)
+    {
+        await Wait(() => target.IsLoaded && target.ActualWidth > 0);
+        if (!target.Focus(FocusState.Keyboard)) throw new InvalidOperationException("振替入力へフォーカスできません: " + target.Name);
+        await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(target.XamlRoot), target));
+    }
     private async Task TypeTransferName(FrameworkElement root, string text)
     {
         var box = Find<AutoSuggestBox>(root, "TransferName");
@@ -76,7 +82,7 @@ public partial class App
         Check(!Find<Button>(root, "TransferSave").IsEnabled && TransferEditing == input && input.Draft.UnresolvedAmountText == "2147483648", "Int32超過の生入力を保持し保存不可");
         Find<TextBox>(root, "TransferAmount").Text = "1000"; Find<TextBox>(root, "TransferMemo").Text = " ";
         var keyboard = (FormKeyboard)typeof(MainWindow).GetField("transferKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
-        await FocusAndObserve(Find<TextBox>(root, "TransferMemo")); await keyboard.HandleEnter(false, false)!;
+        await FocusTransferControl(Find<TextBox>(root, "TransferMemo")); await keyboard.HandleEnter(false, false)!;
         await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave")));
         Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave")) && server.Writes.Count == 0, "メモのEnterは保存ボタンへ移動するだけで登録しない");
         await PressReceiptKey(0x0D, 0x11); await Wait(() => TransferEditing is null && Find<ListView>(root, "TransferList").Items.Count == 1);
