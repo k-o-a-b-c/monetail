@@ -9,11 +9,53 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1223 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1234 |
 | Windowsの実DPAPI・保存 | 3 |
-| WinUI 3の製品起動・画面スモーク（振替入力／既存全画面の2シナリオ） | 2 |
-| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3649 |
+| WinUI 3の製品起動・画面スモーク（振替入力／既存全画面の2プロセス・35シナリオ） | 2 |
+| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 77 |
+| 合計 | 3662 |
+
+## WinUIスモークの選択実行・計測
+
+[run.ps1](Monetail.WinUI.Smoke/run.ps1)は`-Scenario`で1つだけ選択し、`-ListScenarios`で名前とスイートを表示する。指定なしは従来どおり振替入力→既存画面の2プロセスで全件実行し、各120秒の上限・失敗時の非ゼロ終了・`-Capture`による画像と既存ファイル名を維持する。直接exeを起動する場合も、`--scenario`なしでは全件を選ぶ。CIの全件範囲は減らさない。
+
+```powershell
+dotnet build src/Monetail.WinUI/Monetail.WinUI.csproj -c Release -r win-x64 -p:Platform=x64 -o "$env:TEMP\monetail-app"
+dotnet build tests/Monetail.WinUI.Smoke/Monetail.WinUI.Smoke.csproj -c Release -r win-x64 -p:Platform=x64 -o "$env:TEMP\monetail-smoke"
+$paths = @{
+    AppPath = "$env:TEMP\monetail-app\Monetail.WinUI.exe"
+    SmokePath = "$env:TEMP\monetail-smoke\Monetail.WinUI.Smoke.exe"
+    OutputPath = "$env:TEMP\monetail-smoke-results"
+}
+& tests/Monetail.WinUI.Smoke/run.ps1 @paths -ListScenarios
+& tests/Monetail.WinUI.Smoke/run.ps1 @paths -Scenario transfer-reauthentication
+& tests/Monetail.WinUI.Smoke/run.ps1 @paths -Scenario input-controls
+& tests/Monetail.WinUI.Smoke/run.ps1 @paths
+# 既存の撮影・参加者復帰反復も維持する。
+& tests/Monetail.WinUI.Smoke/run.ps1 @paths -Capture
+& tests/Monetail.WinUI.Smoke/run.ps1 @paths -Scenario participant-authentication-recovery -RepeatParticipantRecovery
+```
+
+[App.Scenarios.cs](Monetail.WinUI.Smoke/App.Scenarios.cs)に35シナリオを明示登録する。各シナリオの既存の合成接続/Window初期化を使い、初期ホーム/管理画面と操作ヘルパーの確認は依存があるため`shell`にまとめる。シナリオ内部の確認項目は個別化しない。共通Windowは、単独の入力コントロール試験が自分のWindowを閉じた際に、結果記録前にアプリが正常終了するのを防ぐために保持する。従来の`--transfer-editor-only`とCI用`--existing-only`で2プロセスの分割を維持する。
+
+[SmokeScenarioExecution.cs](Monetail.WinUI.Smoke/SmokeScenarioExecution.cs)は名前の選択と`Stopwatch`計測だけを行う。`smoke-result.json`の既存項目に`scenarios`を追加し、各行に`name`・`suite`・`passed`・`elapsedMilliseconds`・`checks`（このシナリオで成功した確認数）を記録する。実行中は全体`passed:false`で途中結果を保存し、全件成功後だけtrueとする。例外/キャンセルでも失敗行と経過時間を記録して例外を伝播する。ネイティブクラッシュ/強制終了では進行中の完了時間は得られず、最後に書けた結果と既存診断ログを確認する。時間は各シナリオ本体の壁時計経過で、ビルド/製品起動/共通Window準備は含まない。
+
+[verify-scenario-selection.ps1](Monetail.WinUI.Smoke/verify-scenario-selection.ps1)で、一覧と通常全件結果の名前/順序一致、計測と確認数の整合、入力コントロール/振替認証復帰/初期画面の単独起動、初期画面4枚のPNG出力、不正指定の非ゼロ終了と確認未実行をWindows CIで検証する。選択/計測の純粋部分は既存ClientのxUnit構成へ同じソースをリンクして11件検証し、リンク先のCI選択/fingerprintにも回帰2件を追加した。既存製品シナリオの確認条件・期待値、MainWindow、private参照は変更していない。
+
+基点main `d6279d4`の[Tests 43958262780](https://github.com/k-o-a-b-c/monetail/actions/runs/43958262780)成功を変更前の根拠とした。ローカルは選択/計測の11件とPython77件が成功。初回の最小ビルドはテストの`using Xunit`不足で失敗し、補完後の11件で成功した。[初回CI 43976416296](https://github.com/k-o-a-b-c/monetail/actions/runs/43976416296)でClient1234件・API2140件・Node63件・Python77件、旧Windows/実DPAPI/計算照合/性能/Docker/配布スモークも成功。CI選択の共通処理を補足したため初回は全対象を確認し、APIテスト部分は20分8秒だった。
+
+最終ソース`4eb0d3efaec92c0de3200529490168e07886e7ed`の[Tests 43980263516](https://github.com/k-o-a-b-c/monetail/actions/runs/43980263516)はWinUI製品/検証用x64 Release（各30件の既存WUI2011警告/0エラー）・起動・全35シナリオ/646確認（振替163＋既存483）・一覧と全件の照合・単独3シナリオ・shellのPNG4枚・不正指定拒否・計測が成功。追加変更と非関係のClient/API等は先行成功のfingerprintを再利用した。途中のWinUI実行1回は最終ガード反映に伴い自動中断し、成功とは数えていない。既存IME確認の一時失敗は今回再発していないが、原因解決とは扱わない。
+
+| 最終CIの計測対象 | 経過時間 |
+| --- | ---: |
+| 全35シナリオ本体の合計 | 99.235秒 |
+| connection-flow（全件内） | 15.128秒 |
+| transfer-reauthentication（全件内） | 7.801秒 |
+| input-controls（個別） | 2.577秒 |
+| transfer-reauthentication（個別） | 7.703秒 |
+| shell（個別・PNG4枚を含む） | 1.714秒 |
+
+この1回のCI環境での参考値であり、性能SLAや一般的な短縮率を示さない。実Windows手動操作/物理IME/タッチ/高DPIや画像の表示品質の手動受入は未実施。製品コード・private参照の整理は対象外。
 
 ## WinUI：振替401後の既存画面復元（第4-B）
 
