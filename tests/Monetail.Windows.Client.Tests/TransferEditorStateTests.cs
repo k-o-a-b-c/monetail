@@ -79,4 +79,19 @@ public sealed partial class TransferEditorStateTests
         Assert.Equal(before, Capture(state)); Assert.Equal(From, state.Draft.From.PaymentMethodId); Assert.Equal(From, state.Draft.To.PaymentMethodId);
         state.SelectTo(To); Assert.False(state.HasUnsavedChanges); Assert.Equal(To, state.PrepareSave(TransferSaveKind.Update).Snapshot.ToPaymentMethodId);
     }
+
+    [Fact]
+    public void TransferEditorSavedPaymentIdsRemainThePermissionBaselineUntilLatestIsAdopted()
+    {
+        var fresh = New(); Fill(fresh);
+        Assert.Null(fresh.SavedFromPaymentMethodId); Assert.Null(fresh.SavedToPaymentMethodId);
+        var saved = Saved(); var state = TransferEditorState.Edit(saved);
+        state.SelectFrom(To); state.SelectTo(Other);
+        Assert.Equal(From, state.SavedFromPaymentMethodId); Assert.Equal(To, state.SavedToPaymentMethodId);
+        var latest = saved with { FromPaymentMethodId = Other, ToPaymentMethodId = From, Revision = Guid.NewGuid() };
+        state.RegisterConflict(latest); state.AdoptLatest(false);
+        Assert.Equal(From, state.SavedFromPaymentMethodId); Assert.Equal(To, state.SavedToPaymentMethodId);
+        state.AdoptLatest(true);
+        Assert.Equal(Other, state.SavedFromPaymentMethodId); Assert.Equal(From, state.SavedToPaymentMethodId);
+    }
 }

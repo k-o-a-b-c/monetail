@@ -62,12 +62,12 @@ public sealed partial class MainWindow
         transferPending = TransferWriteRequest.Delete(currentLedger.LedgerId, target.TransferId, target.Revision);
         await SendPendingTransferAsync(true);
     }
-    private async void RetryTransferWrite(object sender, RoutedEventArgs args) { if (transferUnknown && !transferSending) await SendPendingTransferAsync(true); }
+    private async void RetryTransferWrite(object sender, RoutedEventArgs args) { if (TransferCanRetryWrite && !transferSending) await SendPendingTransferAsync(true); }
     private async Task<bool> SendPendingTransferAsync(bool returnToList)
     {
         if (transferPending is not { } request || transferSending || transferEditor is not { } editor || currentLedger?.LedgerId != request.LedgerId) return false;
         var wasUnknown = transferUnknown;
-        transferSending = true; transferUnknown = false; TransferEditorNotice.IsOpen = false; CancelTransferSuggestions(); transferAutofillCancellation?.Cancel(); RenderTransferEditor();
+        transferSending = true; transferUnknown = false; transferRetryAfterLogin = false; TransferEditorNotice.IsOpen = false; CancelTransferSuggestions(); transferAutofillCancellation?.Cancel(); RenderTransferEditor();
         var accountId = account?.AuthUserId; string? inputErrorField = null; var offerLatest = false;
         var workspace = new TransfersWorkspace(connection.Api, connection.Session, request.LedgerId);
         Guid? savedId = request.TransferId;
@@ -79,8 +79,8 @@ public sealed partial class MainWindow
         }
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)
         {
-            // 同一本人への編集復元は次工程。現段階では入力と元要求を保持して安全に停止する。
-            transferUnknown = wasUnknown; transferStopped = true; TransferNotice("ログインを継続できません。入力を保持していますが、再認証後の編集復元はまだ利用できません。"); return false;
+            transferUnknown = wasUnknown;
+            ShowLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); return false;
         }
         catch (TransferRequestException error)
         {

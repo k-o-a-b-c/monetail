@@ -15,6 +15,7 @@ public sealed partial class MainWindow
 
     private async Task OpenDestinationAsync(CancellationToken token)
     {
+        if (await ResumeTransferEditAsync(token)) return;
         if (await ResumeCategoryEditAsync(token)) return;
         if (await ResumePaymentEditAsync(token)) return;
         if (await ResumeParticipantEditAsync(token)) return;

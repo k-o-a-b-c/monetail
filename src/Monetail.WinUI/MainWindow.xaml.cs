@@ -57,6 +57,12 @@ public sealed partial class MainWindow : Window
         ResetPayments();
         ResetPeople();
         ResetParticipants();
+        DisplayLedgerHeader(ledger);
+        ShowPage(HomePage);
+    }
+
+    private void DisplayLedgerHeader(LedgerInfo ledger)
+    {
         currentLedger = ledger;
         LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);
@@ -65,7 +71,6 @@ public sealed partial class MainWindow : Window
         LedgerSelector.IsEnabled = account is not null;
         AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = account is not null;
         UpdatePeopleActions();
-        ShowPage(HomePage);
     }
 
     private void DisplayPeople(PeopleInfo people)

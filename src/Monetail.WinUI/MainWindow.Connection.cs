@@ -79,7 +79,7 @@ public sealed partial class MainWindow
 
     private async void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
     {
-        if (!await LeaveRecordEditorAsync()) return;
+        if (!transferAwaitingLogin && !await LeaveRecordEditorAsync()) return;
         DropPendingCategoryEdit();
         DropPendingPaymentEdit();
         DropPendingPersonEdit();
@@ -108,7 +108,7 @@ public sealed partial class MainWindow
 
     private async Task ConnectAsync(ApiEndpoint candidate)
     {
-        if (!await LeaveRecordEditorAsync()) return;
+        if (!transferAwaitingLogin && !await LeaveRecordEditorAsync()) return;
         await RunAsync(async () =>
     {
         using var timeout = ConnectionTimeout();
@@ -121,8 +121,17 @@ public sealed partial class MainWindow
 
     private void ShowLogin(string? message = null)
     {
+        if (transferEditor is not null && account is not null) RememberTransferAuthentication();
         account = null;
         AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = false;
+        if (transferAuthentication is { } pending && pending.ApiOrigin == connection.Endpoint?.Value)
+        {
+            transferAwaitingLogin = true;
+            ShowPage(LoginPage);
+            if (message is not null) ShowError(message);
+            return;
+        }
+        if (transferAuthentication is not null) DiscardTransferAuthentication();
         ClearLedger();
         ShowPage(LoginPage);
         if (message is not null) ShowError(message);
@@ -151,7 +160,7 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !closed) { ShowLogin(); }
         catch (AuthenticationRejectedException) { ShowLogin("ログインできませんでした。もう一度ログインしてください。"); }
-        finally { browserLogin = null; browserCancellation = null; ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = true; }
+        finally { browserLogin = null; browserCancellation = null; if (!closed) ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = true; }
     }, StartAsync, true);
 
     private async Task OpenBrowserAsync()
@@ -273,7 +282,9 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        if (RecordEditorActive && !ReferenceEquals(page, HomePage)) return;
+        var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, ConnectionPage) || ReferenceEquals(page, StartupPage) || ReferenceEquals(page, FailurePage);
+        if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(transferAwaitingLogin && authenticationPage)) return;
+        if (transferAwaitingLogin && ReferenceEquals(page, HomePage)) return;
         if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); CancelTransferOpening(); receiptState?.Suspend(); transferState?.Suspend(); }
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
@@ -334,6 +345,7 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
+        transferAuthentication = null; transferEditor = null; transferPending = null; transferPendingSnapshot = null;
         receiptState?.Dispose();
         CancelTransferOpening(); CancelTransferSuggestions(); transferAutofillCancellation?.Cancel();
         transferState?.Dispose(); recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose();

@@ -27,8 +27,10 @@ public sealed partial class MainWindow
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
-    private bool TransferFrozen => transferDialogOpen || transferSending || transferPending is not null || transferStopped || transferEditor?.IsReadOnly == true;
-    private bool TransferCanAdoptLatest => !transferStopped && !transferUnknown && transferPending is null && transferEditor is { ReadOnlyReason: TransferReadOnlyReason.Conflict, Latest: not null };
+    private bool TransferRecoveryBlocked => transferAwaitingLogin || transferMastersLoading || transferMastersFailed;
+    private bool TransferFrozen => TransferRecoveryBlocked || transferDialogOpen || transferSending || transferPending is not null || transferStopped || transferEditor?.IsReadOnly == true;
+    private bool TransferCanAdoptLatest => !TransferRecoveryBlocked && !transferStopped && !transferUnknown && transferPending is null && transferEditor is { ReadOnlyReason: TransferReadOnlyReason.Conflict, Latest: not null };
+    private bool TransferCanRetryWrite => !TransferRecoveryBlocked && !transferStopped && account is not null && transferEditor?.IsReadOnly == false && transferPending is not null && (transferUnknown || transferRetryAfterLogin);
     private void InitializeTransferEditor()
     {
         WorkspaceRoot.Children.Remove(TransferConfirmationDialog);
@@ -48,6 +50,7 @@ public sealed partial class MainWindow
         TransferDate.IsCancellationTarget = TransferTime.IsCancellationTarget = IsTransferLeaveTarget;
         AppWindow.Closing += async (_, args) =>
         {
+            if (transferAwaitingLogin) { DiscardTransferAuthentication(); return; }
             if (transferCloseApproved || transferEditor is null) return;
             args.Cancel = true;
             if (await LeaveTransferEditorAsync()) { transferCloseApproved = true; Close(); }
@@ -119,6 +122,8 @@ public sealed partial class MainWindow
     }
     private void ResetTransferEditor()
     {
+        transferAuthentication = null; transferAwaitingLogin = transferMastersLoading = transferMastersFailed = transferRetryAfterLogin = transferRecoveryLedgerReady = false;
+        TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false;
         CancelTransferOpening(); ResetTransferSuggestions(); transferAutofillCancellation?.Cancel(); transferAutofillCancellation?.Dispose(); transferAutofillCancellation = null;
         transferEditor = null; transferPending = null; transferPendingSnapshot = null; transferStopped = transferUnknown = false;
         TransferEditorPage.Visibility = Visibility.Collapsed; RecordContent.Visibility = Visibility.Visible;
@@ -182,7 +187,7 @@ public sealed partial class MainWindow
         var frozen = TransferFrozen;
         TransferDate.IsReadOnly = TransferTime.IsReadOnly = TransferAmount.IsReadOnly = TransferMemo.IsReadOnly = frozen;
         TransferNameReadOnly.Text = state.Draft.Name;
-        if (currentLedger is { } ledger)
+        if (currentLedger is { } ledger && TransferPeople is not null && TransferMethods is not null)
         {
             TransferFromReadOnly.Text = state.Draft.From.PaymentMethodId is Guid from ? connection.Masters.PaymentName(ledger.LedgerId, from) : "";
             TransferToReadOnly.Text = state.Draft.To.PaymentMethodId is Guid to ? connection.Masters.PaymentName(ledger.LedgerId, to) : "";
@@ -197,7 +202,8 @@ public sealed partial class MainWindow
         TransferReuse.Visibility = TransferDelete.Visibility = state.IsExisting && !readOnlyActions ? Visibility.Visible : Visibility.Collapsed;
         TransferDelete.IsEnabled = state.IsExisting && !frozen;
         TransferWriteProgress.IsActive = transferSending; TransferWriteProgress.Visibility = transferSending ? Visibility.Visible : Visibility.Collapsed;
-        TransferWriteRetry.Visibility = transferUnknown ? Visibility.Visible : Visibility.Collapsed; TransferWriteRetry.IsEnabled = transferUnknown && !transferSending;
+        TransferWriteRetry.Visibility = TransferCanRetryWrite ? Visibility.Visible : Visibility.Collapsed; TransferWriteRetry.IsEnabled = TransferCanRetryWrite && !transferSending && !transferDialogOpen;
+        TransferMasterRetry.Visibility = transferMastersFailed ? Visibility.Visible : Visibility.Collapsed; TransferMasterRetry.IsEnabled = transferMastersFailed && !transferMastersLoading && !transferDialogOpen;
         TransferLoadLatest.Visibility = TransferCanAdoptLatest ? Visibility.Visible : Visibility.Collapsed;
         TransferLoadLatest.IsEnabled = TransferCanAdoptLatest && !transferSending && !transferDialogOpen;
         if (state.IsReadOnly && !TransferEditorNotice.IsOpen) TransferNotice("この振替は読み取り専用です。", InfoBarSeverity.Informational);

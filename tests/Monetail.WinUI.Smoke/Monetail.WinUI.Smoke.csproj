@@ -22,6 +22,7 @@
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Transfers.cs" Link="MainWindow.Transfers.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferEditor.cs" Link="MainWindow.TransferEditor.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSave.cs" Link="MainWindow.TransferSave.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferRecovery.cs" Link="MainWindow.TransferRecovery.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSuggestions.cs" Link="MainWindow.TransferSuggestions.cs" />
 
     <Compile Include="../../src/Monetail.WinUI/ReceiptCategoryRow.cs" Link="ReceiptCategoryRow.cs" />
