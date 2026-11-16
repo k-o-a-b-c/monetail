@@ -116,20 +116,24 @@ public sealed partial class MainWindow
         }
     }
 
-    private void RestoreTransferRecoveryView(TransferAuthentication context) => DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+    private void RestoreTransferRecoveryView(TransferAuthentication context)
     {
-        if (closed || transferAwaitingLogin || transferEditor is null || HomePage.Visibility != Visibility.Visible || account?.AuthUserId != context.AccountId || connection.Endpoint?.Value != context.ApiOrigin || currentLedger?.LedgerId != context.LedgerId) return;
-        TransferInputScroller.UpdateLayout();
-        transferRestoringRecoveryView = true;
-        try
+        var editor = transferEditor;
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
-            if (context.Focus is { IsLoaded: true, IsEnabled: true, Visibility: Visibility.Visible } focus)
+            if (closed || transferAwaitingLogin || editor is null || !ReferenceEquals(editor, transferEditor) || HomePage.Visibility != Visibility.Visible || account?.AuthUserId != context.AccountId || connection.Endpoint?.Value != context.ApiOrigin || currentLedger?.LedgerId != context.LedgerId) return;
+            TransferInputScroller.UpdateLayout();
+            transferRestoringRecoveryView = true;
+            try
             {
-                focus.Focus(FocusState.Programmatic);
-                if (focus is TextBox text) text.Select(context.SelectionStart, context.SelectionLength);
+                if (context.Focus is { IsLoaded: true, IsEnabled: true, Visibility: Visibility.Visible } focus)
+                {
+                    focus.Focus(FocusState.Programmatic);
+                    if (focus is TextBox text) text.Select(context.SelectionStart, context.SelectionLength);
+                }
+                TransferInputScroller.ChangeView(null, context.ScrollOffset, null, true);
             }
-            TransferInputScroller.ChangeView(null, context.ScrollOffset, null, true);
-        }
-        finally { transferRestoringRecoveryView = false; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false; }
-    });
+            finally { transferRestoringRecoveryView = false; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false; }
+        });
+    }
 }
