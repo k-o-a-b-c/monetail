@@ -88,6 +88,9 @@ def selected_inputs(paths, *, strict=True):
             continue
         if path == ".github/workflows/winui.yml" or path.startswith(("src/Monetail.WinUI/", "tests/Monetail.WinUI.Smoke/")):
             result["winui"].add(path)
+            # UI非依存の試験補助をClientテストにもリンクした場合、その検証入力から落とさない。
+            if any(matches(path, pattern) for pattern in client_inputs):
+                result["windows_client"].add(path)
             continue
         known = False
 

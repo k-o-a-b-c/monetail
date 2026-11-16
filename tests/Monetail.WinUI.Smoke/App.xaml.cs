@@ -25,112 +25,41 @@ public partial class App : Application
         Directory.CreateDirectory(output);
         invokeTracePath = Path.Combine(output, "ui-invoke.txt");
         uiThreadId = Environment.CurrentManagedThreadId;
+        var results = new List<SmokeScenarioResult>();
+        void SaveResult(bool passed) => File.WriteAllText(Path.Combine(output, "smoke-result.json"),
+            JsonSerializer.Serialize(new { passed, data = "synthetic", screenshots = capture,
+                rasterizationScale, checks, scenarios = results }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         try
         {
-            if (arguments.Contains("--transfer-editor-only"))
+            var catalog = Scenarios(output, capture, arguments.Contains("--repeat-participant-recovery"));
+            var selected = SmokeScenarioExecution.Select(catalog, arguments);
+            if (arguments.Contains("--list-scenarios"))
             {
-                await CheckTransferReauthentication(); await CheckTransferConflicts(); await CheckTransferReview(); await CheckTransferEditor(); await CheckTransferSafety(); await CheckTransferSuggestions(); await CheckTransferFocus(); await CheckTransferOpening();
-                File.WriteAllText(Path.Combine(output, "smoke-result.json"), JsonSerializer.Serialize(new { passed = true, data = "synthetic", checks }));
-                window?.Close(); Environment.Exit(0); return;
+                File.WriteAllText(Path.Combine(output, "scenario-list.json"),
+                    JsonSerializer.Serialize(catalog.Select(s => new { name = s.Name, suite = s.Suite })));
+                Environment.Exit(0); return;
             }
             if (capture)
                 Resources["ContentControlThemeFontFamily"] = new FontFamily("ms-appx:///Assets/PreviewFont.otf#Noto Sans CJK JP");
+            // 単独の入力コントロール試験が自分のWindowを閉じても、最終Window閉鎖でアプリを早期終了させない。
             window = new MainWindow();
-            var root = (FrameworkElement)window.Content;
-            ObserveDialogs(root);
+            ObserveDialogs((FrameworkElement)window.Content);
             window.Activate();
-            await Wait(() => root.IsLoaded);
-            var today = DateOnly.FromDateTime(DateTime.Now);
-            var mother = new PersonInfo(Guid.NewGuid(), "母", today, null, 0, Guid.NewGuid());
-            var father = new PersonInfo(Guid.NewGuid(), "父", null, null, 1, Guid.NewGuid());
-            var child = new PersonInfo(Guid.NewGuid(), "子供", null, today.AddDays(-1), 2, Guid.NewGuid());
-            window.DisplayWorkspace(new LedgerInfo(Guid.NewGuid(), "家族の家計簿", "Admin", Guid.NewGuid().ToString("N")),
-                new PeopleInfo([mother, father, child], father.PersonId, "Admin", Guid.NewGuid()));
-            await Settle();
-            Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "ホームの表示");
-            if (capture) await Capture(root, output, "01-home");
-
-            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
-            await Settle();
-            var navigation = Find<NavigationView>(root, "ManagementNavigation");
-            var people = Find<ListView>(root, "PeopleList");
-            Check(Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible, "管理・設定への切替");
-            Check(navigation.IsPaneOpen && ReferenceEquals(navigation.SelectedItem,
-                Find<NavigationViewItem>(root, "PeopleNavigation")), "左メニューを保持");
-            Check(people.Items.Count == 2, "人物の初期表示は本日有効な人物のみ");
-            Find<CheckBox>(root, "IncludeInactivePeople").IsChecked = true;
-            Check(people.Items.Count == 3, "期間外表示を選ぶと全員表示");
-            Check(((PersonRow)people.Items[0]).Name == "父（本人）", "本人先頭");
-            Check(((PersonRow)people.Items[1]).ValidFrom == today.ToString("yyyy/MM/dd") &&
-                ((PersonRow)people.Items[2]).ValidTo == today.AddDays(-1).ToString("yyyy/MM/dd"), "既存Clientの日付表示");
-            Check(Find<TextBlock>(root, "LedgerContext").Text == "家族の家計簿", "家計簿名を表示");
-            Check(!All(root).OfType<MenuBar>().Any(), "メニューバーなし");
-            var paneBounds = navigation.PaneDisplayMode;
-            Check(paneBounds == NavigationViewPaneDisplayMode.Left, "左メニューと右コンテンツを同時表示");
-            if (capture) await Capture(root, output, "02-management-people");
-
-            window.AppWindow.ResizeClient(new SizeInt32(900, 620));
-            await Settle();
-            Check(people.ActualWidth > 0 && people.ActualHeight > 0, "リサイズ後の一覧表示");
-            var settingsArea = Find<Grid>(root, "PeopleContent");
-            Check(settingsArea.ActualWidth >= 400, "リサイズ後の操作領域");
-            if (capture) await Capture(root, output, "03-management-compact");
-
-            root.RequestedTheme = ElementTheme.Dark;
-            await Settle();
-            Check(root.ActualTheme == ElementTheme.Dark, "標準のダークテーマ");
-            if (capture) await Capture(root, output, "04-management-dark");
-            root.RequestedTheme = ElementTheme.Default;
-
-            await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
-            await Settle();
-            Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
-            var rasterizationScale = root.XamlRoot.RasterizationScale;
-            await CheckInvocationGuards(root);
-            // 調査時だけ対象の認証復帰を反復し、通常CIでは成功済みの確認を増やさない。
-            var recoveryAttempts = arguments.Contains("--repeat-participant-recovery") ? 5 : 1;
-            for (var attempt = 1; attempt <= recoveryAttempts; attempt++)
-            {
-                TraceInvocation($"participantRecoveryAttempt={attempt}; phase=begin");
-                await CheckParticipantAuthenticationRecovery(includeInvitation: attempt == 1);
-                TraceInvocation($"participantRecoveryAttempt={attempt}; phase=passed");
-            }
-            await CheckCategories();
-            await CheckPeopleFilter();
-            await CheckConnectionFlow(output, capture);
-            await CheckTaxRateConnectionCache();
-            await CheckPeopleFlow(output, capture);
-            await CheckPersonDeletion();
-            await CheckPersonOrder();
-            await CheckPersonOrderReauthentication();
-            await CheckPersonReauthentication();
-            await CheckParticipantsAndInvitations();
-            await CheckInputControls();
-            await CheckPayments();
-            await CheckReceiptList();
-            await CheckTransferList();
-            await CheckTransferNavigation();
-            await CheckReceiptNavigation();
-            await CheckReceiptEditor();
-            await CheckReceiptParentSelection();
-            await CheckReceiptEditorOperations();
-            await CheckReceiptEditorLoading();
-            await CheckReceiptDetails();
-            await CheckReceiptStoredDetails();
-            await CheckReceiptMemos();
-            await CheckReceiptTaxCalculation();
-            await CheckReceiptTaxLoading();
-            File.WriteAllText(Path.Combine(output, "smoke-result.json"),
-                JsonSerializer.Serialize(new { passed = true, data = "synthetic", screenshots = capture,
-                    rasterizationScale, checks }));
-            window?.Close();
-            Environment.Exit(0);
+            await Wait(() => ((FrameworkElement)window.Content).IsLoaded);
+            SaveResult(false);
+            foreach (var scenario in selected)
+                await SmokeScenarioExecution.RunAsync(scenario, () => checks.Count, result =>
+                {
+                    results.Add(result); SaveResult(false);
+                });
+            SaveResult(true);
+            window?.Close(); Environment.Exit(0);
         }
         catch (Exception error)
         {
+            SaveResult(false);
             File.WriteAllText(Path.Combine(output, "smoke-error.txt"), error.ToString());
-            window?.Close();
-            Environment.Exit(1);
+            window?.Close(); Environment.Exit(1);
         }
     }
 

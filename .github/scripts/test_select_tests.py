@@ -63,6 +63,9 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["src/Monetail.WinUI/Monetail.WinUI.csproj", "src/Monetail.WinUI/MainWindow.xaml",
                            "src/Monetail.WinUI/MainWindow.xaml.cs", "tests/Monetail.WinUI.Smoke/run.ps1"], "winui")
 
+    def test_linked_smoke_runner_also_selects_its_portable_unit_tests(self):
+        self.assert_flags(["tests/Monetail.WinUI.Smoke/SmokeScenarioExecution.cs"], "winui", "windows_client")
+
     def test_winui_workflow_does_not_start_unrelated_api_or_legacy_jobs(self):
         self.assert_flags([".github/workflows/winui.yml"], "winui")
 
