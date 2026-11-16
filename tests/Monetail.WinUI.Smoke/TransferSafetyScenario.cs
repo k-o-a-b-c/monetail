@@ -49,10 +49,17 @@ public partial class App
                 await ConfirmTransfer(root, ContentDialogResult.None);
             }
             else await ConfirmTransfer(root, ContentDialogResult.Primary);
+            if (error == HttpStatusCode.Unauthorized)
+            {
+                await Wait(() => Visible(root, "LoginPage"));
+                Check(Find<TextBox>(root, "TransferAmount").Text == "2000" && TransferEditing?.Revision == saved.Revision && !VisibleAncestors(Find<Grid>(root, "TransferEditorPage")), "401は入力と旧版を保持して専用の再ログイン画面へ退避する");
+                await CompleteTransferLogin(fixture, root);
+                Check(Equals(TransferRuntime("transferUnknown"), false) && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible, "確定401の復帰は結果不明にせず、保持した要求の明示再試行を提示する");
+            }
             await Wait(() => Find<InfoBar>(root, "TransferEditorNotice").IsOpen && Find<TextBox>(root, "TransferAmount").IsReadOnly);
             Check(TransferEditing!.Revision == saved.Revision && Find<TextBox>(root, "TransferAmount").Text == "2000" && !Find<Button>(root, "TransferSave").IsEnabled && !Find<Button>(root, "TransferDelete").IsEnabled,
                 $"振替{(int)error}は入力と旧版を保持し書込を安全に停止");
-            Check(Find<Grid>(root, "TransferEditorPage").Visibility == Visibility.Visible && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Collapsed, $"確定した{(int)error}を結果不明の再送や自動ログインと混同しない");
+            Check(Find<Grid>(root, "TransferEditorPage").Visibility == Visibility.Visible && (Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible) == (error == HttpStatusCode.Unauthorized), $"確定した{(int)error}を結果不明の再送や自動ログインと混同しない");
             Check((Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Visible) == (error == HttpStatusCode.Conflict), "最新版の採用はrevision_conflictだけに提示する");
             await InvokeAsync(() => Find<Button>(root, "TransferBack"));
             await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded);

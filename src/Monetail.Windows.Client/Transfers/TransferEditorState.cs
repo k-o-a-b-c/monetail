@@ -30,6 +30,8 @@ public sealed class TransferEditorState
     private TransferAutofillContext? autofill;
     private sealed record Baseline(DateTime At, string Name, Guid? From, Guid? To, int? Amount, string? Memo);
     private Baseline baseline;
+    public Guid? SavedFromPaymentMethodId => IsExisting ? baseline.From : null;
+    public Guid? SavedToPaymentMethodId => IsExisting ? baseline.To : null;
     public bool HasUnsavedChanges => Draft.HasUnresolvedInput || Draft.TransactionAt != baseline.At || Draft.Name != baseline.Name ||
         Draft.From.PaymentMethodId != baseline.From || Draft.To.PaymentMethodId != baseline.To || Draft.Amount != baseline.Amount || NormalizeMemo(Draft.Memo) != NormalizeMemo(baseline.Memo);
     public bool NeedsLeaveConfirmation => HasUnsavedChanges;

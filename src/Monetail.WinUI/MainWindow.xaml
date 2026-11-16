@@ -329,6 +329,7 @@
                     <StackPanel Spacing="12" MaxWidth="720" HorizontalAlignment="Stretch">
                         <InfoBar x:Name="TransferEditorNotice" IsOpen="False" IsClosable="False" Severity="Error" AutomationProperties.LiveSetting="Polite"/>
                         <Button x:Name="TransferLoadLatest" TabIndex="0" Content="最新を読み込む" Click="LoadLatestTransfer" Visibility="Collapsed" AutomationProperties.AutomationId="TransferLoadLatest"/>
+                        <Button x:Name="TransferMasterRetry" TabIndex="0" Content="再試行" Click="RetryTransferMasters" Visibility="Collapsed" AutomationProperties.AutomationId="TransferMasterRetry"/>
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <input:DateInputBox x:Name="TransferDate" TabIndex="1" Header="日付" AllowEmpty="False" TextChanged="TransferTextChanged" LostFocus="TransferDateConfirmed" AutomationProperties.AutomationId="TransferDate"/>

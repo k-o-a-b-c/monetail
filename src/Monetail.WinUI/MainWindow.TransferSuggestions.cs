@@ -36,7 +36,7 @@ public sealed partial class MainWindow
     }
     private void TransferNameFocused(object sender, RoutedEventArgs args)
     {
-        if (TransferFrozen || transferEditor is null) return;
+        if (TransferFrozen || transferRestoringRecoveryView || transferEditor is null) return;
         transferSuggestionsSuppressed = false; var editor = transferEditor; var text = editor.Draft.Name;
         DispatcherQueue.TryEnqueue(() =>
         {
@@ -141,7 +141,7 @@ public sealed partial class MainWindow
         finally { if (ReferenceEquals(transferAutofillCancellation, cancellation)) transferAutofillCancellation = null; }
     }
     private void StopTransferAuthentication()
-    { transferStopped = true; CancelTransferSuggestions(); TransferNotice("ログインを継続できません。入力を保持しています。再認証後の編集復元は次工程です。"); RenderTransferEditor(); }
+    { ShowLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); }
     private void TransferDateConfirmed(object sender, RoutedEventArgs args)
     { if (!TransferFrozen) { SyncTransferInput(); RefreshTransferEditorChoices(); _ = AutofillTransferAsync(); } }
 }

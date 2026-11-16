@@ -13,16 +13,16 @@ public partial class App
         internal readonly List<(HttpMethod Method, string Body)> Writes = [];
         internal readonly List<Uri> Reads = [];
         internal int Details, Suggestions, Autofills;
-        internal bool LoseResponse;
+        internal bool LoseResponse, RejectSuggestions;
         internal HttpStatusCode? WriteError;
         internal string? WriteErrorCode;
-        internal TaskCompletionSource<bool>? DetailGate, AutofillGate;
+        internal TaskCompletionSource<bool>? DetailGate, AutofillGate, SuggestionGate;
         private readonly Dictionary<Guid, Guid> created = [];
         internal async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken token)
         {
             var uri = request.RequestUri!; var path = uri.AbsolutePath; var query = TransferQueryValues(uri);
             if (path.EndsWith("/transfer-suggestions"))
-            { Suggestions++; return PaymentServer.Json(new TransferSuggestionsInfo(["ATM", "ＡＴＭ", "銀行振替"], false)); }
+            { Suggestions++; if (SuggestionGate is { } gate) await gate.Task.WaitAsync(token); return RejectSuggestions ? new(HttpStatusCode.Unauthorized) : PaymentServer.Json(new TransferSuggestionsInfo(["ATM", "ＡＴＭ", "銀行振替"], false)); }
             if (path.EndsWith("/transfer-autofill"))
             { Autofills++; if (AutofillGate is { } gate) await gate.Task.WaitAsync(token); return PaymentServer.Json(new TransferAutofillInfo(masters.ActiveId, masters.OtherActiveId)); }
             var detail = !path.EndsWith("/transfers");
