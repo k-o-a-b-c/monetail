@@ -18,7 +18,8 @@ public partial class App
         var name = Find<AutoSuggestBox>(root, "TransferName");
         await Wait(() => name.IsLoaded && name.ActualWidth > 0 && All(name).OfType<TextBox>().Any(t => t.IsLoaded));
         await FocusTransferControl(All(name).OfType<TextBox>().First(t => t.IsLoaded));
-        await Wait(() => server.Suggestions > 0 && name.IsSuggestionListOpen);
+        try { await Wait(() => server.Suggestions > 0 && name.IsSuggestionListOpen); }
+        catch (TaskCanceledException error) { throw new InvalidOperationException($"初回候補: requests={server.Suggestions}; open={name.IsSuggestionListOpen}; suppressed={typeof(MainWindow).GetField("transferSuggestionsSuppressed", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)}; hasFocus={typeof(MainWindow).GetMethod("TransferNameHasFocus", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, null)}; error={Find<TextBlock>(root, "TransferSuggestionError").Text}", error); }
         Check(TransferEditing!.Draft.Name == "" && !TransferEditing.HasUnsavedChanges && server.Autofills == 0, "空欄フォーカスで最近の振替名を取得し、表示だけで確定・補完しない");
         await TypeTransferName(root, "AT"); await Wait(() => name.IsSuggestionListOpen && server.Suggestions >= 2); var before = server.Autofills;
         await PressReceiptKey(0x28); await Settle();

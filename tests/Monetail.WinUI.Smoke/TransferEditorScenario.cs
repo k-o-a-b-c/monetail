@@ -62,12 +62,17 @@ public partial class App
         await Wait(() => list.ContainerFromItem(list.SelectedItem) is FrameworkElement { IsLoaded: true, ActualWidth: > 0 });
         var item = (FrameworkElement)list.ContainerFromItem(list.SelectedItem);
         var label = All(item).OfType<TextBlock>().First(t => t.ActualWidth > 0);
+        var scroller = All(list).OfType<ScrollViewer>().First();
+        await Wait(() => { var p = label.TransformToVisual(scroller).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2)); return p.X >= 0 && p.X < scroller.ViewportWidth && p.Y >= 0 && p.Y < scroller.ViewportHeight; });
         await ActivateReceiptInputWindowAsync();
         var logical = label.TransformToVisual(root).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2)); var scale = root.XamlRoot.RasterizationScale;
         var point = new ReceiptScreenPoint { X = (int)Math.Round(logical.X * scale), Y = (int)Math.Round(logical.Y * scale) };
         if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(window!), ref point) || !SetCursorPos(point.X, point.Y)) throw new Win32Exception(Marshal.GetLastWin32Error());
-        var events = new uint[] { 2, 4, 2, 4 }.Select(flag => new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = flag } } }).ToArray();
-        if (SendInput(4, events, Marshal.SizeOf<ReceiptNativeInput>()) != 4) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var events = new uint[] { 2, 4 }.Select(flag => new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = flag } } }).ToArray();
+        if (SendInput(2, events, Marshal.SizeOf<ReceiptNativeInput>()) != 2) throw new Win32Exception(Marshal.GetLastWin32Error());
+        // 2回の押下を別の入力ターンで配信し、同一タイムスタンプの合成クリックにしない。
+        await Task.Delay(50);
+        if (SendInput(2, events, Marshal.SizeOf<ReceiptNativeInput>()) != 2) throw new Win32Exception(Marshal.GetLastWin32Error());
     }
     private async Task CheckTransferEditor()
     {
