@@ -118,7 +118,7 @@ public sealed partial class MainWindow
     }
     private void ResetTransferEditor()
     {
-        CancelTransferOpening(); CancelTransferSuggestions(); transferAutofillCancellation?.Cancel(); transferAutofillCancellation?.Dispose(); transferAutofillCancellation = null;
+        CancelTransferOpening(); ResetTransferSuggestions(); transferAutofillCancellation?.Cancel(); transferAutofillCancellation?.Dispose(); transferAutofillCancellation = null;
         transferEditor = null; transferPending = null; transferPendingSnapshot = null; transferStopped = transferUnknown = false;
         TransferEditorPage.Visibility = Visibility.Collapsed; RecordContent.Visibility = Visibility.Visible;
     }

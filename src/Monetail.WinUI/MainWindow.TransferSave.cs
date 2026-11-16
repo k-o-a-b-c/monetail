@@ -91,7 +91,7 @@ public sealed partial class MainWindow
             }
             return false;
         }
-        catch (Exception error) when (error is ApiConnectionException or HttpRequestException or IOException or OperationCanceledException)
+        catch (Exception error) when (error is TransferWriteUncertainException or ApiConnectionException or HttpRequestException or IOException or OperationCanceledException)
         { transferUnknown = true; TransferNotice("保存結果を確認できませんでした。同じ要求で再試行してください。"); return false; }
         finally { transferSending = false; if (ReferenceEquals(editor, transferEditor)) { RenderTransferEditor(); if (!TransferFrozen && inputErrorField is not null) FocusTransferField(inputErrorField); } }
         if (!ReferenceEquals(editor, transferEditor) || closed) return false;

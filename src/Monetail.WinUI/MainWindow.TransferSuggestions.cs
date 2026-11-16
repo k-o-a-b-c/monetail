@@ -20,7 +20,7 @@ public sealed partial class MainWindow
     private (string Name, DateOnly Day, Guid? From)? transferAutofillKey;
     private static bool TransferKeyDown(VirtualKey key) => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
     private void ResetTransferSuggestions()
-    { CancelTransferSuggestions(); transferSuggestions.Clear(); transferNamePreview = null; transferAutofillKey = null; transferSuggestionsSuppressed = false; TransferSuggestionError.Text = ""; }
+    { CancelTransferSuggestions(); TransferName.ItemsSource = null; transferSuggestions.Clear(); transferNamePreview = null; transferAutofillKey = null; transferSuggestionsSuppressed = false; TransferSuggestionError.Text = ""; }
     private void CancelTransferSuggestions()
     {
         transferSuggestionGeneration++; transferSuggestionCancellation?.Cancel(); transferSuggestionCancellation?.Dispose(); transferSuggestionCancellation = null;
@@ -48,7 +48,7 @@ public sealed partial class MainWindow
     private async Task SearchTransferNamesAsync(bool debounce)
     {
         if (TransferFrozen || transferKeyboard.IsComposing || transferSuggestionsSuppressed || transferEditor is not { } editor || currentLedger is null) return;
-        CancelTransferSuggestions(); var epoch = transferSuggestionGeneration; var text = editor.Draft.Name;
+        CancelTransferSuggestions(); TransferName.ItemsSource = null; var epoch = transferSuggestionGeneration; var text = editor.Draft.Name;
         TransferSuggestionError.Text = ""; if (text.Length > 100) return;
         var ledger = currentLedger.LedgerId; var person = account?.AuthUserId;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); transferSuggestionCancellation = cancellation;
