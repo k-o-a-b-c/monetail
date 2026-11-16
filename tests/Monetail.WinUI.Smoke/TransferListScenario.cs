@@ -41,11 +41,12 @@ public partial class App
         Check(transfers.Count == 1 && Find<TextBlock>(root, "TransferEmpty").Visibility == Visibility.Visible, "振替0件は中央表示し追加要求しない");
         Check(((ReceiptFilterChoice)owner.SelectedItem).Id is null && ((ReceiptFilterChoice)payment.SelectedItem).Id is null, "共通の支払者は全員・支払方法は全件で初期化");
         Check(!Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled && !All(root).OfType<Button>().Single(b => AutomationProperties.GetAutomationId(b) == "BalanceRegisterPlaceholder").IsEnabled, "振替と残高の登録入口は未実装のまま無効");
+        root.UpdateLayout();
         var content = Find<Grid>(root, "RecordContent"); var cards = content.Children.OfType<Border>().ToArray();
         var receiptCard = cards.Single(b => Grid.GetRow(b) == 1); var transferCard = cards.Single(b => Grid.GetRow(b) == 2 && Grid.GetColumn(b) == 0);
         var balanceCard = cards.Single(b => Grid.GetRow(b) == 2 && Grid.GetColumn(b) == 1);
         Check(Grid.GetColumnSpan(receiptCard) == 2 && Math.Abs(receiptCard.ActualHeight / transferCard.ActualHeight - 1.5) < 0.02 && Math.Abs(transferCard.ActualWidth / balanceCard.ActualWidth - 2) < 0.02,
-            "記録ホームは全幅上段60%・下段40%、振替2/3と残高1/3");
+            $"記録ホームは全幅上段60%・下段40%、振替2/3と残高1/3: receipt={receiptCard.ActualWidth}x{receiptCard.ActualHeight}, transfer={transferCard.ActualWidth}x{transferCard.ActualHeight}, balance={balanceCard.ActualWidth}x{balanceCard.ActualHeight}");
         await Settle(); Check(filter.ScrollableWidth < 1 && filter.ComputedHorizontalScrollBarVisibility == Visibility.Collapsed, "通常幅の共通フィルターは不要な横スクロールバーを表示しない");
         window!.AppWindow.ResizeClient(new SizeInt32(760, 620)); await Settle();
         Check(filter.ScrollableWidth > 0 && Find<StackPanel>(root, "RecordFilterRow").Orientation == Orientation.Horizontal && owner.Visibility == Visibility.Visible && payment.Visibility == Visibility.Visible,
