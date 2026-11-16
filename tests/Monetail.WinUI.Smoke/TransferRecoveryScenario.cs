@@ -100,6 +100,7 @@ public partial class App
         await Wait(() => scroller.ScrollableHeight > 0); scroller.ChangeView(null, scroller.ScrollableHeight, null, true); await Wait(() => scroller.VerticalOffset > 0);
         var offset = scroller.VerticalOffset; server.SuggestionGate.SetResult(true);
         await Wait(() => Visible(root, "LoginPage"));
+        var capturedView = TransferRuntime("transferAuthentication") ?? throw new InvalidOperationException("復帰情報がありません。");
         Check(ReferenceEquals(editor, TransferEditing) && editor.Draft.UnresolvedDateText == "2026/" && editor.Draft.UnresolvedTimeText == "時刻未確定" && editor.Draft.UnresolvedAmountText == "1x" && editor.Draft.From == from && editor.Draft.To == to,
             "候補取得の401でも未確定日時・金額・自動補完由来を元モデルに保持する");
         failMasters = true; server.RejectSuggestions = false;
@@ -109,7 +110,12 @@ public partial class App
             "マスタ取得失敗は元の入力をコピー可能な読み取り専用で表示し、空マスタで編集再開しない");
         failMasters = false; var method = masters.Rows.FindIndex(p => p.PaymentMethodId == masters.ActiveId); masters.Rows[method] = masters.Rows[method] with { Name = "最新名" };
         await InvokeAsync(() => Find<Button>(root, "TransferMasterRetry")); await Wait(() => !Find<TextBox>(root, "TransferAmount").IsReadOnly);
-        await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input) && input.SelectionStart == 1 && input.SelectionLength == 2 && Math.Abs(scroller.VerticalOffset - offset) < 1);
+        try { await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input) && input.SelectionStart == 1 && input.SelectionLength == 2 && Math.Abs(scroller.VerticalOffset - offset) < 1); }
+        catch (TaskCanceledException error)
+        {
+            var viewType = capturedView.GetType();
+            throw new InvalidOperationException($"復帰位置: focusMatches={ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input)}; selection={input.SelectionStart},{input.SelectionLength}; offset={scroller.VerticalOffset}/{offset}; capturedFocusMatches={ReferenceEquals(viewType.GetProperty("Focus")!.GetValue(capturedView), input)}; capturedSelection={viewType.GetProperty("SelectionStart")!.GetValue(capturedView)},{viewType.GetProperty("SelectionLength")!.GetValue(capturedView)}; capturedOffset={viewType.GetProperty("ScrollOffset")!.GetValue(capturedView)}; inputLoaded={input.IsLoaded}", error);
+        }
         Check(ReferenceEquals(editor, TransferEditing) && ReferenceEquals(names, Find<AutoSuggestBox>(root, "TransferName")) && editor.Draft.From == from && editor.Draft.To == to &&
             Find<DateInputBox>(root, "TransferDate").Text == "2026/" && Find<TimeInputBox>(root, "TransferTime").Text == "時刻未確定" && Find<TextBox>(root, "TransferAmount").Text == "1x" &&
             ((ReceiptFilterChoice)Find<ComboBox>(root, "TransferFrom").SelectedItem).Name.Contains("最新名") && editor.HasUnsavedChanges,
