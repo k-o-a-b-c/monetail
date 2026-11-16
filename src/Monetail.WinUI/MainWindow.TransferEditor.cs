@@ -10,6 +10,7 @@ using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transfers;
 using Monetail.Windows.Client.Transport;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Monetail.WinUI;
 
@@ -144,6 +145,25 @@ public sealed partial class MainWindow
     }
     private void TransferTextChanged(object sender, TextChangedEventArgs args)
     { if (transferRendering) return; SyncTransferInput(); if (ReferenceEquals(sender, TransferDate)) { transferAutofillCancellation?.Cancel(); transferAutofillKey = null; RefreshTransferEditorChoices(); } RenderTransferEditor(); }
+    private async void TransferMemoPasted(object sender, TextControlPasteEventArgs args)
+    {
+        // 単一行TextBoxの標準貼り付けは改行以降を切り捨てるため、元文字列を検証へ渡す。
+        args.Handled = true;
+        if (TransferFrozen || transferEditor is not { } editor) return;
+        var before = TransferMemo.Text; var start = TransferMemo.SelectionStart; var length = TransferMemo.SelectionLength;
+        try
+        {
+            var content = Clipboard.GetContent();
+            if (!content.Contains(StandardDataFormats.Text)) return;
+            var pasted = await content.GetTextAsync();
+            if (closed || !ReferenceEquals(editor, transferEditor) || TransferFrozen || TransferMemo.Text != before || TransferMemo.SelectionStart != start || TransferMemo.SelectionLength != length) return;
+            TransferMemo.Text = before[..start] + pasted + before[(start + length)..];
+            TransferMemo.Select(start + pasted.Length, 0);
+            SyncTransferInput(); RenderTransferEditor();
+        }
+        catch (Exception error) when (error is System.Runtime.InteropServices.COMException or InvalidOperationException)
+        { if (ReferenceEquals(editor, transferEditor)) TransferNotice("貼り付けできませんでした。クリップボードへのアクセスを確認してください。"); }
+    }
     private void TransferPaymentChanged(object sender, SelectionChangedEventArgs args)
     {
         if (transferRendering || TransferFrozen || transferEditor is not { } state || (sender as ComboBox)?.SelectedItem is not ReceiptFilterChoice { Id: Guid id }) return;
