@@ -9,11 +9,25 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1192 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1218 |
 | Windowsの実DPAPI・保存 | 3 |
-| WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
+| WinUI 3の製品起動・画面スモーク（振替入力／既存全画面の2シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3617 |
+| 合計 | 3644 |
+
+## WinUI：振替専用入力・候補補完・保存（第3工程）
+
+[TransferEditorRulesTests.cs](Monetail.Windows.Client.Tests/TransferEditorRulesTests.cs)・[TransferSavedListTests.cs](Monetail.Windows.Client.Tests/TransferSavedListTests.cs)にClient26件を追加。ローカルReleaseは最小2件→追加と既存一覧の関連56件→不一致条件だけの解除1件が成功（段階間に重複あり）。Admin/Editor/Viewer・人物未対応、人物/支払方法の期間両端、入力不変、保存後の共通年月と独立AND/名前条件調整、店名下書き/確定値の保全、先頭300件での発見/未発見とfocus・cursor・先頭復帰・404の1回復旧・旧応答破棄を検証する。Clientソース/テストを含む`10e57346530cf457ba565c388115ea1f1984fe17`の[Tests 43835870141](https://github.com/k-o-a-b-c/monetail/actions/runs/43835870141)で全1218件（失敗/skipなし）が成功。
+
+[入力とCRUD](Monetail.WinUI.Smoke/TransferEditorScenario.cs)・[結果不明/権限/競合](Monetail.WinUI.Smoke/TransferSafetyScenario.cs)・[候補/実キー](Monetail.WinUI.Smoke/TransferSuggestionScenario.cs)・[保存後focus/詳細取得](Monetail.WinUI.Smoke/TransferFocusScenario.cs)を追加。合成HTTPでも実際のWorkspace/Transportを通し、POST/PUT/DELETE、確認取消と警告統合、読み取り専用のコピー/操作非表示、応答喪失後の同一JSON再送と二重登録防止、401/403/404/409の入力/旧版保全、候補プレビュー/Esc/Tab/Enter・IME保護・旧補完破棄、未保存離脱、保存行の途中開始/先頭復帰と詳細GETの二重起動/取消を確認する。
+
+`run.ps1`は製品を一度起動確認し、新しい振替入力と既存全画面を別の検証プロセスで実行する。どちらも従来の120秒上限を維持し、既存回帰を省略しない。実画面試験でスクロール境界のTab順と`TransferWriteUncertainException`受信漏れを修正。合成操作も実フォーカス/入力通知後の状態・Unspecifiedの秒精度日時に整え、既存の判定条件を緩和していない。保存準備では利用者入力の通知を配送してから値を検証し、未確定候補の表示文字列を業務入力へ読み戻さない。
+
+最終ソース`5efc9919f0661e45b44aef3f152740d120cef983`の[Tests 43845775781](https://github.com/k-o-a-b-c/monetail/actions/runs/43845775781)が成功。製品/検証用のWinUI x64 Releaseビルド（30警告/34警告・各0エラー）、製品起動、振替入力57確認＋既存483確認＝全540確認が成功した。検証用には新規シナリオのnullable参照警告2箇所が残る（ビルド出力では各パス分を計上）。本作業の実行で0xC0000005は観測していないが、過去のアクセス違反の根本原因解消を証明するものではない。
+
+変更前は基点main `6958ae9a5ed242fcf6eb3f52111b354ca1e21f70`の[push Tests 43828563302](https://github.com/k-o-a-b-c/monetail/actions/runs/43828563302)成功を採用。Clientと影響外のAPI/Docker/旧Windows/性能等はCIの選択/fingerprintに従って成功記録を再利用し、影響外の全件をローカルで再実行していない。API/DB/Migration・外部ライブラリは変更していない。
+
+実API/NAS、実Windowsの物理IME・タッチ・高DPI/ハイコントラスト等の手動確認は未実施。実キー/マウス注入は合成CIの確認であり、実機手動の受入済みとは扱わない。LinuxではWinAppCLIを使用できず、[公式GalleryのAutoSuggestBox](https://github.com/microsoft/WinUI-Gallery/blob/main/WinUIGallery/Samples/AutoSuggestBox/AutoSuggestBoxPage.xaml.cs)のイベントと既存SDKによるWindowsビルドで照合。競合latest採用・同一本人への再認証後復元・残高連動は[実装境界](../docs/ledger-transfer-ui.md#第3工程の実装境界)のとおり次工程。
 
 ## WinUI：振替一覧・記録ホームの共通フィルター
 
