@@ -17,6 +17,17 @@ public sealed partial class TransferListStateTests
         await state.ContinueAsync(); Assert.Equal(400, state.Rows.Count); await state.ObserveViewportAsync(399, false, false); Assert.Equal(4, calls);
         await state.ObserveViewportAsync(399, true, true); Assert.Equal(500, state.Rows.Count); Assert.Equal(5, calls);
     }
+    [Fact]
+    public async Task SearchChangeRejectsDelayedOldResponseEvenIfTransportIgnoresCancellation()
+    {
+        var old = new TaskCompletionSource<TransferListInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var state = new TransferListState((query, _) => query.Q == "old" ? old.Task : Task.FromResult(new TransferListInfo(Rows(500, 1), null)));
+        var pending = state.StartAsync(new("all", q: "old")); await state.StartAsync(new("all", q: "new"));
+        var selected = state.Rows[0].TransferId; state.SelectedTransferId = selected;
+        old.SetResult(new(Rows(0, 100), "old")); await pending;
+        Assert.Single(state.Rows); Assert.Equal(selected, state.Rows[0].TransferId); Assert.Equal(selected, state.SelectedTransferId);
+        Assert.Null(state.NextCursor); Assert.Null(state.Failure); Assert.False(state.IsLoading);
+    }
     internal static TransferSummaryInfo[] Rows(int start, int count) => Enumerable.Range(start + 1, count).Select(i => new TransferSummaryInfo(
         Guid.Parse(i.ToString("x32")), new(2026, 11, 10), "振替" + i, Guid.Parse("10000000-0000-0000-0000-000000000000"), Guid.Parse("20000000-0000-0000-0000-000000000000"), i, null)).ToArray();
     [Fact]
