@@ -9,11 +9,23 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1222 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1223 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（振替入力／既存全画面の2シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3648 |
+| 合計 | 3649 |
+
+## WinUI：振替401後の既存画面復元（第4-B）
+
+[TransferRecoveryScenario.cs](Monetail.WinUI.Smoke/TransferRecoveryScenario.cs)を追加。実Workspace/Transport・合成HTTP・実OAuthループバックを使い、新規/更新/流用/削除401、ログイン取消、同じWindow/コントロール/モデル/Draftと不変要求の同一性、同じ本人/接続先だけの復帰、マスタ再取得、詳細GET/自動保存なし、同じJSONの明示再送を確認する。未確定日時/金額・補完由来・文字選択/スクロール、マスタ503→一時readonly→再試行・名称だけ更新、別本人/接続先での破棄、Viewer/人物未対応Editor/保存済み片側が他人所有/参加解除での書込禁止、結果不明再送中401、進行中候補の中断・遅延応答破棄・終了時のメモリ破棄も対象。通常ナビゲーションの未保存保護と第4-A等の既存回帰は省略しない。
+
+Clientは既存baselineから保存済みの両支払方法IDを読み取るだけの2プロパティを追加。入力変更/最新採用の前後で権限評価の基準を保つ[回帰1件](Monetail.Windows.Client.Tests/TransferEditorStateTests.cs)が成功した。ローカルReleaseは最小1件→編集/版/キャッシュの関連104件、追加の認証Session20件が成功（最小との重複あり、失敗/skipなし）。変更前のmain `084787d3c9b1bf7ebe3102b4dc5360cc258690f1`の[push Tests 43895342659](https://github.com/k-o-a-b-c/monetail/actions/runs/43895342659)を採用し、非変更部分はCI選択/fingerprintに従って再利用する。
+
+ソース`af2ae3e7456fe5a41af6eb6785d2fd9b8ee0c5d1`の[Tests 43907437675](https://github.com/k-o-a-b-c/monetail/actions/runs/43907437675)が成功。製品/検証用x64 Release（各30警告/0エラー）・製品起動・振替149確認＋既存483確認＝全632確認が成功した。Client全1223件はClient最終変更を含むソース`aef66ce`の[Tests 43902209985・Clientジョブ](https://github.com/k-o-a-b-c/monetail/actions/runs/43902209985/job/133421706208)で成功し、以後のWinUI専用変更では成功fingerprintを再利用した。API/DB/旧Windows/性能等の非変更部分もCI選択条件に従って再利用した。
+
+検証途中、[Tests 43906321524](https://github.com/k-o-a-b-c/monetail/actions/runs/43906321524)の既存レシート科目メモの合成IME Enter確認が1回失敗した。該当する製品/試験コードと判定条件は変更せず、最終CIでは成功したが原因解決とは扱わない。新規試験ではレイアウト確定前の末尾位置を期待していた誤りを途中位置での退避/復帰比較に修正し、終了時の状態破棄は最後のWindow閉鎖による検証プロセスの正常終了と分離して確認する。タイムアウト延長・既存確認の削除/緩和は行っていない。
+
+入力値の復元用コピー/シリアライズ/ディスク保存や振替詳細の追加GETは導入していない。復帰メタデータは本人/家計簿/接続先とフォーカス/文字選択/スクロールのみ。通常のログアウト/家計簿切替は既存離脱保護を通し、401専用の画面切替だけを許可する。DB/API/残高連動/改行貼り付け/外部ライブラリは変更なし。WinAppCLIはLinuxで利用できず、既存標準WinUIコントロールとWindows CIで検証する。実API/NAS・実パスキーブラウザー、物理IME/タッチ、高DPI/ハイコントラスト等の手動受入は未実施。
 
 ## WinUI：振替409競合からの復旧（第4-A）
 
@@ -25,7 +37,7 @@
 
 ［最新を読み込む］のTab順修正では、PUT/DELETE競合後の実Tab（戻る→警告直後の最新読込→日付）とShift+Tabの逆移動、移動だけでは採用・送信しないことを追加確認する。通常編集・最新採用後は日付→時刻→振替名→元→先→金額→メモ→更新の実Tab順と未変更判定を維持する。ソース`aa9ea172bc90f9abf26ed6056542cafaef660a07`の[Tests 43889435986](https://github.com/k-o-a-b-c/monetail/actions/runs/43889435986)で製品/検証用x64 Release（各30警告/0エラー）・起動・振替99確認＋既存483確認＝全582確認が成功。非変更のClient等は前回成功結果を再利用した。
 
-API/DB/Client契約・外部ライブラリの変更なし。401後の再認証・編集復元と残高キャッシュ連動は対象外。実API/NAS、物理IME/タッチ、高DPI/ハイコントラスト/スクリーンリーダーの実Windows手動受入は未実施。LinuxでWinAppCLIは利用できず、既存標準Button/ContentDialog/InfoBarとWindows CIで照合する。旧版の競合MessageBox/再読込通知から、新版正本の応答latest採用へ変更する。
+API/DB/Client契約・外部ライブラリの変更なし。当該第4-Aの対象外だった401後の編集復元は上記第4-Bで接続済み。残高キャッシュ連動は対象外。実API/NAS、物理IME/タッチ、高DPI/ハイコントラスト/スクリーンリーダーの実Windows手動受入は未実施。LinuxでWinAppCLIは利用できず、既存標準Button/ContentDialog/InfoBarとWindows CIで照合する。旧版の競合MessageBox/再読込通知から、新版正本の応答latest採用へ変更する。
 
 ## WinUI：振替専用入力・候補補完・保存（第3工程）
 
@@ -39,7 +51,7 @@ API/DB/Client契約・外部ライブラリの変更なし。401後の再認証�
 
 変更前は基点main `6958ae9a5ed242fcf6eb3f52111b354ca1e21f70`の[push Tests 43828563302](https://github.com/k-o-a-b-c/monetail/actions/runs/43828563302)成功を採用。Clientと影響外のAPI/Docker/旧Windows/性能等はCIの選択/fingerprintに従って成功記録を再利用し、影響外の全件をローカルで再実行していない。API/DB/Migration・外部ライブラリは変更していない。
 
-実API/NAS、実Windowsの物理IME・タッチ・高DPI/ハイコントラスト等の手動確認は未実施。実キー/マウス注入は合成CIの確認であり、実機手動の受入済みとは扱わない。LinuxではWinAppCLIを使用できず、[公式GalleryのAutoSuggestBox](https://github.com/microsoft/WinUI-Gallery/blob/main/WinUIGallery/Samples/AutoSuggestBox/AutoSuggestBoxPage.xaml.cs)のイベントと既存SDKによるWindowsビルドで照合。同一本人への再認証後復元・残高連動は[実装境界](../docs/ledger-transfer-ui.md#第3工程の実装境界)のとおり次工程。
+実API/NAS、実Windowsの物理IME・タッチ・高DPI/ハイコントラスト等の手動確認は未実施。実キー/マウス注入は合成CIの確認であり、実機手動の受入済みとは扱わない。LinuxではWinAppCLIを使用できず、[公式GalleryのAutoSuggestBox](https://github.com/microsoft/WinUI-Gallery/blob/main/WinUIGallery/Samples/AutoSuggestBox/AutoSuggestBoxPage.xaml.cs)のイベントと既存SDKによるWindowsビルドで照合。残高連動は[実装境界](../docs/ledger-transfer-ui.md#第3工程の実装境界)のとおり次工程。
 
 ### PR #185のレビュー対応
 
