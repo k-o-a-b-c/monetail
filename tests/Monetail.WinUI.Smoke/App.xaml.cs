@@ -102,6 +102,8 @@ public partial class App : Application
             await CheckInputControls();
             await CheckPayments();
             await CheckReceiptList();
+            await CheckTransferList();
+            await CheckTransferNavigation();
             await CheckReceiptNavigation();
             await CheckReceiptEditor();
             await CheckReceiptParentSelection();

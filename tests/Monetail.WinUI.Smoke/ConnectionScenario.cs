@@ -251,6 +251,7 @@ public partial class App
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ReceiptsHandler;
+        internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? TransfersHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? TaxRatesHandler;
         internal int TaxRatesRequests;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PeopleHandler;
@@ -350,6 +351,8 @@ public partial class App
             }
             if (path.EndsWith("/receipts", StringComparison.Ordinal) || path.Contains("/receipts/", StringComparison.Ordinal))
                 return ReceiptsHandler is not null ? await ReceiptsHandler(request, token) : Json(new ReceiptListInfo([], null));
+            if (path.EndsWith("/transfers", StringComparison.Ordinal))
+                return TransfersHandler is not null ? await TransfersHandler(request, token) : Json(new TransferListInfo([], null));
             if (path.EndsWith("/payment-methods", StringComparison.Ordinal) && PaymentsHandler is null) return Json(new PaymentMethodsInfo([], [], null, "Admin"));
             if (ParticipantsHandler is not null && (path.Contains("/members", StringComparison.Ordinal) || path.Contains("/invitations", StringComparison.Ordinal)))
                 return await ParticipantsHandler(request, token);
