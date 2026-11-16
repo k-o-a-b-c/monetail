@@ -26,20 +26,26 @@ try {
     }
 }
 
-$arguments = @('--output', ('"' + $OutputPath + '"'))
-if ($Capture) { $arguments += '--capture' }
-if ($RepeatParticipantRecovery) { $arguments += '--repeat-participant-recovery' }
-$smoke = Start-Process -FilePath $SmokePath -ArgumentList $arguments -PassThru -RedirectStandardError "$OutputPath/runtime-error.txt"
-# 科目と人物フィルターを含む全画面を省略せず検証するための全体待機上限。
-if (-not $smoke.WaitForExit(120000)) {
-    $smoke.Kill()
-    throw 'WinUIスモークテストが完了しませんでした。'
+# 新規入力の検証と既存全画面の検証を分離し、各プロセスの上限と全確認を維持する。
+foreach ($suite in @('transfer-editor', 'existing')) {
+    $suiteOutput = if ($suite -eq 'existing') { $OutputPath } else { Join-Path $OutputPath $suite }
+    New-Item -ItemType Directory -Force -Path $suiteOutput | Out-Null
+    $arguments = @('--output', ('"' + $suiteOutput + '"'))
+    if ($suite -eq 'transfer-editor') { $arguments += '--transfer-editor-only' }
+    if ($Capture -and $suite -eq 'existing') { $arguments += '--capture' }
+    if ($RepeatParticipantRecovery -and $suite -eq 'existing') { $arguments += '--repeat-participant-recovery' }
+    $smoke = Start-Process -FilePath $SmokePath -ArgumentList $arguments -PassThru -RedirectStandardError "$suiteOutput/runtime-error.txt"
+    if (-not $smoke.WaitForExit(120000)) {
+        $smoke.Kill()
+        throw "WinUIスモークテストが完了しませんでした: $suite"
+    }
+    if ($smoke.ExitCode -ne 0) {
+        if (Test-Path "$suiteOutput/smoke-error.txt") { Get-Content "$suiteOutput/smoke-error.txt" }
+        if (Test-Path "$suiteOutput/runtime-error.txt") { Get-Content "$suiteOutput/runtime-error.txt" }
+        throw "WinUIスモークテストに失敗しました: $suite / $($smoke.ExitCode)"
+    }
+    $result = Get-Content "$suiteOutput/smoke-result.json" -Raw | ConvertFrom-Json
+    if (-not $result.passed) { throw "WinUIスモークテストの成功結果がありません: $suite" }
+    Write-Host "WinUI suite OK: $suite"
+    $result.checks | ForEach-Object { Write-Host "OK: $_" }
 }
-if ($smoke.ExitCode -ne 0) {
-    if (Test-Path "$OutputPath/smoke-error.txt") { Get-Content "$OutputPath/smoke-error.txt" }
-    if (Test-Path "$OutputPath/runtime-error.txt") { Get-Content "$OutputPath/runtime-error.txt" }
-    throw "WinUIスモークテストに失敗しました: $($smoke.ExitCode)"
-}
-$result = Get-Content "$OutputPath/smoke-result.json" -Raw | ConvertFrom-Json
-if (-not $result.passed) { throw 'WinUIスモークテストの成功結果がありません。' }
-$result.checks | ForEach-Object { Write-Host "OK: $_" }

@@ -1,6 +1,6 @@
 # 振替API契約（基本CRUD・候補・自動補完GET実装済み）
 
-更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GET・新規POST・更新PUT・削除DELETE・振替名候補GET・自動補完GETを実装済み。振替Client/WinUIの実装状態とは区別する。
+更新: 2026-11-16。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GET・新規POST・更新PUT・削除DELETE・振替名候補GET・自動補完GETを実装済み。振替Client/WinUIの実装状態とは区別する。
 
 参照：[入口・残課題](ledger-transfer.md)／[DB・値域](ledger-transfer-db.md)／[WinUI画面](ledger-transfer-ui.md)／[レシートAPI](ledger-receipt-api.md)／[共通再送](ledger-operation-retries.md)。
 
@@ -8,7 +8,7 @@
 
 一覧/詳細GETは既存レシートの認証/DB準備フィルター、`LedgerApiFilter`、UUID入力検証、共有参照レート制限を利用する。`LedgerManagementService.InLedgerAsync`で読取前後の認証・現在参加を検証し、指定家計簿の振替だけを参照する。下記の応答を整形するだけで保存値・監査列・更新版・再送記録は変更しない。実装/検証結果は[一覧GET](../tests/README.md#振替一覧get)・[詳細GET](../tests/README.md#振替詳細get)を参照。
 
-一覧GETの`focusTransferId`も実装済み（DEC-279）。POST・PUT・DELETEは下記の範囲で実装済み。振替名候補GET・自動補完GETも実装済み。Windows Clientの[読取4種類](architecture-winui.md#振替のclient読取接続)・[書込3種類](architecture-winui.md#振替のclient書込接続)は接続済み。[振替編集モデル](architecture-winui.md#振替の編集状態モデル)も実装済み。WinUIは未実装。
+一覧GETの`focusTransferId`も実装済み（DEC-279）。POST・PUT・DELETEは下記の範囲で実装済み。振替名候補GET・自動補完GETも実装済み。Windows Clientの[読取4種類](architecture-winui.md#振替のclient読取接続)・[書込3種類](architecture-winui.md#振替のclient書込接続)は接続済み。[振替編集モデル](architecture-winui.md#振替の編集状態モデル)も実装済み。WinUIの振替一覧・共通フィルター・専用入力・保存・削除・候補補完は[第3工程の実装境界](ledger-transfer-ui.md#第3工程の実装境界)まで実装済み。401後の編集復元・409の詳細復旧・残高連動は未実装。
 
 ### 新規POSTの実装
 
@@ -92,7 +92,7 @@
 - `ownerPersonId`は振替元・先の**いずれかの支払方法の所有人物**、`paymentMethodId`は振替元・先の**いずれかの支払方法**に一致すれば該当。人物条件と支払方法条件は**それぞれ独立に判定しAND結合**する。他の検索条件もANDで適用する。検索・権限を適用後に[業務値・DB契約](ledger-transfer-db.md)・[ホームと振替一覧](ledger-transfer-ui.md)の**取引日時降順、同日時は振替ID降順**で100件ずつキーセット取得する。
 - **`focusTransferId`の入力と404の境界（DEC-279・2026-11-15確定）**：任意のUUID D形式1件だけを受け付ける。不正値・前後空白・空UUID・重複指定・`cursor`との併用（空cursorを含む）は**400 `invalid_input`**。認証・家計簿参加の検証は既存の順序を維持する。現行家計簿と指定済みの月・人物・支払方法・振替名の**全フィルター**を適用して対象を検索し、不存在・削除済み・別家計簿・条件外は区別せず**404 `not_found`**を返す。対象の存在情報・検索条件外となった理由は返さない。
 - **フォーカスの開始位置**：対象の取引日時・振替IDを起点とし、`(transaction_at, transfer_id COLLATE BINARY) <= (対象日時, 対象ID)`の範囲を取引日時降順・同日時ID降順で取得する。対象自身を先頭に含め、最大100件を返す。対象確認後に対象が先頭として取得できなくなった場合も404とする。追加の絞り込み条件ではなく**初回ページの開始位置**であり、既存の7項目・`transfers`/`nextCursor`の構造は変更しない。
-- **後続取得**：既存の振替専用`nextCursor`を使い、`focusTransferId`なしで通常の古い方向へ継続する。条件ハッシュには家計簿と4つの検索条件だけを含め、`focusTransferId`を含めない。［先頭に戻る］はフォーカスもカーソルも送らず、現在の検索条件で先頭ページを取得する。フォーカス取得404時の将来WinUIの復帰は[保存後の一覧復帰](ledger-transfer-ui.md#保存後の一覧復帰対象振替への移動2026-11-15確定)に従う。
+- **後続取得**：既存の振替専用`nextCursor`を使い、`focusTransferId`なしで通常の古い方向へ継続する。条件ハッシュには家計簿と4つの検索条件だけを含め、`focusTransferId`を含めない。［先頭に戻る］はフォーカスもカーソルも送らず、現在の検索条件で先頭ページを取得する。フォーカス取得404時のWinUIの復帰は[保存後の一覧復帰](ledger-transfer-ui.md#保存後の一覧復帰対象振替への移動2026-11-15確定)に従う。
 - 次ページはサーバー発行の不透明な`cursor`を使用。カーソルは家計簿・すべての検索条件に紐づけ、不正・改ざん・条件不一致は**HTTP 400、`invalid_cursor`**。条件変更時はカーソルを捨て、先頭から検索する。WinUIの初回100件・領域不足時は最大300件まで自動補充し、末尾20行以内のスクロール時は自動追加取得する。初回補充上限に達しても領域不足なら［続きを読み込む］を表示する（[ホームと振替一覧](ledger-transfer-ui.md)）。**カーソルの生成・検証方式はレシート一覧と同方式に統一する**（2026-11-15確定）。ASP.NET Core Data Protectionの既存の永続鍵を利用し、**振替専用purpose `Monetail.TransferList.Cursor.v1`**で保護する（レシート用カーソルは流用不可）。内部に家計簿ID、家計簿IDと検索条件（`month`・`ownerPersonId`・`paymentMethodId`・送信された`q`。省略と空文字は区別）のSHA-256、末尾の取引日時とN形式`transfer_id`を保持する。`(transaction_at, transfer_id COLLATE BINARY) < (末尾日時, 末尾ID)`のキーセット境界で逆順B-tree走査し、100件＋次ページ有無の確認を行う。OFFSET・COUNT・専用DBテーブル・独自有効期限は不要。再起動後も同じ保護鍵で検証し、保護解除不可・改ざん・検索条件不一致・レシート用トークンは400 `invalid_cursor`。各GETで現在の認証・家計簿参加を検証する。一覧の応答外枠は本節の`transfers`・`nextCursor`の2項目で確定。
 
 ### 振替名候補・自動補完API（2026-11-15確定）

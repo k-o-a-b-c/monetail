@@ -53,4 +53,30 @@ public sealed partial class TransferEditorStateTests
         Assert.Equal("toPaymentMethodId", Assert.Throws<TransferInputException>(() => state.PrepareSave(TransferSaveKind.Register)).Field);
         Assert.Equal(before, Capture(state)); Assert.Null(state.Draft.To.PaymentMethodId);
     }
+
+    [Theory]
+    [InlineData("前\r後")]
+    [InlineData("前\n後")]
+    [InlineData("前\r\n後")]
+    public void TransferEditorRejectsNewlineMemoWithoutChangingInputOrSavedIdentity(string memo)
+    {
+        var saved = Saved(); var state = TransferEditorState.Edit(saved); state.Draft.Memo = memo;
+        var before = Capture(state);
+        foreach (var kind in new[] { TransferSaveKind.Update, TransferSaveKind.ReuseRegistration })
+        {
+            Assert.Equal("memo", Assert.Throws<TransferInputException>(() => state.PrepareSave(kind)).Field);
+            Assert.Equal(memo, state.Draft.Memo); Assert.Equal(before, Capture(state));
+            Assert.Equal(saved.TransferId, state.TransferId); Assert.Equal(saved.Revision, state.Revision);
+        }
+        Assert.True(state.HasUnsavedChanges); state.Draft.Memo = null; Assert.False(state.HasUnsavedChanges);
+    }
+
+    [Fact]
+    public void TransferEditorRejectsIdenticalPaymentMethodsAndKeepsBothSelections()
+    {
+        var state = TransferEditorState.Edit(Saved()); state.SelectTo(From); var before = Capture(state);
+        Assert.Equal("toPaymentMethodId", Assert.Throws<TransferInputException>(() => state.PrepareSave(TransferSaveKind.Update)).Field);
+        Assert.Equal(before, Capture(state)); Assert.Equal(From, state.Draft.From.PaymentMethodId); Assert.Equal(From, state.Draft.To.PaymentMethodId);
+        state.SelectTo(To); Assert.False(state.HasUnsavedChanges); Assert.Equal(To, state.PrepareSave(TransferSaveKind.Update).Snapshot.ToPaymentMethodId);
+    }
 }

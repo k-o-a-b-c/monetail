@@ -92,7 +92,7 @@ public sealed partial class MainWindow
 
     private async Task OpenLedgerAsync(Guid ledgerId)
     {
-        if (!await LeaveReceiptEditorAsync()) return;
+        if (!await LeaveRecordEditorAsync()) return;
         await RunAsync(async () =>
     {
         var opened = await connection.Ledgers.OpenAsync(ledgerId, lifetime.Token);
@@ -105,7 +105,7 @@ public sealed partial class MainWindow
 
     private async void ShowLedgerMenu(object sender, RoutedEventArgs args)
     {
-        if (busy || ManagementDialogOpen || !await LeaveReceiptEditorAsync()) return;
+        if (busy || ManagementDialogOpen || !await LeaveRecordEditorAsync()) return;
         ledgerMenu = null;
         await RunAsync(async () =>
         {

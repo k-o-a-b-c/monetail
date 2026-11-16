@@ -40,6 +40,7 @@ public sealed partial class MainWindow
     private void ResetTransfers()
     {
         transferState?.Dispose(); transferState = null; transferRows.Clear(); transferScrollIntent = transferQueuedUserScroll = false;
+        transferSavedSelection = null; transferRestorePending = transferRestoringSaved = false; transferReturnOffset = transferReturnHorizontalOffset = 0;
     }
     private void StartTransferHome(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken)
     {
@@ -63,8 +64,10 @@ public sealed partial class MainWindow
     private void RenderTransferState()
     {
         if (closed || transferState is not { } state) return;
-        if (receiptEditor is null && HomePage.Visibility == Visibility.Visible && state.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
+        if (!RecordEditorActive && HomePage.Visibility == Visibility.Visible && state.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
         { ShowLogin("ログインを継続できません。もう一度ログインしてください。"); return; }
+        TransferReturnToStart.Visibility = state.FocusTransferId is not null && state.HasLoaded ? Visibility.Visible : Visibility.Collapsed;
+        TransferRegisterPlaceholder.IsEnabled = transferOpening is null && TransferMethods is { } methods && TransferEditorRules.CanCreate(methods);
         TransferInitialProgress.IsActive = state.IsInitialLoading;
         TransferInitialNotice.Visibility = state.IsInitialLoading ? Visibility.Visible : Visibility.Collapsed;
         TransferEmpty.Visibility = state.HasLoaded && state.Rows.Count == 0 && state.Failure is null && !state.IsLoading ? Visibility.Visible : Visibility.Collapsed;
@@ -102,7 +105,13 @@ public sealed partial class MainWindow
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down)) return;
         args.Handled = true; await ApplyTransferTextAsync();
     }
-    private async void RetryTransfer(object sender, RoutedEventArgs args) { if (transferState is { } state) await state.RetryAsync(lifetime.Token); }
+    private async void RetryTransfer(object sender, RoutedEventArgs args)
+    {
+        if (transferState is not { } state) return;
+        if (transferSavedSelection is Guid id && recordSearch is not null) { transferRestoringSaved = true; try { await state.ShowSavedAsync(recordSearch.TransferQuery(), id, lifetime.Token); SelectSavedTransferRow(); } finally { transferRestoringSaved = false; } }
+        else await state.RetryAsync(lifetime.Token);
+    }
+    private async void ReturnTransferToStart(object sender, RoutedEventArgs args) { transferSavedSelection = null; if (transferState is { } state) await state.ReturnToStartAsync(lifetime.Token); }
     private async void ContinueTransfer(object sender, RoutedEventArgs args) { if (transferState is { } state) await state.ContinueAsync(lifetime.Token); }
     private void TransferSelected(object sender, SelectionChangedEventArgs args) { if (transferState is { } state) state.SelectedTransferId = (TransferList.SelectedItem as TransferRow)?.Transfer.TransferId; }
     private void TransferListLoaded(object sender, RoutedEventArgs args)
@@ -129,12 +138,12 @@ public sealed partial class MainWindow
     private void ScheduleTransferViewport(bool user)
     {
         transferQueuedUserScroll |= user;
-        if (transferViewportQueued || closed || HomePage.Visibility != Visibility.Visible || receiptEditor is not null || transferState is null) return;
+        if (transferViewportQueued || closed || HomePage.Visibility != Visibility.Visible || RecordEditorActive || transferRestoringSaved || transferState is null) return;
         transferViewportQueued = true;
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, async () =>
         {
             transferViewportQueued = false; var scrolled = transferQueuedUserScroll; transferQueuedUserScroll = false;
-            if (closed || HomePage.Visibility != Visibility.Visible || receiptEditor is not null || transferState is not { } state || transferScroller is null) return;
+            if (closed || HomePage.Visibility != Visibility.Visible || RecordEditorActive || transferRestoringSaved || transferState is not { } state || transferScroller is null) return;
             var panel = TransferList.ItemsPanelRoot as ItemsStackPanel;
             await state.ObserveViewportAsync(panel?.LastVisibleIndex ?? -1, transferScroller.ScrollableHeight > 0, scrolled, lifetime.Token);
         });

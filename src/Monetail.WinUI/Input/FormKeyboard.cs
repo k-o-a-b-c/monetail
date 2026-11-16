@@ -38,17 +38,19 @@ internal sealed class FormKeyboard
         {
             if (args.Key == VirtualKey.Enter) completingWithEnter = false;
         }), true);
-        foreach (var input in inputs)
+        foreach (var input in inputs) ObserveInput(input);
+    }
+    private readonly HashSet<TextBox> observed = [];
+    internal void ObserveInput(TextBox input)
+    {
+        if (!observed.Add(input)) return;
+        input.TextCompositionStarted += (_, _) => composing.Add(input);
+        input.TextCompositionEnded += (_, _) =>
         {
-            input.TextCompositionStarted += (_, _) => composing.Add(input);
-            input.TextCompositionEnded += (_, _) =>
-            {
-                composing.Remove(input);
-                // 変換終了がKeyDownより先に通知されても、その確定キーでは移動・保存しない。
-                completingWithEnter |= Down(VirtualKey.Enter);
-            };
-            input.LostFocus += (_, _) => composing.Remove(input);
-        }
+            composing.Remove(input);
+            completingWithEnter |= Down(VirtualKey.Enter);
+        };
+        input.LostFocus += (_, _) => composing.Remove(input);
     }
 
     public bool IsComposing => composing.Count != 0 || completingWithEnter;

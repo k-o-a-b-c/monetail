@@ -43,6 +43,10 @@ public sealed class ReceiptSearchState
         if (!pendingText) MonthText = Format(Month);
         return true;
     }
+    public void SelectMonth(DateOnly date)
+    {
+        Month = new(date.Year, date.Month, 1); MonthText = Format(Month); AllPeriods = false; MonthError = null;
+    }
     public string AppliedMonth => Format(Month);
     public ReceiptListQuery Query() => new(AllPeriods ? "all" : Format(Month), OwnerPersonId, PaymentMethodId, AppliedShop);
     private static string Format(DateOnly month) => month.ToString("yyyy-MM", CultureInfo.InvariantCulture);
