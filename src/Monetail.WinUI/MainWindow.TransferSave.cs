@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Authentication;
@@ -25,7 +26,17 @@ public sealed partial class MainWindow
     private async void SaveTransfer(object sender, RoutedEventArgs args) => await SaveTransferAsync(ReferenceEquals(sender, TransferReuse));
     private async Task<bool> SaveTransferAsync(bool reuse, bool returnToList = true)
     {
-        if (transferEditor is not { } state || currentLedger is null || TransferFrozen || transferDialogOpen) return false;
+        if (transferEditor is not { } state || currentLedger is null || TransferFrozen || transferDialogOpen || transferPreparingSave) return false;
+        // TextChangedは非同期。プレビュー表示を読み戻さず、利用者入力の通知を先に処理する。
+        transferPreparingSave = true;
+        try
+        {
+            var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => { delivered.TrySetResult(true); })) return false;
+            await delivered.Task;
+        }
+        finally { transferPreparingSave = false; }
+        if (closed || !ReferenceEquals(state, transferEditor) || currentLedger is null || TransferFrozen) return false;
         TransferDate.Complete(); TransferTime.Complete(); SyncTransferInput();
         TransferSavePreparation prepared;
         try { prepared = PrepareTransfer(reuse); }
@@ -45,7 +56,7 @@ public sealed partial class MainWindow
     }
     private async void DeleteTransfer(object sender, RoutedEventArgs args)
     {
-        if (transferEditor is not { } state || currentLedger is null || TransferFrozen || transferDialogOpen) return;
+        if (transferEditor is not { } state || currentLedger is null || TransferFrozen || transferDialogOpen || transferPreparingSave) return;
         if (await ConfirmTransferAsync("振替の削除", $"「{state.Draft.Name}」を削除しますか？", "削除") != ContentDialogResult.Primary || !ReferenceEquals(state, transferEditor) || TransferFrozen) return;
         var target = state.PrepareDelete(); transferPendingSnapshot = null;
         transferPending = TransferWriteRequest.Delete(currentLedger.LedgerId, target.TransferId, target.Revision);
@@ -140,7 +151,7 @@ public sealed partial class MainWindow
     }
     private async Task<bool> LeaveTransferEditorAsync()
     {
-        if (transferSending || transferDialogOpen || transferLeaving) return false;
+        if (transferSending || transferDialogOpen || transferLeaving || transferPreparingSave) return false;
         if (transferEditor is not { } state) { CancelTransferOpening(); return true; }
         SyncTransferInput(); transferLeaving = true;
         try

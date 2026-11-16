@@ -92,15 +92,10 @@ public sealed partial class MainWindow
         transferRendering = true; TransferName.Text = editor.Draft.Name; transferNamePreview = null; transferRendering = false;
     }
     private void DismissTransferNames() { transferSuggestionsSuppressed = true; CancelTransferSuggestions(); }
-    private void CaptureTransferTypedName()
-    {
-        if (transferRendering || TransferFrozen || transferNamePreview is not null || transferEditor is not { } editor || editor.Draft.Name == TransferName.Text) return;
-        transferAutofillCancellation?.Cancel(); transferAutofillKey = null; editor.Draft.Name = TransferName.Text;
-    }
     private void TransferNameLostFocus(object sender, RoutedEventArgs args)
     {
         if (TransferFrozen || transferEditor is null) return;
-        CaptureTransferTypedName(); RestoreTransferTypedName(); DismissTransferNames();
+        RestoreTransferTypedName(); DismissTransferNames();
         if (!transferNameFocusTransition) _ = AutofillTransferAsync();
     }
     private void TransferNamePreviewKeyDown(object sender, KeyRoutedEventArgs args)

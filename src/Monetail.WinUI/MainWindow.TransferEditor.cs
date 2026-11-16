@@ -18,7 +18,7 @@ public sealed partial class MainWindow
     private TransferEditorState? transferEditor;
     private CancellationTokenSource? transferOpening;
     private Guid? transferOpenRetry;
-    private bool transferRendering, transferDialogOpen, transferLeaving, transferCloseApproved, transferStopped, transferSending, transferUnknown, transferRestoringSaved, transferRestorePending;
+    private bool transferRendering, transferDialogOpen, transferLeaving, transferCloseApproved, transferStopped, transferSending, transferUnknown, transferRestoringSaved, transferRestorePending, transferPreparingSave;
     private TransferWriteRequest? transferPending;
     private TransferSnapshot? transferPendingSnapshot;
     private FormKeyboard transferKeyboard = null!;
@@ -135,7 +135,6 @@ public sealed partial class MainWindow
     private void SyncTransferInput()
     {
         if (transferRendering || TransferFrozen || transferEditor is not { } state) return;
-        CaptureTransferTypedName();
         var date = DateTime.TryParseExact(TransferDate.Text, "yyyy/MM/dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day) ? DateOnly.FromDateTime(day) : (DateOnly?)null;
         var time = TimeOnly.TryParseExact(TransferTime.Text, "HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var clock) ? clock : (TimeOnly?)null;
         state.Draft.SetDate(date, date is null ? TransferDate.Text : null); state.Draft.SetTime(time, time is null ? TransferTime.Text : null);

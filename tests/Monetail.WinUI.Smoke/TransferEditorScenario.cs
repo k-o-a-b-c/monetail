@@ -83,12 +83,11 @@ public partial class App
         await Wait(() => TransferEditing is not null && Find<AutoSuggestBox>(root, "TransferName").IsLoaded);
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Draft.Amount is null && TransferEditing.Draft.From.PaymentMethodId is null && TransferEditing.IsMidnight == true, "振替新規は当日0時・支払方法と金額未入力で未変更");
         Check(Find<Grid>(root, "RecordContent").Visibility == Visibility.Collapsed && Find<Grid>(root, "TransferEditorPage").Visibility == Visibility.Visible && Find<Button>(root, "TransferDelete").Visibility == Visibility.Collapsed, "振替専用画面は3一覧を置き換え共通ヘッダーと左上戻るを保持");
-        await FillTransfer(root, masters); var input = TransferEditing;
+        await FillTransfer(root, masters, " ATM "); var input = TransferEditing;
         Find<TextBox>(root, "TransferAmount").Text = "2147483648";
         await Wait(() => input!.Draft.UnresolvedAmountText == "2147483648" && !Find<Button>(root, "TransferSave").IsEnabled);
         Check(!Find<Button>(root, "TransferSave").IsEnabled && TransferEditing == input && input.Draft.UnresolvedAmountText == "2147483648", "Int32超過の生入力を保持し保存不可");
         Find<TextBox>(root, "TransferAmount").Text = "1000"; Find<TextBox>(root, "TransferMemo").Text = " ";
-        Find<AutoSuggestBox>(root, "TransferName").Text = " ATM ";
         await Wait(() => TransferEditing!.Draft.Amount == 1000 && TransferEditing.Draft.Memo == " " && Find<Button>(root, "TransferSave").IsEnabled);
         var keyboard = (FormKeyboard)typeof(MainWindow).GetField("transferKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
         await FocusTransferControl(Find<TextBox>(root, "TransferMemo")); await keyboard.HandleEnter(false, false)!;
@@ -96,7 +95,7 @@ public partial class App
         catch (TaskCanceledException error) { throw new InvalidOperationException($"メモEnter後: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; saveEnabled={Find<Button>(root, "TransferSave").IsEnabled}; composing={keyboard.IsComposing}", error); }
         Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave")) && server.Writes.Count == 0, "メモのEnterは保存ボタンへ移動するだけで登録しない");
         await PressReceiptKey(0x0D, 0x11); await Wait(() => TransferEditing is null && Find<ListView>(root, "TransferList").Items.Count == 1);
-        var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == " ATM " && server.Writes.Count == 1, "振替POSTは未通知の表示入力も取り込みTrimせず現在の6項目を送り201空本文とLocationから保存行へ戻る");
+        var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == " ATM " && server.Writes.Count == 1, "振替POSTは入力通知を処理してからTrimせず現在の6項目を送り201空本文とLocationから保存行へ戻る");
         Check(((TransferRow)Find<ListView>(root, "TransferList").SelectedItem).Transfer.TransferId == saved.TransferId, "登録成功後は保存行を選択する");
         Find<ListView>(root, "TransferList").SelectedIndex = 0; await Settle(); Check(server.Details == 0, "振替の単一選択は詳細GETしない");
         await DoubleClickTransfer(root); await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded);
