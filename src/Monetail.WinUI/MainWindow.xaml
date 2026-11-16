@@ -325,7 +325,7 @@
                     <Button x:Name="TransferBack" TabIndex="0" Content="← 戻る" Click="TransferBackClicked" AutomationProperties.Name="振替一覧に戻る"/>
                     <TextBlock x:Name="TransferEditorTitle" Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" VerticalAlignment="Center"/>
                 </StackPanel>
-                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer x:Name="TransferInputScroller" TabIndex="1" IsTabStop="False" TabFocusNavigation="Local" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="12" MaxWidth="720" HorizontalAlignment="Stretch">
                         <InfoBar x:Name="TransferEditorNotice" IsOpen="False" IsClosable="False" Severity="Error" AutomationProperties.LiveSetting="Polite"/>
                         <Grid ColumnSpacing="12">

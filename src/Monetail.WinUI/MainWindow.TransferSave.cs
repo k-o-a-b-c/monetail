@@ -20,7 +20,7 @@ public sealed partial class MainWindow
             dialog.PrimaryButtonText = primary; dialog.SecondaryButtonText = secondary; dialog.CloseButtonText = close; dialog.DefaultButton = ContentDialogButton.Close;
             return await dialog.ShowAsync();
         }
-        finally { transferDialogOpen = false; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false; }
+        finally { transferDialogOpen = false; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false; RenderTransferEditor(); }
     }
     private async void SaveTransfer(object sender, RoutedEventArgs args) => await SaveTransferAsync(ReferenceEquals(sender, TransferReuse));
     private async Task<bool> SaveTransferAsync(bool reuse, bool returnToList = true)
