@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Windowing;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transfers;
@@ -59,6 +60,12 @@ public partial class App
     }
     private async Task DoubleClickTransfer(FrameworkElement root)
     {
+        var editorWindow = window ?? throw new InvalidOperationException("振替一覧のWindowがありません。");
+        // 連続生成したWindowはOSにより位置がずれる。実マウスを送る前に画面内へ配置する。
+        var area = DisplayArea.GetFromWindowId(editorWindow.AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+        TraceInvocation($"transferDoubleClick: position={editorWindow.AppWindow.Position.X},{editorWindow.AppWindow.Position.Y}; workArea={area.X},{area.Y},{area.Width},{area.Height}");
+        editorWindow.AppWindow.Move(new PointInt32(area.X, area.Y));
+        await Wait(() => editorWindow.AppWindow.Position.X == area.X && editorWindow.AppWindow.Position.Y == area.Y);
         var list = Find<ListView>(root, "TransferList"); list.ScrollIntoView(list.SelectedItem);
         await Wait(() => list.ContainerFromItem(list.SelectedItem) is FrameworkElement { IsLoaded: true, ActualWidth: > 0 });
         var item = (FrameworkElement)list.ContainerFromItem(list.SelectedItem);
@@ -68,7 +75,10 @@ public partial class App
         await ActivateReceiptInputWindowAsync();
         var logical = label.TransformToVisual(root).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2)); var scale = root.XamlRoot.RasterizationScale;
         var point = new ReceiptScreenPoint { X = (int)Math.Round(logical.X * scale), Y = (int)Math.Round(logical.Y * scale) };
-        if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(window!), ref point) || !SetCursorPos(point.X, point.Y)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(editorWindow), ref point)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        TraceInvocation($"transferDoubleClick: point={point.X},{point.Y}; scale={scale}");
+        if (point.X < area.X || point.Y < area.Y || point.X >= area.X + area.Width || point.Y >= area.Y + area.Height) throw new InvalidOperationException("振替のクリック対象が画面外です。");
+        if (!SetCursorPos(point.X, point.Y)) throw new Win32Exception(Marshal.GetLastWin32Error());
         var events = new uint[] { 2, 4 }.Select(flag => new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = flag } } }).ToArray();
         if (SendInput(2, events, Marshal.SizeOf<ReceiptNativeInput>()) != 2) throw new Win32Exception(Marshal.GetLastWin32Error());
         // 2回の押下を別の入力ターンで配信し、同一タイムスタンプの合成クリックにしない。
