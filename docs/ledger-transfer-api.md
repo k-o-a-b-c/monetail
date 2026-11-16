@@ -1,6 +1,6 @@
 # 振替API契約（基本CRUD・候補・自動補完GET実装済み）
 
-更新: 2026-11-15。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GET・新規POST・更新PUT・削除DELETE・振替名候補GET・自動補完GETを実装済み。振替Client/WinUIの実装状態とは区別する。
+更新: 2026-11-16。振替の**権限・HTTP・JSON・一覧／フォーカスページング・候補／補完・再送・競合**の正本。振替の一覧GET・詳細GET・新規POST・更新PUT・削除DELETE・振替名候補GET・自動補完GETを実装済み。振替Client/WinUIの実装状態とは区別する。
 
 参照：[入口・残課題](ledger-transfer.md)／[DB・値域](ledger-transfer-db.md)／[WinUI画面](ledger-transfer-ui.md)／[レシートAPI](ledger-receipt-api.md)／[共通再送](ledger-operation-retries.md)。
 

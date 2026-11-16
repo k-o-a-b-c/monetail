@@ -9,11 +9,11 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1218 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1222 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（振替入力／既存全画面の2シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3644 |
+| 合計 | 3648 |
 
 ## WinUI：振替専用入力・候補補完・保存（第3工程）
 
@@ -23,11 +23,21 @@
 
 `run.ps1`は製品を一度起動確認し、新しい振替入力と既存全画面を別の検証プロセスで実行する。どちらも従来の120秒上限を維持し、既存回帰を省略しない。実画面試験でスクロール境界のTab順と`TransferWriteUncertainException`受信漏れを修正。合成操作も実フォーカス/入力通知後の状態・Unspecifiedの秒精度日時に整え、既存の判定条件を緩和していない。保存準備では利用者入力の通知を配送してから値を検証し、未確定候補の表示文字列を業務入力へ読み戻さない。
 
-最終ソース`5efc9919f0661e45b44aef3f152740d120cef983`の[Tests 43845775781](https://github.com/k-o-a-b-c/monetail/actions/runs/43845775781)が成功。製品/検証用のWinUI x64 Releaseビルド（30警告/34警告・各0エラー）、製品起動、振替入力57確認＋既存483確認＝全540確認が成功した。検証用には新規シナリオのnullable参照警告2箇所が残る（ビルド出力では各パス分を計上）。本作業の実行で0xC0000005は観測していないが、過去のアクセス違反の根本原因解消を証明するものではない。
+レビュー前ソース`5efc9919f0661e45b44aef3f152740d120cef983`の[Tests 43845775781](https://github.com/k-o-a-b-c/monetail/actions/runs/43845775781)が成功。製品/検証用のWinUI x64 Releaseビルド（30警告/34警告・各0エラー）、製品起動、振替入力57確認＋既存483確認＝全540確認が成功した。当初残っていたnullable参照警告2箇所は下記レビュー対応で解消。本作業の実行で0xC0000005は観測していないが、過去のアクセス違反の根本原因解消を証明するものではない。
 
 変更前は基点main `6958ae9a5ed242fcf6eb3f52111b354ca1e21f70`の[push Tests 43828563302](https://github.com/k-o-a-b-c/monetail/actions/runs/43828563302)成功を採用。Clientと影響外のAPI/Docker/旧Windows/性能等はCIの選択/fingerprintに従って成功記録を再利用し、影響外の全件をローカルで再実行していない。API/DB/Migration・外部ライブラリは変更していない。
 
 実API/NAS、実Windowsの物理IME・タッチ・高DPI/ハイコントラスト等の手動確認は未実施。実キー/マウス注入は合成CIの確認であり、実機手動の受入済みとは扱わない。LinuxではWinAppCLIを使用できず、[公式GalleryのAutoSuggestBox](https://github.com/microsoft/WinUI-Gallery/blob/main/WinUIGallery/Samples/AutoSuggestBox/AutoSuggestBoxPage.xaml.cs)のイベントと既存SDKによるWindowsビルドで照合。競合latest採用・同一本人への再認証後復元・残高連動は[実装境界](../docs/ledger-transfer-ui.md#第3工程の実装境界)のとおり次工程。
+
+### PR #185のレビュー対応
+
+同一支払方法のエラーを振替先直下へ分離し、選択保持・指定文言・修正時解除・保存ボタン/Ctrl+Enterの禁止を実画面で検証する。Windowの明示的なnull検証でCS8602を解消し、API正本と旧版比較資料の実装状態を同期した。
+
+メモは実クリップボード/Ctrl+VでCR・LF・CRLFを検証する。当初の全文保持要求に対し、標準1行TextBoxは1行目に切り詰め、Paste捕捉後のText設定でも同じ結果となった（[初回](https://github.com/k-o-a-b-c/monetail/actions/runs/43853482727)、[捕捉後](https://github.com/k-o-a-b-c/monetail/actions/runs/43854108283)の失敗）。2026-11-16の利用者承認に従い独自Paste処理を撤去し、標準動作・元クリップボード不変・貼り付けだけで送信しないこと・全削除時のnullを検証する期待値へ変更した。追加試験は明示破棄で編集離脱を完了し、次の合成Windowへ閉鎖確認を持ち越さない。既存の実ダブルクリック試験はWindowをOSの作業領域内へ配置し、対象の画面座標も確認する（待機上限・成功条件は維持）。TextBox全体の改行除去方式は[保留](../docs/59-input-controls-design.md#貼り付け時の改行処理保留)。API/Clientへ直接渡す改行入りメモは引き続き拒否する。
+
+Clientには同一IDとCR/LF/CRLFの入力/保存済みID/版の保全4件を追加。ローカルは最小4件と関連144件が成功（重複あり）。Clientソース/テストが同じ`06effd34464062ebb185f42dd8f05371627049e4`の[Clientジョブ133253929662](https://github.com/k-o-a-b-c/monetail/actions/runs/43854108283/job/133253929662)で全1222件が成功（親run全体は当時の貼り付け試験で失敗）。
+
+レビュー修正の最終ソース`0d75d4b84c56f910c71d5b211ed9a148f047ee06`の[Tests 43858400897](https://github.com/k-o-a-b-c/monetail/actions/runs/43858400897)が成功。製品/検証用WinUI x64 Releaseビルドは各30警告/0エラー（対象CS8602は0件）、製品起動と振替入力71確認＋既存483確認＝全554確認が成功した。既存のx:Bind等の警告は残る。実API/NAS・物理IME/タッチ/高DPI/ハイコントラストの手動確認は未実施。
 
 ## WinUI：振替一覧・記録ホームの共通フィルター
 
