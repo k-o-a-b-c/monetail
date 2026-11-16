@@ -22,17 +22,20 @@ public sealed partial class MainWindow
 {
     private ReceiptListState? receiptState;
     private ReceiptSearchState? receiptSearch;
+    private RecordSearchState? recordSearch;
+    private CancellationTokenSource? recordMasterLifetime;
     private readonly ObservableCollection<ReceiptRow> receiptRows = [];
     private ScrollViewer? receiptScroller;
     private FormKeyboard receiptKeyboard = null!;
     private bool receiptFiltersUpdating, receiptViewportQueued, receiptScrollIntent;
     private double receiptPreviousOffset;
-    internal bool ReceiptHomeReady => account is null || receiptState is { HasLoaded: true } or { Failure: not null };
+    internal bool ReceiptHomeReady => account is null || (receiptState is { HasLoaded: true } or { Failure: not null }) && TransferHomeReady;
 
     private void InitializeReceipts()
     {
         ReceiptList.ItemsSource = receiptRows;
-        receiptKeyboard = new FormKeyboard(ReceiptFilters, null, null, ReceiptMonth, ReceiptShop);
+        InitializeTransfers();
+        receiptKeyboard = new FormKeyboard(RecordContent, null, null, ReceiptMonth, ReceiptShop, TransferNameSearch);
         connection.Masters.Changed += ReceiptMasterChanged;
         ReceiptList.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, _) => receiptScrollIntent = receiptScroller?.ScrollableHeight > 0), true);
         ReceiptList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, args) =>
@@ -46,6 +49,7 @@ public sealed partial class MainWindow
     private void ResetReceipts()
     {
         ResetReceiptEditor(); receiptRestorePending = false;
+        ResetTransfers(); recordSearch = null; recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose(); recordMasterLifetime = null;
         receiptState?.Dispose(); receiptState = null; receiptSearch = null;
         connection.Masters.Clear(); receiptRows.Clear(); receiptScrollIntent = false;
     }
@@ -53,13 +57,13 @@ public sealed partial class MainWindow
     {
         if (account is null || currentLedger is null) return;
         var ledger = currentLedger.LedgerId; var api = connection.Api; var session = connection.Session;
-        receiptSearch = new(DateOnly.FromDateTime(DateTime.Now));
-        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; ReceiptShop.Text = ""; ReceiptAllPeriods.IsChecked = false; receiptFiltersUpdating = false;
+        recordSearch = new(DateOnly.FromDateTime(DateTime.Now)); receiptSearch = recordSearch.Receipts;
+        recordMasterLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); var masterToken = recordMasterLifetime.Token;
+        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; ReceiptShop.Text = TransferNameSearch.Text = ""; RecordMonthPeriod.IsChecked = true; receiptFiltersUpdating = false;
         var workspace = new ReceiptsWorkspace(api, session, ledger);
         var state = new ReceiptListState(async (query, token) =>
         {
-            await connection.Masters.GetPeopleAsync(ledger, ct => new PeopleWorkspace(api, session, ledger).ListAsync(ct), token);
-            await connection.Masters.GetPaymentsAsync(ledger, ct => new PaymentMethodsWorkspace(api, session, ledger).ListAsync(ct), token);
+            await GetRecordMastersAsync(ledger, api, session, masterToken, token);
             return await workspace.ListAsync(query, token);
         });
         receiptState = state;
@@ -72,12 +76,22 @@ public sealed partial class MainWindow
         };
         state.Changed += () => { if (ReferenceEquals(receiptState, state)) RenderReceiptState(); };
         RefreshReceiptChoices(); _ = state.StartAsync(receiptSearch.Query(), lifetime.Token);
+        StartTransferHome(ledger, api, session, masterToken);
+    }
+    private async Task GetRecordMastersAsync(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken, CancellationToken token)
+    {
+        // 検索変更で片方の待機を中断しても、もう片方が共有するマスタ取得は中断しない。
+        token.ThrowIfCancellationRequested();
+        await connection.Masters.GetPeopleAsync(ledger, ct => new PeopleWorkspace(api, session, ledger).ListAsync(ct), masterToken).WaitAsync(token);
+        token.ThrowIfCancellationRequested();
+        await connection.Masters.GetPaymentsAsync(ledger, ct => new PaymentMethodsWorkspace(api, session, ledger).ListAsync(ct), masterToken).WaitAsync(token);
     }
     private void ReceiptMasterChanged(Guid ledger)
     {
         if (currentLedger?.LedgerId != ledger || closed) return;
         RefreshReceiptEditorChoices();
         RefreshReceiptChoices(); foreach (var row in receiptRows) row.RefreshName();
+        foreach (var row in transferRows) row.RefreshName();
     }
     private void RefreshReceiptChoices()
     {
@@ -122,7 +136,7 @@ public sealed partial class MainWindow
         if (receiptSearch is { } search)
         {
             ReceiptAppliedMonth.Text = "適用中：" + (search.AllPeriods ? "全期間" : search.AppliedMonth);
-            ReceiptMonth.IsEnabled = !search.AllPeriods; ReceiptPrevious.IsEnabled = search.CanMove(-1); ReceiptNextMonth.IsEnabled = search.CanMove(1);
+            ReceiptMonth.IsEnabled = !search.AllPeriods; RecordMonthApply.IsEnabled = !search.AllPeriods; ReceiptPrevious.IsEnabled = search.CanMove(-1); ReceiptNextMonth.IsEnabled = search.CanMove(1);
         }
         ScheduleReceiptViewport(false);
     }
@@ -130,9 +144,10 @@ public sealed partial class MainWindow
     private async Task ApplyReceiptTextAsync()
     {
         if (receiptSearch is null || receiptState is null) return;
+        var previousMonth = receiptSearch.Query().Month;
         receiptSearch.MonthText = ReceiptMonth.Text; receiptSearch.ShopText = ReceiptShop.Text;
         if (!receiptSearch.ApplyText()) { RenderReceiptState(); ReceiptMonth.Focus(FocusState.Programmatic); return; }
-        await receiptState.StartAsync(receiptSearch.Query(), lifetime.Token);
+        await ReloadRecordsAsync(true, receiptSearch.Query().Month != previousMonth);
     }
     private async void ReceiptTextKeyDown(object sender, KeyRoutedEventArgs args)
     {
@@ -140,7 +155,8 @@ public sealed partial class MainWindow
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down) ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down)) return;
-        args.Handled = true; await ApplyReceiptTextAsync();
+        args.Handled = true;
+        if (ReferenceEquals(sender, ReceiptMonth)) await ApplyRecordMonthAsync(); else await ApplyReceiptTextAsync();
     }
     private void ReceiptDraftChanged(object sender, TextChangedEventArgs args)
     { if (!receiptFiltersUpdating && receiptSearch is { } search) { search.MonthText = ReceiptMonth.Text; search.ShopText = ReceiptShop.Text; } }
@@ -148,22 +164,37 @@ public sealed partial class MainWindow
     {
         if (receiptSearch is null || receiptState is null || !receiptSearch.MoveMonth(ReferenceEquals(sender, ReceiptPrevious) ? -1 : 1)) return;
         receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; receiptFiltersUpdating = false;
-        await receiptState.StartAsync(receiptSearch.Query(), lifetime.Token);
+        await ReloadRecordsAsync(true, true);
     }
     private async void ReceiptPeriodChanged(object sender, RoutedEventArgs args)
     {
         if (receiptFiltersUpdating || receiptSearch is null || receiptState is null) return;
-        receiptSearch.AllPeriods = ReceiptAllPeriods.IsChecked == true; await receiptState.StartAsync(receiptSearch.Query(), lifetime.Token);
+        receiptSearch.AllPeriods = ReferenceEquals(sender, ReceiptAllPeriods); await ReloadRecordsAsync(true, true);
     }
     private async void ReceiptOwnerChanged(object sender, SelectionChangedEventArgs args)
     {
         if (receiptFiltersUpdating || receiptSearch is null || receiptState is null || ReceiptOwner.SelectedItem is not ReceiptFilterChoice value) return;
-        receiptSearch.OwnerPersonId = value.Id; await receiptState.StartAsync(receiptSearch.Query(), lifetime.Token);
+        receiptSearch.OwnerPersonId = value.Id; await ReloadRecordsAsync(true, true);
     }
     private async void ReceiptPaymentChanged(object sender, SelectionChangedEventArgs args)
     {
         if (receiptFiltersUpdating || receiptSearch is null || receiptState is null || ReceiptPayment.SelectedItem is not ReceiptFilterChoice value) return;
-        receiptSearch.PaymentMethodId = value.Id; await receiptState.StartAsync(receiptSearch.Query(), lifetime.Token);
+        receiptSearch.PaymentMethodId = value.Id; await ReloadRecordsAsync(true, true);
+    }
+    private async void ApplyRecordMonth(object sender, RoutedEventArgs args) => await ApplyRecordMonthAsync();
+    private async Task ApplyRecordMonthAsync()
+    {
+        if (receiptSearch is null) return;
+        receiptSearch.MonthText = ReceiptMonth.Text;
+        if (!receiptSearch.ApplyMonthText()) { RenderReceiptState(); ReceiptMonth.Focus(FocusState.Programmatic); return; }
+        await ReloadRecordsAsync(true, true);
+    }
+    private async Task ReloadRecordsAsync(bool receipts, bool transfers)
+    {
+        if (receiptSearch is null || recordSearch is null) return;
+        var receipt = receipts && receiptState is not null ? receiptState.StartAsync(receiptSearch.Query(), lifetime.Token) : Task.CompletedTask;
+        var transfer = transfers && transferState is not null ? transferState.StartAsync(recordSearch.TransferQuery(), lifetime.Token) : Task.CompletedTask;
+        RenderReceiptState(); await Task.WhenAll(receipt, transfer);
     }
     private async void RetryReceipt(object sender, RoutedEventArgs args) { if (receiptState is { } state) await state.RetryAsync(lifetime.Token); }
     private async void ContinueReceipt(object sender, RoutedEventArgs args) { if (receiptState is { } state) await state.ContinueAsync(lifetime.Token); }

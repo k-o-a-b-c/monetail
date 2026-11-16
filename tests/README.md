@@ -9,11 +9,21 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1165 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル） | 1192 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（1シナリオ） | 1 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 75 |
-| 合計 | 3590 |
+| 合計 | 3617 |
+
+## WinUI：振替一覧・記録ホームの共通フィルター
+
+[TransferListStateTests.cs](Monetail.Windows.Client.Tests/TransferListStateTests.cs)・[TransferPagingTests.cs](Monetail.Windows.Client.Tests/TransferPagingTests.cs)にClient新規27件を追加。共通条件と独立した店名/振替名の下書き、年月境界、0/1/99/100/101/201件、API順/カーソル/選択、300件補充上限・続行、二重取得、手動再試行、invalid_cursorの1回復旧、検索変更・中断/復帰・旧応答破棄を検証する。ローカルReleaseは最小2件→関連30件→追加の旧検索応答1件が成功（段階間に重複あり、失敗/skipなし）。関連検証の初回はコピー元型名が残ったコンパイルエラーで未実行となり、既存共通検索モデルへ修正した。
+
+[TransferListScenario.cs](Monetail.WinUI.Smoke/TransferListScenario.cs)・[TransferNavigationScenario.cs](Monetail.WinUI.Smoke/TransferNavigationScenario.cs)で初期配置、6列表示、共通AND条件、独立した文字列検索、狭幅1行/横スクロール/画面外への標準フォーカス移動・UIA、一覧スクロールとの独立、0件/読込/失敗/再試行、401/404、初回と追加取得の中断・同一条件での復帰/選択/非先頭スクロール保持を追加。振替/残高の登録入口は無効のままで、振替一覧GETだけを呼ぶ。スモーク作成中の失敗は、検証プロジェクトの新規ソース参照漏れ、名前のない既存ボタンの検索方式、通信完了直後の描画未確定での寸法確認を修正した。寸法は`UpdateLayout()`後に確認し、判定条件やタイムアウトは緩和していない。
+
+変更前は基点main `1d35a04a6d4fa030291eeab1bfc7a55aea8d2182`の[push Tests 43776723558](https://github.com/k-o-a-b-c/monetail/actions/runs/43776723558)成功を採用。Clientソース/テスト`d40771254b07e32d457a1e4c538574ff1b596fb0`の[Tests 43816241940](https://github.com/k-o-a-b-c/monetail/actions/runs/43816241940)で全1192件（失敗/skipなし）が成功し、最終ソース`f706ad3a61fa05765fae1844b1bda0c6bb135bb2`の[Tests 43817480270](https://github.com/k-o-a-b-c/monetail/actions/runs/43817480270)でWinUI製品/検証用x64 Releaseビルド・製品起動・既存449確認を含む全483確認が成功。両ビルドは各30警告/0エラー。Client・API・Docker・旧Windows・性能等はCIの選択/fingerprintに従って成功記録を再利用した。API/DB/外部ライブラリは変更せず、実運用データへ操作していない。
+
+実API/NAS接続、実Windowsでのマウス/タッチ/Tab、Light/Dark/ハイコントラスト・高DPIの手動確認は未実施（Darkと標準フォーカス/UIAは合成スモークで確認）。Linux環境にはWinAppCLIがなくWindows用実行物も使用できないため、標準コントロールを既存SDKのWindowsビルド/スモークで検証した。振替入力・保存後focus・残高API・スプリッター/比率保存は後続。
 
 ## Windows Client：振替編集状態モデル
 

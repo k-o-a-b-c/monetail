@@ -133,16 +133,29 @@
                 </Button>
             </Grid>
             <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
-            <Grid x:Name="RecordContent" Grid.Row="2" ColumnSpacing="24" RowSpacing="24">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="3*" />
-                    <ColumnDefinition Width="2*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-                <Border Grid.RowSpan="2" Style="{StaticResource Card}">
+            <Grid x:Name="RecordContent" Grid.Row="2" ColumnSpacing="12" RowSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="6*"/><RowDefinition Height="4*"/></Grid.RowDefinitions>
+                <Grid x:Name="RecordFilters" Grid.ColumnSpan="2" RowSpacing="8">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <ScrollViewer x:Name="RecordFilterScroller" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled"
+                                  BringIntoViewOnFocusChange="True" IsTabStop="False" AutomationProperties.Name="記録の共通フィルター" AutomationProperties.AutomationId="RecordFilterScroller">
+                        <StackPanel x:Name="RecordFilterRow" Orientation="Horizontal" Spacing="8">
+                            <RadioButton MinWidth="0" x:Name="RecordMonthPeriod" Content="月指定" GroupName="RecordPeriod" IsChecked="True" Checked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="RecordMonthPeriod"/>
+                            <RadioButton MinWidth="0" x:Name="ReceiptAllPeriods" Content="全期間" GroupName="RecordPeriod" Checked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptAllPeriods"/>
+                            <Button MinWidth="0" x:Name="ReceiptPrevious" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptPrevious"/>
+                            <TextBox x:Name="ReceiptMonth" Header="年月" Width="112" PlaceholderText="YYYY-MM" TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptMonth"/>
+                            <Button MinWidth="0" x:Name="ReceiptNextMonth" Content="翌月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptNextMonth"/>
+                            <Button MinWidth="0" x:Name="RecordMonthApply" Content="検索" Click="ApplyRecordMonth" VerticalAlignment="Bottom" AutomationProperties.Name="共通年月で検索" AutomationProperties.AutomationId="RecordMonthApply"/>
+                            <ComboBox x:Name="ReceiptOwner" Header="支払者" Width="140" DisplayMemberPath="Name" SelectionChanged="ReceiptOwnerChanged" AutomationProperties.AutomationId="ReceiptOwner"/>
+                            <ComboBox x:Name="ReceiptPayment" Header="支払方法" Width="180" DisplayMemberPath="Name" SelectionChanged="ReceiptPaymentChanged" AutomationProperties.AutomationId="ReceiptPayment"/>
+                            <TextBlock x:Name="ReceiptAppliedMonth" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock x:Name="ReceiptMonthError" Grid.Row="1" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                </Grid>
+                <Border Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource Card}" Padding="12">
                     <Grid RowSpacing="24">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -167,20 +180,6 @@
                                     <TextBlock x:Name="ReceiptOpenMessage" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                                     <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="Collapsed" Click="RetryReceiptOpen" AutomationProperties.AutomationId="ReceiptOpenRetry"/>
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="ReceiptPrevious" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptPrevious"/>
-                                    <TextBox x:Name="ReceiptMonth" Header="年月" PlaceholderText="YYYY-MM" Width="112"
-                                             TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptMonth"/>
-                                    <Button x:Name="ReceiptNextMonth" Content="翌月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptNextMonth"/>
-                                    <CheckBox x:Name="ReceiptAllPeriods" Content="全期間" Checked="ReceiptPeriodChanged" Unchecked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptAllPeriods"/>
-                                </StackPanel>
-                                <TextBlock x:Name="ReceiptMonthError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                                <TextBlock x:Name="ReceiptAppliedMonth" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <Grid ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="ReceiptOwner" Header="支払者" DisplayMemberPath="Name" SelectionChanged="ReceiptOwnerChanged" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ReceiptOwner"/>
-                                    <ComboBox x:Name="ReceiptPayment" Grid.Column="1" Header="支払方法" DisplayMemberPath="Name" SelectionChanged="ReceiptPaymentChanged" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ReceiptPayment"/>
-                                </Grid>
                                 <Grid ColumnSpacing="8">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptShop"/>
@@ -236,27 +235,64 @@
                         </Grid>
                     </Grid>
                 </Border>
-                <Border Grid.Column="1" Style="{StaticResource Card}">
-                    <Grid RowSpacing="20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="1" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <Grid ColumnSpacing="16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="資金移動" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
-                            <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
-                                    AutomationProperties.Name="資金移動の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder" />
+                <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12">
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="振替" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Bottom" AutomationProperties.HeadingLevel="Level2"/>
+                            <TextBox x:Name="TransferNameSearch" Grid.Column="1" Header="振替名" PlaceholderText="部分一致で検索" TextChanged="TransferDraftChanged" KeyDown="TransferTextKeyDown" AutomationProperties.AutomationId="TransferNameSearch"/>
+                            <Button x:Name="TransferSearchButton" Grid.Column="2" Content="検索" Click="ApplyTransferText" VerticalAlignment="Bottom" AutomationProperties.Name="振替名で検索" AutomationProperties.AutomationId="TransferSearchButton"/>
+                            <Button x:Name="TransferRegisterPlaceholder" Grid.Column="3" Content="＋ 登録" IsEnabled="False" VerticalAlignment="Bottom" AutomationProperties.Name="振替の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder"/>
                         </Grid>
-                        <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
-                        <TextBlock Grid.Row="2" Text="資金移動の機能は今後追加します。" Style="{StaticResource Description}" />
+                        <Grid Grid.Row="1">
+                            <ListView x:Name="TransferList" SelectionMode="Single" SelectionChanged="TransferSelected" Loaded="TransferListLoaded" LayoutUpdated="TransferLayoutChanged" HorizontalContentAlignment="Stretch"
+                                      ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="振替一覧" AutomationProperties.AutomationId="TransferList">
+                                <ListView.Header>
+                                    <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="日時"/><TextBlock Grid.Column="1" Text="振替名"/><TextBlock Grid.Column="2" Text="振替元"/><TextBlock Grid.Column="3" Text="振替先"/>
+                                        <TextBlock Grid.Column="4" Text="金額" HorizontalAlignment="Right"/><TextBlock Grid.Column="5" Text="メモ"/>
+                                    </Grid>
+                                </ListView.Header>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="local:TransferRow">
+                                        <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind TransactionAt, Mode=OneWay}"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name, Mode=OneWay}"/>
+                                            <TextBlock Grid.Column="2" Text="{x:Bind FromName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind FromName, Mode=OneWay}"/>
+                                            <TextBlock Grid.Column="3" Text="{x:Bind ToName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ToName, Mode=OneWay}"/>
+                                            <TextBlock Grid.Column="4" Text="{x:Bind Amount, Mode=OneWay}" HorizontalAlignment="Right"/>
+                                            <TextBlock Grid.Column="5" Text="{x:Bind Memo, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Memo, Mode=OneWay}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                                <ListView.Footer>
+                                    <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="12">
+                                        <StackPanel x:Name="TransferNextNotice" Visibility="Collapsed" Orientation="Horizontal" Spacing="8">
+                                            <ProgressRing x:Name="TransferNextProgress" IsActive="False" Width="20" Height="20"/><TextBlock Text="読み込み中…" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel x:Name="TransferNextFailure" Visibility="Collapsed" Spacing="8">
+                                            <TextBlock Text="読み込みに失敗しました" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                            <Button x:Name="TransferNextRetry" Content="再試行" Click="RetryTransfer" AutomationProperties.AutomationId="TransferNextRetry"/>
+                                        </StackPanel>
+                                        <Button x:Name="TransferContinue" Content="続きを読み込む" Visibility="Collapsed" Click="ContinueTransfer" AutomationProperties.AutomationId="TransferContinue"/>
+                                    </StackPanel>
+                                </ListView.Footer>
+                            </ListView>
+                            <StackPanel x:Name="TransferInitialNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                                <ProgressRing x:Name="TransferInitialProgress" IsActive="False" Width="32" Height="32"/><TextBlock Text="読み込み中…"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TransferEmpty" Text="該当する振替がありません" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <StackPanel x:Name="TransferInitialFailure" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                                <TextBlock x:Name="TransferInitialError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                <Button x:Name="TransferInitialRetry" Content="再試行" Click="RetryTransfer" AutomationProperties.AutomationId="TransferInitialRetry"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
-                <Border Grid.Column="1" Grid.Row="1" Style="{StaticResource Card}">
+                <Border Grid.Column="1" Grid.Row="2" Style="{StaticResource Card}" Padding="12">
                     <Grid RowSpacing="20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />

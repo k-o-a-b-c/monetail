@@ -274,7 +274,7 @@ public sealed partial class MainWindow
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
         if (receiptEditor is not null && !ReferenceEquals(page, HomePage)) return;
-        if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); receiptState?.Suspend(); }
+        if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); receiptState?.Suspend(); transferState?.Suspend(); }
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
@@ -284,7 +284,11 @@ public sealed partial class MainWindow
         {
             if (closed || HomePage.Visibility != Visibility.Visible) return;
             if (receiptState is null) StartReceiptHome();
-            else if (receiptEditor is null) { await receiptState.ResumeAsync(lifetime.Token); ScheduleReceiptViewport(false); }
+            else if (receiptEditor is null)
+            {
+                await Task.WhenAll(receiptState.ResumeAsync(lifetime.Token), transferState?.ResumeAsync(lifetime.Token) ?? Task.CompletedTask);
+                ScheduleReceiptViewport(false); ScheduleTransferViewport(false);
+            }
             if (receiptRestorePending) { receiptRestorePending = false; RestoreReceiptListPosition(); }
         });
     }
@@ -330,6 +334,7 @@ public sealed partial class MainWindow
     {
         closed = true;
         receiptState?.Dispose();
+        transferState?.Dispose(); recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose();
         CancelReceiptOpening();
         connection.Masters.Changed -= ReceiptMasterChanged;
         DiscardCategoryEditor();
