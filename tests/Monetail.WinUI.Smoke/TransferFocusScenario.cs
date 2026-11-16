@@ -25,4 +25,19 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "TransferReturnToStart")); await Wait(() => list.Items.Count == 100 && Find<Button>(root, "TransferReturnToStart").Visibility == Visibility.Collapsed);
         Check(!server.Reads[^1].Query.Contains("focusTransferId=") && list.SelectedItem is null, "先頭に戻るはフォーカス指定と選択を解除し通常の先頭を取得");
     }
+    private async Task CheckTransferOpening()
+    {
+        using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true }; var masters = new PaymentServer(); var server = new TransferInputServer(masters);
+        var row = server.Add(); server.DetailGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
+        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
+        var opening = window!.OpenTransferEditorAsync(row.TransferId); await Wait(() => server.Details == 1 && Find<ProgressRing>(root, "TransferOpenProgress").IsActive);
+        await window.OpenTransferEditorAsync(row.TransferId); Check(server.Details == 1, "振替詳細GET中の二重起動を拒否");
+        await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await opening; await Wait(() => Visible(root, "ManagementPage"));
+        Check(!Find<ProgressRing>(root, "TransferOpenProgress").IsActive && TransferEditing is null, "詳細GET中の画面離脱は要求を中断し編集を生成しない");
+        server.DetailGate.SetResult(true); await InvokeAsync(() => Find<Button>(root, "ReturnButton")); await Wait(() => Visible(root, "HomePage"));
+        Check(Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled && TransferEditing is null, "詳細GETの中断後も登録入口を復元し旧応答を適用しない");
+        server.DetailGate = null; server.Rows.Remove(row.TransferId); await window.OpenTransferEditorAsync(row.TransferId);
+        Check(TransferEditing is null && Find<TextBlock>(root, "TransferOpenMessage").Text.Contains("アクセス") && !Find<ProgressRing>(root, "TransferOpenProgress").IsActive, "詳細404は一覧を保持して失効と不存在を断定せず表示");
+    }
 }

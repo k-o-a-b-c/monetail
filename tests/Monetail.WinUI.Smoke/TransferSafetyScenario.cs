@@ -42,15 +42,16 @@ public partial class App
             Check(Find<ContentDialog>(root, "TransferConfirmationDialog").SecondaryButtonText == "" && Find<ContentDialog>(root, "TransferConfirmationDialog").PrimaryButtonText == "破棄して閉じる", "停止後の離脱では保存して移動を提示しない");
             await ConfirmTransfer(root, ContentDialogResult.Primary); await Wait(() => TransferEditing is null);
         }
-        using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
+        foreach (var role in new[] { "Viewer", "Editor" })
         {
-            var masters = new PaymentServer { Role = "Viewer" }; var server = new TransferInputServer(masters); var saved = server.Add();
+            using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
+            var masters = new PaymentServer { Role = role }; var server = new TransferInputServer(masters); var saved = server.Add();
             fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
-            Check(!Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled, "Viewerは新規振替の入口を使用不可");
+            Check(Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled == (role == "Editor"), "Viewerと人物対応Editorの新規登録権限を分離");
             await window!.OpenTransferEditorAsync(saved.TransferId);
-            Check(TransferEditing!.IsReadOnly && Find<TextBox>(root, "TransferNameReadOnly").IsReadOnly && Find<TextBox>(root, "TransferFromReadOnly").Text.Length > 0,
-                "Viewerの既存振替は値の選択・コピーが可能な読み取り専用表示");
+            Check(TransferEditing!.IsReadOnly && Find<TextBox>(root, "TransferNameReadOnly").IsReadOnly && Find<TextBox>(root, "TransferFromReadOnly").Text.Length > 0 && Find<Button>(root, "TransferSave").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferReuse").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferDelete").Visibility == Visibility.Collapsed,
+                "Viewer・片側だけ本人のEditorは操作を非表示にし値の選択・コピーが可能な読み取り専用表示");
             await InvokeAsync(() => Find<Button>(root, "TransferBack")); await Wait(() => TransferEditing is null);
             Check(server.Writes.Count == 0, "読み取り専用を開いて戻るだけでは確認も書込も行わない");
         }

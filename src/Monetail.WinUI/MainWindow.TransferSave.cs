@@ -57,6 +57,7 @@ public sealed partial class MainWindow
         if (transferPending is not { } request || transferSending || transferEditor is not { } editor || currentLedger?.LedgerId != request.LedgerId) return false;
         var wasUnknown = transferUnknown;
         transferSending = true; transferUnknown = false; TransferEditorNotice.IsOpen = false; CancelTransferSuggestions(); transferAutofillCancellation?.Cancel(); RenderTransferEditor();
+        var accountId = account?.AuthUserId; string? inputErrorField = null;
         var workspace = new TransfersWorkspace(connection.Api, connection.Session, request.LedgerId);
         Guid? savedId = request.TransferId;
         try
@@ -86,13 +87,13 @@ public sealed partial class MainWindow
             else
             {
                 TransferNotice(error.StatusCode == HttpStatusCode.TooManyRequests ? "操作回数の上限に達しました。しばらく待ってから保存してください。" : error.StatusCode == HttpStatusCode.ServiceUnavailable ? "保存先を利用できません。入力を保持しています。" : "入力内容を確認してください。");
-                RenderTransferEditor(); if (error.Field is not null) FocusTransferField(error.Field);
+                inputErrorField = error.Field;
             }
             return false;
         }
         catch (Exception error) when (error is ApiConnectionException or HttpRequestException or IOException or OperationCanceledException)
         { transferUnknown = true; TransferNotice("保存結果を確認できませんでした。同じ要求で再試行してください。"); return false; }
-        finally { transferSending = false; if (ReferenceEquals(editor, transferEditor)) RenderTransferEditor(); }
+        finally { transferSending = false; if (ReferenceEquals(editor, transferEditor)) { RenderTransferEditor(); if (!TransferFrozen && inputErrorField is not null) FocusTransferField(inputErrorField); } }
         if (!ReferenceEquals(editor, transferEditor) || closed) return false;
         var snapshot = transferPendingSnapshot; var deleted = request.Operation == TransferWriteOperation.Delete;
         transferPending = null; transferPendingSnapshot = null;
@@ -117,7 +118,7 @@ public sealed partial class MainWindow
             }
             finally { transferRestoringSaved = false; }
         }
-        return true;
+        return !closed && account?.AuthUserId == accountId && currentLedger?.LedgerId == request.LedgerId;
     }
     private void RenderRecordFilterControls()
     {

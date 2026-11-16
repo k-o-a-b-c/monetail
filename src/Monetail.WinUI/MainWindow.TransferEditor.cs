@@ -108,7 +108,8 @@ public sealed partial class MainWindow
     private void CancelTransferOpening()
     {
         var pending = transferOpening; transferOpening = null; pending?.Cancel();
-        TransferOpenNotice.Visibility = Visibility.Collapsed; TransferOpenProgress.IsActive = false;
+        TransferOpenNotice.Visibility = Visibility.Collapsed; TransferOpenProgress.IsActive = false; TransferOpenRetry.Visibility = Visibility.Collapsed;
+        TransferRegisterPlaceholder.IsEnabled = account is not null && TransferMethods is { } methods && TransferEditorRules.CanCreate(methods);
     }
     private void ResetTransferEditor()
     {
@@ -137,7 +138,7 @@ public sealed partial class MainWindow
         state.Draft.Memo = TransferMemo.Text is "" ? null : TransferMemo.Text;
     }
     private void TransferTextChanged(object sender, TextChangedEventArgs args)
-    { if (transferRendering) return; SyncTransferInput(); if (ReferenceEquals(sender, TransferDate)) RefreshTransferEditorChoices(); RenderTransferEditor(); }
+    { if (transferRendering) return; SyncTransferInput(); if (ReferenceEquals(sender, TransferDate)) { transferAutofillCancellation?.Cancel(); transferAutofillKey = null; RefreshTransferEditorChoices(); } RenderTransferEditor(); }
     private void TransferPaymentChanged(object sender, SelectionChangedEventArgs args)
     {
         if (transferRendering || TransferFrozen || transferEditor is not { } state || (sender as ComboBox)?.SelectedItem is not ReceiptFilterChoice { Id: Guid id }) return;

@@ -29,7 +29,7 @@ public sealed partial class MainWindow
     private void TransferNameChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (transferRendering || TransferFrozen || transferEditor is not { } editor || args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
-        editor.Draft.Name = sender.Text; transferNamePreview = null; transferSuggestionsSuppressed = false; RenderTransferEditor();
+        transferAutofillCancellation?.Cancel(); transferAutofillKey = null; editor.Draft.Name = sender.Text; transferNamePreview = null; transferSuggestionsSuppressed = false; RenderTransferEditor();
         if (!transferKeyboard.IsComposing) _ = SearchTransferNamesAsync(true);
     }
     private void TransferNameFocused(object sender, RoutedEventArgs args)
