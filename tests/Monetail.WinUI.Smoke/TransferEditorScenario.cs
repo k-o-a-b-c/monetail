@@ -112,6 +112,10 @@ public partial class App
             }
         }
         finally { Clipboard.Clear(); }
+        // 次の合成Windowを開く前に離脱を完了し、旧Windowの閉鎖確認を持ち越さない。
+        await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.Secondary);
+        await Wait(() => TransferEditing is null);
+        Check(server.Writes.Count == 0, "貼り付け試験の未保存入力は明示破棄し、次の画面試験へ確認ダイアログを持ち越さない");
     }
     private async Task CheckTransferEditor()
     {
