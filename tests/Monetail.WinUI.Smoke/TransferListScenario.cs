@@ -40,7 +40,7 @@ public partial class App
         var owner = Find<ComboBox>(root, "ReceiptOwner"); var payment = Find<ComboBox>(root, "ReceiptPayment");
         Check(transfers.Count == 1 && Find<TextBlock>(root, "TransferEmpty").Visibility == Visibility.Visible, "振替0件は中央表示し追加要求しない");
         Check(((ReceiptFilterChoice)owner.SelectedItem).Id is null && ((ReceiptFilterChoice)payment.SelectedItem).Id is null, "共通の支払者は全員・支払方法は全件で初期化");
-        Check(!Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled && !Find<Button>(root, "BalanceRegisterPlaceholder").IsEnabled, "振替と残高の登録入口は未実装のまま無効");
+        Check(!Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled && !All(root).OfType<Button>().Single(b => AutomationProperties.GetAutomationId(b) == "BalanceRegisterPlaceholder").IsEnabled, "振替と残高の登録入口は未実装のまま無効");
         var content = Find<Grid>(root, "RecordContent"); var cards = content.Children.OfType<Border>().ToArray();
         var receiptCard = cards.Single(b => Grid.GetRow(b) == 1); var transferCard = cards.Single(b => Grid.GetRow(b) == 2 && Grid.GetColumn(b) == 0);
         var balanceCard = cards.Single(b => Grid.GetRow(b) == 2 && Grid.GetColumn(b) == 1);
