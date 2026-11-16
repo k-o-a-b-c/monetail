@@ -21,7 +21,9 @@
 
 既存Clientモデル/DTOは変更せず、ローカルReleaseで最新採用の最小1件と編集モデル/受信revision/権限の関連106件が成功（重複あり、失敗/skipなし）。変更前は基点main `362d31acc5f910bbe6d9ae65ab177bbcecd954cd`の[push Tests 43879330803](https://github.com/k-o-a-b-c/monetail/actions/runs/43879330803)を採用し、Client全件/API/Docker/旧Windows/性能等はCI選択/fingerprintに従って成功結果を再利用する。
 
-最終ソース`bd1be4f82eac865d87f72704f1c12122050e3b99`の[Tests 43883023127](https://github.com/k-o-a-b-c/monetail/actions/runs/43883023127)が成功。WinUI製品/検証用x64 Releaseビルドは各30警告/0エラー（追加CS8602なし）、製品起動、振替側95確認＋既存483確認＝全578確認が成功した（追加24確認）。初回スモークは競合前の未ロード入力への設定で停止し、最小成立の準備だけ既存のLoaded/フォーカス確認へ合わせた。待機上限・判定条件は緩和していない。既存x:Bind等の警告は残る。
+第4-A当初ソース`bd1be4f82eac865d87f72704f1c12122050e3b99`の[Tests 43883023127](https://github.com/k-o-a-b-c/monetail/actions/runs/43883023127)が成功。WinUI製品/検証用x64 Releaseビルドは各30警告/0エラー（追加CS8602なし）、製品起動、振替側95確認＋既存483確認＝全578確認が成功した（追加24確認）。初回スモークは競合前の未ロード入力への設定で停止し、最小成立の準備だけ既存のLoaded/フォーカス確認へ合わせた。待機上限・判定条件は緩和していない。既存x:Bind等の警告は残る。
+
+［最新を読み込む］のTab順修正では、PUT/DELETE競合後の実Tab（戻る→警告直後の最新読込→日付）とShift+Tabの逆移動、移動だけでは採用・送信しないことを追加確認する。通常編集・最新採用後は日付→時刻→振替名→元→先→金額→メモ→更新の実Tab順と未変更判定を維持する。ソース`aa9ea172bc90f9abf26ed6056542cafaef660a07`の[Tests 43889435986](https://github.com/k-o-a-b-c/monetail/actions/runs/43889435986)で製品/検証用x64 Release（各30警告/0エラー）・起動・振替99確認＋既存483確認＝全582確認が成功。非変更のClient等は前回成功結果を再利用した。
 
 API/DB/Client契約・外部ライブラリの変更なし。401後の再認証・編集復元と残高キャッシュ連動は対象外。実API/NAS、物理IME/タッチ、高DPI/ハイコントラスト/スクリーンリーダーの実Windows手動受入は未実施。LinuxでWinAppCLIは利用できず、既存標準Button/ContentDialog/InfoBarとWindows CIで照合する。旧版の競合MessageBox/再読込通知から、新版正本の応答latest採用へ変更する。
 
