@@ -10,6 +10,7 @@ using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transfers;
 using Windows.Graphics;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace Monetail.WinUI.Smoke;
 
@@ -74,12 +75,52 @@ public partial class App
         await Task.Delay(50);
         if (SendInput(2, events, Marshal.SizeOf<ReceiptNativeInput>()) != 2) throw new Win32Exception(Marshal.GetLastWin32Error());
     }
+    private async Task CheckTransferReview()
+    {
+        using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true }; var masters = new PaymentServer(); var server = new TransferInputServer(masters);
+        fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
+        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
+        var editorWindow = window ?? throw new InvalidOperationException("振替入力のWindowがありません。");
+        await editorWindow.OpenTransferEditorAsync(null); await FillTransfer(root, masters);
+        var editor = TransferEditing ?? throw new InvalidOperationException("振替の編集状態がありません。");
+        var to = Find<ComboBox>(root, "TransferTo");
+        to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.ActiveId);
+        var error = Find<TextBlock>(root, "TransferToError"); var amount = Find<TextBox>(root, "TransferAmount");
+        await Wait(() => error.Visibility == Visibility.Visible && error.ActualHeight > 0);
+        Check(editor.Draft.From.PaymentMethodId == masters.ActiveId && editor.Draft.To.PaymentMethodId == masters.ActiveId &&
+            error.Text == "振替元と振替先は異なる支払方法を選択してください。" && Find<TextBlock>(root, "TransferValidity").Text == "", "同一支払方法は選択を保持し、専用の振替先エラーだけを表示");
+        var errorTop = error.TransformToVisual(root).TransformPoint(new(0, 0)).Y;
+        Check(errorTop >= to.TransformToVisual(root).TransformPoint(new(0, to.ActualHeight)).Y && errorTop < amount.TransformToVisual(root).TransformPoint(new(0, 0)).Y, "同一支払方法のエラーを振替先の直下・金額より前に配置");
+        await FocusTransferControl(amount); await PressReceiptKey(0x0D, 0x11); await Settle();
+        Check(!Find<Button>(root, "TransferSave").IsEnabled && server.Writes.Count == 0 && !Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded, "同一支払方法は保存ボタンとCtrl+Enterから送信できない");
+        to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.OtherActiveId);
+        await Wait(() => error.Visibility == Visibility.Collapsed && Find<Button>(root, "TransferSave").IsEnabled);
+        Check(editor.Draft.From.PaymentMethodId == masters.ActiveId && editor.Draft.To.PaymentMethodId == masters.OtherActiveId && error.Text == "", "振替先の修正で専用エラーを消し、両選択と保存可否を反映");
+        var memo = Find<TextBox>(root, "TransferMemo");
+        try
+        {
+            foreach (var raw in new[] { "前\r後", "前\n後", "前\r\n後" })
+            {
+                memo.Text = ""; await Wait(() => editor.Draft.Memo is null);
+                var data = new DataPackage(); data.SetText(raw); Clipboard.SetContent(data);
+                await FocusTransferControl(memo); await PressReceiptKey(0x56, 0x11); await Settle();
+                if (memo.Text != raw || editor.Draft.Memo != raw)
+                    throw new InvalidOperationException($"標準メモ貼り付けの変換を検出: expected={JsonSerializer.Serialize(raw)}, text={JsonSerializer.Serialize(memo.Text)}, draft={JsonSerializer.Serialize(editor.Draft.Memo)}");
+                Check(memo.Text == raw && editor.Draft.Memo == raw && editor.HasUnsavedChanges && Find<TextBlock>(root, "TransferValidity").Text.Contains("改行"), "CR/LF貼り付けの元文字列を保持しメモ検証エラーと未保存変更を表示");
+                await PressReceiptKey(0x0D, 0x11); await Settle();
+                Check(!Find<Button>(root, "TransferSave").IsEnabled && server.Writes.Count == 0 && editor.Draft.Memo == raw, "改行メモはボタンとCtrl+Enterで送信せず入力を保持");
+                memo.Text = "修正済み"; await Wait(() => Find<Button>(root, "TransferSave").IsEnabled);
+                Check(editor.Draft.Memo == "修正済み" && Find<TextBlock>(root, "TransferValidity").Visibility == Visibility.Collapsed, "改行を利用者が修正すると既存メモエラーが消える");
+            }
+        }
+        finally { Clipboard.Clear(); }
+    }
     private async Task CheckTransferEditor()
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true }; var masters = new PaymentServer(); var server = new TransferInputServer(masters);
         var active = masters.Rows.FindIndex(p => p.PaymentMethodId == masters.ActiveId); masters.Rows[active] = masters.Rows[active] with { ValidFrom = null, ValidTo = null };
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
-        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await InvokeAsync(() => Find<Button>(root, "TransferRegisterPlaceholder"));
+        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); var editorWindow = window ?? throw new InvalidOperationException("振替入力のWindowがありません。"); await InvokeAsync(() => Find<Button>(root, "TransferRegisterPlaceholder"));
         await Wait(() => TransferEditing is not null && Find<AutoSuggestBox>(root, "TransferName").IsLoaded);
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Draft.Amount is null && TransferEditing.Draft.From.PaymentMethodId is null && TransferEditing.IsMidnight == true, "振替新規は当日0時・支払方法と金額未入力で未変更");
         Check(Find<Grid>(root, "RecordContent").Visibility == Visibility.Collapsed && Find<Grid>(root, "TransferEditorPage").Visibility == Visibility.Visible && Find<Button>(root, "TransferDelete").Visibility == Visibility.Collapsed, "振替専用画面は3一覧を置き換え共通ヘッダーと左上戻るを保持");
@@ -112,12 +153,12 @@ public partial class App
         Check(server.Writes.Count == 1 && Find<TextBox>(root, "TransferAmount").Text == "2000", "更新確認の取消は入力と既存振替を保持");
         await InvokeAsync(() => Find<Button>(root, "TransferSave")); await ConfirmTransfer(root, ContentDialogResult.Primary); await Wait(() => TransferEditing is null);
         Check(server.Rows[saved.TransferId].Amount == 2000 && server.Writes[^1].Method == HttpMethod.Put, "確認した更新は既存IDのPUTで一覧へ戻る");
-        await Wait(() => window.ReceiptHomeReady); await window.OpenTransferEditorAsync(saved.TransferId); await Wait(() => TransferEditing is not null);
+        await Wait(() => editorWindow.ReceiptHomeReady); await editorWindow.OpenTransferEditorAsync(saved.TransferId); await Wait(() => TransferEditing is not null);
         await InvokeAsync(() => Find<Button>(root, "TransferReuse")); await ConfirmTransfer(root, ContentDialogResult.Primary); await Wait(() => TransferEditing is null && server.Rows.Count == 2);
         Check(server.Rows[saved.TransferId].Amount == 2000 && server.Writes[^1].Method == HttpMethod.Post, "無変更の流用登録も現在値で別POSTを送り元振替は変更しない");
-        await Wait(() => window.ReceiptHomeReady); await window.OpenTransferEditorAsync(saved.TransferId); await Wait(() => TransferEditing is not null);
+        await Wait(() => editorWindow.ReceiptHomeReady); await editorWindow.OpenTransferEditorAsync(saved.TransferId); await Wait(() => TransferEditing is not null);
         await InvokeAsync(() => Find<Button>(root, "TransferDelete")); await ConfirmTransfer(root, ContentDialogResult.None); Check(server.Rows.Count == 2, "振替削除の取消はAPIを呼ばない");
         await InvokeAsync(() => Find<Button>(root, "TransferDelete")); await ConfirmTransfer(root, ContentDialogResult.Primary); await Wait(() => TransferEditing is null && !server.Rows.ContainsKey(saved.TransferId));
-        await Wait(() => window.ReceiptHomeReady); Check(Find<ListView>(root, "TransferList").SelectedItem is null && server.Writes[^1].Method == HttpMethod.Delete, "削除成功後は一覧から除外して選択を解除する");
+        await Wait(() => editorWindow.ReceiptHomeReady); Check(Find<ListView>(root, "TransferList").SelectedItem is null && server.Writes[^1].Method == HttpMethod.Delete, "削除成功後は一覧から除外して選択を解除する");
     }
 }

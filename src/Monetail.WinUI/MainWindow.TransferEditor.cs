@@ -198,6 +198,9 @@ public sealed partial class MainWindow
         TransferWriteProgress.IsActive = transferSending; TransferWriteProgress.Visibility = transferSending ? Visibility.Visible : Visibility.Collapsed;
         TransferWriteRetry.Visibility = transferUnknown ? Visibility.Visible : Visibility.Collapsed; TransferWriteRetry.IsEnabled = transferUnknown && !transferSending;
         if (state.IsReadOnly && !TransferEditorNotice.IsOpen) TransferNotice("この振替は読み取り専用です。", InfoBarSeverity.Informational);
+        TransferToError.Text = !state.IsReadOnly && state.Draft.From.PaymentMethodId is Guid fromId && state.Draft.To.PaymentMethodId == fromId
+            ? "振替元と振替先は異なる支払方法を選択してください。" : "";
+        TransferToError.Visibility = TransferToError.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         TransferValidity.Text = "";
         if (!state.IsReadOnly && state.Draft.TransactionAt is DateTime && state.Draft.From.PaymentMethodId is Guid && state.Draft.To.PaymentMethodId is Guid && TransferPeople is not null && TransferMethods is not null)
             try { var snapshot = new TransferSnapshot(state.Draft.TransactionAt.Value, state.Draft.Name, state.Draft.From.PaymentMethodId.Value, state.Draft.To.PaymentMethodId.Value, state.Draft.Amount ?? 1, state.Draft.Memo); TransferEditorRules.Validate(snapshot, TransferPeople, TransferMethods); }
@@ -207,7 +210,6 @@ public sealed partial class MainWindow
             if (state.Draft.Name.Length > 100 || state.Draft.Name.Length > 0 && string.IsNullOrWhiteSpace(state.Draft.Name)) TransferValidity.Text = "振替名は空白のみを避け、100文字以内で入力してください。";
             else if (TransferAmount.Text.Length > 0 && (state.Draft.Amount is null || state.Draft.UnresolvedAmountText is not null)) TransferValidity.Text = "金額は1〜2,147,483,647の整数で入力してください。";
             else if (TransferMemo.Text.Length > 100 || TransferMemo.Text.IndexOfAny(['\r','\n','\v','\f','\u0085','\u2028','\u2029']) >= 0) TransferValidity.Text = "メモは改行なし・100文字以内で入力してください。";
-            else if (state.Draft.From.PaymentMethodId is Guid from && state.Draft.To.PaymentMethodId == from) TransferValidity.Text = "振替元と振替先は異なる支払方法を選択してください。";
         }
         TransferValidity.Visibility = TransferValidity.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
