@@ -18,7 +18,10 @@ public partial class App
     private TransferEditorState? TransferEditing => (TransferEditorState?)typeof(MainWindow).GetField("transferEditor", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
     private async Task TypeTransferName(FrameworkElement root, string text)
     {
-        var box = Find<AutoSuggestBox>(root, "TransferName"); box.Focus(FocusState.Keyboard); await Settle(); await ActivateReceiptInputWindowAsync();
+        var box = Find<AutoSuggestBox>(root, "TransferName");
+        await Wait(() => box.IsLoaded && box.ActualWidth > 0 && All(box).OfType<TextBox>().Any(t => t.IsLoaded));
+        await ActivateReceiptInputWindowAsync(); var input = All(box).OfType<TextBox>().First(t => t.IsLoaded);
+        input.Focus(FocusState.Keyboard); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input));
         var events = text.SelectMany(c => new[] {
             new ReceiptNativeInput { Type = 1, Data = new() { Key = new() { Scan = c, Flags = 4 } } },
             new ReceiptNativeInput { Type = 1, Data = new() { Key = new() { Scan = c, Flags = 6 } } }
@@ -59,7 +62,10 @@ public partial class App
         await Wait(() => input!.Draft.UnresolvedAmountText == "2147483648" && !Find<Button>(root, "TransferSave").IsEnabled);
         Check(!Find<Button>(root, "TransferSave").IsEnabled && TransferEditing == input && input.Draft.UnresolvedAmountText == "2147483648", "Int32超過の生入力を保持し保存不可");
         Find<TextBox>(root, "TransferAmount").Text = "1000"; Find<TextBox>(root, "TransferMemo").Text = " ";
-        await InvokeAsync(() => Find<Button>(root, "TransferSave")); await Wait(() => TransferEditing is null && Find<ListView>(root, "TransferList").Items.Count == 1);
+        var keyboard = (FormKeyboard)typeof(MainWindow).GetField("transferKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+        Find<TextBox>(root, "TransferMemo").Focus(FocusState.Keyboard); await keyboard.HandleEnter(false, false)!;
+        Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave")) && server.Writes.Count == 0, "メモのEnterは保存ボタンへ移動するだけで登録しない");
+        await PressReceiptKey(0x0D, 0x11); await Wait(() => TransferEditing is null && Find<ListView>(root, "TransferList").Items.Count == 1);
         var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == "ATM" && server.Writes.Count == 1, "振替POSTは現在の6項目を送り201空本文とLocationから保存行へ戻る");
         Check(((TransferRow)Find<ListView>(root, "TransferList").SelectedItem).Transfer.TransferId == saved.TransferId, "登録成功後は保存行を選択する");
         Find<ListView>(root, "TransferList").SelectedIndex = 0; await Settle(); Check(server.Details == 0, "振替の単一選択は詳細GETしない");

@@ -185,6 +185,9 @@ public sealed partial class MainWindow
         TransferFromReadOnly.Visibility = TransferToReadOnly.Visibility = frozen ? Visibility.Visible : Visibility.Collapsed;
         TransferSave.IsEnabled = TransferReuse.IsEnabled = false;
         if (!frozen) { try { PrepareTransfer(false); TransferSave.IsEnabled = true; TransferReuse.IsEnabled = state.IsExisting; } catch (TransferInputException) { } }
+        var readOnlyActions = state.IsReadOnly || transferStopped;
+        TransferSave.Visibility = readOnlyActions && !transferUnknown ? Visibility.Collapsed : Visibility.Visible;
+        TransferReuse.Visibility = TransferDelete.Visibility = state.IsExisting && !readOnlyActions ? Visibility.Visible : Visibility.Collapsed;
         TransferDelete.IsEnabled = state.IsExisting && !frozen;
         TransferWriteProgress.IsActive = transferSending; TransferWriteProgress.Visibility = transferSending ? Visibility.Visible : Visibility.Collapsed;
         TransferWriteRetry.Visibility = transferUnknown ? Visibility.Visible : Visibility.Collapsed; TransferWriteRetry.IsEnabled = transferUnknown && !transferSending;

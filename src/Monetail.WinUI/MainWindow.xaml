@@ -319,10 +319,10 @@
                     </Grid>
                 </Border>
             </Grid>
-            <Grid x:Name="TransferEditorPage" Grid.Row="2" Visibility="Collapsed" RowSpacing="16">
+            <Grid x:Name="TransferEditorPage" TabFocusNavigation="Local" Grid.Row="2" Visibility="Collapsed" RowSpacing="16">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                 <StackPanel Orientation="Horizontal" Spacing="16">
-                    <Button x:Name="TransferBack" Content="← 戻る" Click="TransferBackClicked" AutomationProperties.Name="振替一覧に戻る"/>
+                    <Button x:Name="TransferBack" TabIndex="0" Content="← 戻る" Click="TransferBackClicked" AutomationProperties.Name="振替一覧に戻る"/>
                     <TextBlock x:Name="TransferEditorTitle" Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" VerticalAlignment="Center"/>
                 </StackPanel>
                 <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -330,29 +330,29 @@
                         <InfoBar x:Name="TransferEditorNotice" IsOpen="False" IsClosable="False" Severity="Error" AutomationProperties.LiveSetting="Polite"/>
                         <Grid ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <input:DateInputBox x:Name="TransferDate" Header="日付" AllowEmpty="False" TextChanged="TransferTextChanged" LostFocus="TransferDateConfirmed" AutomationProperties.AutomationId="TransferDate"/>
-                            <input:TimeInputBox x:Name="TransferTime" Grid.Column="1" Header="時刻" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferTime"/>
+                            <input:DateInputBox x:Name="TransferDate" TabIndex="1" Header="日付" AllowEmpty="False" TextChanged="TransferTextChanged" LostFocus="TransferDateConfirmed" AutomationProperties.AutomationId="TransferDate"/>
+                            <input:TimeInputBox x:Name="TransferTime" TabIndex="2" Grid.Column="1" Header="時刻" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferTime"/>
                         </Grid>
-                        <AutoSuggestBox x:Name="TransferName" Header="振替名" TextChanged="TransferNameChanged" SuggestionChosen="TransferSuggestionChosen" QuerySubmitted="TransferNameQuerySubmitted"
+                        <AutoSuggestBox x:Name="TransferName" TabIndex="3" Header="振替名" TextChanged="TransferNameChanged" SuggestionChosen="TransferSuggestionChosen" QuerySubmitted="TransferNameQuerySubmitted"
                                         GotFocus="TransferNameFocused" LostFocus="TransferNameLostFocus" PreviewKeyDown="TransferNamePreviewKeyDown" KeyUp="TransferNameKeyUp" MaxSuggestionListHeight="320" AutomationProperties.AutomationId="TransferName"/>
-                        <TextBox x:Name="TransferNameReadOnly" Header="振替名" IsReadOnly="True" Visibility="Collapsed"/>
+                        <TextBox x:Name="TransferNameReadOnly" TabIndex="3" Header="振替名" IsReadOnly="True" Visibility="Collapsed"/>
                         <TextBlock x:Name="TransferSuggestionError" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <ComboBox x:Name="TransferFrom" Header="振替元" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferFrom"/>
-                        <TextBox x:Name="TransferFromReadOnly" Header="振替元" IsReadOnly="True" Visibility="Collapsed"/>
-                        <ComboBox x:Name="TransferTo" Header="振替先" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferTo"/>
-                        <TextBox x:Name="TransferToReadOnly" Header="振替先" IsReadOnly="True" Visibility="Collapsed"/>
-                        <TextBox x:Name="TransferAmount" Header="金額" InputScope="Number" TextAlignment="Right" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferAmount"/>
-                        <TextBox x:Name="TransferMemo" Header="メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferMemo"/>
+                        <ComboBox x:Name="TransferFrom" TabIndex="4" Header="振替元" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferFrom"/>
+                        <TextBox x:Name="TransferFromReadOnly" TabIndex="4" Header="振替元" IsReadOnly="True" Visibility="Collapsed"/>
+                        <ComboBox x:Name="TransferTo" TabIndex="5" Header="振替先" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferTo"/>
+                        <TextBox x:Name="TransferToReadOnly" TabIndex="5" Header="振替先" IsReadOnly="True" Visibility="Collapsed"/>
+                        <TextBox x:Name="TransferAmount" TabIndex="6" Header="金額" InputScope="Number" TextAlignment="Right" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferAmount"/>
+                        <TextBox x:Name="TransferMemo" TabIndex="7" Header="メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferMemo"/>
                         <TextBlock x:Name="TransferValidity" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                     </StackPanel>
                 </ScrollViewer>
                 <Grid Grid.Row="2" ColumnSpacing="12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <Button x:Name="TransferDelete" Content="削除" Click="DeleteTransfer" Visibility="Collapsed"/>
+                    <Button x:Name="TransferDelete" TabIndex="10" Content="削除" Click="DeleteTransfer" Visibility="Collapsed"/>
                     <ProgressRing x:Name="TransferWriteProgress" Grid.Column="1" IsActive="False" Visibility="Collapsed" Width="24" Height="24" HorizontalAlignment="Right" AutomationProperties.Name="振替を保存中"/>
-                    <Button x:Name="TransferWriteRetry" Grid.Column="2" Content="再試行" Click="RetryTransferWrite" Visibility="Collapsed"/>
-                    <Button x:Name="TransferReuse" Grid.Column="3" Content="流用登録" Click="SaveTransfer" Visibility="Collapsed"/>
-                    <Button x:Name="TransferSave" Grid.Column="4" Content="登録" Click="SaveTransfer" Style="{StaticResource AccentButtonStyle}"/>
+                    <Button x:Name="TransferWriteRetry" TabIndex="8" Grid.Column="2" Content="再試行" Click="RetryTransferWrite" Visibility="Collapsed"/>
+                    <Button x:Name="TransferReuse" TabIndex="9" Grid.Column="3" Content="流用登録" Click="SaveTransfer" Visibility="Collapsed"/>
+                    <Button x:Name="TransferSave" TabIndex="8" Grid.Column="4" Content="登録" Click="SaveTransfer" Style="{StaticResource AccentButtonStyle}"/>
                 </Grid>
             </Grid>
             <Grid x:Name="ReceiptEditorPage" Grid.Row="2" Visibility="Collapsed" RowSpacing="16" SizeChanged="ReceiptEditorSizeChanged">
