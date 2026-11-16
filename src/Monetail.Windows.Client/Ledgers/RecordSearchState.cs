@@ -1,3 +1,4 @@
+using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Client.Receipts;
 
 namespace Monetail.Windows.Client.Ledgers;
@@ -12,6 +13,15 @@ public sealed class RecordSearchState(DateOnly today)
     {
         if (!Receipts.ApplyMonthText()) return false;
         AppliedTransferName = TransferText; return true;
+    }
+    public void ApplySavedTransfer(TransferSnapshot saved, PaymentMethodsInfo methods)
+    {
+        Receipts.SelectMonth(DateOnly.FromDateTime(saved.TransactionAt));
+        var owners = methods.PaymentMethods.Where(p => p.PaymentMethodId == saved.FromPaymentMethodId || p.PaymentMethodId == saved.ToPaymentMethodId).Select(p => p.OwnerPersonId);
+        if (Receipts.OwnerPersonId is Guid owner && !owners.Contains(owner)) Receipts.OwnerPersonId = null;
+        if (Receipts.PaymentMethodId is Guid payment && payment != saved.FromPaymentMethodId && payment != saved.ToPaymentMethodId) Receipts.PaymentMethodId = null;
+        if (!Transfers.TransferEditorRules.NameMatches(saved.Name, AppliedTransferName)) AppliedTransferName = "";
+        TransferText = AppliedTransferName;
     }
     public TransferListQuery TransferQuery() => new(Receipts.AllPeriods ? "all" : Receipts.AppliedMonth, Receipts.OwnerPersonId, Receipts.PaymentMethodId, AppliedTransferName);
 }

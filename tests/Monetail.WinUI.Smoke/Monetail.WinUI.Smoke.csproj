@@ -20,6 +20,10 @@
     <Compile Include="../../src/Monetail.WinUI/ReceiptRow.cs" Link="ReceiptRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/TransferRow.cs" Link="TransferRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Transfers.cs" Link="MainWindow.Transfers.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferEditor.cs" Link="MainWindow.TransferEditor.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSave.cs" Link="MainWindow.TransferSave.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSuggestions.cs" Link="MainWindow.TransferSuggestions.cs" />
+
     <Compile Include="../../src/Monetail.WinUI/ReceiptCategoryRow.cs" Link="ReceiptCategoryRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptEditor.cs" Link="MainWindow.ReceiptEditor.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptCalculations.cs" Link="MainWindow.ReceiptCalculations.cs" />

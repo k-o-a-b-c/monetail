@@ -59,7 +59,7 @@ public sealed partial class MainWindow
     // 一要求だけを受理。取消後に通信が完了しても同一要求・本人・家計簿・画面を照合して適用しない。
     internal async Task OpenReceiptEditorAsync(Guid? receiptId)
     {
-        if (busy || closed || ManagementDialogOpen || receiptOpening is not null || receiptEditor is not null || account is null || currentLedger is null || HomePage.Visibility != Visibility.Visible) return;
+        if (busy || closed || ManagementDialogOpen || receiptOpening is not null || transferOpening is not null || RecordEditorActive || account is null || currentLedger is null || HomePage.Visibility != Visibility.Visible) return;
         var ledger = currentLedger.LedgerId; var person = account.AuthUserId;
         var api = connection.Api; var session = connection.Session;
         var initial = new ReceiptHeaderDraft { TransactionAt = DateTime.Today, ShopLocation = "", Memo = null, TaxInclusionMode = 0, TaxRoundingMode = "floor" };

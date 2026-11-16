@@ -79,7 +79,7 @@ public sealed partial class MainWindow
 
     private async void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
     {
-        if (!await LeaveReceiptEditorAsync()) return;
+        if (!await LeaveRecordEditorAsync()) return;
         DropPendingCategoryEdit();
         DropPendingPaymentEdit();
         DropPendingPersonEdit();
@@ -108,7 +108,7 @@ public sealed partial class MainWindow
 
     private async Task ConnectAsync(ApiEndpoint candidate)
     {
-        if (!await LeaveReceiptEditorAsync()) return;
+        if (!await LeaveRecordEditorAsync()) return;
         await RunAsync(async () =>
     {
         using var timeout = ConnectionTimeout();
@@ -176,7 +176,7 @@ public sealed partial class MainWindow
 
     private async Task LogoutAsync()
     {
-        if (!await LeaveReceiptEditorAsync()) return;
+        if (!await LeaveRecordEditorAsync()) return;
         await RunAsync(async () =>
     {
         DropPendingCategoryEdit();
@@ -273,8 +273,8 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        if (receiptEditor is not null && !ReferenceEquals(page, HomePage)) return;
-        if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); receiptState?.Suspend(); transferState?.Suspend(); }
+        if (RecordEditorActive && !ReferenceEquals(page, HomePage)) return;
+        if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); CancelTransferOpening(); receiptState?.Suspend(); transferState?.Suspend(); }
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
@@ -284,11 +284,12 @@ public sealed partial class MainWindow
         {
             if (closed || HomePage.Visibility != Visibility.Visible) return;
             if (receiptState is null) StartReceiptHome();
-            else if (receiptEditor is null)
+            else if (!RecordEditorActive)
             {
                 await Task.WhenAll(receiptState.ResumeAsync(lifetime.Token), transferState?.ResumeAsync(lifetime.Token) ?? Task.CompletedTask);
                 ScheduleReceiptViewport(false); ScheduleTransferViewport(false);
             }
+            if (transferRestorePending) { transferRestorePending = false; RestoreTransferPosition(); }
             if (receiptRestorePending) { receiptRestorePending = false; RestoreReceiptListPosition(); }
         });
     }
@@ -334,6 +335,7 @@ public sealed partial class MainWindow
     {
         closed = true;
         receiptState?.Dispose();
+        CancelTransferOpening(); CancelTransferSuggestions(); transferAutofillCancellation?.Cancel();
         transferState?.Dispose(); recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose();
         CancelReceiptOpening();
         connection.Masters.Changed -= ReceiptMasterChanged;

@@ -27,6 +27,12 @@ public partial class App : Application
         uiThreadId = Environment.CurrentManagedThreadId;
         try
         {
+            if (arguments.Contains("--transfer-editor-only"))
+            {
+                await CheckTransferEditor(); await CheckTransferSafety();
+                File.WriteAllText(Path.Combine(output, "smoke-result.json"), JsonSerializer.Serialize(new { passed = true, data = "synthetic", checks }));
+                window?.Close(); Environment.Exit(0); return;
+            }
             if (capture)
                 Resources["ContentControlThemeFontFamily"] = new FontFamily("ms-appx:///Assets/PreviewFont.otf#Noto Sans CJK JP");
             window = new MainWindow();
