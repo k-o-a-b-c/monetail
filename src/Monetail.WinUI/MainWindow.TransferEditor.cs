@@ -81,7 +81,7 @@ public sealed partial class MainWindow
             transferReturnOffset = transferScroller?.VerticalOffset ?? 0; receiptReturnOffset = receiptScroller?.VerticalOffset ?? 0;
             transferState?.Suspend(); receiptState?.Suspend(); RecordContent.Visibility = Visibility.Collapsed; TransferEditorPage.Visibility = Visibility.Visible;
             transferStopped = transferUnknown = false; transferPending = null; transferPendingSnapshot = null; ResetTransferSuggestions();
-            PopulateTransferEditor(); TransferName.Focus(FocusState.Programmatic);
+            PopulateTransferEditor(); TransferDate.Focus(FocusState.Programmatic);
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { }
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)

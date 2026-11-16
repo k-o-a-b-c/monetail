@@ -56,6 +56,7 @@ public partial class App
         Check(Find<Grid>(root, "RecordContent").Visibility == Visibility.Collapsed && Find<Grid>(root, "TransferEditorPage").Visibility == Visibility.Visible && Find<Button>(root, "TransferDelete").Visibility == Visibility.Collapsed, "振替専用画面は3一覧を置き換え共通ヘッダーと左上戻るを保持");
         await FillTransfer(root, masters); var input = TransferEditing;
         Find<TextBox>(root, "TransferAmount").Text = "2147483648";
+        await Wait(() => input!.Draft.UnresolvedAmountText == "2147483648" && !Find<Button>(root, "TransferSave").IsEnabled);
         Check(!Find<Button>(root, "TransferSave").IsEnabled && TransferEditing == input && input.Draft.UnresolvedAmountText == "2147483648", "Int32超過の生入力を保持し保存不可");
         Find<TextBox>(root, "TransferAmount").Text = "1000"; Find<TextBox>(root, "TransferMemo").Text = " ";
         await InvokeAsync(() => Find<Button>(root, "TransferSave")); await Wait(() => TransferEditing is null && Find<ListView>(root, "TransferList").Items.Count == 1);

@@ -29,7 +29,7 @@ public partial class App : Application
         {
             if (arguments.Contains("--transfer-editor-only"))
             {
-                await CheckTransferEditor(); await CheckTransferSafety();
+                await CheckTransferEditor(); await CheckTransferSafety(); await CheckTransferSuggestions();
                 File.WriteAllText(Path.Combine(output, "smoke-result.json"), JsonSerializer.Serialize(new { passed = true, data = "synthetic", checks }));
                 window?.Close(); Environment.Exit(0); return;
             }
