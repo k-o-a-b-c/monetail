@@ -19,7 +19,7 @@
 
 [LedgerChoiceScenario.cs](Monetail.WinUI.Smoke/LedgerChoiceScenario.cs)を既存`connection-flow`へ接続する。未選択/ボタン無効、元のAutomationId/単一選択、一覧クリアと再設定、実上下キー・Tab/Shift+Tab・Enter、ID通知と家計簿openが各1回、同一Window、開く失敗時の選択保持、401時の一覧/選択解除を実Workspace/合成HTTPで確認する。既存の選択→ボタンクリックによる起動も維持する。テストはUserControl自身のNameScopeから内側を取得し、表示確認の型をFrameworkElementへ一般化する（同じVisibility条件を維持）。製品と同じUserControl XAML/コードを検証用プロジェクトへリンクする。
 
-基点main `0e246d2`の[push Tests 44011743170](https://github.com/k-o-a-b-c/monetail/actions/runs/44011743170)成功を変更前の根拠とし、非変更Client/API/DB等は既存CI選択/fingerprintに従って再実行を避ける。WinUI製品/検証用Release・起動・全件・選択実行をCIで確認する。構造の比較値・集計定義は[構成資料](../docs/architecture-winui.md#家計簿選択画面の分離第1段階)を参照する。LinuxではWinApp CLI/WinUI実行不可のためWindows CIを使用し、実Windowsの手動操作・物理IME/タッチ/高DPI等は未検証。
+基点main `0e246d2`の[push Tests 44011743170](https://github.com/k-o-a-b-c/monetail/actions/runs/44011743170)成功を変更前の根拠とし、非変更Client/API/DB等は既存CI選択/fingerprintに従って再実行を避ける。ソース`023497b`の[Tests 44015105260](https://github.com/k-o-a-b-c/monetail/actions/runs/44015105260)は初回で成功。製品/検証用x64 Release（各29件の既存WUI2011警告/0エラー）、製品起動、全36シナリオ/694確認（専用入力201＋既存493、今回10確認追加）、単独3シナリオ、一覧/全件照合、PNG4枚生成、不正指定拒否・計測が成功した。`connection-flow`は39確認。既存のレシート/振替401、競合・未保存保護、管理画面の回帰も含む。検証条件/タイムアウトの変更や失敗後の再実行はなく、ローカル`git diff --check`も成功。構造の比較値・集計定義は[構成資料](../docs/architecture-winui.md#家計簿選択画面の分離第1段階)を参照する。LinuxではWinApp CLI/WinUI実行不可のためWindows CIを使用し、実Windowsの手動操作・物理IME/タッチ/高DPI等は未検証。
 
 ## WinUIスモークの選択実行・計測
 
