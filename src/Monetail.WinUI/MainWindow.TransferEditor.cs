@@ -175,7 +175,7 @@ public sealed partial class MainWindow
         Fill(TransferFrom, state.Draft.From.PaymentMethodId); Fill(TransferTo, state.Draft.To.PaymentMethodId);
         TransferFromReadOnly.Text = state.Draft.From.PaymentMethodId is Guid from ? connection.Masters.PaymentName(currentLedger.LedgerId, from) : "";
         TransferToReadOnly.Text = state.Draft.To.PaymentMethodId is Guid to ? connection.Masters.PaymentName(currentLedger.LedgerId, to) : "";
-        transferRendering = false; RenderTransferEditor();
+        transferRendering = false;
     }
     private TransferSavePreparation PrepareTransfer(bool reuse)
     {
