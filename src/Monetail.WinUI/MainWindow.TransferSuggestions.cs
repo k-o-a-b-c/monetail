@@ -131,7 +131,7 @@ public sealed partial class MainWindow
         {
             var result = await new TransfersWorkspace(connection.Api, connection.Session, ledger).AutofillAsync(new(context.Name, context.TransactionDate, context.FromPaymentMethodId), cancellation.Token);
             if (!cancellation.IsCancellationRequested && ReferenceEquals(editor, transferEditor) && currentLedger?.LedgerId == ledger && account?.AuthUserId == person && !TransferFrozen && editor.TryApplyAutofill(context, result))
-            { TransferSuggestionError.Text = ""; RefreshTransferEditorChoices(); }
+            { TransferSuggestionError.Text = ""; RefreshTransferEditorChoices(); RenderTransferEditor(); }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception error) when (error is TransferRequestException or ApiConnectionException or HttpRequestException or OperationCanceledException)
@@ -143,5 +143,5 @@ public sealed partial class MainWindow
     private void StopTransferAuthentication()
     { NavigateToLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); }
     private void TransferDateConfirmed(object sender, RoutedEventArgs args)
-    { if (!TransferFrozen) { SyncTransferInput(); RefreshTransferEditorChoices(); _ = AutofillTransferAsync(); } }
+    { if (!TransferFrozen) { SyncTransferInput(); RefreshTransferEditorChoices(); RenderTransferEditor(); _ = AutofillTransferAsync(); } }
 }
