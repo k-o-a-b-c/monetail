@@ -12,6 +12,7 @@ public partial class App
 {
     private async Task CheckConnectionFlow(string output, bool capture)
     {
+        await CheckLedgerChoiceControl();
         using (var fixture = new SyntheticConnection())
         {
             var root = await OpenSyntheticWindow(fixture);
@@ -125,10 +126,11 @@ public partial class App
             fixture.ChoiceCount = 2;
             var root = await OpenSyntheticWindow(fixture);
             await StartSyntheticAsync();
-            var choices = Find<ListView>(root, "LedgerChoices");
+            var choicePage = Find<Monetail.WinUI.Views.LedgerChoiceView>(root, "LedgerChoicePage");
+            var choices = Find<ListView>(choicePage, "LedgerChoices");
             Check(Visible(root, "LedgerChoicePage") && choices.Items.Count == 2, "履歴なしで複数所属なら家計簿選択");
             choices.SelectedIndex = 1;
-            await InvokeAsync(() => Find<Button>(root, "OpenLedgerButton"));
+            await InvokeAsync(() => Find<Button>(choicePage, "OpenLedgerButton"));
             await Wait(() => Visible(root, "HomePage"));
             Check(Find<TextBlock>(root, "LedgerName").Text == "もう一つの家計簿", "選択した家計簿を1回で開く");
         }
@@ -222,7 +224,7 @@ public partial class App
         return root;
     }
 
-    private static bool Visible(FrameworkElement root, string name) => Find<Grid>(root, name).Visibility == Visibility.Visible;
+    private static bool Visible(FrameworkElement root, string name) => Find<FrameworkElement>(root, name).Visibility == Visibility.Visible;
 
     private sealed class MemoryTokens : ITokenStore
     {

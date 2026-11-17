@@ -27,8 +27,7 @@ public sealed partial class MainWindow
         else if (ledgerChoices.Count == 0) ShowCreation();
         else
         {
-            LedgerChoices.ItemsSource = ledgerChoices;
-            OpenLedgerButton.IsEnabled = false;
+            LedgerChoicePage.Ledgers = ledgerChoices;
             ShowPage(LedgerChoicePage);
         }
     }
@@ -53,7 +52,8 @@ public sealed partial class MainWindow
         currentLedger = null;
         ledgerChoices = [];
         creationDraft = null;
-        LedgerChoices.ItemsSource = PeopleList.ItemsSource = null;
+        LedgerChoicePage.Ledgers = ledgerChoices;
+        PeopleList.ItemsSource = null;
         ledgerMenu = null;
         LedgerSelector.IsEnabled = false;
         LedgerName.Text = "家計簿を選択";
@@ -94,13 +94,7 @@ public sealed partial class MainWindow
         ShowPage(currentLedger is null ? LedgerChoicePage : HomePage);
     }
 
-    private void ChooseLedger(object sender, SelectionChangedEventArgs args) =>
-        OpenLedgerButton.IsEnabled = LedgerChoices.SelectedItem is LedgerInfo;
-
-    private async void OpenSelectedLedger(object sender, RoutedEventArgs args)
-    {
-        if (LedgerChoices.SelectedItem is LedgerInfo selected) await OpenLedgerAsync(selected.LedgerId);
-    }
+    private async void OpenSelectedLedger(object? sender, Guid ledgerId) => await OpenLedgerAsync(ledgerId);
 
     private async Task OpenLedgerAsync(Guid ledgerId)
     {

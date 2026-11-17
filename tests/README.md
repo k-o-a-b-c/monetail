@@ -15,6 +15,12 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 77 |
 | 合計 | 3662 |
 
+## WinUI：家計簿選択UserControlの分離
+
+[LedgerChoiceScenario.cs](Monetail.WinUI.Smoke/LedgerChoiceScenario.cs)を既存`connection-flow`へ接続する。未選択/ボタン無効、元のAutomationId/単一選択、一覧クリアと再設定、実上下キー・Tab/Shift+Tab・Enter、ID通知と家計簿openが各1回、同一Window、開く失敗時の選択保持、401時の一覧/選択解除を実Workspace/合成HTTPで確認する。既存の選択→ボタンクリックによる起動も維持する。テストはUserControl自身のNameScopeから内側を取得し、表示確認の型をFrameworkElementへ一般化する（同じVisibility条件を維持）。製品と同じUserControl XAML/コードを検証用プロジェクトへリンクする。
+
+基点main `0e246d2`の[push Tests 44011743170](https://github.com/k-o-a-b-c/monetail/actions/runs/44011743170)成功を変更前の根拠とし、非変更Client/API/DB等は既存CI選択/fingerprintに従って再実行を避ける。WinUI製品/検証用Release・起動・全件・選択実行をCIで確認する。構造の比較値・集計定義は[構成資料](../docs/architecture-winui.md#家計簿選択画面の分離第1段階)を参照する。LinuxではWinApp CLI/WinUI実行不可のためWindows CIを使用し、実Windowsの手動操作・物理IME/タッチ/高DPI等は未検証。
+
 ## WinUIスモークの選択実行・計測
 
 [run.ps1](Monetail.WinUI.Smoke/run.ps1)は`-Scenario`で1つだけ選択し、`-ListScenarios`で名前とスイートを表示する。指定なしは従来どおり専用入力→既存画面の2プロセスで全件実行し、各120秒の上限・失敗時の非ゼロ終了・`-Capture`による画像と既存ファイル名を維持する。直接exeを起動する場合も、`--scenario`なしでは全件を選ぶ。CIの全件範囲は減らさない。
