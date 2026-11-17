@@ -21,6 +21,13 @@
 - **正式リリース前はEF Core Migrationを追加しない**。空の新規DBへの`initialize-db`が現行EFモデルから最新スキーマを作成する。既存DBを自動更新しない。**正式リリース後からMigrationを導入**し、方式はリリース準備時に定める。正本は[API起動・DB初期化](docs/42-api-foundation.md)。レシート実装時は[実装の入口](docs/ledger-receipt-implementation.md)から工程別の正本だけ参照する。
 - `.env`は変更・コミットしない。秘密情報や実データもコミットしない。
 
+## WinUIの責務分離・複雑化防止
+- WinUIの画面追加・画面改修・構造整理では、既存の[`monetail-winui-architecture` Skill](.agents/skills/monetail-winui-architecture/SKILL.md)に沿って責務・依存・状態の増減を確認する。標準コントロール、LOB、コードレビューの公式系Skillも用途に応じて併用する。
+- `MainWindow`はWindow全体の画面遷移・家計簿/認証コンテキスト・未保存確認と寿命管理を担う。**新しい業務画面固有のコントロール操作・入力状態を`MainWindow`のpartialへ原則追加しない**。既存partialは一括書換えず、必要な範囲を小さく分離する。
+- 画面固有の一覧・選択・表示・入力・フォーカスは独立したViewに閉じ込める。Viewから`MainWindow`や別画面の内部コントロールを参照せず、必要な値と操作結果だけを小さな公開面で受け渡す。API・権限・保存・復旧の正本は既存Clientと画面仕様を優先する。
+- ViewModel・Service・イベント中継・独自コントロールは自動的に追加しない。**既存Clientの状態と重複する新状態を作らない**。標準WinUI 3の機能と既存部品で足りるならそのまま使い、追加の抽象化は具体的な責務と削減できる依存を説明してから採用する。
+- 分離PRでは変更前のXAMLイベント・参照先・スモークテストを確認し、既存の未保存保護、401復帰、競合、キー/IME、選択とフォーカス、AutomationId、表示状態を維持する。**画面分離と振る舞い変更を同じPRに混ぜない**。レビュー時は行数だけでなく依存関係、状態・フラグ、重複する処理・登録イベントの増減も確認する。
+
 ## 文書の正本と履歴
 - 仕様は正本1か所で管理し、README・ロードマップ等への重複転記はせずリンクで整合させる。実装に伴う変更がある文書だけ更新し、改修ごとに新文書を増やさない。
 - [07](docs/07-roadmap.md)は優先順位、[13](docs/13-glossary-decisions.md)は重要な新規決定の履歴、[tests/README.md](tests/README.md)は現行テスト・CIの正本。`docs/history.md`と`tests/history.md`は凍結済みで書き換えない。
