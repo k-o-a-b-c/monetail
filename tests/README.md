@@ -61,7 +61,9 @@ $paths = @{
 
 [ReceiptRecoveryScenario.cs](Monetail.WinUI.Smoke/ReceiptRecoveryScenario.cs)を`receipt-reauthentication`として追加。既存の2プロセス/各120秒の構成を維持し、専用入力側（互換用suite名`transfer-editor`）で実行する。新規/既存の同一モデル・親入力・未反映下書き・入力コントロール・人物CheckBox・旧版・未確定日時/数値・選択/表示位置、取消/連続401、別本人/接続先、権限喪失、取得失敗→手動再試行、遅延税率応答/終了時破棄、詳細GET/書込なしを確認する。HTTPの401を共通`RunAsync`へ渡す経路であり、**未接続の保存APIから発生する401の実経路や結果不明/409を検証済みとは扱わない**。
 
-基点main `67c4ca1`の[push Tests 44002600030](https://github.com/k-o-a-b-c/monetail/actions/runs/44002600030)成功を変更前の根拠とする。ローカルは保存基準の最小1件と編集モデル/税率/Sessionの関連102件（重複あり）が成功。最初の試行はMSBuildの実行環境制約で停止し、プロセス間通信を許可した実行で成功した。Windows CIで製品/検証用Release・起動・全件を確認する。非変更API/DB等は既存CIのfingerprint規則で再利用する。
+基点main `67c4ca1`の[push Tests 44002600030](https://github.com/k-o-a-b-c/monetail/actions/runs/44002600030)成功を変更前の根拠とする。ローカルは保存基準の最小1件と編集モデル/税率/Sessionの関連102件（重複あり）が成功。最初の試行はMSBuildの実行環境制約で停止し、プロセス間通信を許可した実行で成功した。Client全1,235件は[Tests 44006086987のClientジョブ](https://github.com/k-o-a-b-c/monetail/actions/runs/44006086987/job/133781823194)で成功し、以後のWinUI専用変更では再実行せず成功結果を参照した。最終ソース`53ad865`の[Tests 44009865747](https://github.com/k-o-a-b-c/monetail/actions/runs/44009865747)で、製品/検証用x64 Release（各29件の既存WUI2011警告/0エラー）、製品起動、全36シナリオ/684確認（専用入力201＋既存483、新しいレシート復帰30確認）が成功。既存の単独3シナリオ・一覧/全件照合・PNG4枚生成・不正指定拒否・計測も成功した。非変更API/DB等は既存CI選択/fingerprint規則で再利用する。
+
+途中の検証で、新規試験の参照不足、共通操作で無効化した後の位置取得、未実体化入力欄のreadonly設定漏れ、未通知TextChangedによる未保存確認漏れを修正した。コピー試験は既存の振替試験と同じキーイベント処理待ちへ統一した。タイムアウト延長・判定条件の緩和は行っていない。既存IMEの一時失敗・ネイティブアクセス違反は最終CIで再発していないが、過去の原因解決とは扱わない。実APIの保存操作起因401・未完了書込の実経路・物理IME/実Windows手動操作/高DPI等は未検証。
 
 ## WinUI：画面表示と編集破棄の分離（第1段階）
 
