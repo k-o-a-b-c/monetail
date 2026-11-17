@@ -20,6 +20,9 @@ public sealed partial class MainWindow
     private ReceiptRecoveryPhase receiptRecoveryPhase;
     private CancellationTokenSource? receiptRecoveryLoading;
     private bool ReceiptRecoveryReadOnly => receiptRecoveryPhase != ReceiptRecoveryPhase.None;
+    // 非表示/未レイアウト時にも必ず反映する。入力欄の制御にVisualTreeの実体化を使わない。
+    private TextBox[] ReceiptTextInputs => [ReceiptDate, ReceiptTime, ReceiptShopName, ReceiptShopLocation, ReceiptInterval,
+        ReceiptMemo, ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo];
 
     private static IEnumerable<DependencyObject> ReceiptVisuals(DependencyObject root)
     {
@@ -62,7 +65,7 @@ public sealed partial class MainWindow
         receiptEditorRendering = receiptDetailRendering = true;
         try
         {
-            foreach (var text in ReceiptVisuals(ReceiptEditorPage).OfType<TextBox>()) text.Text = "";
+            foreach (var text in ReceiptTextInputs) text.Text = "";
             ReceiptCategories.ItemsSource = ReceiptDetailsList.ItemsSource = null;
             ReceiptDetailPeople.Children.Clear(); ReceiptItemTax.Items.Clear();
             ReceiptEditorPayment.ItemsSource = ReceiptCategoryChoice.ItemsSource = null;
@@ -155,7 +158,7 @@ public sealed partial class MainWindow
     private void RenderReceiptRecovery()
     {
         var readOnly = ReceiptRecoveryReadOnly;
-        foreach (var text in ReceiptVisuals(ReceiptEditorPage).OfType<TextBox>()) text.IsReadOnly = readOnly;
+        foreach (var text in ReceiptTextInputs) text.IsReadOnly = readOnly;
         foreach (var choice in new Control[] { ReceiptEditorPayment, ReceiptUnit, ReceiptCategoryChoice, ReceiptTaxIncluded, ReceiptTaxExcluded,
             ReceiptTaxFloor, ReceiptTaxHalfUp, ReceiptItemTax, ReceiptItemExpense, ReceiptItemOccurrence }) choice.IsEnabled = !readOnly;
         foreach (var box in ReceiptDetailPeople.Children.OfType<CheckBox>()) box.IsEnabled = !readOnly;
