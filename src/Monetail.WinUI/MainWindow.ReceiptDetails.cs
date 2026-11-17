@@ -41,21 +41,28 @@ public sealed partial class MainWindow
     }
     private void RenderReceiptDetailPeople()
     {
-        ReceiptDetailPeople.Children.Clear();
-        if (currentLedger is null || receiptDetailInput is not { } input) return;
+        if (currentLedger is null || receiptDetailInput is not { } input) { ReceiptDetailPeople.Children.Clear(); return; }
+        var existing = ReceiptDetailPeople.Children.OfType<CheckBox>().ToDictionary(c => (Guid)c.Tag);
         var ledger = currentLedger.LedgerId; var people = connection.Masters.People(ledger)?.People ?? [];
         var mine = connection.Masters.MyPersonId(ledger);
         // 全人物を保持する。期限外の保存済み関連付けも勝手に解除しない。
         var choices = people.OrderByDescending(p => p.PersonId == mine).ThenBy(p => p.DisplayOrder).ThenBy(p => p.PersonId)
             .Select(p => (p.PersonId, p.Name)).ToList();
         foreach (var id in input.Values.PersonIds.Where(id => choices.All(p => p.PersonId != id))) choices.Add((id, "人物名未取得"));
-        foreach (var (id, name) in choices)
+        foreach (var old in existing.Values.Where(c => choices.All(p => p.PersonId != (Guid)c.Tag))) ReceiptDetailPeople.Children.Remove(old);
+        for (var i = 0; i < choices.Count; i++)
         {
-            var box = new CheckBox { Content = name, Tag = id, IsChecked = input.Values.PersonIds.Contains(id) };
-            AutomationProperties.SetAutomationId(box, $"ReceiptDetailPerson_{id:N}");
-            box.GotFocus += (_, _) => UpdateReceiptPeopleTabStops(box);
-            box.Checked += ReceiptPersonChanged; box.Unchecked += ReceiptPersonChanged;
-            ReceiptDetailPeople.Children.Add(box);
+            var (id, name) = choices[i];
+            if (!existing.TryGetValue(id, out var box))
+            {
+                box = new CheckBox { Tag = id };
+                AutomationProperties.SetAutomationId(box, $"ReceiptDetailPerson_{id:N}");
+                box.GotFocus += (_, _) => UpdateReceiptPeopleTabStops(box);
+                box.Checked += ReceiptPersonChanged; box.Unchecked += ReceiptPersonChanged;
+            }
+            box.Content = name; box.IsChecked = input.Values.PersonIds.Contains(id); box.IsEnabled = !ReceiptRecoveryReadOnly;
+            if (ReceiptDetailPeople.Children.IndexOf(box) != i)
+            { ReceiptDetailPeople.Children.Remove(box); ReceiptDetailPeople.Children.Insert(i, box); }
         }
         UpdateReceiptPeopleTabStops();
     }
@@ -79,7 +86,7 @@ public sealed partial class MainWindow
     private void ReceiptDetailChoiceChanged(object sender, SelectionChangedEventArgs args) => SyncReceiptDetailInput();
     private void SyncReceiptDetailInput()
     {
-        if (receiptDetailRendering || receiptDetailInput is not { } input) return;
+        if (ReceiptRecoveryReadOnly || receiptDetailRendering || receiptDetailInput is not { } input) return;
         input.Values.Name = ReceiptItemName.Text; input.UnitPrice = ReceiptItemPrice.Text; input.Quantity = ReceiptItemQuantity.Text;
         input.UnitDiscountAmount = ReceiptItemDiscount.Text; input.DiscountRate = ReceiptItemRateDiscount.Text;
         input.Values.Tax = ReceiptItemTax.SelectedItem is ComboBoxItem { Tag: ReceiptTaxSelection tax } ? tax : ReceiptTaxSelection.Unselected;
@@ -94,7 +101,7 @@ public sealed partial class MainWindow
     }
     private bool ApplyReceiptDetailCore(bool focus, bool resolving = false)
     {
-        if (!resolving && (receiptDetailTransition || receiptDialogOpen) || receiptEditor?.Draft is not { } draft || receiptDetailInput is null) return false;
+        if (ReceiptRecoveryReadOnly || !resolving && (receiptDetailTransition || receiptDialogOpen) || receiptEditor?.Draft is not { } draft || receiptDetailInput is null) return false;
         SyncReceiptDetailInput();
         try
         {
@@ -107,12 +114,12 @@ public sealed partial class MainWindow
     private void ApplyReceiptDetail(object sender, RoutedEventArgs args) => ApplyReceiptDetailCore(true);
     private void ReuseReceiptDetail(object sender, RoutedEventArgs args)
     {
-        if (receiptDialogOpen || receiptDetailTransition || receiptEditor?.SelectedDetailKey is null) return;
+        if (ReceiptRecoveryReadOnly || receiptDialogOpen || receiptDetailTransition || receiptEditor?.SelectedDetailKey is null) return;
         SyncReceiptDetailInput(); receiptEditor.ReuseSelectedDetail(); RenderReceiptDetailList();
     }
     private void DeleteReceiptDetail(object sender, RoutedEventArgs args)
     {
-        if (receiptDialogOpen || receiptDetailTransition || receiptEditor?.SelectedDetailKey is null) return;
+        if (ReceiptRecoveryReadOnly || receiptDialogOpen || receiptDetailTransition || receiptEditor?.SelectedDetailKey is null) return;
         // 削除は明示操作。次行を選択しないので連続クリックでも他の明細は消えない。
         SyncReceiptDetailInput();
         if (receiptEditor.Draft is { } draft && receiptDetailInput is { } input)
@@ -123,7 +130,7 @@ public sealed partial class MainWindow
     private void MoveReceiptDetailDown(object sender, RoutedEventArgs args) => MoveReceiptDetail(1);
     private void MoveReceiptDetail(int delta)
     {
-        if (receiptDialogOpen || receiptDetailTransition || receiptEditor is null) return;
+        if (ReceiptRecoveryReadOnly || receiptDialogOpen || receiptDetailTransition || receiptEditor is null) return;
         SyncReceiptDetailInput(); receiptEditor.MoveSelectedDetail(delta);
         RenderReceiptDetailList(); // フォームは再読込しない。不正な入力文字列もそのまま。
     }
@@ -154,7 +161,7 @@ public sealed partial class MainWindow
         receiptDetailRendering = true;
         ReceiptDetailsList.SelectedItem = ReceiptDetailsList.Items.OfType<ReceiptDetailRow>().FirstOrDefault(r => r.Key == receiptEditor?.SelectedDetailKey);
         receiptDetailRendering = false;
-        if (target is null || target.Key == receiptEditor?.SelectedDetailKey || receiptDetailTransition || receiptDialogOpen) return;
+        if (ReceiptRecoveryReadOnly || target is null || target.Key == receiptEditor?.SelectedDetailKey || receiptDetailTransition || receiptDialogOpen) return;
         receiptDetailTransition = true;
         try
         {
@@ -177,7 +184,7 @@ public sealed partial class MainWindow
         try
         {
             var result = await dialog.ShowAsync();
-            if (!ReferenceEquals(state, receiptEditor)) return false;
+            if (ReceiptRecoveryReadOnly || !ReferenceEquals(state, receiptEditor)) return false;
             if (result == ContentDialogResult.Primary) return ApplyReceiptDetailCore(false, resolving: true);
             if (result == ContentDialogResult.Secondary) { state.DiscardDraft(); LoadReceiptDetailForm(); return true; }
             return false;

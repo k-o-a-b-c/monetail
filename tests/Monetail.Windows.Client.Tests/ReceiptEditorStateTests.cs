@@ -24,6 +24,17 @@ public sealed partial class ReceiptEditorStateTests
     private static void Fill(ReceiptEditorState state, string name = "追加", int price = 100) { state.Draft!.Name = name; state.Draft.UnitPrice = price; }
 
     [Fact]
+    public void SavedPaymentForRecoveryIsIndependentOfCurrentInput()
+    {
+        var saved = Saved(); var editor = ReceiptEditorState.Edit(saved, Defaults);
+        editor.Header.PaymentMethodId = Guid.NewGuid();
+        Assert.Equal(saved.PaymentMethodId, editor.SavedPaymentMethodId);
+        Assert.NotEqual(editor.Header.PaymentMethodId, editor.SavedPaymentMethodId);
+        Assert.Null(New().SavedPaymentMethodId);
+        Assert.Equal(saved.Revision, editor.Revision);
+    }
+
+    [Fact]
     public void NewStateAppliesDetailWithOnlyScreenKeysAndPreparesRegistrationWithoutRequestId()
     {
         var state = New(); Assert.False(state.NeedsLeaveConfirmation); Assert.Null(state.ReceiptId); Assert.Null(state.Revision);

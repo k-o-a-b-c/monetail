@@ -360,8 +360,10 @@
             </Grid>
             <Grid x:Name="ReceiptEditorPage" Grid.Row="2" Visibility="Collapsed" RowSpacing="16" SizeChanged="ReceiptEditorSizeChanged">
                 <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer x:Name="ReceiptInputScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="16">
+                        <InfoBar x:Name="ReceiptRecoveryNotice" IsOpen="False" IsClosable="False" Severity="Error" AutomationProperties.LiveSetting="Polite"/>
+                        <Button x:Name="ReceiptMasterRetry" Content="再試行" Click="RetryReceiptMasters" Visibility="Collapsed"/>
                         <TextBlock x:Name="ReceiptEditorTitle" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                         <Grid x:Name="ReceiptHeaderRow1" ColumnSpacing="12" RowSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -421,7 +423,7 @@
                                 <ListView x:Name="ReceiptCategories" SelectionChanged="ReceiptGroupSelectionChanged" SelectionMode="Single" SingleSelectionFollowsFocus="False" IsItemClickEnabled="True" ItemClick="ReceiptCategoryClicked" KeyDown="ReceiptCategoryKeyDown" MaxHeight="260" MinHeight="100" AutomationProperties.Name="追加済み科目" AutomationProperties.AutomationId="ReceiptCategories">
                                     <ListView.ItemTemplate><DataTemplate x:DataType="local:ReceiptCategoryRow">
                                         <Grid Padding="4,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                            <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{x:Bind Name, Mode=OneWay}" TextWrapping="Wrap"/>
                                             <TextBlock Grid.Column="1" Text="{x:Bind ReferenceAmount, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="12,0,0,0"/>
                                         </Grid>
                                     </DataTemplate></ListView.ItemTemplate>
