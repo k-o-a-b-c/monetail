@@ -3,6 +3,7 @@
 ## 技術・参照先
 - 家計簿アプリ。旧Windows版: VB.NET / WinForms / .NET Framework 4.8 / SQLite。新Windows版: C# / .NET 10 / WinUI 3（Windows 11のみ・高DPI対応）。API: C# / ASP.NET Core / .NET 10（Windows版とは独立ビルド）。詳細は[04](docs/04-architecture.md)。
 - 識別子は英語、コメントは日本語。
+- コードの設計・実装・レビューには[`karpathy-guidelines` Skill](.agents/skills/karpathy-guidelines/SKILL.md)を適用する。仕様承認・既存テストのルールは本書に従う。
 - 新Windows版のUI変更時は[UI_DESIGN.md](UI_DESIGN.md)を読む。キー操作・入力補完を扱う場合は[59](docs/59-input-controls-design.md)も読む。権限・保存・画面遷移は該当する仕様の正本を参照する。
 
 ## 仕様判断と承認（最優先）
