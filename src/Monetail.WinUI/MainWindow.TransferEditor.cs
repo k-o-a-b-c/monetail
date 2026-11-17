@@ -164,10 +164,10 @@ public sealed partial class MainWindow
         var activeOwners = people.People.Where(p => day is DateOnly date && TransferEditorRules.IsActive(date, p.ValidFrom, p.ValidTo))
             .Select(p => p.PersonId).ToHashSet();
         var order = people.People.OrderByDescending(p => p.PersonId == methods.MyPersonId).ThenBy(p => p.DisplayOrder).Select((p, i) => (p.PersonId, i)).ToDictionary(p => p.PersonId, p => p.i);
-        var available = methods.PaymentMethods.Where(p => TransferEditorRules.CanUseOwner(methods, p.OwnerPersonId) && day is DateOnly date &&
+        var choices = methods.PaymentMethods.Where(p => TransferEditorRules.CanUseOwner(methods, p.OwnerPersonId) && day is DateOnly date &&
             TransferEditorRules.IsActive(date, p.ValidFrom, p.ValidTo) && activeOwners.Contains(p.OwnerPersonId))
-            .OrderBy(p => order.GetValueOrDefault(p.OwnerPersonId, int.MaxValue)).ThenBy(p => p.DisplayOrder).ToArray();
-        var choices = available.Select(p => new ReceiptFilterChoice(p.PaymentMethodId, connection.Masters.PaymentName(currentLedger.LedgerId, p.PaymentMethodId))).ToArray();
+            .OrderBy(p => order.GetValueOrDefault(p.OwnerPersonId, int.MaxValue)).ThenBy(p => p.DisplayOrder)
+            .Select(p => new ReceiptFilterChoice(p.PaymentMethodId, connection.Masters.PaymentName(currentLedger.LedgerId, p.PaymentMethodId))).ToArray();
         void Fill(ComboBox combo, Guid? selected)
         {
             ReceiptFilterChoice[] items = selected is Guid id && choices.All(c => c.Id != id)
@@ -176,8 +176,6 @@ public sealed partial class MainWindow
             combo.ItemsSource = items; combo.SelectedItem = items.FirstOrDefault(p => p.Id == selected);
         }
         Fill(TransferFrom, state.Draft.From.PaymentMethodId); Fill(TransferTo, state.Draft.To.PaymentMethodId);
-        TransferFromReadOnly.Text = state.Draft.From.PaymentMethodId is Guid from ? connection.Masters.PaymentName(currentLedger.LedgerId, from) : "";
-        TransferToReadOnly.Text = state.Draft.To.PaymentMethodId is Guid to ? connection.Masters.PaymentName(currentLedger.LedgerId, to) : "";
         transferRendering = false; RenderTransferEditor();
     }
     private TransferSavePreparation PrepareTransfer(bool reuse)
