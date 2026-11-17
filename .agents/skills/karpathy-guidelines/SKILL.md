@@ -1,26 +1,67 @@
 ---
 name: karpathy-guidelines
-description: "コードの設計・実装・リファクタリング・レビューで適用する、Karpathyの指摘に着想を得た4原則。過剰設計、根拠のない推測、無関係な変更、検証不足を防ぐ。"
+description: Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria.
+license: MIT
 ---
 
-# Karpathy-inspired Guidelines（monetail向け）
+# Karpathy Guidelines
 
-[コミュニティによる原案](https://github.com/multica-ai/andrej-karpathy-skills/tree/main/skills/karpathy-guidelines)の4原則を、monetail用に要約したもの。**Karpathy本人が公開した公式Skillではない**。
+Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 
-## 1. Think Before Coding（着手前に考える）
-- 確定事項、仮定、不明点を区別し、重要な不確実性とトレードオフを簡潔に伝える。
-- より単純な案があれば示す。利用者に影響する未決定仕様は`AGENTS.md`に従って確認し、推測で実装しない。
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-## 2. Simplicity First（必要最小限）
-- 要求された動作を実現する最も単純な設計を選ぶ。
-- 将来用の設定、単発処理の抽象化、起こり得ない経路への防御、不要な状態・層を増やさない。複雑になったら簡略化を検討する。
+## 1. Think Before Coding
 
-## 3. Surgical Changes（局所的な変更）
-- 依頼に必要な箇所だけ変更し、既存の命名・実装方針に合わせる。無関係な整理や「ついで」の改修は行わない。
-- 自分の変更で不要になったコード・参照は片付けるが、もともと存在した別件の問題は報告に留める。
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
 
-## 4. Goal-Driven Execution（検証可能な完了条件）
-- 着手前に観測可能な成功条件と確認方法を決める。複数工程なら簡潔な手順と各工程の検証を対応させる。
-- バグ修正は再現と回帰、構造変更は変更前後の動作維持を確認する。未実施・未確認の検証を成功と扱わない。
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
 
-本Skillは**作業の進め方**を定める。業務仕様の承認、正本、検証範囲、WinUIの責務分離は既存`AGENTS.md`・対象Skillが優先し、ここには複製しない。些細な変更では必要な確認だけを行い、儀式的な手順を増やさない。
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
