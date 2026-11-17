@@ -89,7 +89,7 @@ public sealed partial class MainWindow
     private void ReceiptMasterChanged(Guid ledger)
     {
         if (currentLedger?.LedgerId != ledger || closed) return;
-        RefreshReceiptEditorChoices(); RefreshTransferEditorChoices();
+        RefreshReceiptEditorChoices(); RefreshTransferEditorChoices(); RenderTransferEditor();
         RefreshReceiptChoices(); foreach (var row in receiptRows) row.RefreshName();
         foreach (var row in transferRows) row.RefreshName();
     }
