@@ -21,6 +21,9 @@
 - **正式リリース前はEF Core Migrationを追加しない**。空の新規DBへの`initialize-db`が現行EFモデルから最新スキーマを作成する。既存DBを自動更新しない。**正式リリース後からMigrationを導入**し、方式はリリース準備時に定める。正本は[API起動・DB初期化](docs/42-api-foundation.md)。レシート実装時は[実装の入口](docs/ledger-receipt-implementation.md)から工程別の正本だけ参照する。
 - `.env`は変更・コミットしない。秘密情報や実データもコミットしない。
 
+## WinUIの構造
+- 新しい画面固有処理を`MainWindow`へ追加せず、[`monetail-winui-architecture` Skill](.agents/skills/monetail-winui-architecture/SKILL.md)の責務分離・状態重複防止の基準に従う。WinUI/LOB/コードレビューの公式系Skillは用途に応じて併用する。
+
 ## 文書の正本と履歴
 - 仕様は正本1か所で管理し、README・ロードマップ等への重複転記はせずリンクで整合させる。実装に伴う変更がある文書だけ更新し、改修ごとに新文書を増やさない。
 - [07](docs/07-roadmap.md)は優先順位、[13](docs/13-glossary-decisions.md)は重要な新規決定の履歴、[tests/README.md](tests/README.md)は現行テスト・CIの正本。`docs/history.md`と`tests/history.md`は凍結済みで書き換えない。
