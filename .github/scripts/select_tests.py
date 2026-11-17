@@ -82,6 +82,10 @@ def selected_inputs(paths, *, strict=True):
             for inputs in result.values():
                 inputs.add(path)
             continue
+        if path == ".editorconfig":
+            for flag in ("api", "docker", "windows_client", "windows_storage", "winui"):
+                result[flag].add(path)
+            continue
         if path == ".github/workflows/release-api.yml":
             for flag in ("api", "docker", "compose"):
                 result[flag].add(path)

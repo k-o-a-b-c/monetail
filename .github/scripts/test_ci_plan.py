@@ -37,6 +37,9 @@ class FingerprintTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assert_changed(path, "api", "docker", "windows_client", "windows_storage", "winui")
 
+    def test_editorconfig_invalidates_only_csharp_consumers(self):
+        self.assert_changed(".editorconfig", "api", "docker", "windows_client", "windows_storage", "winui")
+
     def test_document_changes_keep_all_success_fingerprints(self):
         self.assert_changed("README.md")
         self.assert_changed("docs/new-document.md")
