@@ -11,6 +11,7 @@ public partial class App
     private SmokeScenario[] Scenarios(string output, bool capture, bool repeatParticipantRecovery) =>
     [
         new("transfer-reauthentication", "transfer-editor", CheckTransferReauthentication),
+        new("receipt-reauthentication", "transfer-editor", CheckReceiptReauthentication),
         new("transfer-conflicts", "transfer-editor", CheckTransferConflicts),
         new("transfer-review", "transfer-editor", CheckTransferReview),
         new("transfer-editor", "transfer-editor", CheckTransferEditor),

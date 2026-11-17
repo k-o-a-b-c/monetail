@@ -9,15 +9,15 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1234 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1235 |
 | Windowsの実DPAPI・保存 | 3 |
-| WinUI 3の製品起動・画面スモーク（振替入力／既存全画面の2プロセス・35シナリオ） | 2 |
+| WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 77 |
 | 合計 | 3662 |
 
 ## WinUIスモークの選択実行・計測
 
-[run.ps1](Monetail.WinUI.Smoke/run.ps1)は`-Scenario`で1つだけ選択し、`-ListScenarios`で名前とスイートを表示する。指定なしは従来どおり振替入力→既存画面の2プロセスで全件実行し、各120秒の上限・失敗時の非ゼロ終了・`-Capture`による画像と既存ファイル名を維持する。直接exeを起動する場合も、`--scenario`なしでは全件を選ぶ。CIの全件範囲は減らさない。
+[run.ps1](Monetail.WinUI.Smoke/run.ps1)は`-Scenario`で1つだけ選択し、`-ListScenarios`で名前とスイートを表示する。指定なしは従来どおり専用入力→既存画面の2プロセスで全件実行し、各120秒の上限・失敗時の非ゼロ終了・`-Capture`による画像と既存ファイル名を維持する。直接exeを起動する場合も、`--scenario`なしでは全件を選ぶ。CIの全件範囲は減らさない。
 
 ```powershell
 dotnet build src/Monetail.WinUI/Monetail.WinUI.csproj -c Release -r win-x64 -p:Platform=x64 -o "$env:TEMP\monetail-app"
@@ -36,7 +36,7 @@ $paths = @{
 & tests/Monetail.WinUI.Smoke/run.ps1 @paths -Scenario participant-authentication-recovery -RepeatParticipantRecovery
 ```
 
-[App.Scenarios.cs](Monetail.WinUI.Smoke/App.Scenarios.cs)に35シナリオを明示登録する。各シナリオの既存の合成接続/Window初期化を使い、初期ホーム/管理画面と操作ヘルパーの確認は依存があるため`shell`にまとめる。シナリオ内部の確認項目は個別化しない。共通Windowは、単独の入力コントロール試験が自分のWindowを閉じた際に、結果記録前にアプリが正常終了するのを防ぐために保持する。従来の`--transfer-editor-only`とCI用`--existing-only`で2プロセスの分割を維持する。
+[App.Scenarios.cs](Monetail.WinUI.Smoke/App.Scenarios.cs)に36シナリオを明示登録する。各シナリオの既存の合成接続/Window初期化を使い、初期ホーム/管理画面と操作ヘルパーの確認は依存があるため`shell`にまとめる。シナリオ内部の確認項目は個別化しない。共通Windowは、単独の入力コントロール試験が自分のWindowを閉じた際に、結果記録前にアプリが正常終了するのを防ぐために保持する。従来の`--transfer-editor-only`とCI用`--existing-only`で2プロセスの分割を維持する。
 
 [SmokeScenarioExecution.cs](Monetail.WinUI.Smoke/SmokeScenarioExecution.cs)は名前の選択と`Stopwatch`計測だけを行う。`smoke-result.json`の既存項目に`scenarios`を追加し、各行に`name`・`suite`・`passed`・`elapsedMilliseconds`・`checks`（このシナリオで成功した確認数）を記録する。実行中は全体`passed:false`で途中結果を保存し、全件成功後だけtrueとする。例外/キャンセルでも失敗行と経過時間を記録して例外を伝播する。ネイティブクラッシュ/強制終了では進行中の完了時間は得られず、最後に書けた結果と既存診断ログを確認する。時間は各シナリオ本体の壁時計経過で、ビルド/製品起動/共通Window準備は含まない。
 
@@ -56,6 +56,12 @@ $paths = @{
 | shell（個別・PNG4枚を含む） | 1.714秒 |
 
 この1回のCI環境での参考値であり、性能SLAや一般的な短縮率を示さない。実Windows手動操作/物理IME/タッチ/高DPIや画像の表示品質の手動受入は未実施。製品コード・private参照の整理は対象外。
+
+## WinUI：レシート401認証復帰
+
+[ReceiptRecoveryScenario.cs](Monetail.WinUI.Smoke/ReceiptRecoveryScenario.cs)を`receipt-reauthentication`として追加。既存の2プロセス/各120秒の構成を維持し、専用入力側（互換用suite名`transfer-editor`）で実行する。新規/既存の同一モデル・親入力・未反映下書き・入力コントロール・人物CheckBox・旧版・未確定日時/数値・選択/表示位置、取消/連続401、別本人/接続先、権限喪失、取得失敗→手動再試行、遅延税率応答/終了時破棄、詳細GET/書込なしを確認する。HTTPの401を共通`RunAsync`へ渡す経路であり、**未接続の保存APIから発生する401の実経路や結果不明/409を検証済みとは扱わない**。
+
+基点main `67c4ca1`の[push Tests 44002600030](https://github.com/k-o-a-b-c/monetail/actions/runs/44002600030)成功を変更前の根拠とする。ローカルは保存基準の最小1件と編集モデル/税率/Sessionの関連102件（重複あり）が成功。最初の試行はMSBuildの実行環境制約で停止し、プロセス間通信を許可した実行で成功した。Windows CIで製品/検証用Release・起動・全件を確認する。非変更API/DB等は既存CIのfingerprint規則で再利用する。
 
 ## WinUI：画面表示と編集破棄の分離（第1段階）
 

@@ -6,7 +6,12 @@ public sealed class ReceiptCategoryRow(Guid key, Guid categoryId, string name) :
 {
     public Guid Key { get; } = key;
     public Guid CategoryId { get; } = categoryId;
-    public string Name { get; } = name;
+    public string Name { get; private set; } = name;
+    internal void SetName(string value)
+    {
+        if (Name == value) return;
+        Name = value; PropertyChanged?.Invoke(this, new(nameof(Name)));
+    }
     public event PropertyChangedEventHandler? PropertyChanged;
     public string ReferenceAmount { get; private set; } = "参考額：未計算";
     internal void SetAmount(int? amount)

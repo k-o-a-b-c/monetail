@@ -8,6 +8,7 @@ public sealed class ReceiptEditorState
 {
     public Guid? ReceiptId { get; }
     public Guid? Revision { get; }
+    public Guid? SavedPaymentMethodId => ReceiptId is null ? null : baselineHeader.PaymentMethodId;
     public ReceiptHeaderDraft Header { get; }
     private readonly List<ReceiptEditGroup> groups = [];
     public IReadOnlyList<ReceiptEditGroup> Groups { get; }

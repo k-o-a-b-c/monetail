@@ -26,6 +26,7 @@
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSuggestions.cs" Link="MainWindow.TransferSuggestions.cs" />
 
     <Compile Include="../../src/Monetail.WinUI/ReceiptCategoryRow.cs" Link="ReceiptCategoryRow.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptRecovery.cs" Link="MainWindow.ReceiptRecovery.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptEditor.cs" Link="MainWindow.ReceiptEditor.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptCalculations.cs" Link="MainWindow.ReceiptCalculations.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptDetails.cs" Link="MainWindow.ReceiptDetails.cs" />

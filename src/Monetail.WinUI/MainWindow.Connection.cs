@@ -79,7 +79,7 @@ public sealed partial class MainWindow
 
     private async void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
     {
-        if (!transferAwaitingLogin && !await LeaveRecordEditorAsync()) return;
+        if (!EditorAwaitingLogin && !await LeaveRecordEditorAsync()) return;
         DropPendingCategoryEdit();
         DropPendingPaymentEdit();
         DropPendingPersonEdit();
@@ -108,7 +108,7 @@ public sealed partial class MainWindow
 
     private async Task ConnectAsync(ApiEndpoint candidate)
     {
-        if (!transferAwaitingLogin && !await LeaveRecordEditorAsync()) return;
+        if (!EditorAwaitingLogin && !await LeaveRecordEditorAsync()) return;
         await RunAsync(async () =>
     {
         using var timeout = ConnectionTimeout();
@@ -120,9 +120,11 @@ public sealed partial class MainWindow
     private async void CancelConnection(object sender, RoutedEventArgs args) => await StartAsync();
 
     // ログインへの移動準備。画面表示だけでは編集状態を破棄しない。
+    private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login;
+
     private void NavigateToLogin(string? message = null)
     {
-        var suspended = SuspendTransferForAuthentication();
+        var suspended = SuspendTransferForAuthentication() || SuspendReceiptForAuthentication();
         account = null;
         if (!suspended)
         {
@@ -288,8 +290,8 @@ public sealed partial class MainWindow
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
         var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, ConnectionPage) || ReferenceEquals(page, StartupPage) || ReferenceEquals(page, FailurePage);
-        if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(transferAwaitingLogin && authenticationPage)) return;
-        if (transferAwaitingLogin && ReferenceEquals(page, HomePage)) return;
+        if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(EditorAwaitingLogin && authenticationPage)) return;
+        if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
         if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); CancelTransferOpening(); receiptState?.Suspend(); transferState?.Suspend(); }
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
@@ -354,7 +356,7 @@ public sealed partial class MainWindow
         receiptState?.Dispose();
         CancelTransferOpening(); CancelTransferSuggestions(); transferAutofillCancellation?.Cancel();
         transferState?.Dispose(); recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose();
-        CancelReceiptOpening();
+        ResetReceiptEditor();
         connection.Masters.Changed -= ReceiptMasterChanged;
         DiscardCategoryEditor();
         DiscardPaymentEditor();
