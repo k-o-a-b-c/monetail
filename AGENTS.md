@@ -1,4 +1,4 @@
-# monetail / Codex 開発指示
+# monetail / 開発指示（Codex・ChatGPT）
 
 ## 技術・参照先
 - 家計簿アプリ。旧Windows版: VB.NET / WinForms / .NET Framework 4.8 / SQLite。新Windows版: C# / .NET 10 / WinUI 3（Windows 11のみ・高DPI対応）。API: C# / ASP.NET Core / .NET 10（Windows版とは独立ビルド）。詳細は[04](docs/04-architecture.md)。
