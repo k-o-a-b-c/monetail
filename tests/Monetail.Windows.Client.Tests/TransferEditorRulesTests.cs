@@ -11,9 +11,10 @@ public sealed class TransferEditorRulesTests
     [InlineData("Admin", true, true, true)] [InlineData("Editor", true, true, false)] [InlineData("Editor", false, false, false)] [InlineData("Viewer", true, false, false)]
     public void PermissionPreviewDistinguishesBothOwnersAndUnmappedEditor(string role, bool mapped, bool mineAllowed, bool otherAllowed)
     {
-        var mine = Guid.NewGuid(); var from = Guid.NewGuid(); var to = Guid.NewGuid();
-        var methods = new PaymentMethodsInfo([new(from, mine, "現金", 0, null, null, Guid.NewGuid()), new(to, Guid.NewGuid(), "銀行", 0, null, null, Guid.NewGuid())], [], mapped ? mine : null, role);
+        var mine = Guid.NewGuid(); var other = Guid.NewGuid(); var from = Guid.NewGuid(); var to = Guid.NewGuid();
+        var methods = new PaymentMethodsInfo([new(from, mine, "現金", 0, null, null, Guid.NewGuid()), new(to, other, "銀行", 0, null, null, Guid.NewGuid())], [], mapped ? mine : null, role);
         Assert.Equal(mineAllowed, TransferEditorRules.CanCreate(methods)); Assert.Equal(mineAllowed, TransferEditorRules.CanUse(methods, from)); Assert.Equal(otherAllowed, TransferEditorRules.CanUse(methods, to));
+        Assert.Equal(mineAllowed, TransferEditorRules.CanUseOwner(methods, mine)); Assert.Equal(otherAllowed, TransferEditorRules.CanUseOwner(methods, other));
         Assert.False(TransferEditorRules.CanUse(methods, Guid.NewGuid()));
     }
     [Theory]
