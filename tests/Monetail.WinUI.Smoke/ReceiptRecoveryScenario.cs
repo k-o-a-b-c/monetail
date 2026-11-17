@@ -77,7 +77,12 @@ public partial class App
                 "税率再取得中の連続401でも最初の編集位置と同じモデル/下書きを再利用する");
             var taxReads = fixture.TaxRatesRequests;
             await CompleteReceiptLogin(fixture, root);
-            await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), price) && price.SelectionStart == 1 && price.SelectionLength == 2 && Math.Abs(scroller.VerticalOffset - offset) < 1);
+            try { await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), price) && price.SelectionStart == 1 && price.SelectionLength == 2 && Math.Abs(scroller.VerticalOffset - offset) < 1); }
+            catch (TaskCanceledException error)
+            {
+                var view = context?.GetType();
+                throw new InvalidOperationException($"レシート復帰位置: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; selection={price.SelectionStart},{price.SelectionLength}; offset={scroller.VerticalOffset}/{offset}; capturedFocus={(view?.GetProperty("Focus")?.GetValue(context) as FrameworkElement)?.Name}; capturedSelection={view?.GetProperty("SelectionStart")?.GetValue(context)},{view?.GetProperty("SelectionLength")?.GetValue(context)}; phase={TransferRuntime("receiptRecoveryPhase")}; loaded={price.IsLoaded}; readonly={price.IsReadOnly}", error);
+            }
             Check(ReferenceEquals(originalWindow, window) && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) &&
                 ReferenceEquals(price, Find<TextBox>(root, "ReceiptItemPrice")) && people.All(p => Find<StackPanel>(root, "ReceiptDetailPeople").Children.Contains(p)),
                 "同じ本人への復帰は元のWindow/モデル/フォーム/人物チェックボックスを再利用する");

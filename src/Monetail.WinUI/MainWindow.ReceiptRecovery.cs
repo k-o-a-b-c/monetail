@@ -28,21 +28,24 @@ public sealed partial class MainWindow
             foreach (var child in ReceiptVisuals(VisualTreeHelper.GetChild(root, i))) yield return child;
     }
 
+    // 共通操作が画面を無効化する前にも呼び、元のフォーカスを失わないようにする。
+    private ReceiptAuthentication? RememberReceiptAuthenticationView()
+    {
+        if (receiptEditor is not null && account is not null && currentLedger is not null && connection.Endpoint is not null &&
+            (receiptAuthentication is not { } previous || previous.AccountId != account.AuthUserId ||
+                previous.LedgerId != currentLedger.LedgerId || previous.ApiOrigin != connection.Endpoint.Value))
+        {
+            var focus = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as Control;
+            receiptAuthentication = new(account.AuthUserId, currentLedger.LedgerId, connection.Endpoint.Value, focus,
+                (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
+                ReceiptVisuals(ReceiptEditorPage).OfType<ScrollViewer>().Select(v => (v, v.HorizontalOffset, v.VerticalOffset)).ToArray());
+        }
+        return receiptAuthentication;
+    }
+
     private bool SuspendReceiptForAuthentication()
     {
-        if (receiptEditor is null) return false;
-        if (account is not null && currentLedger is not null && connection.Endpoint is not null)
-        {
-            if (receiptAuthentication is not { } previous || previous.AccountId != account.AuthUserId ||
-                previous.LedgerId != currentLedger.LedgerId || previous.ApiOrigin != connection.Endpoint.Value)
-            {
-                var focus = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as Control;
-                receiptAuthentication = new(account.AuthUserId, currentLedger.LedgerId, connection.Endpoint.Value, focus,
-                    (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
-                    ReceiptVisuals(ReceiptEditorPage).OfType<ScrollViewer>().Select(v => (v, v.HorizontalOffset, v.VerticalOffset)).ToArray());
-            }
-        }
-        if (receiptAuthentication is not { } context || context.ApiOrigin != connection.Endpoint?.Value) return false;
+        if (receiptEditor is null || RememberReceiptAuthenticationView() is not { } context || context.ApiOrigin != connection.Endpoint?.Value) return false;
         receiptRecoveryPhase = ReceiptRecoveryPhase.Login;
         receiptRecoveryLoading?.Cancel();
         ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = true;
@@ -159,7 +162,10 @@ public sealed partial class MainWindow
         UpdateReceiptCategoryActions();
         ReceiptCategoryRemove.IsEnabled = !readOnly && receiptEditor?.SelectedGroup is not null;
         if (readOnly)
+        {
             foreach (var button in new[] { ReceiptDetailApply, ReceiptDetailReuse, ReceiptDetailDelete, ReceiptDetailUp, ReceiptDetailDown }) button.IsEnabled = false;
+            RefreshReceiptCalculation();
+        }
         else if (receiptEditor is not null) RenderReceiptDetailList(refreshRows: false);
         ReceiptRecoveryNotice.Message = receiptRecoveryPhase switch
         {

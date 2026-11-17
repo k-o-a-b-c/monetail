@@ -334,7 +334,7 @@ public sealed partial class MainWindow
             {
                 var dialog = ReceiptConfirmationDialog; dialog.XamlRoot = WorkspaceRoot.XamlRoot;
                 dialog.Title = "未保存の内容があります"; dialog.Content = "保存はまだ利用できません。入力内容を破棄して移動しますか？";
-                dialog.SecondaryButtonText = ""; dialog.PrimaryButtonText = "破棄して移動"; dialog.CloseButtonText = "編集に戻る";
+                dialog.SecondaryButtonText = ""; dialog.PrimaryButtonText = ReceiptRecoveryReadOnly ? "破棄して閉じる" : "破棄して移動"; dialog.CloseButtonText = "編集に戻る";
                 receiptDialogOpen = true;
                 try { if (await dialog.ShowAsync() != ContentDialogResult.Primary || receiptRecoveryPhase == ReceiptRecoveryPhase.Login) return false; }
                 finally { receiptDialogOpen = false; }

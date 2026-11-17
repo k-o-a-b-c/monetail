@@ -119,9 +119,9 @@ public sealed partial class MainWindow
 
     private async void CancelConnection(object sender, RoutedEventArgs args) => await StartAsync();
 
-    // ログインへの移動準備。画面表示だけでは編集状態を破棄しない。
     private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login;
 
+    // ログインへの移動準備。画面表示だけでは編集状態を破棄しない。
     private void NavigateToLogin(string? message = null)
     {
         var suspended = SuspendTransferForAuthentication() || SuspendReceiptForAuthentication();
@@ -207,6 +207,7 @@ public sealed partial class MainWindow
     private async Task RunAsync(Func<Task> action, Func<Task> repeat, bool connectionFailure = false)
     {
         if (busy || closed) return;
+        var receiptView = RememberReceiptAuthenticationView();
         busy = true;
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
@@ -262,6 +263,7 @@ public sealed partial class MainWindow
         finally
         {
             busy = false;
+            if (receiptRecoveryPhase == ReceiptRecoveryPhase.None && ReferenceEquals(receiptAuthentication, receiptView)) receiptAuthentication = null;
             if (!closed) SetOperationsEnabled(true);
         }
     }
