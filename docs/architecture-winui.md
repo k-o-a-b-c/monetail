@@ -35,6 +35,26 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 最後の行はソースの名前一致による指標で、意味解析/生成コードの集計ではない。画面自体の`LedgerChoicePage`参照は1つのまま維持する。新規ViewはXAML17行＋C#31行、既存MainWindowの13行減と合わせて製品コードは差引35行増。行数削減自体よりも、画面の選択/ボタン処理をMainWindowから切り離したことを成果とする。検証の正本は[tests/README.md](../tests/README.md)。
 
+## 科目一覧の分離（一覧だけ）
+
+`CategoriesContent`は従来のGrid/表示境界のまま、その内側の一覧・フィルター・操作列を`Views/CategoryListView`へ移す。`CategoryDialog`・`CategoryOrderContent`・API・権限判定・競合/401復帰はMainWindow側に残す。Viewは全件データを同じ参照で受け取り、従来と同じ本日/両端含む期間判定と選択復元を行う。業務版・要求ID・権限・復帰情報は複製しない。
+
+公開面は`Categories`（nullは従来の未取得/解除、空配列は取得済み0件）・`SelectedCategory`・`IncludeInactive`の3プロパティ、MainWindowが計算済みの2つの操作可否を渡す`SetActionsEnabled`、4操作＋選択変更の5イベント。9メンバー（コンストラクター除外）であり、イベント集約enum/ディスパッチャーや新ViewModel/DIはない。ViewからMainWindow/Workspace/他画面を参照しない。既存`CategoryRow`は順序画面とも共有するため移動しない。空一覧の表示属性は従来のDescriptionと同値でView内へ置き、MainWindowのローカルStyleに依存しない。
+
+| 集計対象 | 基点main `aeb1a18` | 分離後 |
+| --- | ---: | ---: |
+| 製品WinUIの手書きC#/XAML総行数（空行込み） | 5,970 | 6,036 |
+| MainWindow.xaml / 全partial C#行数 | 980 / 4,498 | 959 / 4,491 |
+| 一覧内部へのMainWindow直接参照（名前の種類 / 出現数） | 7 / 17 | 0 / 0 |
+| MainWindow科目関連の状態フィールド | 17 | 17 |
+| Viewの追加データ参照 / boolフラグ | 0 / 0 | 1 / 0 |
+| Viewの公開イベント / 公開API総数 | 0 / 0 | 5 / 9 |
+| 対象内のXAMLイベント購読（内部＋境界） | 7＋0 | 7＋5 |
+
+行数は`git ls-files src/Monetail.WinUI`の`.cs`/`.xaml`（生成物除外）。新ViewはXAML32＋C#62＝94行、MainWindowの28行減と合わせ差引66行増。直接参照は移管した7つのx:Nameの識別子一致数。状態はCategories/CategoryRecovery/CategoryOrderの明示フィールドを数え、生成コントロール参照とイベントdelegate backing fieldは除外する（追加delegateはイベント5件として明示）。選択/フィルターのNative状態は従来どおり各1つで複製しない。
+
+残る依存は、MainWindowからの一覧更新・選択/フィルター参照・操作可否の反映と5通知、および既存CategoryRow/CategoryInfoの共有。MainWindowの業務状態17個は今回削減しない。全件参照とイベント境界が増える代わりに、直接のコントロール操作をViewへ閉じ込める。取得/解除は既存DisplayCategories/ResetCategoriesから同期する。検証は[tests/README.md](../tests/README.md)を参照。
+
 ## WinUIの責務棚卸しと段階的分離（検討順序・未実装）
 
 現状、`MainWindow.xaml`に複数画面のXAMLがあり、`MainWindow*.cs`の多数のpartialがコントロールと状態を共有する。partialのファイル分割は責務の分割ではない。一方、`Monetail.Windows.Client`には保存・入力・通信の既存モデルがあるため、全面MVVM化や同等状態の複製は行わない。
@@ -44,7 +64,7 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 | 完了 | `MainWindow.Ledgers.cs`内の家計簿選択操作 | `Views/LedgerChoiceView` | 一覧選択・開く操作をViewへ、家計簿Open/認証をWindowに保持 |
 | 1 | `MainWindow.Ledgers.cs`の作成フォームと`MainWindow.xaml` | 家計簿作成フォームの表示・入力をViewへ | `LedgerCreationDraft`の再試行、実際のCreate/画面遷移、取消時の行き先はWindow/Clientの契約を維持 |
 | 2 | `MainWindow.xaml.cs`/`MainWindow.Persons.cs`の人物一覧 | 一覧・フィルター・選択をViewへ | 権限、編集ダイアログ、並び順、401復帰のガードは動作を確認しながら別工程 |
-| 3 | `MainWindow.Categories.cs`/`MainWindow.Payments.cs` | 管理一覧の表示と選択を順番に分離 | グループ順、権限、削除、競合、並び替え/復帰を同時に再設計しない |
+| 3（一部完了） | `MainWindow.Categories.cs`/`MainWindow.Payments.cs` | 科目一覧はCategoryListViewへ分離済み。支払方法一覧は後続 | グループ順、権限、削除、競合、並び替え/復帰を同時に再設計しない |
 | 後段 | `MainWindow.Receipts.cs`/`ReceiptEditor.cs`／`MainWindow.Transfers.cs`/`TransferEditor.cs` | 記録一覧と専用入力画面を機能別に分離 | 未確定入力、保存結果不明、401復帰、未保存確認、画面往復の状態を壊さない |
 | 維持 | `MainWindow.xaml.cs`/`Connection.cs`/`Activation.cs`など | Window全体のオーケストレーション | 家計簿・アカウント切替、グローバルナビゲーション、寿命・未保存ガード |
 

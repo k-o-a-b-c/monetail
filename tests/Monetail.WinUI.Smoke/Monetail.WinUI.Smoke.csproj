@@ -6,6 +6,8 @@
   <ItemGroup>
     <!-- 実画面と同じXAML・コードを検証し、製品Appに検証用の起動引数を追加しない。 -->
     <Page Include="../../src/Monetail.WinUI/MainWindow.xaml" Link="MainWindow.xaml" />
+    <Page Include="../../src/Monetail.WinUI/Views/CategoryListView.xaml" Link="Views/CategoryListView.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/CategoryListView.xaml.cs" Link="Views/CategoryListView.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/LedgerChoiceView.xaml" Link="Views/LedgerChoiceView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/LedgerChoiceView.xaml.cs" Link="Views/LedgerChoiceView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />

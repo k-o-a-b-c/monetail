@@ -15,6 +15,12 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 77 |
 | 合計 | 3662 |
 
+## WinUI：科目一覧UserControlの分離
+
+既存[CategoriesScenario.cs](Monetail.WinUI.Smoke/CategoriesScenario.cs)は全確認・期待値を維持し、移管した7コントロールの取得元だけをCategoryListViewのNameScopeへ変更する。既存ソースを正規化して取得元/追加試験呼出以外に差分がないことも確認した。[CategoryListScenario.cs](Monetail.WinUI.Smoke/CategoryListScenario.cs)は同じ`categories`シナリオに接続し、AutomationId・余分なTab停止なし・実Tab/Shift+Tab順・Spaceでの期間切替・選択保持・追加GET/書込なしを確認する。製品と同じView XAML/コードを検証用へリンクする。
+
+基点main `aeb1a18`の[push Tests 44028991687](https://github.com/k-o-a-b-c/monetail/actions/runs/44028991687)成功を変更前の根拠とする。WinUI製品/検証用x64 Release・起動・科目/画面遷移/各401復帰を含む既存全件をCIで確認する。Client/API/DBなど非変更部分は既存CI選択/fingerprintで成功結果を再利用する。構造の集計条件は[構成資料](../docs/architecture-winui.md#科目一覧の分離一覧だけ)。LinuxでWinApp CLI/WinUI実行不可のためWindows CIを使い、実Windows手動操作/物理IME/タッチ/高DPI等は未検証。
+
 ## WinUI：家計簿選択UserControlの分離
 
 [LedgerChoiceScenario.cs](Monetail.WinUI.Smoke/LedgerChoiceScenario.cs)を既存`connection-flow`へ接続する。未選択/ボタン無効、元のAutomationId/単一選択、一覧クリアと再設定、実上下キー・Tab/Shift+Tab・Enter、ID通知と家計簿openが各1回、同一Window、開く失敗時の選択保持、401時の一覧/選択解除を実Workspace/合成HTTPで確認する。既存の選択→ボタンクリックによる起動も維持する。テストはUserControl自身のNameScopeから内側を取得し、表示確認の型をFrameworkElementへ一般化する（同じVisibility条件を維持）。製品と同じUserControl XAML/コードを検証用プロジェクトへリンクする。
