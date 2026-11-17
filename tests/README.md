@@ -57,6 +57,12 @@ $paths = @{
 
 この1回のCI環境での参考値であり、性能SLAや一般的な短縮率を示さない。実Windows手動操作/物理IME/タッチ/高DPIや画像の表示品質の手動受入は未実施。製品コード・private参照の整理は対象外。
 
+## WinUI：画面表示と編集破棄の分離（第1段階）
+
+[NavigationLifetimeScenario.cs](Monetail.WinUI.Smoke/NavigationLifetimeScenario.cs)を既存`transfer-reauthentication`に接続する。ログイン表示だけでは家計簿/認証コンテキストを変更しないこと、未承認遷移のガード、記録ホーム一覧のリセット/家計簿解除と振替・レシート編集の独立性、同じモデル/入力コントロール/未確定文字列/旧版の保持、明示破棄、詳細GET/保存なしを確認する。レシート401復帰を新規実装するテストではない。
+
+既存の連続401/別本人/別接続先/マスタ失敗と再試行/結果不明/409/通常離脱、および人物・科目・支払方法・参加者の復帰シナリオは削除・緩和しない。基点main `44ebeed`の[push Tests 43984012725](https://github.com/k-o-a-b-c/monetail/actions/runs/43984012725)成功を変更前の根拠とし、非変更Client/API/DB等はCIのfingerprint規則に従って再利用する。ソース`eeac84a`の[Tests 43995028903](https://github.com/k-o-a-b-c/monetail/actions/runs/43995028903)で製品/検証用x64 Releaseビルド（各30件の既存WUI2011警告/0エラー）、製品起動、全35シナリオ/654確認（振替171＋既存483、今回8確認追加）が成功。連続401・通常離脱・結果不明・409・各管理画面の復帰を含む。既存の単独3シナリオ、一覧/全件の照合、PNG4枚生成、不正指定拒否・計測も成功した。再実行はなく、既存IME確認の一時失敗・ネイティブアクセス違反は今回再発していないが、過去の原因解決を意味しない。ローカルは`git diff --check`成功。実Windows手動操作・物理IME/タッチ/高DPI等は未検証。
+
 ## WinUI：振替401後の既存画面復元（第4-B）
 
 [TransferRecoveryScenario.cs](Monetail.WinUI.Smoke/TransferRecoveryScenario.cs)を追加。実Workspace/Transport・合成HTTP・実OAuthループバックを使い、新規/更新/流用/削除401、ログイン取消、同じWindow/コントロール/モデル/Draftと不変要求の同一性、同じ本人/接続先だけの復帰、マスタ再取得、詳細GET/自動保存なし、同じJSONの明示再送を確認する。未確定日時/金額・補完由来・文字選択/スクロール、マスタ503→一時readonly→再試行・名称だけ更新、別本人/接続先での破棄、Viewer/人物未対応Editor/保存済み片側が他人所有/参加解除での書込禁止、結果不明再送中401、進行中候補の中断・遅延応答破棄・終了時のメモリ破棄も対象。通常ナビゲーションの未保存保護と第4-A等の既存回帰は省略しない。

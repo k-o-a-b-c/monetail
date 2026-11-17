@@ -73,7 +73,7 @@ public sealed partial class MainWindow
     private async Task RestoreAndOpenAsync(CancellationToken token)
     {
         account = await connection.Session.RestoreAsync(token);
-        if (account is null) ShowLogin();
+        if (account is null) NavigateToLogin();
         else await OpenDestinationAsync(token);
     }
 
@@ -119,20 +119,22 @@ public sealed partial class MainWindow
 
     private async void CancelConnection(object sender, RoutedEventArgs args) => await StartAsync();
 
+    // ログインへの移動準備。画面表示だけでは編集状態を破棄しない。
+    private void NavigateToLogin(string? message = null)
+    {
+        var suspended = SuspendTransferForAuthentication();
+        account = null;
+        if (!suspended)
+        {
+            DiscardLedgerContents();
+            ClearLedger();
+        }
+        ShowLogin(message);
+    }
+
     private void ShowLogin(string? message = null)
     {
-        if (transferEditor is not null && account is not null) RememberTransferAuthentication();
-        account = null;
         AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = false;
-        if (transferAuthentication is { } pending && pending.ApiOrigin == connection.Endpoint?.Value)
-        {
-            transferAwaitingLogin = true;
-            ShowPage(LoginPage);
-            if (message is not null) ShowError(message);
-            return;
-        }
-        if (transferAuthentication is not null) DiscardTransferAuthentication();
-        ClearLedger();
         ShowPage(LoginPage);
         if (message is not null) ShowError(message);
     }
@@ -154,12 +156,12 @@ public sealed partial class MainWindow
             cancellation.Token.ThrowIfCancellationRequested();
             ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = false;
             account = await connection.Session.AcceptLoginAsync(acquired, cancellation.Token);
-            if (account is null) ShowLogin("ログインを続けられませんでした。もう一度ログインしてください。");
+            if (account is null) NavigateToLogin("ログインを続けられませんでした。もう一度ログインしてください。");
             else await OpenDestinationAsync(cancellation.Token);
             if (!closed) BringToFront();
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !closed) { ShowLogin(); }
-        catch (AuthenticationRejectedException) { ShowLogin("ログインできませんでした。もう一度ログインしてください。"); }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !closed) { NavigateToLogin(); }
+        catch (AuthenticationRejectedException) { NavigateToLogin("ログインできませんでした。もう一度ログインしてください。"); }
         finally { browserLogin = null; browserCancellation = null; if (!closed) ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = true; }
     }, StartAsync, true);
 
@@ -193,6 +195,9 @@ public sealed partial class MainWindow
         DropPendingPersonEdit();
         pendingParticipantEdit = null;
         await connection.Session.LogoutAsync(lifetime.Token);
+        account = null;
+        DiscardLedgerContents();
+        ClearLedger();
         ShowLogin();
     }, LogoutAsync);
     }
@@ -213,9 +218,9 @@ public sealed partial class MainWindow
             RememberPaymentEdit();
             RememberPersonEdit();
             RememberParticipantEdit();
-            ShowLogin("ログインを継続できません。もう一度ログインしてください。");
+            NavigateToLogin("ログインを継続できません。もう一度ログインしてください。");
         }
-        catch (AuthenticationContextChangedException error) { pendingParticipantEdit = null; DropPendingCategoryEdit(); DropPendingPaymentEdit(); DropPendingPersonEdit(); ShowLogin(error.Message); }
+        catch (AuthenticationContextChangedException error) { pendingParticipantEdit = null; DropPendingCategoryEdit(); DropPendingPaymentEdit(); DropPendingPersonEdit(); NavigateToLogin(error.Message); }
         catch (LedgerRequestException error)
         {
             var message = error.StatusCode switch

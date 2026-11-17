@@ -34,6 +34,7 @@ public partial class App
 
     private async Task CheckTransferReauthentication()
     {
+        await CheckNavigationLifetime();
         foreach (var operation in new[] { "new", "update", "reuse", "delete" })
         {
             using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };

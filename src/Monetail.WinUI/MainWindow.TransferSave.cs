@@ -80,7 +80,7 @@ public sealed partial class MainWindow
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)
         {
             transferUnknown = wasUnknown;
-            ShowLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); return false;
+            NavigateToLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); return false;
         }
         catch (TransferRequestException error)
         {
