@@ -15,6 +15,14 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 77 |
 | 合計 | 3662 |
 
+## WinUI：科目一覧UserControlの分離
+
+既存[CategoriesScenario.cs](Monetail.WinUI.Smoke/CategoriesScenario.cs)は全確認・期待値を維持し、移管した7コントロールの取得元だけをCategoryListViewのNameScopeへ変更する。既存ソースを正規化して取得元/追加試験呼出以外に差分がないことも確認した。[CategoryListScenario.cs](Monetail.WinUI.Smoke/CategoryListScenario.cs)は同じ`categories`シナリオに接続し、AutomationId・余分なTab停止なし・実Tab/Shift+Tab順・Spaceでの期間切替・選択保持・追加GET/書込なしを確認する。製品と同じView XAML/コードを検証用へリンクする。
+
+基点main `aeb1a18`の[push Tests 44028991687](https://github.com/k-o-a-b-c/monetail/actions/runs/44028991687)成功を変更前の根拠とする。ソース`1c88272`の[Tests 44047430871](https://github.com/k-o-a-b-c/monetail/actions/runs/44047430871)で製品/検証用x64 Release（各29件の既存WUI2011警告/0エラー）、製品起動、全36シナリオ/697確認（今回3確認追加）、単独3シナリオ、一覧/全件照合、PNG4枚生成、不正指定拒否・計測が成功した。科目は48確認/6.894秒で、CRUD・並び順・競合・401復帰を含む。既存の画面遷移・他画面の認証復帰も維持する。
+
+[初回CI 44046570118](https://github.com/k-o-a-b-c/monetail/actions/runs/44046570118)は追加試験の全件数を3件と誤指定して待機失敗した。架空データは4件のため実際の全件数へ修正し、再検証で成功した。製品コード/既存期待値/タイムアウトの変更はない。Client/API/DBなど非変更部分は既存CI選択/fingerprintで成功結果を再利用し、ローカル`git diff --check`も成功。構造の集計条件は[構成資料](../docs/architecture-winui.md#科目一覧の分離一覧だけ)。LinuxでWinApp CLI/WinUI実行不可のためWindows CIを使い、実Windows手動操作/物理IME/タッチ/高DPI等は未検証。
+
 ## WinUI：家計簿選択UserControlの分離
 
 [LedgerChoiceScenario.cs](Monetail.WinUI.Smoke/LedgerChoiceScenario.cs)を既存`connection-flow`へ接続する。未選択/ボタン無効、元のAutomationId/単一選択、一覧クリアと再設定、実上下キー・Tab/Shift+Tab・Enter、ID通知と家計簿openが各1回、同一Window、開く失敗時の選択保持、401時の一覧/選択解除を実Workspace/合成HTTPで確認する。既存の選択→ボタンクリックによる起動も維持する。テストはUserControl自身のNameScopeから内側を取得し、表示確認の型をFrameworkElementへ一般化する（同じVisibility条件を維持）。製品と同じUserControl XAML/コードを検証用プロジェクトへリンクする。

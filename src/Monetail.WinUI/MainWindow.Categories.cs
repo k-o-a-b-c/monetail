@@ -36,7 +36,7 @@ public sealed partial class MainWindow
     {
         DiscardCategoryEditor(); DiscardCategoryOrder();
         categoryInfo = null; categoryPermissions = null; missingCategories.Clear();
-        CategoriesList.ItemsSource = null; IncludeInactiveCategories.IsChecked = false; UpdateCategoryActions();
+        CategoryList.Categories = null; CategoryList.IncludeInactive = false; UpdateCategoryActions();
     }
     private Task LoadCategoriesAsync() => account is null || currentLedger is null ? Task.CompletedTask : RunAsync(async () =>
     {
@@ -51,23 +51,16 @@ public sealed partial class MainWindow
     private void RenderCategories(Guid? selection = null)
     {
         if (categoryInfo is null) { UpdateCategoryActions(); return; }
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        selection ??= (CategoriesList.SelectedItem as CategoryRow)?.Category.CategoryId;
-        var rows = categoryInfo.Categories.Where(r => IncludeInactiveCategories.IsChecked == true ||
-            (r.ValidFrom is null || r.ValidFrom <= today) && (r.ValidTo is null || r.ValidTo >= today)).Select(r => new CategoryRow(r)).ToArray();
-        CategoriesList.ItemsSource = rows;
-        CategoriesList.SelectedItem = rows.FirstOrDefault(r => r.Category.CategoryId == selection);
-        EmptyCategories.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        CategoryList.Categories = categoryInfo.Categories;
+        if (selection is Guid id) CategoryList.SelectedCategory = categoryInfo.Categories.FirstOrDefault(r => r.CategoryId == id);
         UpdateCategoryActions();
     }
-    private void FilterCategories(object sender, RoutedEventArgs args) => RenderCategories();
     private void SelectCategory(object sender, SelectionChangedEventArgs args) => UpdateCategoryActions();
     private void UpdateCategoryActions()
     {
-        if (AddCategoryButton is null || CategoryDialog is null || SaveCategoryOrderButton is null) return;
-        AddCategoryButton.IsEnabled = !busy && CanManageCategories;
-        EditCategoryButton.IsEnabled = DeleteCategoryButton.IsEnabled = !busy && CategoriesList.SelectedItem is CategoryRow row && CanChangeCategory(row.Category);
-        CategoryOrderButton.IsEnabled = !busy && CanManageCategories;
+        if (CategoryList is null || CategoryDialog is null || SaveCategoryOrderButton is null) return;
+        CategoryList.SetActionsEnabled(!busy && CanManageCategories,
+            !busy && CategoryList.SelectedCategory is { } selected && CanChangeCategory(selected));
         CategoriesNavigation.IsEnabled = CanViewCategories;
         CategoryDialog.IsPrimaryButtonEnabled = !busy && !categoryEditorDenied && latestCategory is null &&
             (editingCategory is { } edit ? CanChangeCategory(edit) : CanManageCategories);
@@ -75,9 +68,9 @@ public sealed partial class MainWindow
     }
     private void AddCategory(object sender, RoutedEventArgs args) { if (!busy && CanManageCategories) OpenCategoryEditor(null); }
     private void EditCategory(object sender, RoutedEventArgs args)
-    { if (!busy && CategoriesList.SelectedItem is CategoryRow row && CanChangeCategory(row.Category)) OpenCategoryEditor(row.Category); }
+    { if (!busy && CategoryList.SelectedCategory is { } row && CanChangeCategory(row)) OpenCategoryEditor(row); }
     private void DeleteCategory(object sender, RoutedEventArgs args)
-    { if (!busy && CategoriesList.SelectedItem is CategoryRow row && CanChangeCategory(row.Category)) OpenCategoryEditor(row.Category, true); }
+    { if (!busy && CategoryList.SelectedCategory is { } row && CanChangeCategory(row)) OpenCategoryEditor(row, true); }
     private void OpenCategoryEditor(CategoryInfo? row, bool deletion = false)
     {
         if (ManagementDialogOpen || orderedCategories is not null) return;

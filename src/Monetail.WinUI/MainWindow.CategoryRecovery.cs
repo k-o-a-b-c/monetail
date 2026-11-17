@@ -17,7 +17,7 @@ public sealed partial class MainWindow
             (orderedCategories is null && (!categoryDialogOpen || deletingCategory))) return;
         pendingCategoryEdit = new(account.AuthUserId, connection.Endpoint!.Value, currentLedger, categoryInfo,
             editingCategory, categoryDraft, CategoryName.Text, SelectedCategoryIncome, SelectedCategoryTax, CategoryFrom.Text, CategoryTo.Text,
-            IncludeInactiveCategories.IsChecked == true, categoryOrderRevision, orderedCategories?.ToArray());
+            CategoryList.IncludeInactive, categoryOrderRevision, orderedCategories?.ToArray());
     }
     private void DropPendingCategoryEdit()
     {
@@ -45,7 +45,7 @@ public sealed partial class MainWindow
         if (denied is not null) categoryPermissions = denied;
         ShowPage(ManagementPage); ManagementNavigation.SelectedItem = CategoriesNavigation;
         PaymentsContent.Visibility = PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = AccountContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;
-        CategoriesContent.Visibility = Visibility.Visible; IncludeInactiveCategories.IsChecked = draft.IncludeInactive;
+        CategoriesContent.Visibility = Visibility.Visible; CategoryList.IncludeInactive = draft.IncludeInactive;
         if (draft.Order is { } order)
         {
             var current = categories.Categories.ToDictionary(r => r.CategoryId);
