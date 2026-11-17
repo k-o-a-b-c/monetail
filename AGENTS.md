@@ -6,7 +6,6 @@
 - コードの設計・実装・レビューには[`karpathy-guidelines` Skill](.agents/skills/karpathy-guidelines/SKILL.md)を適用する。仕様承認・既存テストのルールは本書に従う。
 - 新Windows版のUI変更時は[UI_DESIGN.md](UI_DESIGN.md)を読む。キー操作・入力補完を扱う場合は[59](docs/59-input-controls-design.md)も読む。権限・保存・画面遷移は該当する仕様の正本を参照する。
 
-
 ## C#の書式
 - C#は可読性を優先し、1行に複数の独立した文を詰め込まない。分岐・例外処理・複数文のラムダは処理を読み取れるよう適切に改行する。書式はルートの[.editorconfig](.editorconfig)に従う。
 - 変更時は追加・修正したコードをこの書式に合わせる。既存の無関係な行を機能変更に混ぜて一括整形しない。既存コードの書式修正は機能変更と分離した対象限定PRで行い、差分と既存テストを確認する。
