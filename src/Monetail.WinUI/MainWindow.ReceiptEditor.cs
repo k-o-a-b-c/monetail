@@ -245,8 +245,7 @@ public sealed partial class MainWindow
     private void ReceiptCategoryChoiceChanged(object sender, SelectionChangedEventArgs args) => UpdateReceiptCategoryActions();
     private void UpdateReceiptCategoryActions() => ReceiptCategoryAdd.IsEnabled = !ReceiptRecoveryReadOnly && receiptEditor is { } state &&
         ReceiptCategoryChoice.SelectedItem is ReceiptFilterChoice { Id: Guid id } && state.Groups.All(g => g.CategoryId != id) &&
-        currentLedger is { } ledger && ConfirmedReceiptDay is DateOnly day && connection.Masters.Categories(ledger.LedgerId)?.Categories.Any(c =>
-            c.CategoryId == id && (c.ValidFrom is null || c.ValidFrom <= day) && (c.ValidTo is null || c.ValidTo >= day)) == true;
+        currentLedger is { } ledger && connection.Masters.Categories(ledger.LedgerId)?.Categories.Any(c => c.CategoryId == id) == true;
     private async void AddReceiptCategory(object sender, RoutedEventArgs args)
     {
         if (ReceiptRecoveryReadOnly || receiptDialogOpen || receiptDetailTransition || receiptEditor is not { } state || ReceiptCategoryChoice.SelectedItem is not ReceiptFilterChoice { Id: Guid id } || !ReceiptCategoryAdd.IsEnabled) return;
