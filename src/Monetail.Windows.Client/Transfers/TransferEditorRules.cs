@@ -8,7 +8,10 @@ public static class TransferEditorRules
 {
     public static bool CanCreate(PaymentMethodsInfo methods) => methods.CurrentRole == "Admin" || methods.CurrentRole == "Editor" && methods.MyPersonId is not null;
     public static bool CanUse(PaymentMethodsInfo methods, Guid paymentId) => methods.PaymentMethods.FirstOrDefault(p => p.PaymentMethodId == paymentId) is { } payment &&
-        (methods.CurrentRole == "Admin" || methods.CurrentRole == "Editor" && methods.MyPersonId == payment.OwnerPersonId);
+        CanUseOwner(methods, payment.OwnerPersonId);
+    /// <summary>取得済みの同一家計簿の支払方法について、所有人物に対する操作権限を判定する。</summary>
+    public static bool CanUseOwner(PaymentMethodsInfo methods, Guid ownerPersonId) =>
+        methods.CurrentRole == "Admin" || methods.CurrentRole == "Editor" && methods.MyPersonId == ownerPersonId;
     public static bool IsActive(DateOnly day, DateOnly? from, DateOnly? to) => (from is null || from <= day) && (to is null || day <= to);
     public static void Validate(TransferSnapshot snapshot, PeopleInfo people, PaymentMethodsInfo methods)
     {
@@ -18,7 +21,7 @@ public static class TransferEditorRules
             var payment = methods.PaymentMethods.FirstOrDefault(p => p.PaymentMethodId == id);
             var person = people.People.FirstOrDefault(p => p.PersonId == payment?.OwnerPersonId);
             if (payment is null || person is null) throw new TransferInputException(field, "支払方法と所有人物を確認してください。");
-            if (!CanUse(methods, id)) throw new TransferInputException(field, "使用できる支払方法を選択してください。");
+            if (!CanUseOwner(methods, payment.OwnerPersonId)) throw new TransferInputException(field, "使用できる支払方法を選択してください。");
             if (!IsActive(day, payment.ValidFrom, payment.ValidTo) || !IsActive(day, person.ValidFrom, person.ValidTo))
                 throw new TransferInputException(field, "取引日に有効な支払方法と人物を選択してください。");
         }
