@@ -114,7 +114,7 @@ public partial class App
         await ExpireReceiptLogin(fixture); server.FailAt = "categories"; await CompleteReceiptLogin(fixture, root);
         Check(price.IsReadOnly && price.IsEnabled && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, TransferRuntime("receiptDetailInput")) &&
             Find<InfoBar>(root, "ReceiptRecoveryNotice").Message == "マスタ情報を取得できませんでした" && Find<Button>(root, "ReceiptMasterRetry").Visibility == Visibility.Visible,
-            "マスタ失敗は空データに置き換えず入力をコピー可能なreadonlyで保持し手動再試行を示す");
+            $"マスタ失敗は空データに置き換えず入力をコピー可能なreadonlyで保持し手動再試行を示す: phase={TransferRuntime("receiptRecoveryPhase")}; readonly={price.IsReadOnly}; enabled={price.IsEnabled}; sameEditor={ReferenceEquals(editor, ReceiptEditing)}; sameInput={ReferenceEquals(input, TransferRuntime("receiptDetailInput"))}; notice={Find<InfoBar>(root, "ReceiptRecoveryNotice").Message}; retry={Find<Button>(root, "ReceiptMasterRetry").Visibility}");
         var before = editor.SelectedGroup?.Details.Count;
         await FocusTransferControl(price); price.SelectAll(); await PressReceiptKey(0x43, 0x11);
         Check(await global::Windows.ApplicationModel.DataTransfer.Clipboard.GetContent().GetTextAsync() == "123x", "readonlyでも入力文字列をCtrl+Cでコピーできる");
