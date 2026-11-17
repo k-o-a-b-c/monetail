@@ -35,6 +35,21 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 最後の行はソースの名前一致による指標で、意味解析/生成コードの集計ではない。画面自体の`LedgerChoicePage`参照は1つのまま維持する。新規ViewはXAML17行＋C#31行、既存MainWindowの13行減と合わせて製品コードは差引35行増。行数削減自体よりも、画面の選択/ボタン処理をMainWindowから切り離したことを成果とする。検証の正本は[tests/README.md](../tests/README.md)。
 
+## WinUIの責務棚卸しと段階的分離（検討順序・未実装）
+
+現状、`MainWindow.xaml`に複数画面のXAMLがあり、`MainWindow*.cs`の多数のpartialがコントロールと状態を共有する。partialのファイル分割は責務の分割ではない。一方、`Monetail.Windows.Client`には保存・入力・通信の既存モデルがあるため、全面MVVM化や同等状態の複製は行わない。
+
+| 検討順 | 現状の主な所有者 | 次の境界候補 | 分離に際して残すもの |
+| --- | --- | --- | --- |
+| 完了 | `MainWindow.Ledgers.cs`内の家計簿選択操作 | `Views/LedgerChoiceView` | 一覧選択・開く操作をViewへ、家計簿Open/認証をWindowに保持 |
+| 1 | `MainWindow.Ledgers.cs`の作成フォームと`MainWindow.xaml` | 家計簿作成フォームの表示・入力をViewへ | `LedgerCreationDraft`の再試行、実際のCreate/画面遷移、取消時の行き先はWindow/Clientの契約を維持 |
+| 2 | `MainWindow.xaml.cs`/`MainWindow.Persons.cs`の人物一覧 | 一覧・フィルター・選択をViewへ | 権限、編集ダイアログ、並び順、401復帰のガードは動作を確認しながら別工程 |
+| 3 | `MainWindow.Categories.cs`/`MainWindow.Payments.cs` | 管理一覧の表示と選択を順番に分離 | グループ順、権限、削除、競合、並び替え/復帰を同時に再設計しない |
+| 後段 | `MainWindow.Receipts.cs`/`ReceiptEditor.cs`／`MainWindow.Transfers.cs`/`TransferEditor.cs` | 記録一覧と専用入力画面を機能別に分離 | 未確定入力、保存結果不明、401復帰、未保存確認、画面往復の状態を壊さない |
+| 維持 | `MainWindow.xaml.cs`/`Connection.cs`/`Activation.cs`など | Window全体のオーケストレーション | 家計簿・アカウント切替、グローバルナビゲーション、寿命・未保存ガード |
+
+この順序は**コード構造の調査に基づく実装候補**であり、対象画面の仕様変更・実装承認・テスト成功を意味しない。各段階の着手前にXAMLイベント・呼出関係・テスト参照を確認し、最小のView公開面と変更前後の依存を示してから小さなPRにする。守るべき契約は対象機能の正本、実装指針は[`monetail-winui-architecture` Skill](../.agents/skills/monetail-winui-architecture/SKILL.md)。
+
 ## 正式レシート計算の利用基盤（工程6-D4-B実装済み）
 
 Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検証・Decimal計算・結果モデルを使用する。[参照関係とAPI側の責務](architecture-api.md#共通計算の参照関係工程6-d4-b実装済み)を参照。`ReceiptCalculations.FromSnapshot`/`FromEditor`で保存用スナップショット/編集状態を共通入力へ変換し、`Calculate`で通信なしに計算できる。ID・版・入力値・選択・下書き・未保存状態は変更しない。小数秒を丸めず共通検証へ渡し、未反映下書き/未確定の必須値は補正せず拒否する。支払方法等の保存専用条件を計算のために追加しない。
