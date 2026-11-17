@@ -34,6 +34,9 @@ public sealed partial class MainWindow
     // 共通操作が画面を無効化する前にも呼び、元のフォーカスを失わないようにする。
     private ReceiptAuthentication? RememberReceiptAuthenticationView()
     {
+        // TextChangedの遅延があっても、通常離脱と同じ既存バッファへ未確定入力を同期する。
+        if (receiptEditor is not null && receiptRecoveryPhase == ReceiptRecoveryPhase.None)
+        { SyncReceiptHeader(); SyncReceiptGroupMemo(); SyncReceiptDetailInput(); }
         if (receiptEditor is not null && account is not null && currentLedger is not null && connection.Endpoint is not null &&
             (receiptAuthentication is not { } previous || previous.AccountId != account.AuthUserId ||
                 previous.LedgerId != currentLedger.LedgerId || previous.ApiOrigin != connection.Endpoint.Value))
