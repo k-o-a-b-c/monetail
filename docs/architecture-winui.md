@@ -20,6 +20,21 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 
 新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](ledger-foundation-core.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定とインストーラーの作成方式は実装前に具体化する。
 
+## 家計簿選択画面の分離（第1段階）
+
+`Views/LedgerChoiceView`が既存の家計簿選択XAML・単一選択状態・［開く］の有効化/クリックを所有する。公開面は一覧を受け取る`Ledgers`と選択IDを通知する`OpenRequested`の各1つ。選択はListViewに保持し、独立した選択モデルやMainWindowへの参照を持たない。MainWindowはClientからの取得、通知されたIDの`OpenLedgerAsync`、認証/未保存保護、画面遷移を担当する。UserControlはHTTP・認証・Windowを知らず、他画面にも依存しない。
+
+MainWindowは内側のListView/ボタンに触れず、一覧設定とイベント受信だけを行う。元の標準コントロール・配置値・AutomationIdを維持し、余分なTab停止を追加しない。新しいViewModel・依存ライブラリ・ナビゲーション基盤は導入しない。家計簿作成/ホーム等は今回は分離しない。
+
+| 計測対象 | 基点main `0e246d2` | 分離後 |
+| --- | ---: | ---: |
+| MainWindow.xaml（空行込み） | 987行 | 980行 |
+| MainWindow*.cs全partial（空行込み、生成コード除外） | 4,504行 | 4,498行 |
+| 家計簿選択画面の内側コントロールへの直接参照（名前の種類） | 2 | 0 |
+| MainWindow.xamlのx:NameとMainWindow*.cs識別子の共通集合 | 298 | 296 |
+
+最後の行はソースの名前一致による指標で、意味解析/生成コードの集計ではない。画面自体の`LedgerChoicePage`参照は1つのまま維持する。新規ViewはXAML17行＋C#31行、既存MainWindowの13行減と合わせて製品コードは差引35行増。行数削減自体よりも、画面の選択/ボタン処理をMainWindowから切り離したことを成果とする。検証の正本は[tests/README.md](../tests/README.md)。
+
 ## 正式レシート計算の利用基盤（工程6-D4-B実装済み）
 
 Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検証・Decimal計算・結果モデルを使用する。[参照関係とAPI側の責務](architecture-api.md#共通計算の参照関係工程6-d4-b実装済み)を参照。`ReceiptCalculations.FromSnapshot`/`FromEditor`で保存用スナップショット/編集状態を共通入力へ変換し、`Calculate`で通信なしに計算できる。ID・版・入力値・選択・下書き・未保存状態は変更しない。小数秒を丸めず共通検証へ渡し、未反映下書き/未確定の必須値は補正せず拒否する。支払方法等の保存専用条件を計算のために追加しない。

@@ -1,10 +1,10 @@
 # 新Windows版 画面台帳（画面一覧・遷移・実装状況）
 
-更新: 2026-11-16。対象は **Windows 11 / WinUI 3版**。画面設計を横断的に見直すための索引であり、**新しい画面仕様を確定する文書ではない**。表示項目・保存・権限・未保存データ保護の正本は各行のリンク先。共通の配置・操作は [UI_DESIGN.md](../UI_DESIGN.md)、入力操作は [59](59-input-controls-design.md)、新旧機能の採否は [機能横断比較台帳](legacy-new-final-parity-matrix.md) を参照する。Webの登録・パスキー・全体アカウント管理画面は対象外（[新規利用](ledger-onboarding.md)、[招待](ledger-invitations.md)）。
+更新: 2026-11-17。対象は **Windows 11 / WinUI 3版**。画面設計を横断的に見直すための索引であり、**新しい画面仕様を確定する文書ではない**。表示項目・保存・権限・未保存データ保護の正本は各行のリンク先。共通の配置・操作は [UI_DESIGN.md](../UI_DESIGN.md)、入力操作は [59](59-input-controls-design.md)、新旧機能の採否は [機能横断比較台帳](legacy-new-final-parity-matrix.md) を参照する。Webの登録・パスキー・全体アカウント管理画面は対象外（[新規利用](ledger-onboarding.md)、[招待](ledger-invitations.md)）。
 
 ## 判定基準
 
-- **画面あり**：現行 `MainWindow.xaml` に表示領域・導線がある。全機能のAPI接続や実機確認済みを意味しない。
+- **画面あり**：現行 `MainWindow.xaml` と参照先UserControlに表示領域・導線がある。全機能のAPI接続や実機確認済みを意味しない。
 - **一部**：画面の一部はあるが、正本で定めた構成・操作や保存との接続が未完成。
 - **枠のみ**：無効な入口・仮表示のみで、対象業務画面はない。
 - **未実装**：確定済みの画面方針はあるが、該当WinUI画面はない。
@@ -44,7 +44,7 @@
 | A03 | 接続失敗（専用領域） | 接続エラー → 再試行・設定・終了 | 画面あり | [Windows接続](ledger-windows.md) |
 | A04 | Windowsログイン（専用領域） | 未認証・ログアウト後 → ブラウザー認証 | 画面あり | [Windows接続](ledger-windows.md) |
 | A05 | ブラウザーでのログイン待ち（専用領域） | ログイン操作 → 自動復帰・キャンセル | 画面あり | [Windows接続](ledger-windows.md) |
-| A06 | 家計簿選択（専用領域） | 複数所属・最後の家計簿なし → ホーム | 画面あり | [新規利用](ledger-onboarding.md) |
+| A06 | 家計簿選択（専用UserControl） | 複数所属・最後の家計簿なし → ホーム | 画面あり | [新規利用](ledger-onboarding.md)、[選択画面](../src/Monetail.WinUI/Views/LedgerChoiceView.xaml) |
 | A07 | 家計簿作成（専用領域） | 所属0件・切替メニューの「追加」 → ホーム等 | 画面あり | [新規利用](ledger-onboarding.md) |
 | A08 | 家計簿切替メニュー（ポップアップ） | ホームの家計簿名 → ホーム・家計簿作成 | 画面あり | [新規利用](ledger-onboarding.md) |
 
