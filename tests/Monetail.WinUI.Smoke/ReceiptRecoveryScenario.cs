@@ -116,8 +116,10 @@ public partial class App
             Find<InfoBar>(root, "ReceiptRecoveryNotice").Message == "マスタ情報を取得できませんでした" && Find<Button>(root, "ReceiptMasterRetry").Visibility == Visibility.Visible,
             $"マスタ失敗は空データに置き換えず入力をコピー可能なreadonlyで保持し手動再試行を示す: phase={TransferRuntime("receiptRecoveryPhase")}; readonly={price.IsReadOnly}; enabled={price.IsEnabled}; sameEditor={ReferenceEquals(editor, ReceiptEditing)}; sameInput={ReferenceEquals(input, TransferRuntime("receiptDetailInput"))}; notice={Find<InfoBar>(root, "ReceiptRecoveryNotice").Message}; retry={Find<Button>(root, "ReceiptMasterRetry").Visibility}");
         var before = editor.SelectedGroup?.Details.Count;
-        await FocusTransferControl(price); price.SelectAll(); await PressReceiptKey(0x43, 0x11);
-        Check(await global::Windows.ApplicationModel.DataTransfer.Clipboard.GetContent().GetTextAsync() == "123x", "readonlyでも入力文字列をCtrl+Cでコピーできる");
+        global::Windows.ApplicationModel.DataTransfer.Clipboard.Clear();
+        await FocusTransferControl(price); price.SelectAll(); await PressReceiptKey(0x43, 0x11); await Settle();
+        try { Check(await global::Windows.ApplicationModel.DataTransfer.Clipboard.GetContent().GetTextAsync() == "123x", "readonlyでも入力文字列をCtrl+Cでコピーできる"); }
+        finally { global::Windows.ApplicationModel.DataTransfer.Clipboard.Clear(); }
         await PressReceiptKey(0x0D, 0x12); Check(editor.SelectedGroup?.Details.Count == before && price.Text == "123x", "readonlyではAlt+Enterで下書きを反映しない");
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, false);
         Check(ReferenceEquals(editor, ReceiptEditing) && price.Text == "123x", "マスタ失敗中の離脱取消も入力を保持する");
@@ -128,6 +130,11 @@ public partial class App
             ReferenceEquals(groupRow, Find<ListView>(root, "ReceiptCategories").Items[0]) && groupRow.Name == "更新後科目" &&
             Find<TextBlock>(root, "ReceiptItemTaxWarning").Visibility == Visibility.Visible,
             "再試行成功は同じ入力と旧版/実税率を保ち、名称/候補だけ更新して税率不一致を示す");
+        var detailId = editor.SelectedGroup?.Details[0].DetailId;
+        price.Text = "123"; SelectReceiptTax(Find<ComboBox>(root, "ReceiptItemTax"), 1);
+        await InvokeAsync(() => Find<Button>(root, "ReceiptDetailApply"));
+        Check(editor.Draft?.Tax == ReceiptTaxSelection.Taxed(1) && editor.SelectedGroup?.Details[0].DetailId == detailId,
+            "利用者が明細を反映した後の新規税率も再取得した履歴を使い、既存明細IDは維持する");
         Check(server.Details == 1 && server.Writes == 0, "マスタ再試行でもレシート詳細GET・書込を追加しない");
     }
     private async Task CheckReceiptRecoveryIdentity()
@@ -152,7 +159,7 @@ public partial class App
     }
     private async Task CheckReceiptRecoveryPermissions()
     {
-        foreach (var role in new[] { "Viewer", "unmapped", "other-owner", "removed" })
+        foreach (var role in new[] { "Viewer", "unmapped", "other-owner", "removed", "Editor" })
         {
             using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
             var server = new ReceiptRecoveryServer(fixture);
@@ -160,7 +167,9 @@ public partial class App
             var editor = ReceiptEditing ?? throw new InvalidOperationException();
             Find<TextBox>(root, "ReceiptMemo").Text = "権限確認後も保持";
             // 元の支払方法が他人物所有の場合、現在値を本人所有へ変えても旧側の権限を省略できない。
-            editor.Header.PaymentMethodId = server.Payments.OtherActiveId;
+            var currentId = role == "Editor" ? server.Payments.ActiveId : server.Payments.OtherActiveId;
+            var methodBox = Find<ComboBox>(root, "ReceiptEditorPayment");
+            methodBox.SelectedItem = methodBox.Items.OfType<ReceiptFilterChoice>().Single(p => p.Id == currentId);
             await ExpireReceiptLogin(fixture);
             server.Payments.Role = role == "Viewer" ? "Viewer" : "Editor";
             if (role == "unmapped") server.Payments.Mapped = false;
@@ -173,9 +182,9 @@ public partial class App
             }
             fixture.CannotOpenLedger = role == "removed";
             await CompleteReceiptLogin(fixture, root);
-            Check(ReferenceEquals(editor, ReceiptEditing) && Find<TextBox>(root, "ReceiptMemo").IsReadOnly &&
-                Find<TextBox>(root, "ReceiptMemo").Text == "権限確認後も保持" && server.Writes == 0 && server.Details == 1 && Find<Button>(root, "ReceiptMasterRetry").Visibility == Visibility.Collapsed,
-                "Viewer/人物未対応/保存済み所有権喪失/参加解除では入力を保持し書込禁止、詳細GETで再取得しない");
+            Check(ReferenceEquals(editor, ReceiptEditing) && Find<TextBox>(root, "ReceiptMemo").IsReadOnly == (role != "Editor") &&
+                editor.Header.PaymentMethodId == currentId && Find<TextBox>(root, "ReceiptMemo").Text == "権限確認後も保持" && server.Writes == 0 && server.Details == 1 && Find<Button>(root, "ReceiptMasterRetry").Visibility == Visibility.Collapsed,
+                "本人所有のEditorは編集再開、Viewer/人物未対応/保存済み所有権喪失/参加解除は入力を保持し書込禁止、詳細GETなし");
         }
     }
     private async Task CheckReceiptRecoveryCancellation()
