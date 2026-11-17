@@ -33,6 +33,10 @@ class SelectionTests(unittest.TestCase):
         self.assert_flags(["AGENTS.md", "README.md", "docs/43-passkey-authentication-design.md",
                            "tests/README.md", "src/Monetail.Api/README.md"])
 
+    def test_editorconfig_selects_csharp_consumers_only(self):
+        self.assert_flags([".editorconfig"], "api", "docker", "windows_client", "windows_storage", "winui")
+        self.assert_flags([".editorconfig", "AGENTS.md"], "api", "docker", "windows_client", "windows_storage", "winui")
+
     def test_tax_history_data_is_validated_without_product_rebuild(self):
         self.assert_flags(["config/tax-history.json"])
         self.assert_flags(["config/tax-history.json", "docs/ledger-core-schema.md"])
