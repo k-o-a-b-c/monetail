@@ -134,7 +134,7 @@ public sealed partial class MainWindow
         transferRendering = true;
         TransferEditorTitle.Text = state.IsExisting ? "振替の編集" : "振替の登録";
         TransferDate.Text = DateTimeInput.FormatDate(state.Draft.TransactionDate); TransferTime.Text = DateTimeInput.FormatTime(state.Draft.TransactionTime);
-        TransferName.Text = TransferNameReadOnly.Text = state.Draft.Name; TransferAmount.Text = state.Draft.Amount?.ToString(CultureInfo.InvariantCulture) ?? ""; TransferMemo.Text = state.Draft.Memo ?? "";
+        TransferName.Text = state.Draft.Name; TransferAmount.Text = state.Draft.Amount?.ToString(CultureInfo.InvariantCulture) ?? ""; TransferMemo.Text = state.Draft.Memo ?? "";
         TransferSave.Content = state.IsExisting ? "更新" : "登録"; TransferDelete.Visibility = TransferReuse.Visibility = state.IsExisting ? Visibility.Visible : Visibility.Collapsed;
         TransferEditorNotice.IsOpen = false; transferRendering = false; RefreshTransferEditorChoices(); RenderTransferEditor();
     }
@@ -173,8 +173,6 @@ public sealed partial class MainWindow
             combo.ItemsSource = items; combo.SelectedItem = items.FirstOrDefault(p => p.Id == selected);
         }
         Fill(TransferFrom, state.Draft.From.PaymentMethodId); Fill(TransferTo, state.Draft.To.PaymentMethodId);
-        TransferFromReadOnly.Text = state.Draft.From.PaymentMethodId is Guid from ? connection.Masters.PaymentName(currentLedger.LedgerId, from) : "";
-        TransferToReadOnly.Text = state.Draft.To.PaymentMethodId is Guid to ? connection.Masters.PaymentName(currentLedger.LedgerId, to) : "";
         transferRendering = false;
     }
     private TransferSavePreparation PrepareTransfer(bool reuse)
