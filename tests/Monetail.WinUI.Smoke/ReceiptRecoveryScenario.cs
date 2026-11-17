@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Monetail.WinUI.Input;
+using Monetail.Windows.Client;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Receipts;
 using Monetail.Windows.Client.Transport;
@@ -111,7 +112,7 @@ public partial class App
             "マスタ失敗は空データに置き換えず入力をコピー可能なreadonlyで保持し手動再試行を示す");
         var before = editor.SelectedGroup?.Details.Count;
         await FocusTransferControl(price); price.SelectAll(); await PressReceiptKey(0x43, 0x11);
-        Check(await Windows.ApplicationModel.DataTransfer.Clipboard.GetContent().GetTextAsync() == "123x", "readonlyでも入力文字列をCtrl+Cでコピーできる");
+        Check(await global::Windows.ApplicationModel.DataTransfer.Clipboard.GetContent().GetTextAsync() == "123x", "readonlyでも入力文字列をCtrl+Cでコピーできる");
         await PressReceiptKey(0x0D, 0x12); Check(editor.SelectedGroup?.Details.Count == before && price.Text == "123x", "readonlyではAlt+Enterで下書きを反映しない");
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, false);
         Check(ReferenceEquals(editor, ReceiptEditing) && price.Text == "123x", "マスタ失敗中の離脱取消も入力を保持する");
