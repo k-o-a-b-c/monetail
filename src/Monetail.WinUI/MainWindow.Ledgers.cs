@@ -32,14 +32,23 @@ public sealed partial class MainWindow
         }
     }
 
-    private void ClearLedger()
+    // 家計簿を離れることが確定した時だけ呼ぶ。401退避では振替の入力を保持する。
+    private void DiscardLedgerContents()
     {
-        ResetReceipts();
-        currentLedger = null;
-        ResetParticipants();
+        if (transferAuthentication is not null) DiscardTransferAuthentication();
+        else ResetTransferEditor();
+        ResetReceiptEditor();
+        ResetRecordHome();
         ResetCategories();
         ResetPayments();
         ResetPeople();
+        ResetParticipants();
+    }
+
+    // 選択中の家計簿とヘッダーだけを解除する。編集状態の破棄は呼出元で明示する。
+    private void ClearLedger()
+    {
+        currentLedger = null;
         ledgerChoices = [];
         creationDraft = null;
         LedgerChoices.ItemsSource = PeopleList.ItemsSource = null;

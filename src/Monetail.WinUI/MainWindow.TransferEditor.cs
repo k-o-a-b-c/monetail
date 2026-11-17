@@ -94,7 +94,7 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { }
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)
-        { if (Current()) ShowLogin("ログインを継続できません。もう一度ログインしてください。"); }
+        { if (Current()) NavigateToLogin("ログインを継続できません。もう一度ログインしてください。"); }
         catch (Exception error) when (error is TransferRequestException or PeopleRequestException or PaymentMethodRequestException or ApiConnectionException or HttpRequestException or OperationCanceledException)
         {
             if (Current())

@@ -46,9 +46,9 @@ public sealed partial class MainWindow
         ReceiptList.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler((_, args) =>
         { if (args.Key is VirtualKey.Down or VirtualKey.PageDown or VirtualKey.End or VirtualKey.Space) receiptScrollIntent = receiptScroller?.ScrollableHeight > 0; }), true);
     }
-    private void ResetReceipts()
+    private void ResetRecordHome()
     {
-        ResetTransferEditor(); ResetReceiptEditor(); receiptRestorePending = false;
+        receiptRestorePending = false;
         ResetTransfers(); recordSearch = null; recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose(); recordMasterLifetime = null;
         receiptState?.Dispose(); receiptState = null; receiptSearch = null;
         connection.Masters.Clear(); receiptRows.Clear(); receiptScrollIntent = false;
@@ -114,7 +114,7 @@ public sealed partial class MainWindow
     {
         if (closed || receiptState is not { } state) return;
         if (!RecordEditorActive && state.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
-        { ShowLogin("ログインを継続できません。もう一度ログインしてください。"); return; }
+        { NavigateToLogin("ログインを継続できません。もう一度ログインしてください。"); return; }
         ReceiptInitialProgress.IsActive = state.IsInitialLoading;
         ReceiptInitialNotice.Visibility = state.IsInitialLoading ? Visibility.Visible : Visibility.Collapsed;
         ReceiptEmpty.Visibility = state.HasLoaded && state.Rows.Count == 0 && state.Failure is null && !state.IsLoading ? Visibility.Visible : Visibility.Collapsed;

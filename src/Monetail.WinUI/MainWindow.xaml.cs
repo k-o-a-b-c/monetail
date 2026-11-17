@@ -52,11 +52,7 @@ public sealed partial class MainWindow : Window
 
     private void DisplayLedger(LedgerInfo ledger)
     {
-        ResetReceipts();
-        ResetCategories();
-        ResetPayments();
-        ResetPeople();
-        ResetParticipants();
+        DiscardLedgerContents();
         DisplayLedgerHeader(ledger);
         ShowPage(HomePage);
     }

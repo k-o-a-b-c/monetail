@@ -18,6 +18,15 @@ public sealed partial class MainWindow
     private TransferAuthentication? transferAuthentication;
     private bool transferAwaitingLogin, transferMastersLoading, transferMastersFailed, transferRetryAfterLogin, transferRecoveryLedgerReady, transferRestoringRecoveryView;
 
+    // 表示切替と分けて退避を決める。入力/要求は既存オブジェクトに保持する。
+    private bool SuspendTransferForAuthentication()
+    {
+        if (transferEditor is not null && account is not null) RememberTransferAuthentication();
+        if (transferAuthentication is not { } pending || pending.ApiOrigin != connection.Endpoint?.Value) return false;
+        transferAwaitingLogin = true;
+        return true;
+    }
+
     private void RememberTransferAuthentication()
     {
         if (transferEditor is null || account is null || currentLedger is null || connection.Endpoint is null) return;
@@ -54,7 +63,7 @@ public sealed partial class MainWindow
         if (transferAuthentication is not { } context || !transferAwaitingLogin || account is null) return false;
         if (context.AccountId != account.AuthUserId || context.ApiOrigin != connection.Endpoint?.Value)
         {
-            DiscardTransferAuthentication(); ClearLedger(); return false;
+            DiscardLedgerContents(); ClearLedger(); return false;
         }
         transferAwaitingLogin = false; transferMastersLoading = true;
         if (currentLedger is { } ledger) DisplayLedgerHeader(ledger);
@@ -100,7 +109,7 @@ public sealed partial class MainWindow
             transferAuthentication = null;
         }
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)
-        { if (Current()) ShowLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); }
+        { if (Current()) NavigateToLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); }
         catch (Exception error) when (error is LedgerRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound }
             or PeopleRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound }
             or PaymentMethodRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.NotFound })

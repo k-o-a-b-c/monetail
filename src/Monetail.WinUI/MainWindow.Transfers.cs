@@ -65,7 +65,7 @@ public sealed partial class MainWindow
     {
         if (closed || transferState is not { } state) return;
         if (!RecordEditorActive && HomePage.Visibility == Visibility.Visible && state.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
-        { ShowLogin("ログインを継続できません。もう一度ログインしてください。"); return; }
+        { NavigateToLogin("ログインを継続できません。もう一度ログインしてください。"); return; }
         TransferReturnToStart.Visibility = state.FocusTransferId is not null && state.HasLoaded ? Visibility.Visible : Visibility.Collapsed;
         TransferRegisterPlaceholder.IsEnabled = transferOpening is null && TransferMethods is { } methods && TransferEditorRules.CanCreate(methods);
         TransferInitialProgress.IsActive = state.IsInitialLoading;

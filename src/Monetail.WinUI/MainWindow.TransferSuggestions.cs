@@ -141,7 +141,7 @@ public sealed partial class MainWindow
         finally { if (ReferenceEquals(transferAutofillCancellation, cancellation)) transferAutofillCancellation = null; }
     }
     private void StopTransferAuthentication()
-    { ShowLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); }
+    { NavigateToLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。"); }
     private void TransferDateConfirmed(object sender, RoutedEventArgs args)
     { if (!TransferFrozen) { SyncTransferInput(); RefreshTransferEditorChoices(); _ = AutofillTransferAsync(); } }
 }
