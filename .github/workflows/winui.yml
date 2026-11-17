@@ -52,6 +52,10 @@ jobs:
         run: |
           $capture = $env:WINUI_CAPTURE -eq 'true'
           & tests/Monetail.WinUI.Smoke/run.ps1 -AppPath "$env:RUNNER_TEMP/winui-app/Monetail.WinUI.exe" -SmokePath "$env:RUNNER_TEMP/winui-smoke/Monetail.WinUI.Smoke.exe" -OutputPath "$env:RUNNER_TEMP/winui-results" -Capture:$capture
+      - name: Validate scenario selection and timing
+        shell: pwsh
+        run: |
+          & tests/Monetail.WinUI.Smoke/verify-scenario-selection.ps1 -AppPath "$env:RUNNER_TEMP/winui-app/Monetail.WinUI.exe" -SmokePath "$env:RUNNER_TEMP/winui-smoke/Monetail.WinUI.Smoke.exe" -OutputPath "$env:RUNNER_TEMP/winui-results"
       - name: XAML compiler failure diagnostics
         if: failure()
         shell: pwsh

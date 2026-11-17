@@ -64,6 +64,9 @@ class FingerprintTests(unittest.TestCase):
                 after = fingerprints(renamed)
                 self.assertEqual(set(FLAGS), {flag for flag in FLAGS if before[flag] != after[flag]})
 
+    def test_linked_smoke_runner_invalidates_both_test_proofs(self):
+        self.assert_changed("tests/Monetail.WinUI.Smoke/SmokeScenarioExecution.cs", "winui", "windows_client")
+
     def test_ui_changes_do_not_invalidate_api_client_or_storage(self):
         self.assert_changed("src/Monetail.WinUI/MainWindow.xaml", "winui")
         self.assert_changed("tests/Monetail.WinUI.Smoke/InputScenario.cs", "winui")
