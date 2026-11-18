@@ -34,8 +34,7 @@ public sealed partial class MainWindow
     private void InitializeReceipts()
     {
         ReceiptList.ItemsSource = receiptRows;
-        InitializeTransfers();
-        receiptKeyboard = new FormKeyboard(RecordContent, null, null, ReceiptMonth, ReceiptShop, TransferNameSearch);
+        receiptKeyboard = new FormKeyboard(RecordContent, null, null, ReceiptMonth, ReceiptShop);
         connection.Masters.Changed += ReceiptMasterChanged;
         ReceiptList.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, _) => receiptScrollIntent = receiptScroller?.ScrollableHeight > 0), true);
         ReceiptList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, args) =>
@@ -59,7 +58,7 @@ public sealed partial class MainWindow
         var ledger = currentLedger.LedgerId; var api = connection.Api; var session = connection.Session;
         recordSearch = new(DateOnly.FromDateTime(DateTime.Now)); receiptSearch = recordSearch.Receipts;
         recordMasterLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); var masterToken = recordMasterLifetime.Token;
-        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; ReceiptShop.Text = TransferNameSearch.Text = ""; RecordMonthPeriod.IsChecked = true; receiptFiltersUpdating = false;
+        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; ReceiptShop.Text = ""; RecordMonthPeriod.IsChecked = true; receiptFiltersUpdating = false;
         var workspace = new ReceiptsWorkspace(api, session, ledger);
         var state = new ReceiptListState(async (query, token) =>
         {
@@ -91,7 +90,7 @@ public sealed partial class MainWindow
         if (currentLedger?.LedgerId != ledger || closed) return;
         RefreshReceiptEditorChoices(); RefreshTransferEditorChoices(); RenderTransferEditor();
         RefreshReceiptChoices(); foreach (var row in receiptRows) row.RefreshName();
-        foreach (var row in transferRows) row.RefreshName();
+        TransferListModel?.RefreshNames(); UpdateTransferActions();
     }
     private void RefreshReceiptChoices()
     {
@@ -193,7 +192,7 @@ public sealed partial class MainWindow
     {
         if (receiptSearch is null || recordSearch is null) return;
         var receipt = receipts && receiptState is not null ? receiptState.StartAsync(receiptSearch.Query(), lifetime.Token) : Task.CompletedTask;
-        var transfer = transfers && transferState is not null ? transferState.StartAsync(recordSearch.TransferQuery(), lifetime.Token) : Task.CompletedTask;
+        var transfer = transfers && TransferListModel is not null ? TransferListModel.StartAsync(recordSearch.TransferQuery(), lifetime.Token) : Task.CompletedTask;
         RenderReceiptState(); await Task.WhenAll(receipt, transfer);
     }
     private async void RetryReceipt(object sender, RoutedEventArgs args) { if (receiptState is { } state) await state.RetryAsync(lifetime.Token); }

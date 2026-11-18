@@ -22,7 +22,7 @@ public partial class App
         // Visibilityの切替とレイアウト確定は別ターン。配置後の実寸で操作可能性を検証する。
         await Wait(() => Find<Button>(root, "TransferReturnToStart") is { IsLoaded: true, ActualWidth: > 0, ActualHeight: > 0 });
         var list = Find<ListView>(root, "TransferList");
-        Check(list.Items.Count == 1 && ((TransferRow)list.SelectedItem).Transfer.Name == "ATM" && server.Reads.Any(u => u.Query.Contains("focusTransferId=")), "初回300件にない保存行はfocusTransferIdで先頭表示して選択");
+        Check(list.Items.Count == 1 && ((Monetail.Windows.Presentation.Transfers.TransferListItem)list.SelectedItem).Transfer.Name == "ATM" && server.Reads.Any(u => u.Query.Contains("focusTransferId=")), "初回300件にない保存行はfocusTransferIdで先頭表示して選択");
         Check(Find<Button>(root, "TransferReturnToStart").ActualWidth > 0, "途中開始の先頭に戻るは一覧を末尾までスクロールせず使用できる");
         await InvokeAsync(() => Find<Button>(root, "TransferReturnToStart")); await Wait(() => list.Items.Count == 100 && Find<Button>(root, "TransferReturnToStart").Visibility == Visibility.Collapsed);
         Check(!server.Reads[^1].Query.Contains("focusTransferId=") && list.SelectedItem is null, "先頭に戻るはフォーカス指定と選択を解除し通常の先頭を取得");

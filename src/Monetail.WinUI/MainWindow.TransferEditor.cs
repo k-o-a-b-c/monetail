@@ -19,13 +19,11 @@ public sealed partial class MainWindow
     private CancellationTokenSource? transferOpening;
     private Guid? transferOpenRetry;
     private bool transferRendering, transferDialogOpen, transferLeaving, transferCloseApproved,
-        transferStopped, transferSending, transferUnknown, transferRestoringSaved,
+        transferStopped, transferSending, transferUnknown,
         transferRestorePending, transferPreparingSave;
     private TransferWriteRequest? transferPending;
     private TransferSnapshot? transferPendingSnapshot;
     private FormKeyboard transferKeyboard = null!;
-    private double transferReturnOffset, transferReturnHorizontalOffset;
-    private Guid? transferSavedSelection;
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
@@ -91,19 +89,6 @@ public sealed partial class MainWindow
         return false;
     }
     private async Task<bool> LeaveRecordEditorAsync() => await LeaveTransferEditorAsync() && await LeaveReceiptEditorAsync();
-    private async void NewTransfer(object sender, RoutedEventArgs args) => await OpenTransferEditorAsync(null);
-    private async void TransferDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
-    {
-        for (var element = args.OriginalSource as DependencyObject;
-            element is not null && !ReferenceEquals(element, TransferList);
-            element = VisualTreeHelper.GetParent(element))
-            if (element is FrameworkElement { DataContext: TransferRow row })
-            {
-                args.Handled = true;
-                await OpenTransferEditorAsync(row.Transfer.TransferId);
-                return;
-            }
-    }
     internal async Task OpenTransferEditorAsync(Guid? id)
     {
         if (busy || closed || ManagementDialogOpen || transferOpening is not null || receiptOpening is not null ||
@@ -120,7 +105,7 @@ public sealed partial class MainWindow
         TransferOpenProgress.IsActive = true;
         TransferOpenRetry.Visibility = Visibility.Collapsed;
         TransferOpenMessage.Text = "振替を読み込み中…";
-        TransferRegisterPlaceholder.IsEnabled = false;
+        UpdateTransferActions();
         bool Current() => !closed && ReferenceEquals(transferOpening, pending) && !pending.IsCancellationRequested &&
             currentLedger?.LedgerId == ledger && account?.AuthUserId == person &&
             HomePage.Visibility == Visibility.Visible && !RecordEditorActive;
@@ -139,10 +124,9 @@ public sealed partial class MainWindow
             transferEditor = saved is null ? TransferEditorState.Create(DateOnly.FromDateTime(DateTime.Now)) : TransferEditorState.Edit(saved);
             if (saved is not null && (!TransferEditorRules.CanUse(methods, saved.FromPaymentMethodId) || !TransferEditorRules.CanUse(methods, saved.ToPaymentMethodId)))
                 transferEditor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
-            transferReturnOffset = transferScroller?.VerticalOffset ?? 0;
-            transferReturnHorizontalOffset = transferScroller?.HorizontalOffset ?? 0;
+            TransfersView.RememberPosition();
             receiptReturnOffset = receiptScroller?.VerticalOffset ?? 0;
-            transferState?.Suspend();
+            TransferListModel?.Suspend();
             receiptState?.Suspend();
             RecordContent.Visibility = Visibility.Collapsed;
             TransferEditorPage.Visibility = Visibility.Visible;
@@ -179,7 +163,7 @@ public sealed partial class MainWindow
                 TransferOpenProgress.IsActive = false;
                 if (transferEditor is not null)
                     TransferOpenNotice.Visibility = Visibility.Collapsed;
-                TransferRegisterPlaceholder.IsEnabled = TransferMethods is { } methods && TransferEditorRules.CanCreate(methods);
+                UpdateTransferActions();
             }
         }
     }
@@ -192,7 +176,7 @@ public sealed partial class MainWindow
         TransferOpenNotice.Visibility = Visibility.Collapsed;
         TransferOpenProgress.IsActive = false;
         TransferOpenRetry.Visibility = Visibility.Collapsed;
-        TransferRegisterPlaceholder.IsEnabled = account is not null && TransferMethods is { } methods && TransferEditorRules.CanCreate(methods);
+        UpdateTransferActions();
     }
     private void ResetTransferEditor()
     {
@@ -392,9 +376,5 @@ public sealed partial class MainWindow
             RestoreTransferPosition();
         }
     }
-    private void RestoreTransferPosition() => DispatcherQueue.TryEnqueue(() =>
-    {
-        if (!RecordEditorActive && HomePage.Visibility == Visibility.Visible)
-            transferScroller?.ChangeView(transferReturnHorizontalOffset, transferReturnOffset, null, true);
-    });
+    private void RestoreTransferPosition() => TransfersView.RestorePosition();
 }

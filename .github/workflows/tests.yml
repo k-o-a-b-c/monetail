@@ -148,6 +148,7 @@ jobs:
         with:
           scope: client
       - run: dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj --configuration Release
+      - run: dotnet test tests/Monetail.Windows.Presentation.Tests/Monetail.Windows.Presentation.Tests.csproj --configuration Release
       - uses: ./.github/actions/ci-proof
         if: needs.changes.outputs.windows_client == 'true'
         with:

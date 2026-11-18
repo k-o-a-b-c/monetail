@@ -14,6 +14,14 @@ from select_tests import FLAGS, PRODUCT, ROOT, changed_files, main, project_inpu
 
 
 class SelectionTests(unittest.TestCase):
+    def test_presentation_source_and_tests_select_the_portable_and_view_consumers(self):
+        for path in ("src/Monetail.Windows.Presentation/Transfers/TransferListViewModel.cs",
+                     "src/Monetail.Windows.Presentation/Monetail.Windows.Presentation.csproj"):
+            self.assert_flags([path], "windows_client", "winui")
+        self.assert_flags(["tests/Monetail.Windows.Presentation.Tests/TransferListViewModelTests.cs"], "windows_client")
+        workflow = (ROOT / ".github/workflows/tests.yml").read_text()
+        self.assertIn("dotnet test tests/Monetail.Windows.Presentation.Tests/Monetail.Windows.Presentation.Tests.csproj", workflow)
+
     def test_shared_calculations_select_both_consumers_and_container(self):
         for path in ("src/Monetail.Calculations/Receipts/ReceiptCalculator.cs",
                      "src/Monetail.Calculations/Monetail.Calculations.csproj"):

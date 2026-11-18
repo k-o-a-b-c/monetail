@@ -121,6 +121,10 @@ def selected_inputs(paths, *, strict=True):
             enable("api")
         if path.startswith("src/Monetail.Windows.Client/"):
             enable("windows_client", "windows_storage", "winui")
+        if path.startswith("src/Monetail.Windows.Presentation/"):
+            enable("windows_client", "winui")
+        if path.startswith("tests/Monetail.Windows.Presentation.Tests/"):
+            enable("windows_client")
         if path.startswith("tests/Monetail.Windows.Client.Tests/"):
             enable("windows_client")
         if path.startswith("tests/Monetail.Windows.Storage.Tests/"):

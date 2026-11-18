@@ -78,7 +78,7 @@ public partial class App : Application
             return All(dialog).OfType<T>().Where(element => element is Button button && Equals(button.Content, text)).OrderByDescending(element => element.IsLoaded).FirstOrDefault()
                 ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
         }
-        return root.FindName(name) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
     }
     private static bool EditorClosed(FrameworkElement root) =>
         Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Collapsed;

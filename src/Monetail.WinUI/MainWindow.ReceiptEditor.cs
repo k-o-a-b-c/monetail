@@ -90,7 +90,7 @@ public sealed partial class MainWindow
             receiptParentInput = new(receiptEditor.Header, info is not null);
             receiptInitialLocation = receiptEditor.Header.ShopLocation;
             receiptReturnOffset = receiptScroller?.VerticalOffset ?? 0;
-            receiptState?.Suspend(); transferState?.Suspend(); RecordContent.Visibility = Visibility.Collapsed; ReceiptEditorPage.Visibility = Visibility.Visible;
+            receiptState?.Suspend(); TransferListModel?.Suspend(); RecordContent.Visibility = Visibility.Collapsed; ReceiptEditorPage.Visibility = Visibility.Visible;
             PopulateReceiptEditor();
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { }

@@ -5,5 +5,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
+    <ProjectReference Include="../Monetail.Windows.Presentation/Monetail.Windows.Presentation.csproj" />
   </ItemGroup>
 </Project>
