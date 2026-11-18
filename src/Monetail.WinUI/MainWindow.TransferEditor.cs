@@ -125,9 +125,9 @@ public sealed partial class MainWindow
             if (saved is not null && (!TransferEditorRules.CanUse(methods, saved.FromPaymentMethodId) || !TransferEditorRules.CanUse(methods, saved.ToPaymentMethodId)))
                 transferEditor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
             TransfersView.RememberPosition();
-            receiptReturnOffset = receiptScroller?.VerticalOffset ?? 0;
+            ReceiptsView.RememberPosition();
             TransferListModel?.Suspend();
-            receiptState?.Suspend();
+            ReceiptListModel?.Suspend();
             RecordContent.Visibility = Visibility.Collapsed;
             TransferEditorPage.Visibility = Visibility.Visible;
             transferStopped = transferUnknown = false;

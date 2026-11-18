@@ -21,7 +21,9 @@
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
-    <Compile Include="../../src/Monetail.WinUI/ReceiptRow.cs" Link="ReceiptRow.cs" />
+    <Compile Include="../../src/Monetail.WinUI/ReceiptFilterChoice.cs" Link="ReceiptFilterChoice.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml" Link="Views/Receipts/ReceiptListView.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml.cs" Link="Views/Receipts/ReceiptListView.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml" Link="Views/Transfers/TransferListView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs" Link="Views/Transfers/TransferListView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Transfers.cs" Link="MainWindow.Transfers.cs" />

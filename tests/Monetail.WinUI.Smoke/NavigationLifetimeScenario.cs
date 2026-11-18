@@ -36,7 +36,7 @@ public partial class App
             Check(Visible(root, "HomePage") && ReferenceEquals(editor, TransferEditing) && amount.Text == "12x",
                 "未承認の画面移動ガードは入力を保持して遷移を拒否する");
             Call("ResetRecordHome");
-            Check(TransferRuntime("receiptState") is null && Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel is null &&
+            Check(Find<Monetail.WinUI.Views.Receipts.ReceiptListView>(root, "ReceiptsView").ViewModel is null && Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel is null &&
                 ReferenceEquals(editor, TransferEditing) && ReferenceEquals(draft, TransferEditing?.Draft) &&
                 ReferenceEquals(amount, Find<TextBox>(root, "TransferAmount")) && amount.Text == "12x" && date.Text == "2026/" && editor.Revision == saved.Revision,
                 "記録一覧のリセットは取得を終了しても振替のモデル・コントロール・未確定入力・旧版を破棄しない");

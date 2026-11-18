@@ -56,7 +56,7 @@ public sealed partial class MainWindow
         receiptRecoveryLoading?.Cancel();
         ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = true;
         if (receiptDialogOpen) ReceiptConfirmationDialog.Hide();
-        receiptState?.Suspend(); TransferListModel?.Suspend();
+        ReceiptListModel?.Suspend(); TransferListModel?.Suspend();
         connection.Masters.Clear(); connection.Session.TaxRates.Clear(); receiptTaxRates = null;
         RenderReceiptRecovery();
         return true;

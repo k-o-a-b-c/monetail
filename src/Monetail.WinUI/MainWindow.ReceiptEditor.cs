@@ -24,7 +24,6 @@ public sealed partial class MainWindow
     private Guid? receiptOpenRetryId;
     private CancellationTokenSource? receiptOpening;
     private bool receiptEditorRendering, receiptDialogOpen, receiptLeaving, receiptCloseApproved, receiptRestorePending;
-    private double receiptReturnOffset;
     private string? receiptInitialLocation;
     private FormKeyboard receiptEditorKeyboard = null!;
 
@@ -50,13 +49,6 @@ public sealed partial class MainWindow
                 ReferenceEquals(element, RecordButton) || ReferenceEquals(element, LedgerSelector)) return true;
         return false;
     }
-    private async void NewReceipt(object sender, RoutedEventArgs args) => await OpenReceiptEditorAsync(null);
-    private async void ReceiptDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
-    {
-        for (var element = args.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, ReceiptList); element = VisualTreeHelper.GetParent(element))
-            if (element is FrameworkElement { DataContext: ReceiptRow row })
-            { args.Handled = true; await OpenReceiptEditorAsync(row.Receipt.ReceiptId); return; }
-    }
     // 一要求だけを受理。取消後に通信が完了しても同一要求・本人・家計簿・画面を照合して適用しない。
     internal async Task OpenReceiptEditorAsync(Guid? receiptId)
     {
@@ -65,7 +57,7 @@ public sealed partial class MainWindow
         var api = connection.Api; var session = connection.Session;
         var initial = new ReceiptHeaderDraft { TransactionAt = DateTime.Today, ShopLocation = "", Memo = null, TaxInclusionMode = 0, TaxRoundingMode = "floor" };
         using var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        receiptOpening = pending; receiptOpenRetryId = receiptId; ReceiptOpenRetry.Visibility = Visibility.Collapsed; NewReceiptButton.IsEnabled = false;
+        receiptOpening = pending; receiptOpenRetryId = receiptId; ReceiptOpenRetry.Visibility = Visibility.Collapsed; UpdateReceiptActions();
         ReceiptOpenNotice.Visibility = Visibility.Visible; ReceiptOpenProgress.IsActive = true; ReceiptOpenMessage.Text = "レシートを読み込み中…";
         bool Current() => !closed && ReferenceEquals(receiptOpening, pending) && !pending.IsCancellationRequested &&
             currentLedger?.LedgerId == ledger && account?.AuthUserId == person && HomePage.Visibility == Visibility.Visible;
@@ -89,8 +81,8 @@ public sealed partial class MainWindow
             receiptEditor = info is null ? ReceiptEditorState.Create(initial, Defaults) : ReceiptEditorState.Edit(info, Defaults);
             receiptParentInput = new(receiptEditor.Header, info is not null);
             receiptInitialLocation = receiptEditor.Header.ShopLocation;
-            receiptReturnOffset = receiptScroller?.VerticalOffset ?? 0;
-            receiptState?.Suspend(); TransferListModel?.Suspend(); RecordContent.Visibility = Visibility.Collapsed; ReceiptEditorPage.Visibility = Visibility.Visible;
+            ReceiptsView.RememberPosition();
+            ReceiptListModel?.Suspend(); TransferListModel?.Suspend(); RecordContent.Visibility = Visibility.Collapsed; ReceiptEditorPage.Visibility = Visibility.Visible;
             PopulateReceiptEditor();
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { }
@@ -109,14 +101,14 @@ public sealed partial class MainWindow
         finally
         {
             if (ReferenceEquals(receiptOpening, pending))
-            { receiptOpening = null; ReceiptOpenProgress.IsActive = false; if (receiptEditor is not null) ReceiptOpenNotice.Visibility = Visibility.Collapsed; NewReceiptButton.IsEnabled = account is not null; }
+            { receiptOpening = null; ReceiptOpenProgress.IsActive = false; if (receiptEditor is not null) ReceiptOpenNotice.Visibility = Visibility.Collapsed; UpdateReceiptActions(); }
         }
     }
     private void CancelReceiptOpening()
     {
         var pending = receiptOpening; receiptOpening = null; pending?.Cancel();
         ReceiptOpenProgress.IsActive = false; ReceiptOpenNotice.Visibility = Visibility.Collapsed; ReceiptOpenRetry.Visibility = Visibility.Collapsed;
-        NewReceiptButton.IsEnabled = account is not null;
+        UpdateReceiptActions();
     }
     private void ResetReceiptEditor()
     {
@@ -343,8 +335,7 @@ public sealed partial class MainWindow
         }
         finally { ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = false; receiptLeaving = false; }
     }
-    private void RestoreReceiptListPosition() => DispatcherQueue.TryEnqueue(() =>
-    { if (!closed && receiptEditor is null && HomePage.Visibility == Visibility.Visible) receiptScroller?.ChangeView(null, receiptReturnOffset, null, true); });
+    private void RestoreReceiptListPosition() => ReceiptsView.RestorePosition();
     private void ReceiptEditorSizeChanged(object sender, SizeChangedEventArgs args)
     {
         var narrow = args.NewSize.Width < 780;

@@ -1,3 +1,5 @@
+using Monetail.Windows.Presentation.Receipts;
+using Monetail.WinUI.Views.Receipts;
 using System.Globalization;
 using System.Net;
 using Microsoft.UI.Xaml;
@@ -12,6 +14,7 @@ public partial class App
 {
     private async Task CheckReceiptList()
     {
+        await CheckReceiptMvvmBoundary();
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true, ChoiceCount = 2 };
         var masters = new PaymentServer(); var ownPayment = masters.ActiveId; var expiredPayment = masters.ExpiredId; var otherPayment = masters.OtherActiveId; var requests = new List<Uri>(); var fail = false; var count = 0;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
@@ -40,11 +43,11 @@ public partial class App
         Check(requests[^1].Query.Contains("month=2026-12") && requests[^1].Query.Contains(Uri.EscapeDataString("入力途中")), "検索ボタンで年月と店名を一括確定");
         await Wait(() => All(list).OfType<TextBlock>().Any(t => t.Text == "店0"));
         Check(All(list).OfType<TextBlock>().Any(t => t.Text == "2026/11/10 12:34:56") && All(list).OfType<TextBlock>().Any(t => t.Text == (-12345).ToString("N0", CultureInfo.CurrentCulture)), "一覧の実TextBlockへ日時・保存済み額をバインド");
-        var first = (ReceiptRow)list.Items[0]; list.SelectedItem = first;
+        var first = (ReceiptListItem)list.Items[0]; list.SelectedItem = first;
         Check(first.TransactionAt == "2026/11/10 12:34:56" && first.TotalAmount == (-12345).ToString("N0", CultureInfo.CurrentCulture) && first.ShopLocation == "" && first.Memo == "", "ローカル秒精度・NULLと保存済み合計額を表示し再計算しない");
-        Check(first.PaymentName == "本日有効" && ((ReceiptRow)list.Items[1]).PaymentName == "終了済み", "過去の期間外支払方法も名称表示できる");
-        Check(((ReceiptRow)list.Items[2]).PaymentName == "（母）母の現金", "他人物所有は元の正式名称に人物名を付けて表示");
-        var state = (ReceiptListState)typeof(MainWindow).GetField("receiptState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
+        Check(first.PaymentName == "本日有効" && ((ReceiptListItem)list.Items[1]).PaymentName == "終了済み", "過去の期間外支払方法も名称表示できる");
+        Check(((ReceiptListItem)list.Items[2]).PaymentName == "（母）母の現金", "他人物所有は元の正式名称に人物名を付けて表示");
+        var state = Find<ReceiptListView>(root, "ReceiptsView").ViewModel!;
         list.ScrollIntoView(list.Items[99]); await Settle();
         await state.ObserveViewportAsync(99, true, true); await Wait(() => list.Items.Count == 101);
         Check(ReferenceEquals(list.SelectedItem, first), "追加読込は既存行と選択を維持");

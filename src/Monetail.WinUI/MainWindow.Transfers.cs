@@ -65,7 +65,7 @@ public sealed partial class MainWindow
         receiptSearch.MonthText = ReceiptMonth.Text;
         if (!recordSearch.ApplyTransferText())
         {
-            RenderReceiptState();
+            RenderRecordFilters();
             ReceiptMonth.Focus(FocusState.Programmatic);
             return;
         }

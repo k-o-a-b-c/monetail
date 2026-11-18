@@ -1,3 +1,5 @@
+using Monetail.Windows.Presentation.Receipts;
+using Monetail.WinUI.Views.Receipts;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Receipts;
@@ -43,7 +45,7 @@ public partial class App
         var first = list.Items[0]; var selected = list.Items[4]; list.SelectedItem = selected;
         list.ScrollIntoView(list.Items[79]); await Settle();
         var scroll = All(list).OfType<ScrollViewer>().First();
-        var state = (ReceiptListState)typeof(MainWindow).GetField("receiptState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(activeWindow)!;
+        var state = Find<ReceiptListView>(root, "ReceiptsView").ViewModel!;
         var pending = state.ObserveViewportAsync(79, true, true);
         await Wait(() => requests.Count == 3 && Find<ProgressRing>(root, "ReceiptNextProgress").IsActive); await Settle();
         var offset = scroll.VerticalOffset; Check(offset > 0, "追加読込中のスクロール保持を先頭以外の表示位置で検証");
@@ -62,7 +64,7 @@ public partial class App
         Check(ReferenceEquals(list.Items[0], first) && ReferenceEquals(list.SelectedItem, selected) && Math.Abs(scroll.VerticalOffset - offset) < 0.1,
             "再開成功は末尾追記だけで取得済み行・選択・表示位置を維持");
         initial.SetResult(true); continuation.SetResult(true); await Settle();
-        Check(requests.Count == 4 && list.Items.Count == 101 && list.Items.Cast<ReceiptRow>().Select(r => r.Receipt.ReceiptId).Distinct().Count() == 101,
+        Check(requests.Count == 4 && list.Items.Count == 101 && list.Items.Cast<ReceiptListItem>().Select(r => r.Receipt.ReceiptId).Distinct().Count() == 101,
             "中断した旧要求の遅延完了で行を重複反映せず再開を繰り返さない");
     }
 }
