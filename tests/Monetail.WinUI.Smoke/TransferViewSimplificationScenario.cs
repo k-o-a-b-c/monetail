@@ -93,6 +93,14 @@ public partial class App
         list.SetValue(ScrollViewer.VerticalScrollBarVisibilityProperty, ScrollBarVisibility.Visible);
         await Wait(() => scroll.ScrollableHeight > 0 && model.ViewportFilled && !model.CanContinue);
         Check(model.Rows.Count == 400 && reads.Count == 4, "狭い領域へのリサイズで充足状態を再測定し、取得済み行を保持する");
+        // 実入力は画面内に十分な高さを確保して行う。合成の巨大/狭小レイアウトを持ち越さない。
+        var record = Find<Grid>(root, "RecordContent");
+        foreach (var child in record.Children.OfType<FrameworkElement>().Where(child => Grid.GetRow(child) == 1))
+            child.Visibility = Visibility.Collapsed;
+        record.RowDefinitions[1].Height = new GridLength(0);
+        record.RowDefinitions[2].Height = new GridLength(1, GridUnitType.Star);
+        view.Height = double.NaN;
+        await Wait(() => scroll.ViewportHeight > 150 && scroll.ScrollableHeight > 0);
         async Task NearEnd()
         {
             scroll.ChangeView(null, scroll.ScrollableHeight - 30, null, true);
@@ -177,6 +185,10 @@ public partial class App
         var point = new ReceiptScreenPoint { X = (int)Math.Round(logical.X * root.XamlRoot.RasterizationScale), Y = (int)Math.Round(logical.Y * root.XamlRoot.RasterizationScale) };
         if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(window!), ref point) || !SetCursorPos(point.X, point.Y))
             throw new Win32Exception(Marshal.GetLastWin32Error());
+        var area = DisplayArea.GetFromWindowId(window!.AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+        if (logical.X < 0 || logical.Y < 0 || logical.X >= root.ActualWidth || logical.Y >= root.ActualHeight ||
+            point.X < area.X || point.Y < area.Y || point.X >= area.X + area.Width || point.Y >= area.Y + area.Height)
+            throw new InvalidOperationException($"実入力の対象が画面外です: {target.Name}, logical={logical.X},{logical.Y}, screen={point.X},{point.Y}");
         return point;
     }
     private static void SendTransferMouse(uint flags, uint data = 0)
