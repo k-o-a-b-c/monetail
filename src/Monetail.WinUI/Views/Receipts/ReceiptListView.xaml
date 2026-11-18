@@ -10,30 +10,22 @@
             <RowDefinition Height="1" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid ColumnSpacing="16">
+        <Grid ColumnSpacing="8">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="レシート" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level2" />
-            <Button x:Name="NewReceiptButton" Grid.Column="1" Content="＋ 登録" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}"
-                    AutomationProperties.Name="レシートの登録"  AutomationProperties.AutomationId="NewReceiptButton"/>
+            <TextBlock Text="レシート" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level2"/>
+            <Button x:Name="ReceiptReturnToStart" Grid.Column="1" Content="先頭に戻る" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Command="{x:Bind ViewModel.ReturnToStartCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.IsFocused), Mode=OneWay}"
+                    AutomationProperties.AutomationId="ReceiptReturnToStart"/>
+            <Button x:Name="NewReceiptButton" Grid.Column="2" Content="＋ 登録" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}"
+                    AutomationProperties.Name="レシートの登録" AutomationProperties.AutomationId="NewReceiptButton"/>
         </Grid>
         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
-        <Grid Grid.Row="2" RowSpacing="12">
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <StackPanel x:Name="ReceiptFilters" Spacing="8">
-                <ContentControl Content="{x:Bind OpeningContent, Mode=OneWay}" Visibility="{x:Bind OpeningContent.Visibility, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
-                <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptShop"/>
-                    <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Command="{x:Bind ViewModel.SearchCommand, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.Name="店名で検索" AutomationProperties.AutomationId="ReceiptSearchButton"/>
-                    <Button x:Name="ReceiptReturnToStart" Grid.Column="2" Content="先頭に戻る" Command="{x:Bind ViewModel.ReturnToStartCommand, Mode=OneWay}"
-                            Visibility="{x:Bind Show(ViewModel.IsFocused), Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptReturnToStart"/>
-                </Grid>
-            </StackPanel>
-            <Grid Grid.Row="1">
-                <ListView x:Name="ReceiptList" SelectionMode="Single" DoubleTapped="ReceiptDoubleTapped" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
+        <Grid Grid.Row="2">
+            <ListView x:Name="ReceiptList" SelectionMode="Single" DoubleTapped="ReceiptDoubleTapped" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
                          HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           AutomationProperties.Name="レシート一覧" AutomationProperties.AutomationId="ReceiptList">
                     <ListView.Header>
@@ -77,7 +69,10 @@
                     <TextBlock x:Name="ReceiptInitialError" Text="{x:Bind ViewModel.ErrorText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                     <Button x:Name="ReceiptInitialRetry" Content="再試行" Command="{x:Bind ViewModel.RetryCommand, Mode=OneWay}" AutomationProperties.AutomationId="ReceiptInitialRetry"/>
                 </StackPanel>
+                <Border Style="{StaticResource Card}" Padding="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="400"
+                        Visibility="{x:Bind OpeningContent.Visibility, Mode=OneWay}">
+                    <ContentControl Content="{x:Bind OpeningContent, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
+                </Border>
             </Grid>
-        </Grid>
     </Grid>
 </UserControl>
