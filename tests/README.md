@@ -16,6 +16,14 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
 | 合計 | 3759 |
 
+## レシート・振替一覧の401画面判定とアクセシビリティ（PR #207）
+
+レシート一覧の認証失効通知は振替と同じくホーム表示中に限ってログイン画面へ遷移する。既存のホーム内401復帰に加え、管理画面に切り替えた後のレシート一覧取得が認証コンテキスト失効を返しても画面を横取りしない実WinUIスモーク1確認を追加した。レシート見出しLevel2と0件案内のPolite live regionを実コントロールで検証する1確認も追加。検索、ページング、保存行探索の機能は変更しない。
+
+登録・編集Commandは単純に同時実行禁止へ変更しない。既存[ReceiptViewModelTests](Monetail.Windows.Presentation.Tests/ReceiptViewModelTests.cs)が、古い入力GETの取消後にそのTaskが未完了でも再操作できることを保証しており、二重起動はWindowの入口ガードで防ぐため。振替のCommandとの差異は意図的に残す。
+
+[Tests 44399146065](https://github.com/k-o-a-b-c/monetail/actions/runs/44399146065)でWinUI 3製品/スモークのReleaseビルド、製品起動と既存36シナリオ（追加2確認込み）、シナリオ選択・計測、CI証跡が成功。API・Client等の非変更対象はCIの既存成功結果を再利用し、ローカルWindows/スクリーンリーダー・物理IME/タッチ・高DPIの手動確認は未実施。
+
 ## レシート一覧のfocus取得・保存行探索
 
 [ReceiptListFocusTests](Monetail.Api.Tests/ReceiptListFocusTests.cs)・[安全性/実行計画](Monetail.Api.Tests/ReceiptListFocusSecurityTests.cs)に実HTTP/隔離SQLiteの35ケースを追加。対象自身を含む日時/ID境界と1/99/100/101/200/201件、通常cursorによる続き、全フィルターAND、全ロール、別家計簿/条件外/削除済みの同一404、D形式/重複/cursor併用の400、共有120回、取得途中の認証失効/参加解除/対象削除/保存先障害、DB不変、既存索引/キーセット/101件取得を確認する。既存の振替用クエリ受理範囲を広げず、focusReceiptIdの混入も拒否する。
