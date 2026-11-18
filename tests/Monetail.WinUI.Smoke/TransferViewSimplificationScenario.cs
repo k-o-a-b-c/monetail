@@ -133,13 +133,13 @@ public partial class App
         var thumb = All(bar).OfType<Thumb>().Single(t => t.Name == "VerticalThumb");
         await PositionTransferPointer(root, bar, bar.ActualWidth / 2, bar.ActualHeight / 2);
         await Wait(() => thumb.IsLoaded && thumb.ActualHeight > 0 && thumb.Opacity > 0.9);
-        var point = await PositionTransferPointer(root, thumb, thumb.ActualWidth / 2, thumb.ActualHeight / 2);
+        await PositionTransferPointer(root, thumb, thumb.ActualWidth / 2, thumb.ActualHeight / 2);
         SendTransferMouse(0x0002);
         try
         {
             await Wait(() => (bool)TransferViewField("scrollIntent").GetValue(view)! || model.IsLoading);
-            if (!model.IsLoading && !SetCursorPos(point.X, point.Y + 20))
-                throw new Win32Exception(Marshal.GetLastWin32Error());
+            if (!model.IsLoading)
+                SendTransferMouse(0x0001, deltaY: 20);
             await Wait(() => model.IsLoading && reads.Count == 6);
         }
         catch (OperationCanceledException error)
@@ -193,9 +193,9 @@ public partial class App
             throw new InvalidOperationException($"実入力の対象が画面外です: {target.Name}, logical={logical.X},{logical.Y}, screen={point.X},{point.Y}");
         return point;
     }
-    private static void SendTransferMouse(uint flags, uint data = 0)
+    private static void SendTransferMouse(uint flags, uint data = 0, int deltaY = 0)
     {
-        ReceiptNativeInput[] input = [new() { Type = 0, Data = new() { Mouse = new() { Flags = flags, Data = data } } }];
+        ReceiptNativeInput[] input = [new() { Type = 0, Data = new() { Mouse = new() { Flags = flags, Data = data, Y = deltaY } } }];
         if (SendInput(1, input, Marshal.SizeOf<ReceiptNativeInput>()) != 1)
             throw new Win32Exception(Marshal.GetLastWin32Error());
     }
