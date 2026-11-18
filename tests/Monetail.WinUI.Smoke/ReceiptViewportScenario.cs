@@ -126,6 +126,7 @@ public partial class App
         {
             list.RemoveHandler(UIElement.PointerMovedEvent, pointerMoved);
         }
+        var beforeWheel = $"offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; previous={ViewportValue(view, "previousOffset")}; queued={ViewportValue(view, "viewportQueued")}; user={ViewportValue(view, "queuedUserScroll")}; last={(list.ItemsPanelRoot as ItemsStackPanel)?.LastVisibleIndex}; loading={model.IsLoading}; filled={model.ViewportFilled}";
         SendTransferMouse(0x0800, unchecked((uint)-120));
         try
         {
@@ -134,7 +135,7 @@ public partial class App
         catch (OperationCanceledException error)
         {
             var panel = list.ItemsPanelRoot as ItemsStackPanel;
-            throw new InvalidOperationException($"レシートのホイール取得: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; last={panel?.LastVisibleIndex}; rows={model.Rows.Count}; reads={string.Join(',', reads)}; moved={moved}; intent={ViewportValue(view, "scrollIntent")}", error);
+            throw new InvalidOperationException($"レシートのホイール取得: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; last={panel?.LastVisibleIndex}; rows={model.Rows.Count}; reads={string.Join(',', reads)}; moved={moved}; intent={ViewportValue(view, "scrollIntent")}; previous={ViewportValue(view, "previousOffset")}; beforeWheel=[{beforeWheel}]", error);
         }
         var gate = nextPage ?? throw new InvalidOperationException("追加ページの待機がありません。");
         nextPage = null;
