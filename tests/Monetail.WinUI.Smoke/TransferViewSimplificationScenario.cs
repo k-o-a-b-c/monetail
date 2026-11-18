@@ -135,8 +135,8 @@ public partial class App
         SendTransferMouse(0x0002);
         try
         {
-            await Wait(() => (bool)TransferViewField("scrollIntent").GetValue(view)!);
-            if (!SetCursorPos(point.X, point.Y + 20))
+            await Wait(() => (bool)TransferViewField("scrollIntent").GetValue(view)! || model.IsLoading);
+            if (!model.IsLoading && !SetCursorPos(point.X, point.Y + 20))
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             await Wait(() => model.IsLoading && reads.Count == 6);
         }
