@@ -180,18 +180,18 @@
                     </transfers:TransferListView>
                 </Border>
                 <Border Grid.Column="1" Grid.Row="2" Style="{StaticResource Card}" Padding="12">
-                    <Grid RowSpacing="20">
+                    <Grid RowSpacing="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="1" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <Grid ColumnSpacing="16">
+                        <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                            <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" VerticalAlignment="Center" />
                             <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
                                     AutomationProperties.Name="残高の登録" AutomationProperties.AutomationId="BalanceRegisterPlaceholder" />
                         </Grid>
