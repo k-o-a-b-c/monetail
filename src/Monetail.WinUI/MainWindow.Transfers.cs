@@ -18,7 +18,6 @@ public sealed partial class MainWindow
         if (TransferListModel is { } model)
         {
             model.PropertyChanged -= TransferListChanged;
-            model.SearchRequested -= ApplyTransferTextAsync;
             model.OpenRequested -= OpenTransferEditorAsync;
             model.Dispose();
         }
@@ -33,7 +32,6 @@ public sealed partial class MainWindow
             await GetRecordMastersAsync(ledger, api, session, masterToken, token);
             return await workspace.ListAsync(query, token);
         }, recordSearch!, id => connection.Masters.PaymentName(ledger, id));
-        model.SearchRequested += ApplyTransferTextAsync;
         model.OpenRequested += OpenTransferEditorAsync;
         model.PropertyChanged += TransferListChanged;
         TransfersView.ViewModel = model;
@@ -57,18 +55,5 @@ public sealed partial class MainWindow
         if (TransferListModel is { } model)
             model.CanRegister = account is not null && transferOpening is null && TransferMethods is { } methods && TransferEditorRules.CanCreate(methods);
     }
-    private async Task ApplyTransferTextAsync()
-    {
-        if (recordSearch is null || receiptSearch is null)
-            return;
-        var previous = receiptSearch.Query().Month;
-        receiptSearch.MonthText = ReceiptMonth.Text;
-        if (!recordSearch.ApplyTransferText())
-        {
-            RenderRecordFilters();
-            ReceiptMonth.Focus(FocusState.Programmatic);
-            return;
-        }
-        await ReloadRecordsAsync(previous != receiptSearch.Query().Month, true);
-    }
+
 }
