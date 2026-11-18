@@ -29,6 +29,8 @@ public partial class App
         {
             var query = TransferQueryValues(request.RequestUri!);
             var offset = query.TryGetValue("cursor", out var cursor) ? int.Parse(cursor) : 0;
+            if (query.TryGetValue("focusTransferId", out var focus))
+                offset = int.Parse(Guid.Parse(focus).ToString("N"), System.Globalization.NumberStyles.HexNumber) - 1;
             reads.Add(offset);
             if (pageGate is { } gate)
                 await gate.Task.WaitAsync(token);
@@ -57,7 +59,8 @@ public partial class App
         }
         catch (OperationCanceledException error)
         {
-            throw new InvalidOperationException($"補充後の状態: rows={model.Rows.Count}, reads={string.Join(',', reads)}, fill={model.AutomaticFillCount}, loading={model.IsLoading}, filled={model.ViewportFilled}, view={view.ActualHeight}, list={list.ActualHeight}, viewport={scroll.ViewportHeight}, extent={scroll.ExtentHeight}, scrollable={scroll.ScrollableHeight}", error);
+            var suspended = model.GetType().GetField("suspended", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(model);
+            throw new InvalidOperationException($"補充後の状態: rows={model.Rows.Count}, reads={string.Join(',', reads)}, fill={model.AutomaticFillCount}, loading={model.IsLoading}, filled={model.ViewportFilled}, view={view.ActualHeight}, list={list.ActualHeight}, viewport={scroll.ViewportHeight}, extent={scroll.ExtentHeight}, scrollable={scroll.ScrollableHeight}, sameScroller={ReferenceEquals(TransferViewField("scroller").GetValue(view), scroll)}, queued={TransferViewField("viewportQueued").GetValue(view)}, suspended={suspended}, cursor={model.NextCursor}, finding={model.IsFindingSaved}, failure={model.Failure}", error);
         }
         await Settle();
         Check(reads.SequenceEqual(new[] { 0, 100, 200 }) && model.AutomaticFillCount == 2 && scroll.ScrollableHeight == 0,
@@ -145,6 +148,18 @@ public partial class App
         await PressReceiptKey(0x23);
         await FinishPage(8);
         Check(reads.SequenceEqual(Enumerable.Range(0, 8).Select(i => i * 100)), "ホイール・スクロールバー・合成タッチ開始・実Endキーは既存の順序で100件ずつ取得する");
+        foreach (var target in new[] { 250, 450 })
+        {
+            var before = reads.Count;
+            var id = Guid.Parse(target.ToString("x32"));
+            await model.ShowSavedAsync(new("all"), id);
+            await Wait(() => list.SelectedItem is not null && list.ContainerFromItem(list.SelectedItem) is FrameworkElement { IsLoaded: true, ActualHeight: > 0 } item &&
+                item.TransformToVisual(scroll).TransformPoint(new Point()).Y >= 0 &&
+                item.TransformToVisual(scroll).TransformPoint(new Point()).Y < scroll.ViewportHeight);
+            await Settle();
+            Check(model.SelectedTransferId == id && reads.Skip(before).SequenceEqual(target == 250 ? new[] { 0, 100, 200 } : new[] { 0, 100, 200, 449 }),
+                "保存行の選択通知だけで行を可視範囲へ表示し、余分なページを取得しない: " + target);
+        }
         view.Height = double.NaN;
     }
     private async Task<ReceiptScreenPoint> PositionTransferPointer(FrameworkElement root, FrameworkElement target, double x, double y)
