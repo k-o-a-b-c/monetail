@@ -43,9 +43,10 @@ public sealed partial class TransferListViewModel(
     public event Func<Guid?, Task>? OpenRequested;
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task SearchAsync() => SearchRequested?.Invoke() ?? Task.CompletedTask;
-    [RelayCommand(CanExecute = nameof(CanRegister))]
+    // 旧入力要求の取消後、古いTaskが完了する前でもWindowの入口ガードを通して再操作できる。
+    [RelayCommand(CanExecute = nameof(CanRegister), AllowConcurrentExecutions = true)]
     private Task RegisterAsync() => OpenRequested?.Invoke(null) ?? Task.CompletedTask;
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private Task EditAsync(Guid transferId) => OpenRequested?.Invoke(transferId) ?? Task.CompletedTask;
     public void RefreshNames()
     {
