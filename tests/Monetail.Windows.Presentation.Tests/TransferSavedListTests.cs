@@ -81,7 +81,8 @@ public sealed class TransferSavedListTests
             return Task.FromResult(new TransferListInfo(TransferListViewModelTests.Rows(0, 100), "next"));
         });
         await state.StartAsync(new("all", focusTransferId: id));
-        state.SelectedItem = state.Rows.FirstOrDefault(r => r.TransferId == id);
+        state.SelectedItem = state.Rows[0];
+        Assert.NotNull(state.SelectedTransferId);
         await state.ObserveViewportAsync(99, true, true);
         Assert.Equal(3, calls.Count);
         Assert.Null(calls[^1].FocusTransferId);

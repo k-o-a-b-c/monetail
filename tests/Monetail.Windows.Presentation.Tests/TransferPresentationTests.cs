@@ -206,4 +206,64 @@ public sealed class TransferPresentationTests
         Assert.Equal(1, model.AutomaticFillCount);
         Assert.Equal(3, queries.Count);
     }
+    [Fact]
+    public async Task ResumedFocus404FallsBackOnceEvenWhenTheReplacementRequestCompletesSynchronously()
+    {
+        var queries = new List<TransferListQuery>();
+        var pending = new TaskCompletionSource<TransferListInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var target = Rows(500, 1)[0].TransferId;
+        using var model = Create((q, _) =>
+        {
+            queries.Add(q);
+            if (queries.Count == 4)
+                return pending.Task;
+            if (q.FocusTransferId is not null)
+                throw new TransferRequestException(HttpStatusCode.NotFound, "not_found", null);
+            return Task.FromResult(queries.Count > 4 ? new TransferListInfo([], null)
+                : new TransferListInfo(Rows((queries.Count - 1) * 100, 100), "next"));
+        });
+        var showing = model.ShowSavedAsync(new("all"), target);
+        model.Suspend();
+        pending.SetException(new TransferRequestException(HttpStatusCode.NotFound, "not_found", null));
+        await showing;
+        await model.ResumeAsync();
+        Assert.Equal(6, queries.Count);
+        Assert.Equal(2, queries.Count(q => q.FocusTransferId == target));
+        Assert.Null(model.FocusTransferId);
+        Assert.Null(model.Failure);
+        Assert.Null(model.SelectedItem);
+        Assert.False(model.IsFindingSaved);
+        Assert.Empty(model.Rows);
+    }
+
+    [Fact]
+    public async Task ANewSearchCanReplaceAPendingSearchWithoutDisablingTheSearchCommand()
+    {
+        var search = new RecordSearchState(new(2026, 11, 10));
+        var pending = new TaskCompletionSource<TransferListInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var queries = new List<TransferListQuery>();
+        using var model = new TransferListViewModel((q, _) =>
+        {
+            queries.Add(q);
+            return q.Q == "old" ? pending.Task : Task.FromResult(new TransferListInfo(Rows(100, 1), null));
+        }, search, _ => "現金");
+        model.SearchRequested += () =>
+        {
+            Assert.True(search.ApplyTransferText());
+            return model.StartAsync(search.TransferQuery());
+        };
+        model.SearchText = "old";
+        var old = model.SearchCommand.ExecuteAsync(null);
+        Assert.True(model.SearchCommand.CanExecute(null));
+        model.SearchText = "new";
+        await model.SearchCommand.ExecuteAsync(null);
+        pending.SetResult(new(Rows(0, 100), "stale"));
+        await old;
+        Assert.Equal(new[] { "old", "new" }, queries.Select(q => q.Q));
+        Assert.Single(model.Rows);
+        Assert.Equal(Rows(100, 1)[0].TransferId, model.Rows[0].TransferId);
+        Assert.Null(model.NextCursor);
+        Assert.Equal("new", model.SearchText);
+    }
+
 }

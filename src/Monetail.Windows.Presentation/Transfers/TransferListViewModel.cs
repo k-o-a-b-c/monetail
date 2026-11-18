@@ -54,7 +54,7 @@ public sealed partial class TransferListViewModel(
     }
     public event Func<Task>? SearchRequested;
     public event Func<Guid?, Task>? OpenRequested;
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private Task SearchAsync() => SearchRequested?.Invoke() ?? Task.CompletedTask;
     [RelayCommand(CanExecute = nameof(CanRegister))]
     private Task RegisterAsync() => OpenRequested?.Invoke(null) ?? Task.CompletedTask;
@@ -166,7 +166,10 @@ public sealed partial class TransferListViewModel(
                 }
             }
             if (epoch == generation && Failure is null && !token.IsCancellationRequested)
-                SelectSaved(transferId);
+            {
+                SelectedItem = Rows.FirstOrDefault(r => r.TransferId == transferId);
+                savedTarget = null;
+            }
         }
         finally
         {
@@ -178,13 +181,6 @@ public sealed partial class TransferListViewModel(
             }
         }
     }
-    private void SelectSaved(Guid id)
-    {
-        if (Rows.FirstOrDefault(r => r.TransferId == id) is not { } row)
-            return;
-        SelectedItem = row;
-        savedTarget = null;
-    }
     [RelayCommand]
     public Task ReturnToStartAsync(CancellationToken token = default) => conditions is { } query
         ? StartAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q), token) : Task.CompletedTask;
@@ -195,7 +191,6 @@ public sealed partial class TransferListViewModel(
         if (!remember)
         {
             interruptedRead = null;
-            IsFindingSaved = false;
         }
         else if (wasLoading)
             interruptedRead = activeRead;
@@ -243,8 +238,9 @@ public sealed partial class TransferListViewModel(
         {
             interruptedRead = null;
             IsFindingSaved = savedTarget is not null;
+            var query = conditions;
             var read = ReadAsync(pending.Append, token, pending.AutomaticFill);
-            return savedTarget is Guid id ? FindSavedAsync(read, conditions, id, token, generation) : read;
+            return savedTarget is Guid id ? FindSavedAsync(read, query, id, token, generation) : read;
         }
         return !HasLoaded ? ReadAsync(false, token) : Task.CompletedTask;
     }
