@@ -38,7 +38,7 @@ public partial class App
         var active = window ?? throw new InvalidOperationException("Windowがありません。");
         var area = DisplayArea.GetFromWindowId(active.AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
         active.AppWindow.Move(new(area.X, area.Y));
-        active.AppWindow.ResizeClient(new SizeInt32(1100, 780));
+        active.AppWindow.ResizeClient(new SizeInt32(900, 780));
         var view = Find<ReceiptListView>(root, "ReceiptsView");
         var model = view.ViewModel ?? throw new InvalidOperationException("一覧VMがありません。");
         var list = Find<ListView>(root, "ReceiptList");
@@ -99,6 +99,7 @@ public partial class App
             "レシートViewの実ホイールは1カーソルだけ取得し、同じ行/選択/ItemsSourceへ追記する");
         var horizontal = scroll.HorizontalOffset;
         var vertical = scroll.VerticalOffset;
+        Check(horizontal > 0 && vertical > 0, "レシート一覧は縦横とも実際に移動した位置から編集へ入り、復元を検証する");
         await InvokeAsync(() => Find<Button>(root, "NewReceiptButton"));
         await Wait(() => ReceiptEditing is not null);
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
