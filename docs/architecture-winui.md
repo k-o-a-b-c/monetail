@@ -57,7 +57,7 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 ## 振替一覧のMVVM移行（実装済み）
 
-振替一覧を起点に、WinUI 3の画面固有処理を段階的にMVVMへ移行する。振替一覧については**既存の`TransferListState`を新ViewModelで包まず、状態管理を`TransferListViewModel`へ一本化した**。既存クラス・ファイルを維持することを目的とせず、表示仕様・API契約・失敗時の操作を維持して内部構造を組み直す。振替入力画面、レシート、他の管理画面のMVVM化は別工程とする。
+振替一覧を起点に、WinUI 3の画面固有処理を段階的にMVVMへ移行する。振替一覧については**既存の`TransferListState`を新ViewModelで包まず、状態管理を`TransferListViewModel`へ一本化した**。既存クラス・ファイルを維持することを目的とせず、表示仕様・API契約・失敗時の操作を維持して内部構造を組み直す。レシート一覧の移行は後節に記す。振替/レシートの入力画面、他の管理画面のMVVM化は別工程とする。
 
 | 置き場所 | 役割 |
 | --- | --- |
@@ -145,6 +145,58 @@ flowchart LR
 
 レビュー修正の基点`b71c7fa`との比較では、ViewのXAML/C#は261→281行、製品全体は19行増。明示フィールド7つ（bool 3つ）は不変、公開操作4→3（代わりにprivateの`ConnectScroller`を追加、総メソッド数は不変）、保存行の表示要求元2→1、全プロパティ通知からの測定を0にした。行数を減らすための変更ではなく、観測対象・表示要求の所有者を絞り、遅延実行時の対象確認とレイアウト確定を明示する変更である。
 
+## レシート一覧のMVVM移行（実装済み）
+
+PR #202の振替一覧と同じ責務境界へ移行し、旧`ReceiptListState`を包まず取得状態を`ReceiptListViewModel`へ移した。表示と操作の正本は[レシート画面](ledger-receipt-ui.md)であり、本節は構成だけを定める。
+
+| 所有者 | 担当 |
+| --- | --- |
+| `Views/Receipts/ReceiptListView.xaml/.cs` | 既存6列・店名検索・登録・読込/空/失敗/再試行/続行、可視範囲と実スクロール・IME・フォーカス・縦横位置の記憶/復元 |
+| `Presentation/Receipts/ReceiptListViewModel` | 唯一の表示行コレクション・選択、取得世代/カーソル、100件取得・300件補充・20行先読み、中断/再開・1回カーソル復旧、通知と5 Command |
+| `Presentation/Receipts/ReceiptListItem` | 保存済み応答の表示用投影。ローカル秒精度・NULL・保存済み合計額を保持し、マスタ名称だけ再表示。独自ソート/再計算なし |
+| `MainWindow.Receipts.cs`等 | `RecordSearchState`、共通年月/人物/支払方法、検索確定、共有マスタ取得、Workspace接続、登録可否・編集遷移・認証/Window寿命 |
+| `Windows.Client` | `ReceiptsWorkspace`・Transport・DTO・検索契約・認証/書込。`ReceiptSearchState`は共通`RecordSearchState.Receipts`のまま |
+
+Viewは`ViewModel`/`OpeningContent`の2プロパティと`RememberPosition`/`RestorePosition`/`ObserveViewport`の3操作だけを公開する。WindowやClientSession、一覧内コントロールは渡さない。編集開始待ちUIはWindowの名前スコープ/所有権を維持した内容スロットに置き、そのVisibilityにラッパーも追従して従来の間隔を維持する。
+
+VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口。`SelectedReceiptId`は`SelectedItem`から導出し、ListViewへ双方向バインドする。旧WindowのDTO→表示行同期と選択ID同期は削除した。`SearchText`は`RecordSearchState.Receipts.ShopText`の窓口で別の格納先を持たず、確定はWindowの`SearchRequested`処理へ委譲する。要求中の`conditions`はカーソル/世代に結び付いた読取スナップショットであり、新しい編集用フィルターではない。
+
+`SearchCommand`/`RegisterCommand`/`EditCommand`と2通知（`SearchRequested`/`OpenRequested`）を使用する。登録可否は従来のWindowルールを`CanRegister`へ渡す。登録/編集の進行中ガードもWindowの既存`receiptOpening`等が正本であり、取消済みの旧HTTP応答待ちをCommandの別ガードとして残さない。検索の競合はVMの世代管理で、編集開始の競合はWindowの既存照合で処理する。`RetryCommand`/`ContinueCommand`はVMの現在状態に従う。
+
+可視範囲はRows/Size/Loaded/ViewChangedと復帰時の明示要求で測定し、全プロパティ通知や常時LayoutUpdatedには依存しない。既存の低優先Dispatcher要求へまとめ、レイアウト確定後に現在のScrollViewerへ接続する。ViewportFilledの変化はViewportFilled/CanContinueと続行Commandだけへ通知する。復元時は利用者の操作意図を解除し、自動補充上限を解除しない。
+
+退避は`Suspend`、明示破棄は`Dispose`と区別する。旧Windowが行っていた表示行クリアはVM.Disposeへ移し、所有する行・選択をクリアする。nullのバインド更新だけに頼らず、ログアウト後に古い行を残さない。通常の画面往復・同一アカウントの編集401復帰では元のView/VM/入力コントロールを保ち、既存の復帰・未保存保護を変更しない。全体保存/削除の画面接続は引き続き後続であり、保存ボタンは無効。振替保存後のレシート再取得は新VMのStartAsyncへ接続する。
+
+### 構造比較
+
+基点main `f9b40df`との比較。追跡済みC#/XAMLの物理行（空行込み・生成物除外）を数える。
+
+| 対象 | 前 | 後 |
+| --- | ---: | ---: |
+| WinUI＋Client＋Presentation総行数 | 10,481 | 10,822 |
+| WinUIのC#/XAML行数 | 6,305 | 6,481 |
+| MainWindow XAML / 全partial C# | 908 / 4,549 | 840 / 4,529 |
+| MainWindowから移管した一覧内コントロールへの直接参照（種類 / 出現数） | 12 / 24 | 0 / 0 |
+| 一覧/共通フィルター用Windowの明示格納箇所（編集側の復帰位置を含む） | 13 | 4 |
+| 一覧状態モデルの格納箇所 | 旧State 15 | VM 17 |
+| Viewの明示フィールド | 0 | 7 |
+| 実際の行コレクション | StateのDTO列＋Windowの表示列 | VMの表示列1つ |
+
+総行数は341行増、MainWindowはXAML68行/C#20行減。変更した橋渡し行の複数文を改行した分も含む。View282行、VM262行、Item18行を追加し、旧State115行と旧Row（共通選択肢型を含む）26行を削除、共通選択肢型8行はWindow側へ残した。行数削減そのものを成果としない。
+
+格納箇所は明示フィールド/自動プロパティの保存先を数え、注入依存・イベントdelegate・Toolkit生成Command・生成UIフィールドは除く。旧State15＋Window13＝28に対しVM17＋View7＋Window4＝28。VMへの追加2つは同じ行列の読取専用ラッパーと外部登録可否であり、選択IDと検索下書きは複製しない。Viewの復帰位置は縦横のtuple1つとして数える。Windowに残る4つは共通検索、マスタ取得寿命、共通フィルターのキーボード、フィルター更新ガード。編集開始待ち4要素と共通フィルターは意図的にWindowへ残し、一覧内部の直接参照集計からは除く。
+
+新しい業務フレームワーク・Service/DI・外部パッケージはなく、既存WinUI→Presentation→Clientの参照を使う。Viewの3操作と2内容プロパティ、VMの2通知/読取・名称delegateの受け渡しは残る。旧VBの6列表示・選択/ダブルクリックの実装を照合し、単一Windowとページングは新版の既存DEC-162/236等を優先して維持した。新しい旧版互換処理は追加しない。
+
+### 共通ページングへの抽出候補（未実装）
+
+- 候補は取得世代/キャンセル、同じ要求の中断再開、初回/追加と失敗状態、100/300/20の補充判定、invalid_cursorの一度だけの復旧。両VMが単独で検証できる状態を保ち、同じ受入テストを使えるか確認してから、小さな抽出を検討する。本PRでは共通Pager/継承階層を作らない。
+- 振替固有なのは保存行の最大300件探索、focusTransferIdと404復旧、先頭へ戻るCommand、IsFindingSaved中の追加取得抑止。レシート一覧APIにはこの契約がないため持ち込まない。
+- 検索の正規化はAPIごとに異なり、マスタ名称・表示投影・失敗文言・登録可否も各一覧/Windowの担当。DTO/クエリ/HTTPエラーや編集遷移を共通Pagerへ押し込まない。レシートの全体保存は未接続のままで、振替保存後の条件解除/保存行探索を流用しない。
+- 破棄時の表示行クリアやViewのバインド解除も、単純なSuspendと同一視しない。特にレシートは旧Windowの明示クリアをVM.Disposeへ移管しており、将来の共通化で失わない。
+
+検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
+
 ## WinUIの責務棚卸しと段階的分離（検討順序・未実装）
 
 現状、`MainWindow.xaml`に複数画面のXAMLがあり、`MainWindow*.cs`の多数のpartialがコントロールと状態を共有する。partialのファイル分割は責務の分割ではない。既存Clientの保存・入力・通信の業務契約は維持しながら、振替一覧は前節の構成へ移行済み。状態の複製は行わない。
@@ -156,7 +208,8 @@ flowchart LR
 | 2 | `MainWindow.xaml.cs`/`MainWindow.Persons.cs`の人物一覧 | 一覧・フィルター・選択をViewへ | 権限、編集ダイアログ、並び順、401復帰のガードは動作を確認しながら別工程 |
 | 3（一部完了） | `MainWindow.Categories.cs`/`MainWindow.Payments.cs` | 科目一覧はCategoryListViewへ分離済み。支払方法一覧は後続 | グループ順、権限、削除、競合、並び替え/復帰を同時に再設計しない |
 | 完了 | 振替一覧 | TransferListView・TransferListViewModelへ移行（前節） | 初回/追加読込・401・画面往復・保存行探索を維持 |
-| 後段 | `MainWindow.Receipts.cs`/`ReceiptEditor.cs`／`MainWindow.TransferEditor.cs` | レシート一覧と専用入力画面・振替専用入力画面の機能別分離 | 未確定入力、保存結果不明、401復帰、未保存確認、画面往復の状態を壊さない |
+| 完了 | レシート一覧 | ReceiptListView・ReceiptListViewModelへ移行（前節） | 検索/ページング・画面往復・401・入力保護を維持 |
+| 後段 | `MainWindow.ReceiptEditor.cs`／`MainWindow.TransferEditor.cs` | レシート専用入力画面・振替専用入力画面の機能別分離 | 未確定入力、保存結果不明、401復帰、未保存確認、画面往復の状態を壊さない |
 | 維持 | `MainWindow.xaml.cs`/`Connection.cs`/`Activation.cs`など | Window全体のオーケストレーション | 家計簿・アカウント切替、グローバルナビゲーション、寿命・未保存ガード |
 
 この順序は**コード構造の調査に基づく実装候補**であり、対象画面の仕様変更・実装承認・テスト成功を意味しない。各段階の着手前にXAMLイベント・呼出関係・テスト参照を確認し、最小のView公開面と変更前後の依存を示してから小さなPRにする。守るべき契約は対象機能の正本、実装指針は[`monetail-winui-architecture` Skill](../.agents/skills/monetail-winui-architecture/SKILL.md)。
@@ -267,9 +320,9 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 ### レシート一覧の表示制御（工程6-B）
 
-`MainWindow.Receipts.cs`が`ReceiptsWorkspace`へ接続し、UI非依存の`ReceiptSearchState`（確定条件/下書き）と`ReceiptListState`（取得世代/ページング/読込状態）を利用する。表示契約は[レシート画面](ledger-receipt-ui.md)を正本とする。画面遷移で進行中の一覧取得をキャンセルし、旧応答を適用しない。ClientSessionの認証を共用するが、一覧読込でWindow全体をbusyにしない。
+`MainWindow.Receipts.cs`が`ReceiptsWorkspace`をPresentationの`ReceiptListViewModel`へ接続する。共通`RecordSearchState.Receipts`の`ReceiptSearchState`が確定条件/下書きの正本であり、VMが取得世代/ページング/読込状態と唯一の表示行を保持する。構造は前節の[レシート一覧のMVVM移行](#レシート一覧のmvvm移行実装済み)を参照する。表示契約は[レシート画面](ledger-receipt-ui.md)を正本とする。画面遷移で進行中の一覧取得をキャンセルし、旧応答を適用しない。ClientSessionの認証を共用するが、一覧読込でWindow全体をbusyにしない。
 
-`ClientConnection.Masters`は`LedgerMasterCache`を保持し、人物・支払方法・科目の初回取得を共有する。管理画面の既存Display処理で応答を反映し、遅延した古いマスタ取得で更新を戻さない。破棄条件はDEC-255に従う。`ReceiptRow`は保存済み合計額とマスタ由来の表示名だけを整形し、会計額を計算しない。
+`ClientConnection.Masters`は`LedgerMasterCache`を保持し、人物・支払方法・科目の初回取得を共有する。管理画面の既存Display処理で応答を反映し、遅延した古いマスタ取得で更新を戻さない。破棄条件はDEC-255に従う。`ReceiptListItem`は保存済み合計額とマスタ由来の表示名だけを整形し、会計額を計算しない。
 
 ## レシートのClient書込接続（工程6-C）
 

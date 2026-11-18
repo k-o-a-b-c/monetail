@@ -9,12 +9,26 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1206 |
-| Windows Presentation（振替一覧VM・投影・Command・ページング・復帰） | 40 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1183 |
+| Windows Presentation（レシート/振替一覧VM・投影・Command・ページング・復帰） | 73 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3678 |
+| 合計 | 3688 |
+
+## レシート一覧のPresentation MVVM移行
+
+旧`ReceiptListState`のページング/中断復帰23ケースを[Presentation](Monetail.Windows.Presentation.Tests/ReceiptListViewModelTests.cs)・[ページング](Monetail.Windows.Presentation.Tests/ReceiptPagingTests.cs)・[画面往復](Monetail.Windows.Presentation.Tests/ReceiptNavigationTests.cs)へ移管した。共通検索条件/下書きの7ケースは[Client](Monetail.Windows.Client.Tests/ReceiptSearchStateTests.cs)に残す。移管前後の13 Fact・17 InlineData・144 Assertが一致し、DTO列の比較は同じ投影元DTOを比較する。旧クラスを包むAdapterやClient→Presentation参照は追加しない。
+
+[追加9ケース](Monetail.Windows.Presentation.Tests/ReceiptViewModelTests.cs)は単一コレクション/選択、検索下書きの正本、Command通知/転送/検索競合、エラー/再試行、認証例外の保持、名称だけの再表示、登録入口のWindow所有ガード、破棄時の行/選択クリアと旧応答拒否、表示領域に関係する通知だけを検証する。基点mainの振替Presentationは列挙で41件（旧一覧表の40件を補正）、移管23＋新規9で現在73件。Clientは23件を移して1,183件、削除/緩和ではない。
+
+WinUIは既存の期待値を維持して新NameScope/投影型/VMの取得元だけを変更した。[ReceiptMvvmScenario](Monetail.WinUI.Smoke/ReceiptMvvmScenario.cs)・[ReceiptViewportScenario](Monetail.WinUI.Smoke/ReceiptViewportScenario.cs)は同じ`receipt-list`へ接続する。単一ItemsSource/余分なTab停止なし、実Enter/Tab/Shift+Tab/上下、合成IME抑止、100→300件補充/明示続行/リサイズ、無関係な通知で測定しないこと、Commandの有効状態、実ホイールの1回取得、縦横とも非ゼロの位置から編集取消後の同一VM/行/選択/表示位置へ戻ることを確認する。既存AutomationIdに差分はなく、編集開始待ちUIと入力/認証復帰のコントロールはWindowへ残す。
+
+基点main `f9b40df`の[push Tests 44254478282](https://github.com/k-o-a-b-c/monetail/actions/runs/44254478282)成功を採用。ローカルClient1,183件・Presentation71件、破棄/通知修正後の関連9件が成功。修正後のClient1,183件/Presentation73件は[Tests 44259720815の成功ジョブ](https://github.com/k-o-a-b-c/monetail/actions/runs/44259720815/job/134649938308)で確認し、その実行全体のWinUI失敗を成功とは扱わない。以後のSmoke/文書変更ではこれらとAPI/DB・Docker・旧Windows/性能/計算照合等の同じfingerprintの成功を再利用する。
+
+最終製品/スモークソース`8ab909c`の[Tests 44263469744](https://github.com/k-o-a-b-c/monetail/actions/runs/44263469744)が成功。製品/検証用x64 Release（各29件の既存WUI2011警告/0エラー）・製品起動・全36シナリオ/737確認（従来722＋新15）、単独3シナリオ/選択一覧・計測・不正指定拒否・PNG4枚生成が成功した。レシート一覧は28確認/5.935秒、401復帰30確認、メモ26確認。今回ネイティブアクセス違反は観測していない。対象限定の書式検査と`git diff --check`も成功。橋渡し部分は変更した複数文の行だけを改行し、非空白のトークン列が同じことを照合した。
+
+追加スモークで、VMをnullにするだけではx:Bind先の古い行が残るケースを検出した。旧Windowの行クリアをVM.Disposeへ移し、Suspendによる入力退避/画面往復とは区別した。途中には既存401復帰の縦位置差15px、メモIMEのフォーカス確認でも失敗があり、別実行では通過している。両者の原因は未特定であり、解決済みとはしない。入力値を含めない診断を追加し、既存の判定/タイムアウトは維持した。新しい実入力試験は座標だけで送らずPointerMovedの到達を観測し、ホイールを1回送る。レシート全体の保存UIは未接続・無効のままで、保存ボタンからの実POST/PUT/DELETEを検証済みとは扱わない。Windows CIの自動検証と、未実施の実Windows手動操作（物理IME/実タッチ/高DPI/支援技術）を区別する。構造比較と共通Pager候補/残る差異は[構成資料](../docs/architecture-winui.md#レシート一覧のmvvm移行実装済み)を参照。
 
 ## 振替一覧のPresentation MVVM移行
 
