@@ -35,7 +35,7 @@ public partial class App
         await Settle();
         var receiptView = Find<ReceiptListView>(root, "ReceiptsView");
         static double Top(FrameworkElement element, FrameworkElement scope) =>
-            element.TransformToVisual(scope).TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
+            element.TransformToVisual(scope).TransformPoint(new global::Windows.Foundation.Point(0, 0)).Y;
         Check(Top(text, root) < Top(receiptView, root) && Top(text, root) < Top(view, root) &&
             Top(Find<Button>(root, "NewReceiptButton"), receiptView) < Top(Find<ListView>(root, "ReceiptList"), receiptView) &&
             Top(Find<Button>(root, "TransferRegisterPlaceholder"), view) < Top(list, view),
