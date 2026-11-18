@@ -30,6 +30,8 @@ API/テストが同じソース`eeb77ea`の[APIジョブ134751871074](https://gi
 
 両既存失敗には、期待値・待機上限・製品入力処理を変えず、失敗時のフォーカス/値一致/前面Windowだけを示す診断を追加した。実データや入力全文は記録しない。これらの原因は未特定であり、再実行成功だけで解決扱いにしない。成功したAPIジョブの完走を待って追加差分をpushし、同じAPI入力の成功記録を再利用した。最終ソース`ad36cde`の[Tests 44293296944](https://github.com/k-o-a-b-c/monetail/actions/runs/44293296944)は成功し、Client1193件・Presentation99件・実DPAPI3件、製品/検証用WinUI x64 Release（各29件の既存WUI2011警告/0エラー）、製品起動、全36シナリオ/745確認が成功。receipt-listは追加8確認込み36確認、transfer-list50確認、レシート/振替401復帰・保存後focus・通常画面回帰を含む。個別3シナリオ・全件照合・PNG4枚・不正指定拒否/計測も成功した。API/Docker/計算照合は同じ入力の先行成功を再利用し、影響外の旧Windows等は既存CIの選択規則に従う。文書ローカルリンク621件とgit diff --checkも確認した。保存UI・保存後条件解除・DB/Migration・外部ライブラリは対象外。実Windows手動操作・物理IME/タッチ/高DPI・実API接続は未検証。構造/計測は[構成正本](../docs/architecture-winui.md#レシート保存行探索の追加と振替との共通化)を参照する。
 
+最終書式検査で新規APIテスト2行のインデントの取りこぼしが判明し、`43a7147`で先頭空白だけを修正した。コード・文字列・期待値の不変と、対象書式検査の終了コード0を確認。[Tests 44294924196](https://github.com/k-o-a-b-c/monetail/actions/runs/44294924196)でAPI2175件（25分）を再実行して成功し、変更のないClient/WinUI等の成功は再利用した。書式確認を長いCI開始前に完了できなかったため、API全件の追加実行が必要になった。
+
 ## レシート・振替ViewModelの共通ページング
 
 既存Presentation73件の期待値・検証条件を維持し、[CursorListViewModelTests](Monetail.Windows.Presentation.Tests/CursorListViewModelTests.cs)6件と[PagingAdapterTests](Monetail.Windows.Presentation.Tests/PagingAdapterTests.cs)3件を追加した。単一の行/選択・100/300/20の境界、予算、Continue/Retry Command、中断したカーソルの再開、旧世代の遅延成功/失敗、1回だけのカーソル復旧、未知例外の伝播、両VMで古い応答を名称投影前に拒否すること、focus後の通常カーソル404の非再検索を検証する。振替の保存行探索/再試行/認証/中断復帰とレシートのページング/中断復帰/破棄は既存テストをそのまま使用する。
