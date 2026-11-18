@@ -64,16 +64,8 @@ public sealed partial class TransferListView : UserControl
 
     private void ModelChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName != nameof(TransferListViewModel.SelectedItem) ||
-            ViewModel is not { IsFindingSaved: true, SelectedItem: { } selected } model)
-            return;
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            if (!ReferenceEquals(ViewModel, model) || !ReferenceEquals(model.SelectedItem, selected))
-                return;
-            viewport.IgnoreUserScroll();
-            TransferList.ScrollIntoView(selected);
-        });
+        if (args.PropertyName == nameof(TransferListViewModel.SelectedItem))
+            viewport.ShowSavedSelection(ViewModel, () => ViewModel);
     }
 
     private void RowsChanged(object? sender, NotifyCollectionChangedEventArgs args) => viewport.RowsChanged(args);

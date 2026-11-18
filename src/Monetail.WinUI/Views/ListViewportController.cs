@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Monetail.Windows.Presentation.Lists;
 using Windows.System;
 using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
 
@@ -82,6 +83,20 @@ internal sealed class ListViewportController
             scroller?.ChangeView(returnPosition.Horizontal, returnPosition.Vertical, null, true);
         }
     });
+
+    internal void ShowSavedSelection<TItem>(CursorListViewModel<TItem>? model,
+        Func<CursorListViewModel<TItem>?> current) where TItem : class
+    {
+        if (model is not { IsFindingSaved: true, SelectedItem: { } selected })
+            return;
+        owner.DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!ReferenceEquals(current(), model) || !ReferenceEquals(model.SelectedItem, selected))
+                return;
+            IgnoreUserScroll();
+            list.ScrollIntoView(selected);
+        });
+    }
 
     internal void Observe() => ScheduleViewport(false);
 

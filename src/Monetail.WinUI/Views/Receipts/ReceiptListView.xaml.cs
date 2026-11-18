@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.ComponentModel;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -47,12 +48,24 @@ public sealed partial class ReceiptListView : UserControl
     private void ChangeModel(ReceiptListViewModel? previous, ReceiptListViewModel? current)
     {
         if (previous is not null)
+        {
+            previous.PropertyChanged -= ModelChanged;
             ((INotifyCollectionChanged)previous.Rows).CollectionChanged -= RowsChanged;
+        }
         viewport.ResetForModel();
         if (current is not null)
+        {
+            current.PropertyChanged += ModelChanged;
             ((INotifyCollectionChanged)current.Rows).CollectionChanged += RowsChanged;
+        }
         Bindings.Update();
         viewport.Observe();
+    }
+
+    private void ModelChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(ReceiptListViewModel.SelectedItem))
+            viewport.ShowSavedSelection(ViewModel, () => ViewModel);
     }
 
     private void RowsChanged(object? sender, NotifyCollectionChangedEventArgs args) => viewport.RowsChanged(args);

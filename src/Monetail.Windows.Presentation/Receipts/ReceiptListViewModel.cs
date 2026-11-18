@@ -60,13 +60,12 @@ public sealed partial class ReceiptListViewModel(
         PeopleRequestException or PaymentMethodRequestException => "マスタ情報を取得できませんでした。参加状態と権限を確認してください。",
         _ => "レシートを取得できませんでした"
     };
+    public Guid? FocusReceiptId => conditions?.FocusReceiptId;
     private ReceiptListQuery? conditions;
     protected override bool HasQuery => conditions is not null;
     public Task StartAsync(ReceiptListQuery query, CancellationToken token = default)
     {
-        ResetPages();
-        conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q);
-        return ReadAsync(false, token);
+        return StartReadAsync(query, token);
     }
     public override void Dispose()
     {
@@ -74,14 +73,44 @@ public sealed partial class ReceiptListViewModel(
         // 退避はSuspend、破棄はDispose。nullのバインド更新だけでは古い表示行が残り得る。
         ClearRows();
     }
+    private Task StartReadAsync(ReceiptListQuery query, CancellationToken token, bool findingSaved = false)
+    {
+        ResetPages(findingSaved);
+        conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusReceiptId: query.FocusReceiptId);
+        return ReadAsync(false, token);
+    }
+    public Task ShowSavedAsync(ReceiptListQuery query, Guid receiptId, CancellationToken token = default) =>
+        base.ShowSavedAsync(receiptId, () => StartReadAsync(query, token, findingSaved: true), query.FocusReceiptId is not null, token);
+    protected override bool HasFocus => conditions?.FocusReceiptId is not null;
+    protected override ReceiptListItem? FindSavedItem(Guid id) => Rows.FirstOrDefault(row => row.ReceiptId == id);
+    protected override Task FocusSavedAsync(Guid id, CancellationToken token)
+    {
+        var query = conditions!;
+        return StartReadAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusReceiptId: id), token, findingSaved: true);
+    }
+    protected override Task RetrySavedAsync(Guid id, CancellationToken token) => ShowSavedAsync(search.Receipts.Query(), id, token);
+    [RelayCommand]
+    public Task ReturnToStartAsync(CancellationToken token = default) => conditions is { } query
+        ? StartAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q), token) : Task.CompletedTask;
+    protected override void ResetReadOrigin()
+    {
+        var query = conditions!;
+        conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q);
+    }
+    protected override void NotifyState()
+    {
+        base.NotifyState();
+        OnPropertyChanged(nameof(FocusReceiptId));
+    }
     protected override async Task<CursorPage<ReceiptListItem>> LoadPageAsync(string? cursor, CancellationToken token)
     {
         var query = conditions!;
-        var page = await load(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, cursor), token);
+        var page = await load(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, cursor, cursor is null ? query.FocusReceiptId : null), token);
         return new(page.Receipts.Select(row => new ReceiptListItem(row, paymentName)), page.NextCursor);
     }
     protected override ReadFailure ClassifyFailure(Exception error, string? cursor) => error switch
     {
+        ReceiptRequestException { StatusCode: HttpStatusCode.NotFound } when cursor is null && conditions?.FocusReceiptId is not null => ReadFailure.Restart,
         ReceiptRequestException { StatusCode: HttpStatusCode.BadRequest, Code: "invalid_cursor" } => ReadFailure.InvalidCursor,
         ApiConnectionException or ReceiptRequestException or AuthenticationRejectedException or AuthenticationContextChangedException
             or PeopleRequestException or PaymentMethodRequestException or CategoryRequestException or IOException or HttpRequestException

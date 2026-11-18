@@ -7,14 +7,30 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 2140 |
+| ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1183 |
-| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 82 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1193 |
+| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 99 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3697 |
+| 合計 | 3759 |
+
+## レシート一覧のfocus取得・保存行探索
+
+[ReceiptListFocusTests](Monetail.Api.Tests/ReceiptListFocusTests.cs)・[安全性/実行計画](Monetail.Api.Tests/ReceiptListFocusSecurityTests.cs)に実HTTP/隔離SQLiteの35ケースを追加。対象自身を含む日時/ID境界と1/99/100/101/200/201件、通常cursorによる続き、全フィルターAND、全ロール、別家計簿/条件外/削除済みの同一404、D形式/重複/cursor併用の400、共有120回、取得途中の認証失効/参加解除/対象削除/保存先障害、DB不変、既存索引/キーセット/101件取得を確認する。既存の振替用クエリ受理範囲を広げず、focusReceiptIdの混入も拒否する。
+
+[Client10件](Monetail.Windows.Client.Tests/ReceiptFocusTests.cs)でfocusのD形式送信・全条件/省略・応答cursor・空ID/cursor併用の拒否・認証更新後の要求不変・型付き400/404/自動再検索なし、focus応答の先頭不一致（空/別ID/2行目だけ一致）の拒否を確認する。[ReceiptSavedListTests](Monetail.Windows.Presentation.Tests/ReceiptSavedListTests.cs)15件と両VMの[キャンセル2件](Monetail.Windows.Presentation.Tests/PagingAdapterTests.cs)を追加し、既存82件を維持。300件内の選択/300件外のfocus、1回だけの404復旧、focus後のcursor/先頭復帰、検索競合、旧応答拒否、中断再開/予算維持、401/通信失敗後の明示再試行とキャンセル後の非反復を検証する。
+
+ローカルReleaseは既存Presentation82件→追加後95件→最終99件、API最小1件→追加35件、Client追加7件→先頭検証込み10件が成功（段階間の重複あり、失敗/skipなし）。[ReceiptSavedRowScenario](Monetail.WinUI.Smoke/ReceiptSavedRowScenario.cs)を既存receipt-listへ接続し、保存行250/450の実選択/可視範囲・要求回数・focus時だけの先頭復帰・404復旧・GETだけの実行を確認する。既存の振替も共通の選択表示経路を使い、同じスモーク条件を維持する。
+
+基点main `098369a`の[push CI 44287377637](https://github.com/k-o-a-b-c/monetail/actions/runs/44287377637)は既存レシートのホイール試験で失敗。前回PR #205の診断により、操作直前からoffset/previousがともにScrollableHeightと一致し、既に最下端だったことを確認した。試験の準備位置を半viewport手前へ変更し、下へ移動できる事前条件を追加した。実ホイール1回で次ページを取得する期待値/タイムアウト・製品ホイール処理は変更していない。これは試験開始条件の修正であり、製品のホイール不具合を修正済みとは扱わない。変更前の関連成功は[PR #205のCI](https://github.com/k-o-a-b-c/monetail/actions/runs/44282081990)を参照する。
+
+API/テストが同じソース`eeb77ea`の[APIジョブ134751871074](https://github.com/k-o-a-b-c/monetail/actions/runs/44289794988/job/134751871074)でAPI2175件（19分24秒）、Node検証・Dockerビルド・既存/サーバー/配布アーカイブの起動・データ保全スモークが成功した。親run全体は既存input-controlsのEnter後フォーカス試験で失敗。API全件を中断/重複実行しないため単独の[WinUI 44290766908](https://github.com/k-o-a-b-c/monetail/actions/runs/44290766908)も実行したが、既存transfer-suggestionsの実キー入力待ちで失敗し、どちらも追加のレシート探索試験には未到達だった。
+
+両既存失敗には、期待値・待機上限・製品入力処理を変えず、失敗時のフォーカス/値一致/前面Windowだけを示す診断を追加した。実データや入力全文は記録しない。これらの原因は未特定であり、再実行成功だけで解決扱いにしない。成功したAPIジョブの完走を待って追加差分をpushし、同じAPI入力の成功記録を再利用した。最終ソース`ad36cde`の[Tests 44293296944](https://github.com/k-o-a-b-c/monetail/actions/runs/44293296944)は成功し、Client1193件・Presentation99件・実DPAPI3件、製品/検証用WinUI x64 Release（各29件の既存WUI2011警告/0エラー）、製品起動、全36シナリオ/745確認が成功。receipt-listは追加8確認込み36確認、transfer-list50確認、レシート/振替401復帰・保存後focus・通常画面回帰を含む。個別3シナリオ・全件照合・PNG4枚・不正指定拒否/計測も成功した。API/Docker/計算照合は同じ入力の先行成功を再利用し、影響外の旧Windows等は既存CIの選択規則に従う。文書ローカルリンク621件とgit diff --checkも確認した。保存UI・保存後条件解除・DB/Migration・外部ライブラリは対象外。実Windows手動操作・物理IME/タッチ/高DPI・実API接続は未検証。構造/計測は[構成正本](../docs/architecture-winui.md#レシート保存行探索の追加と振替との共通化)を参照する。
+
+最終書式検査で新規APIテスト2行のインデントの取りこぼしが判明し、`43a7147`で先頭空白だけを修正した。コード・文字列・期待値の不変と、対象書式検査の終了コード0を確認。[Tests 44294924196](https://github.com/k-o-a-b-c/monetail/actions/runs/44294924196)でAPI2175件（25分）を再実行して成功し、変更のないClient/WinUI等の成功は再利用した。書式確認を長いCI開始前に完了できなかったため、API全件の追加実行が必要になった。
 
 ## レシート・振替ViewModelの共通ページング
 

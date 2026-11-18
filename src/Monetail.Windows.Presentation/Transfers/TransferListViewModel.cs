@@ -53,12 +53,6 @@ public sealed partial class TransferListViewModel(
             row.RefreshName();
     }
     public Guid? FocusTransferId => conditions?.FocusTransferId;
-    public bool IsFocused => FocusTransferId is not null && HasLoaded;
-    public bool IsFindingSaved
-    {
-        get; private set;
-    }
-    private Guid? savedTarget;
     public override string ErrorText => Failure switch
     {
         TransferRequestException { StatusCode: HttpStatusCode.NotFound } => "この家計簿は開けません。参加状態を確認してください。",
@@ -71,93 +65,36 @@ public sealed partial class TransferListViewModel(
     protected override bool HasQuery => conditions is not null;
     public Task StartAsync(TransferListQuery query, CancellationToken token = default)
     {
-        savedTarget = null;
-        IsFindingSaved = false;
         return StartReadAsync(query, token);
     }
     private Task StartReadAsync(TransferListQuery query, CancellationToken token, bool findingSaved = false)
     {
-        ResetPages();
-        IsFindingSaved = findingSaved;
+        ResetPages(findingSaved);
         conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusTransferId: query.FocusTransferId);
         return ReadAsync(false, token);
     }
-    public Task ShowSavedAsync(TransferListQuery query, Guid transferId, CancellationToken token = default)
+    public Task ShowSavedAsync(TransferListQuery query, Guid transferId, CancellationToken token = default) =>
+        base.ShowSavedAsync(transferId, () => StartReadAsync(query, token, findingSaved: true), query.FocusTransferId is not null, token);
+    protected override bool HasFocus => conditions?.FocusTransferId is not null;
+    protected override TransferListItem? FindSavedItem(Guid id) => Rows.FirstOrDefault(row => row.TransferId == id);
+    protected override Task FocusSavedAsync(Guid id, CancellationToken token)
     {
-        savedTarget = transferId;
-        var first = StartReadAsync(query, token, findingSaved: true);
-        return FindSavedAsync(first, query, transferId, token, Generation);
+        var query = conditions!;
+        return StartReadAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusTransferId: id), token, findingSaved: true);
     }
-    private async Task FindSavedAsync(Task read, TransferListQuery query, Guid transferId, CancellationToken token, long epoch)
-    {
-        try
-        {
-            await read;
-            if (query.FocusTransferId is null)
-            {
-                while (epoch == Generation && Failure is null && !Rows.Any(r => r.TransferId == transferId) &&
-                    NextCursor is not null && AutomaticFillCount < 2)
-                    await ReadAsync(true, token, automaticFill: true);
-                if (epoch != Generation || Failure is not null || token.IsCancellationRequested)
-                    return;
-                if (!Rows.Any(r => r.TransferId == transferId))
-                {
-                    var focused = StartReadAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q,
-                        focusTransferId: transferId), token, findingSaved: true);
-                    epoch = Generation;
-                    await focused;
-                }
-            }
-            if (epoch == Generation && Failure is null && !token.IsCancellationRequested)
-            {
-                SelectedItem = Rows.FirstOrDefault(r => r.TransferId == transferId);
-                savedTarget = null;
-            }
-        }
-        finally
-        {
-            // 検索変更後の旧探索は、新しい一覧状態を触らない。
-            if (epoch == Generation)
-            {
-                IsFindingSaved = false;
-                NotifyState();
-            }
-        }
-    }
+    protected override Task RetrySavedAsync(Guid id, CancellationToken token) => ShowSavedAsync(search.TransferQuery(), id, token);
     [RelayCommand]
     public Task ReturnToStartAsync(CancellationToken token = default) => conditions is { } query
         ? StartAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q), token) : Task.CompletedTask;
-    protected override bool CanObserveViewport => !IsFindingSaved;
-    protected override void Stop(bool remember, bool notify)
-    {
-        IsFindingSaved = false;
-        base.Stop(remember, notify);
-    }
-    public override Task RetryAsync(CancellationToken token = default) => Failure is null ? Task.CompletedTask
-        : savedTarget is Guid id ? ShowSavedAsync(search.TransferQuery(), id, token) : base.RetryAsync(token);
-    public override Task ResumeAsync(CancellationToken token = default)
-    {
-        if (IsLoading)
-            return Task.CompletedTask;
-        var resumeSaved = Failure is null && conditions is not null && HasInterruptedRead && savedTarget is not null;
-        if (resumeSaved)
-            IsFindingSaved = true;
-        var query = conditions;
-        var read = base.ResumeAsync(token);
-        return resumeSaved && savedTarget is Guid id
-            ? FindSavedAsync(read, query!, id, token, Generation) : read;
-    }
-    protected override void NotifyState()
-    {
-        base.NotifyState();
-        OnPropertyChanged(nameof(IsFocused));
-        OnPropertyChanged(nameof(FocusTransferId));
-        OnPropertyChanged(nameof(IsFindingSaved));
-    }
     protected override void ResetReadOrigin()
     {
         var query = conditions!;
         conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q);
+    }
+    protected override void NotifyState()
+    {
+        base.NotifyState();
+        OnPropertyChanged(nameof(FocusTransferId));
     }
     protected override async Task<CursorPage<TransferListItem>> LoadPageAsync(string? cursor, CancellationToken token)
     {

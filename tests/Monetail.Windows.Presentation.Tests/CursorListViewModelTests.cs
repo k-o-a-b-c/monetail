@@ -11,6 +11,10 @@ public sealed class CursorListViewModelTests
     {
         private bool started;
         protected override bool HasQuery => started;
+        protected override bool HasFocus => false;
+        protected override string? FindSavedItem(Guid id) => Rows.FirstOrDefault(row => row == id.ToString());
+        protected override Task FocusSavedAsync(Guid id, CancellationToken token) => StartAsync();
+        protected override Task RetrySavedAsync(Guid id, CancellationToken token) => StartAsync();
         public override string ErrorText => "取得失敗";
         public Task StartAsync()
         {

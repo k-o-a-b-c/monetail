@@ -35,7 +35,14 @@ public partial class App
             new ReceiptNativeInput { Type = 1, Data = new() { Key = new() { Scan = c, Flags = 6 } } }
         }).ToArray();
         if (SendInput((uint)events.Length, events, Marshal.SizeOf<ReceiptNativeInput>()) != events.Length) throw new Win32Exception(Marshal.GetLastWin32Error());
-        await Wait(() => TransferEditing?.Draft.Name == text);
+        try
+        {
+            await Wait(() => TransferEditing?.Draft.Name == text);
+        }
+        catch (OperationCanceledException error)
+        {
+            throw new InvalidOperationException($"振替名の実キー入力が未反映: focused={ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input)}; textMatches={box.Text == text}; draftMatches={TransferEditing?.Draft.Name == text}; foreground={window is { } active && GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(active)}", error);
+        }
     }
     private static Button TransferDialogFooter(FrameworkElement root, ContentDialogResult action)
     {

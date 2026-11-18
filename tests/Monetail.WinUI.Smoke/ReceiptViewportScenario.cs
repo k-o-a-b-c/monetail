@@ -101,9 +101,11 @@ public partial class App
         await Wait(() => scroll.ViewportHeight > 150 && model.ViewportFilled && !model.CanContinue);
         var selected = model.Rows[0];
         model.SelectedItem = selected;
-        SetViewportValue(view, "returnPosition", (Math.Min(80, scroll.ScrollableWidth), scroll.ScrollableHeight - 30));
+        // 仮想化後の位置丸めで最下端へ到達しないよう、ホイールで下へ動ける余地を残す。
+        var wheelStart = scroll.ScrollableHeight - scroll.ViewportHeight / 2;
+        SetViewportValue(view, "returnPosition", (Math.Min(80, scroll.ScrollableWidth), wheelStart));
         view.RestorePosition();
-        await Wait(() => scroll.VerticalOffset >= scroll.ScrollableHeight - 31);
+        await Wait(() => scroll.VerticalOffset >= wheelStart - 1 && scroll.VerticalOffset < scroll.ScrollableHeight);
         await Settle();
         nextPage = new(TaskCreationOptions.RunContinuationsAsynchronously);
         // SetCursorPosだけで送らず、一覧へ実PointerMovedが到着したことを観測する。
@@ -126,6 +128,7 @@ public partial class App
         {
             list.RemoveHandler(UIElement.PointerMovedEvent, pointerMoved);
         }
+        Check(scroll.VerticalOffset < scroll.ScrollableHeight, "実ホイール試験は末尾付近かつ下へ移動できる位置から開始する");
         var beforeWheel = $"offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; previous={ViewportValue(view, "previousOffset")}; queued={ViewportValue(view, "viewportQueued")}; user={ViewportValue(view, "queuedUserScroll")}; last={(list.ItemsPanelRoot as ItemsStackPanel)?.LastVisibleIndex}; loading={model.IsLoading}; filled={model.ViewportFilled}";
         SendTransferMouse(0x0800, unchecked((uint)-120));
         try
