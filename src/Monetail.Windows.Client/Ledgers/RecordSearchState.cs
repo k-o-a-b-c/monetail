@@ -9,6 +9,14 @@ public sealed class RecordSearchState(DateOnly today)
     public ReceiptSearchState Receipts { get; } = new(today);
     public string TransferText { get; set; } = "";
     public string AppliedTransferName { get; private set; } = "";
+    public bool ApplySharedText(string text)
+    {
+        if (!Receipts.ApplyMonthText()) return false;
+        Receipts.ShopText = text;
+        Receipts.ApplyText();
+        TransferText = AppliedTransferName = text;
+        return true;
+    }
     public bool ApplyTransferText()
     {
         if (!Receipts.ApplyMonthText()) return false;
