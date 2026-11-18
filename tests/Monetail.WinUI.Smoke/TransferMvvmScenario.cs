@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Monetail.WinUI.Input;
+using Monetail.WinUI.Views.Receipts;
 using Monetail.WinUI.Views.Transfers;
 using Monetail.Windows.Client.Transport;
 
@@ -31,6 +32,14 @@ public partial class App
         var model = view.ViewModel ?? throw new InvalidOperationException("一覧VMがありません。");
         var list = Find<ListView>(root, "TransferList");
         var text = Find<TextBox>(root, "TransferNameSearch");
+        await Settle();
+        var receiptView = Find<ReceiptListView>(root, "ReceiptsView");
+        static double Top(FrameworkElement element, FrameworkElement scope) =>
+            element.TransformToVisual(scope).TransformPoint(new Windows.Foundation.Point(0, 0)).Y;
+        Check(Top(Find<Button>(root, "NewReceiptButton"), receiptView) < Top(Find<TextBox>(root, "ReceiptShop"), receiptView) &&
+            Top(Find<Button>(root, "TransferRegisterPlaceholder"), view) < Top(text, view) &&
+            Top(text, view) < Top(list, view),
+            "レシート・振替とも見出しと登録を上段、検索を次段、一覧を下段に表示する");
         Check(ReferenceEquals(view.FindName("TransferList"), list) && root.FindName("TransferList") is null &&
             ReferenceEquals(list.ItemsSource, model.Rows) && !view.IsTabStop,
             "振替一覧はViewのNameScopeとVMの唯一の行コレクションを使い、余分なTab停止を追加しない");
