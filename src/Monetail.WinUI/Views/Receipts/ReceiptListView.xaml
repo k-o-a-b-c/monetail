@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:presentation="using:Monetail.Windows.Presentation.Receipts"
     IsTabStop="False" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-    <Grid RowSpacing="24">
+    <Grid RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="1" />
@@ -15,7 +15,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="レシート" Style="{ThemeResource SubtitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level2" />
+            <TextBlock Text="レシート" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level2" />
             <Button x:Name="NewReceiptButton" Grid.Column="1" Content="＋ 登録" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}"
                     AutomationProperties.Name="レシートの登録"  AutomationProperties.AutomationId="NewReceiptButton"/>
         </Grid>
@@ -27,7 +27,7 @@
                 <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptShop"/>
-                    <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Command="{x:Bind ViewModel.SearchCommand, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptSearchButton"/>
+                    <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Command="{x:Bind ViewModel.SearchCommand, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.Name="店名で検索" AutomationProperties.AutomationId="ReceiptSearchButton"/>
                     <Button x:Name="ReceiptReturnToStart" Grid.Column="2" Content="先頭に戻る" Command="{x:Bind ViewModel.ReturnToStartCommand, Mode=OneWay}"
                             Visibility="{x:Bind Show(ViewModel.IsFocused), Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptReturnToStart"/>
                 </Grid>
@@ -45,7 +45,7 @@
                     </ListView.Header>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="presentation:ReceiptListItem">
-                            <Grid MinWidth="1000" Padding="12,12" ColumnSpacing="12">
+                            <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                 <TextBlock Text="{x:Bind TransactionAt, Mode=OneWay}"/>
                                 <TextBlock Grid.Column="1" Text="{x:Bind ShopName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ShopName, Mode=OneWay}"/>
