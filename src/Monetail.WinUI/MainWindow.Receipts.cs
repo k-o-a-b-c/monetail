@@ -27,7 +27,7 @@ public sealed partial class MainWindow
 
     private void InitializeReceipts()
     {
-        recordKeyboard = new FormKeyboard(RecordFilters, null, null, ReceiptMonth);
+        recordKeyboard = new FormKeyboard(RecordFilters, null, null, ReceiptMonth, RecordKeyword);
         connection.Masters.Changed += ReceiptMasterChanged;
     }
     private void ResetRecordHome()
@@ -37,7 +37,6 @@ public sealed partial class MainWindow
         if (ReceiptListModel is { } model)
         {
             model.PropertyChanged -= ReceiptListChanged;
-            model.SearchRequested -= ApplyReceiptTextAsync;
             model.OpenRequested -= OpenReceiptEditorAsync;
             model.Dispose();
         }
@@ -52,6 +51,7 @@ public sealed partial class MainWindow
         recordMasterLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); var masterToken = recordMasterLifetime.Token;
         receiptFiltersUpdating = true;
         ReceiptMonth.Text = recordSearch.Receipts.MonthText;
+        RecordKeyword.Text = recordSearch.TransferText;
         RecordMonthPeriod.IsChecked = true;
         receiptFiltersUpdating = false;
         var workspace = new ReceiptsWorkspace(api, session, ledger);
@@ -60,7 +60,6 @@ public sealed partial class MainWindow
             await GetRecordMastersAsync(ledger, api, session, masterToken, token);
             return await workspace.ListAsync(query, token);
         }, recordSearch, id => connection.Masters.PaymentName(ledger, id));
-        model.SearchRequested += ApplyReceiptTextAsync;
         model.OpenRequested += OpenReceiptEditorAsync;
         model.PropertyChanged += ReceiptListChanged;
         ReceiptsView.ViewModel = model;
@@ -128,18 +127,32 @@ public sealed partial class MainWindow
             ReceiptMonth.IsEnabled = !search.AllPeriods; RecordMonthApply.IsEnabled = !search.AllPeriods; ReceiptPrevious.IsEnabled = search.CanMove(-1); ReceiptNextMonth.IsEnabled = search.CanMove(1);
         }
     }
-    private async Task ApplyReceiptTextAsync()
+    private async void ApplyRecordKeyword(object sender, RoutedEventArgs args) => await ApplyRecordKeywordAsync();
+    private async Task ApplyRecordKeywordAsync()
     {
-        if (receiptSearch is null || ReceiptListModel is null) return;
-        var previousMonth = receiptSearch.Query().Month;
+        if (recordSearch is null || receiptSearch is null) return;
         receiptSearch.MonthText = ReceiptMonth.Text;
-        if (!receiptSearch.ApplyText())
+        if (!recordSearch.ApplySharedText(RecordKeyword.Text))
         {
             RenderRecordFilters();
             ReceiptMonth.Focus(FocusState.Programmatic);
             return;
         }
-        await ReloadRecordsAsync(true, receiptSearch.Query().Month != previousMonth);
+        await ReloadRecordsAsync(true, true);
+    }
+    private async void RecordKeywordKeyDown(object sender, KeyRoutedEventArgs args)
+    {
+        if (args.Key != VirtualKey.Enter) return;
+        if (recordKeyboard.IsComposing)
+        {
+            args.Handled = true;
+            return;
+        }
+        if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down) ||
+            InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) ||
+            InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down)) return;
+        args.Handled = true;
+        await ApplyRecordKeywordAsync();
     }
     private async void ReceiptTextKeyDown(object sender, KeyRoutedEventArgs args)
     {
