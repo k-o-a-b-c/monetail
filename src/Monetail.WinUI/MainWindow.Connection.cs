@@ -294,7 +294,13 @@ public sealed partial class MainWindow
         var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, ConnectionPage) || ReferenceEquals(page, StartupPage) || ReferenceEquals(page, FailurePage);
         if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(EditorAwaitingLogin && authenticationPage)) return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
-        if (!ReferenceEquals(page, HomePage)) { CancelReceiptOpening(); CancelTransferOpening(); ReceiptListModel?.Suspend(); TransferListModel?.Suspend(); }
+        if (!ReferenceEquals(page, HomePage))
+        {
+            CancelReceiptOpening();
+            CancelTransferOpening();
+            ReceiptListModel?.Suspend();
+            TransferListModel?.Suspend();
+        }
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
@@ -307,7 +313,8 @@ public sealed partial class MainWindow
             else if (!RecordEditorActive)
             {
                 await Task.WhenAll(ReceiptListModel.ResumeAsync(lifetime.Token), TransferListModel?.ResumeAsync(lifetime.Token) ?? Task.CompletedTask);
-                ReceiptsView.ObserveViewport(); TransfersView.ObserveViewport();
+                ReceiptsView.ObserveViewport();
+                TransfersView.ObserveViewport();
             }
             if (transferRestorePending) { transferRestorePending = false; RestoreTransferPosition(); }
             if (receiptRestorePending) { receiptRestorePending = false; RestoreReceiptListPosition(); }

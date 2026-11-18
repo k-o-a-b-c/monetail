@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Monetail.WinUI.Views.Receipts;
 using Monetail.Windows.Client.Transport;
 using Windows.Graphics;
@@ -87,9 +88,30 @@ public partial class App
         await Wait(() => scroll.VerticalOffset >= scroll.ScrollableHeight - 31);
         await Settle();
         nextPage = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        await PositionTransferPointer(root, scroll, scroll.ActualWidth / 2, scroll.ActualHeight / 2);
+        // SetCursorPosだけで送らず、一覧へ実PointerMovedが到着したことを観測する。
+        var moved = false;
+        PointerEventHandler pointerMoved = (_, _) => moved = true;
+        list.AddHandler(UIElement.PointerMovedEvent, pointerMoved, true);
+        try
+        {
+            await PositionTransferPointer(root, scroll, scroll.ActualWidth / 2, scroll.ActualHeight / 2);
+            SendTransferMouse(0x0001, deltaY: 1);
+            await Wait(() => moved);
+        }
+        finally
+        {
+            list.RemoveHandler(UIElement.PointerMovedEvent, pointerMoved);
+        }
         SendTransferMouse(0x0800, unchecked((uint)-120));
-        await Wait(() => model.IsContinuationLoading && reads.Count == 5);
+        try
+        {
+            await Wait(() => model.IsContinuationLoading && reads.Count == 5);
+        }
+        catch (OperationCanceledException error)
+        {
+            var panel = list.ItemsPanelRoot as ItemsStackPanel;
+            throw new InvalidOperationException($"レシートのホイール取得: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; last={panel?.LastVisibleIndex}; rows={model.Rows.Count}; reads={string.Join(',', reads)}; moved={moved}; intent={ReceiptViewField("scrollIntent").GetValue(view)}", error);
+        }
         var gate = nextPage ?? throw new InvalidOperationException("追加ページの待機がありません。");
         nextPage = null;
         gate.SetResult(true);

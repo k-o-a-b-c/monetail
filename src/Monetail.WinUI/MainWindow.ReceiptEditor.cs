@@ -57,7 +57,10 @@ public sealed partial class MainWindow
         var api = connection.Api; var session = connection.Session;
         var initial = new ReceiptHeaderDraft { TransactionAt = DateTime.Today, ShopLocation = "", Memo = null, TaxInclusionMode = 0, TaxRoundingMode = "floor" };
         using var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        receiptOpening = pending; receiptOpenRetryId = receiptId; ReceiptOpenRetry.Visibility = Visibility.Collapsed; UpdateReceiptActions();
+        receiptOpening = pending;
+        receiptOpenRetryId = receiptId;
+        ReceiptOpenRetry.Visibility = Visibility.Collapsed;
+        UpdateReceiptActions();
         ReceiptOpenNotice.Visibility = Visibility.Visible; ReceiptOpenProgress.IsActive = true; ReceiptOpenMessage.Text = "レシートを読み込み中…";
         bool Current() => !closed && ReferenceEquals(receiptOpening, pending) && !pending.IsCancellationRequested &&
             currentLedger?.LedgerId == ledger && account?.AuthUserId == person && HomePage.Visibility == Visibility.Visible;
@@ -82,7 +85,10 @@ public sealed partial class MainWindow
             receiptParentInput = new(receiptEditor.Header, info is not null);
             receiptInitialLocation = receiptEditor.Header.ShopLocation;
             ReceiptsView.RememberPosition();
-            ReceiptListModel?.Suspend(); TransferListModel?.Suspend(); RecordContent.Visibility = Visibility.Collapsed; ReceiptEditorPage.Visibility = Visibility.Visible;
+            ReceiptListModel?.Suspend();
+            TransferListModel?.Suspend();
+            RecordContent.Visibility = Visibility.Collapsed;
+            ReceiptEditorPage.Visibility = Visibility.Visible;
             PopulateReceiptEditor();
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested) { }
@@ -101,7 +107,13 @@ public sealed partial class MainWindow
         finally
         {
             if (ReferenceEquals(receiptOpening, pending))
-            { receiptOpening = null; ReceiptOpenProgress.IsActive = false; if (receiptEditor is not null) ReceiptOpenNotice.Visibility = Visibility.Collapsed; UpdateReceiptActions(); }
+            {
+                receiptOpening = null;
+                ReceiptOpenProgress.IsActive = false;
+                if (receiptEditor is not null)
+                    ReceiptOpenNotice.Visibility = Visibility.Collapsed;
+                UpdateReceiptActions();
+            }
         }
     }
     private void CancelReceiptOpening()

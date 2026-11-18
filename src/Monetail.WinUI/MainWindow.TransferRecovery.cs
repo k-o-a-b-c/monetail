@@ -44,7 +44,9 @@ public sealed partial class MainWindow
         TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = true;
         CancelTransferSuggestions(); RestoreTransferTypedName(); transferSuggestions.Clear(); TransferName.ItemsSource = null;
         transferAutofillCancellation?.Cancel(); transferAutofillKey = null;
-        ReceiptListModel?.Suspend(); TransferListModel?.Suspend(); connection.Masters.Clear();
+        ReceiptListModel?.Suspend();
+        TransferListModel?.Suspend();
+        connection.Masters.Clear();
         RenderTransferEditor();
     }
 

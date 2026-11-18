@@ -50,7 +50,10 @@ public sealed partial class MainWindow
         var ledger = currentLedger.LedgerId; var api = connection.Api; var session = connection.Session;
         recordSearch = new(DateOnly.FromDateTime(DateTime.Now));
         recordMasterLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); var masterToken = recordMasterLifetime.Token;
-        receiptFiltersUpdating = true; ReceiptMonth.Text = recordSearch.Receipts.MonthText; RecordMonthPeriod.IsChecked = true; receiptFiltersUpdating = false;
+        receiptFiltersUpdating = true;
+        ReceiptMonth.Text = recordSearch.Receipts.MonthText;
+        RecordMonthPeriod.IsChecked = true;
+        receiptFiltersUpdating = false;
         var workspace = new ReceiptsWorkspace(api, session, ledger);
         var model = new ReceiptListViewModel(async (query, token) =>
         {
@@ -79,7 +82,8 @@ public sealed partial class MainWindow
     {
         if (currentLedger?.LedgerId != ledger || closed) return;
         RefreshReceiptEditorChoices(); RefreshTransferEditorChoices(); RenderTransferEditor();
-        RefreshReceiptChoices(); ReceiptListModel?.RefreshNames();
+        RefreshReceiptChoices();
+        ReceiptListModel?.RefreshNames();
         TransferListModel?.RefreshNames(); UpdateTransferActions();
     }
     private void RefreshReceiptChoices()
@@ -128,7 +132,12 @@ public sealed partial class MainWindow
         if (receiptSearch is null || ReceiptListModel is null) return;
         var previousMonth = receiptSearch.Query().Month;
         receiptSearch.MonthText = ReceiptMonth.Text;
-        if (!receiptSearch.ApplyText()) { RenderRecordFilters(); ReceiptMonth.Focus(FocusState.Programmatic); return; }
+        if (!receiptSearch.ApplyText())
+        {
+            RenderRecordFilters();
+            ReceiptMonth.Focus(FocusState.Programmatic);
+            return;
+        }
         await ReloadRecordsAsync(true, receiptSearch.Query().Month != previousMonth);
     }
     private async void ReceiptTextKeyDown(object sender, KeyRoutedEventArgs args)
@@ -141,7 +150,12 @@ public sealed partial class MainWindow
         await ApplyRecordMonthAsync();
     }
     private void ReceiptDraftChanged(object sender, TextChangedEventArgs args)
-    { if (!receiptFiltersUpdating && receiptSearch is { } search) { search.MonthText = ReceiptMonth.Text; } }
+    {
+        if (!receiptFiltersUpdating && receiptSearch is { } search)
+        {
+            search.MonthText = ReceiptMonth.Text;
+        }
+    }
     private async void MoveReceiptMonth(object sender, RoutedEventArgs args)
     {
         if (receiptSearch is null || ReceiptListModel is null || !receiptSearch.MoveMonth(ReferenceEquals(sender, ReceiptPrevious) ? -1 : 1)) return;
@@ -168,7 +182,12 @@ public sealed partial class MainWindow
     {
         if (receiptSearch is null) return;
         receiptSearch.MonthText = ReceiptMonth.Text;
-        if (!receiptSearch.ApplyMonthText()) { RenderRecordFilters(); ReceiptMonth.Focus(FocusState.Programmatic); return; }
+        if (!receiptSearch.ApplyMonthText())
+        {
+            RenderRecordFilters();
+            ReceiptMonth.Focus(FocusState.Programmatic);
+            return;
+        }
         await ReloadRecordsAsync(true, true);
     }
     private async Task ReloadRecordsAsync(bool receipts, bool transfers)
@@ -176,7 +195,8 @@ public sealed partial class MainWindow
         if (receiptSearch is null || recordSearch is null) return;
         var receipt = receipts && ReceiptListModel is not null ? ReceiptListModel.StartAsync(receiptSearch.Query(), lifetime.Token) : Task.CompletedTask;
         var transfer = transfers && TransferListModel is not null ? TransferListModel.StartAsync(recordSearch.TransferQuery(), lifetime.Token) : Task.CompletedTask;
-        RenderRecordFilters(); await Task.WhenAll(receipt, transfer);
+        RenderRecordFilters();
+        await Task.WhenAll(receipt, transfer);
     }
     private static T? Descendant<T>(DependencyObject parent) where T : DependencyObject
     {

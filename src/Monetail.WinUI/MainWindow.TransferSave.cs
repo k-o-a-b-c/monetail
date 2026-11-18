@@ -141,7 +141,9 @@ public sealed partial class MainWindow
         if (receiptSearch is null || recordSearch is null) return;
         receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; TransferListModel?.RefreshSearchText();
         RecordMonthPeriod.IsChecked = !receiptSearch.AllPeriods; ReceiptAllPeriods.IsChecked = receiptSearch.AllPeriods;
-        receiptFiltersUpdating = false; RefreshReceiptChoices(); RenderRecordFilters();
+        receiptFiltersUpdating = false;
+        RefreshReceiptChoices();
+        RenderRecordFilters();
     }
     private async Task OfferTransferConflictAsync(TransferEditorState editor)
     {
