@@ -64,4 +64,45 @@ public sealed class PagingAdapterTests
         Assert.Equal(100, model.Rows.Count);
         Assert.True(model.IsContinuationFailure);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellingSavedSearchWithoutSuspendingStopsWithoutRepeatingTheCursor(bool transfers)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var calls = 0;
+        if (transfers)
+        {
+            using var model = TransferListViewModelTests.Create((_, token) =>
+            {
+                if (++calls == 2)
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<TransferListInfo>(token);
+                }
+                return Task.FromResult(new TransferListInfo(TransferListViewModelTests.Rows(0, 100), "next"));
+            });
+            await model.ShowSavedAsync(new("all"), Guid.NewGuid(), cancellation.Token);
+            Assert.False(model.IsFindingSaved);
+            Assert.Null(model.Failure);
+            Assert.Equal(100, model.Rows.Count);
+        }
+        else
+        {
+            using var model = ReceiptListViewModelTests.Create((_, token) =>
+            {
+                if (++calls == 2)
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<ReceiptListInfo>(token);
+                }
+                return Task.FromResult(new ReceiptListInfo(ReceiptListViewModelTests.Rows(0, 100), "next"));
+            });
+            await model.ShowSavedAsync(new("all"), Guid.NewGuid(), cancellation.Token);
+            Assert.False(model.IsFindingSaved);
+            Assert.Null(model.Failure);
+            Assert.Equal(100, model.Rows.Count);
+        }
+        Assert.Equal(2, calls);
+    }
 }

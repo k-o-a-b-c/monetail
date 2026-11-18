@@ -14,6 +14,7 @@ public partial class App
     private async Task CheckReceiptMvvmBoundary()
     {
         await CheckReceiptViewportBindings();
+        await CheckReceiptSavedRows();
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var masters = new PaymentServer();
         var reads = 0;

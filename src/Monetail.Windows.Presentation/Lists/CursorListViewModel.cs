@@ -27,7 +27,19 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
     {
         get;
     }
-    protected virtual bool CanObserveViewport => true;
+    protected abstract bool HasFocus
+    {
+        get;
+    }
+    protected abstract TItem? FindSavedItem(Guid id);
+    protected abstract Task FocusSavedAsync(Guid id, CancellationToken token);
+    protected abstract Task RetrySavedAsync(Guid id, CancellationToken token);
+    private Guid? savedTarget;
+    public bool IsFindingSaved
+    {
+        get; private set;
+    }
+    public bool IsFocused => HasFocus && HasLoaded;
     protected abstract Task<CursorPage<TItem>> LoadPageAsync(string? cursor, CancellationToken token);
     protected abstract ReadFailure ClassifyFailure(Exception error, string? cursor);
     protected virtual void ResetReadOrigin()
@@ -69,16 +81,12 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
     public bool CanRetry => Failure is not null && !IsLoading;
     public bool IsEmpty => HasLoaded && Rows.Count == 0 && Failure is null && !IsLoading;
     private CancellationTokenSource? cancellation;
-    protected long Generation
-    {
-        get; private set;
-    }
+    private long generation;
     private bool recoveredCursor, suspended;
     private sealed record PendingRead(bool Append, bool AutomaticFill);
     private PendingRead? activeRead, interruptedRead;
-    protected bool HasInterruptedRead => interruptedRead is not null;
 
-    protected void ResetPages()
+    protected void ResetPages(bool findingSaved = false)
     {
         Stop(false, false);
         suspended = false;
@@ -89,6 +97,9 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
         AutomaticFillCount = 0;
         ViewportFilled = false;
         recoveredCursor = false;
+        IsFindingSaved = findingSaved;
+        if (!findingSaved)
+            savedTarget = null;
     }
     protected void ClearRows()
     {
@@ -96,14 +107,15 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
         SelectedItem = default;
     }
     public void Suspend() => Stop(true, true);
-    protected virtual void Stop(bool remember, bool notify)
+    private void Stop(bool remember, bool notify)
     {
+        IsFindingSaved = false;
         var wasLoading = IsLoading;
         if (!remember)
             interruptedRead = null;
         else if (wasLoading)
             interruptedRead = activeRead;
-        Generation++;
+        generation++;
         suspended = true;
         cancellation?.Cancel();
         cancellation?.Dispose();
@@ -122,7 +134,7 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
             OnPropertyChanged(nameof(CanContinue));
             ContinueCommand.NotifyCanExecuteChanged();
         }
-        if (!CanObserveViewport || suspended || !HasLoaded || IsLoading || Failure is not null || NextCursor is null)
+        if (IsFindingSaved || suspended || !HasLoaded || IsLoading || Failure is not null || NextCursor is null)
             return;
         if (userScrolled)
         {
@@ -135,8 +147,9 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
     [RelayCommand(CanExecute = nameof(CanContinue))]
     public Task ContinueAsync(CancellationToken token = default) => CanContinue ? ReadAsync(true, token) : Task.CompletedTask;
     [RelayCommand(CanExecute = nameof(CanRetry))]
-    public virtual Task RetryAsync(CancellationToken token = default) => Failure is not null ? ReadAsync(HasLoaded, token) : Task.CompletedTask;
-    public virtual Task ResumeAsync(CancellationToken token = default)
+    public Task RetryAsync(CancellationToken token = default) => Failure is null ? Task.CompletedTask
+        : savedTarget is Guid id ? RetrySavedAsync(id, token) : ReadAsync(HasLoaded, token);
+    public Task ResumeAsync(CancellationToken token = default)
     {
         if (IsLoading)
             return Task.CompletedTask;
@@ -146,15 +159,59 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
         if (interruptedRead is { } pending)
         {
             interruptedRead = null;
-            return ReadAsync(pending.Append, token, pending.AutomaticFill);
+            IsFindingSaved = savedTarget is not null;
+            var focused = HasFocus;
+            var read = ReadAsync(pending.Append, token, pending.AutomaticFill);
+            return savedTarget is Guid id ? FindSavedAsync(read, focused, id, token, generation) : read;
         }
         return !HasLoaded ? ReadAsync(false, token) : Task.CompletedTask;
+    }
+    protected Task ShowSavedAsync(Guid id, Func<Task> start, bool focused, CancellationToken token)
+    {
+        savedTarget = id;
+        var read = start();
+        return FindSavedAsync(read, focused, id, token, generation);
+    }
+    private async Task FindSavedAsync(Task read, bool focused, Guid id, CancellationToken token, long epoch)
+    {
+        try
+        {
+            await read;
+            if (!focused)
+            {
+                while (epoch == generation && !token.IsCancellationRequested && Failure is null && FindSavedItem(id) is null &&
+                    NextCursor is not null && AutomaticFillCount < 2)
+                    await ReadAsync(true, token, automaticFill: true);
+                if (epoch != generation || Failure is not null || token.IsCancellationRequested)
+                    return;
+                if (FindSavedItem(id) is null)
+                {
+                    var focus = FocusSavedAsync(id, token);
+                    epoch = generation;
+                    await focus;
+                }
+            }
+            if (epoch == generation && Failure is null && !token.IsCancellationRequested)
+            {
+                SelectedItem = FindSavedItem(id);
+                savedTarget = null;
+            }
+        }
+        finally
+        {
+            // 新検索/中断後の旧探索は、新しい一覧状態を変更しない。
+            if (epoch == generation)
+            {
+                IsFindingSaved = false;
+                NotifyState();
+            }
+        }
     }
     protected async Task ReadAsync(bool append, CancellationToken token, bool automaticFill = false)
     {
         if (suspended || IsLoading || !HasQuery || append && NextCursor is null)
             return;
-        var epoch = Generation;
+        var epoch = generation;
         cancellation?.Dispose();
         cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         var ct = cancellation.Token;
@@ -171,7 +228,7 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
                 {
                     activeRead = new(append, automaticFill && append);
                     var page = await LoadPageAsync(cursor, ct);
-                    if (epoch != Generation || ct.IsCancellationRequested)
+                    if (epoch != generation || ct.IsCancellationRequested)
                         return;
                     // 復帰した補充も成功時に一度だけ数え、カーソル復旧の先頭ページは数えない。
                     if (automaticFill && append)
@@ -184,7 +241,7 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
                 }
                 catch (Exception error) when (ClassifyFailure(error, cursor) != ReadFailure.Unhandled)
                 {
-                    if (epoch != Generation || ct.IsCancellationRequested)
+                    if (epoch != generation || ct.IsCancellationRequested)
                         return;
                     var failure = ClassifyFailure(error, cursor);
                     if (failure == ReadFailure.Failure)
@@ -212,12 +269,12 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
                 }
             }
         }
-        catch (OperationCanceledException) when (epoch != Generation || ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (epoch != generation || ct.IsCancellationRequested)
         {
         }
         finally
         {
-            if (epoch == Generation)
+            if (epoch == generation)
             {
                 IsLoading = false;
                 activeRead = null;
@@ -229,7 +286,7 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IDi
     {
         foreach (var name in new[] { nameof(IsLoading), nameof(HasLoaded), nameof(IsInitialLoading), nameof(IsContinuationLoading),
             nameof(Failure), nameof(IsInitialFailure), nameof(IsContinuationFailure), nameof(NextCursor), nameof(AutomaticFillCount),
-            nameof(ViewportFilled), nameof(CanContinue), nameof(CanRetry), nameof(IsEmpty), nameof(ErrorText) })
+            nameof(ViewportFilled), nameof(CanContinue), nameof(CanRetry), nameof(IsEmpty), nameof(ErrorText), nameof(IsFindingSaved), nameof(IsFocused) })
             OnPropertyChanged(name);
         RetryCommand.NotifyCanExecuteChanged();
         ContinueCommand.NotifyCanExecuteChanged();

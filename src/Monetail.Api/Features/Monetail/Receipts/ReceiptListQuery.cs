@@ -9,7 +9,7 @@ namespace Monetail.Api.Features.Monetail.Receipts;
 
 /// <summary>一覧の条件と、永続Data Protectionキーで保護した継続位置を扱う。</summary>
 internal sealed record ReceiptListQuery(string Month, string? OwnerPersonId, string? PaymentMethodId, string? Search,
-    string? Cursor, string? From, string? To)
+    string? Cursor, string? From, string? To, string? FocusReceiptId = null)
 {
     internal static ReceiptListQuery Read(IQueryCollection query)
     {
@@ -28,6 +28,22 @@ internal sealed record ReceiptListQuery(string Month, string? OwnerPersonId, str
         string? Optional(string key) => query.TryGetValue(key, out var value) ? value.ToString() : null;
         string? Id(string key) => Optional(key) is string value ? ReceiptPayload.Uuid(value, key) : null;
         return new(month, Id("ownerPersonId"), Id("paymentMethodId"), Optional("q"), Optional("cursor"), from, to);
+    }
+
+    internal static ReceiptListQuery ReadReceipts(IQueryCollection query)
+    {
+        if (!query.TryGetValue("focusReceiptId", out var focus))
+            return Read(query);
+        if (focus.Count != 1 || query.ContainsKey("cursor"))
+            throw LedgerPayload.Bad("フォーカス指定は1件とし、カーソルと同時に指定しないでください。", "focusReceiptId");
+        var value = focus.ToString();
+        if (value.Length != 36)
+            throw LedgerPayload.Bad("UUIDをD形式で指定してください。", "focusReceiptId");
+        var id = ReceiptPayload.Uuid(value, "focusReceiptId");
+        // 5項目の共通検証を維持し、振替APIでレシート用focusを受理しない。
+        var remaining = new QueryCollection(query.Where(item => item.Key != "focusReceiptId")
+            .ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal));
+        return Read(remaining) with { FocusReceiptId = id };
     }
 
     private string Fingerprint => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { Month, OwnerPersonId, PaymentMethodId, Search })));

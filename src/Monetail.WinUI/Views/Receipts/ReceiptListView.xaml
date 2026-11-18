@@ -25,9 +25,11 @@
             <StackPanel x:Name="ReceiptFilters" Spacing="8">
                 <ContentControl Content="{x:Bind OpeningContent, Mode=OneWay}" Visibility="{x:Bind OpeningContent.Visibility, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
                 <Grid ColumnSpacing="8">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptShop"/>
                     <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Command="{x:Bind ViewModel.SearchCommand, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptSearchButton"/>
+                    <Button x:Name="ReceiptReturnToStart" Grid.Column="2" Content="先頭に戻る" Command="{x:Bind ViewModel.ReturnToStartCommand, Mode=OneWay}"
+                            Visibility="{x:Bind Show(ViewModel.IsFocused), Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptReturnToStart"/>
                 </Grid>
             </StackPanel>
             <Grid Grid.Row="1">

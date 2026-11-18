@@ -12,21 +12,51 @@ public sealed class ReceiptInputException(string field, string message) : Except
 /// <summary>省略/空文字を保持する。カーソルの生成・変更や条件の正規化は行わない。</summary>
 public sealed record ReceiptListQuery
 {
-    public string Month { get; }
-    public Guid? OwnerPersonId { get; }
-    public Guid? PaymentMethodId { get; }
-    public string? Q { get; }
-    public string? Cursor { get; }
-    public ReceiptListQuery(string month, Guid? ownerPersonId = null, Guid? paymentMethodId = null, string? q = null, string? cursor = null)
+    public string Month
+    {
+        get;
+    }
+    public Guid? OwnerPersonId
+    {
+        get;
+    }
+    public Guid? PaymentMethodId
+    {
+        get;
+    }
+    public string? Q
+    {
+        get;
+    }
+    public string? Cursor
+    {
+        get;
+    }
+    public Guid? FocusReceiptId
+    {
+        get;
+    }
+    public ReceiptListQuery(string month, Guid? ownerPersonId = null, Guid? paymentMethodId = null, string? q = null, string? cursor = null, Guid? focusReceiptId = null)
     {
         if (month != "all" && (month is not { Length: 7 } || !DateOnly.TryParseExact(month + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)))
             throw new ReceiptInputException("month", "年月をYYYY-MMまたはallで指定してください。");
-        if (ownerPersonId is Guid owner) ReceiptQueries.Id(owner, "ownerPersonId");
-        if (paymentMethodId is Guid payment) ReceiptQueries.Id(payment, "paymentMethodId");
-        Month = month; OwnerPersonId = ownerPersonId; PaymentMethodId = paymentMethodId; Q = q; Cursor = cursor;
+        if (ownerPersonId is Guid owner)
+            ReceiptQueries.Id(owner, "ownerPersonId");
+        if (paymentMethodId is Guid payment)
+            ReceiptQueries.Id(payment, "paymentMethodId");
+        if (focusReceiptId is Guid focus)
+            ReceiptQueries.Id(focus, "focusReceiptId");
+        if (focusReceiptId is not null && cursor is not null)
+            throw new ReceiptInputException("focusReceiptId", "カーソルと同時に指定できません。");
+        Month = month;
+        OwnerPersonId = ownerPersonId;
+        PaymentMethodId = paymentMethodId;
+        Q = q;
+        Cursor = cursor;
+        FocusReceiptId = focusReceiptId;
     }
     internal string Query => ReceiptQueries.Encode(("month", Month), ("ownerPersonId", OwnerPersonId?.ToString("D")),
-        ("paymentMethodId", PaymentMethodId?.ToString("D")), ("q", Q), ("cursor", Cursor));
+        ("paymentMethodId", PaymentMethodId?.ToString("D")), ("q", Q), ("cursor", Cursor), ("focusReceiptId", FocusReceiptId?.ToString("D")));
 }
 
 public enum ReceiptSuggestionKind { ShopName, ShopLocation, ItemName }
