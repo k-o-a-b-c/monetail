@@ -103,7 +103,9 @@ public partial class App
         await Wait(() => scroll.ViewportHeight > 150 && scroll.ScrollableHeight > 0);
         async Task NearEnd()
         {
-            scroll.ChangeView(null, scroll.ScrollableHeight - 30, null, true);
+            // 次の操作位置への準備も製品の復元経路を使い、直前のホイール意図を持ち越さない。
+            TransferViewField("returnPosition").SetValue(view, (scroll.HorizontalOffset, scroll.ScrollableHeight - 30));
+            view.RestorePosition();
             await Wait(() => scroll.VerticalOffset >= scroll.ScrollableHeight - 31);
             await Settle();
         }
