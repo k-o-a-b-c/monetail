@@ -112,7 +112,7 @@ public sealed partial class TransferListView : UserControl
     });
     private bool CanObserve()
     {
-        if (!IsLoaded || scroller is null || ViewModel is null)
+        if (!IsLoaded || ViewModel is null)
             return false;
         for (DependencyObject? element = this; element is not null; element = VisualTreeHelper.GetParent(element))
             if (element is FrameworkElement { Visibility: Visibility.Collapsed })
@@ -130,7 +130,10 @@ public sealed partial class TransferListView : UserControl
         {
             // 行/サイズ変更のArrangeを終えてから可視範囲を読む。確定中の通知も同じ要求へまとめる。
             if (CanObserve())
+            {
                 TransferList.UpdateLayout();
+                ConnectScroller();
+            }
             viewportQueued = false;
             var scrolled = queuedUserScroll;
             queuedUserScroll = false;
@@ -152,18 +155,26 @@ public sealed partial class TransferListView : UserControl
         }
         return null;
     }
-    private void TransferListLoaded(object sender, RoutedEventArgs args)
+    private void ConnectScroller()
     {
-        scroller = Descendant<ScrollViewer>(TransferList);
+        var current = Descendant<ScrollViewer>(TransferList);
+        if (ReferenceEquals(scroller, current))
+            return;
         if (scroller is not null)
         {
             scroller.ViewChanged -= ViewChanged;
-            scroller.ViewChanged += ViewChanged;
             scroller.DirectManipulationStarted -= ListManipulationStarted;
+        }
+        scroller = current;
+        previousOffset = scroller?.VerticalOffset ?? 0;
+        scrollIntent = queuedUserScroll = false;
+        if (scroller is not null)
+        {
+            scroller.ViewChanged += ViewChanged;
             scroller.DirectManipulationStarted += ListManipulationStarted;
         }
-        ObserveViewport();
     }
+    private void TransferListLoaded(object sender, RoutedEventArgs args) => ObserveViewport();
     private void ListManipulationStarted(object? sender, object args) => scrollIntent = scroller?.ScrollableHeight > 0;
     private void ViewChanged(object? sender, ScrollViewerViewChangedEventArgs args)
     {
