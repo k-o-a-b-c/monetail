@@ -72,8 +72,8 @@ public sealed partial class ReceiptApiTests
             command.Parameters.AddWithValue(name, value);
         var plan = new List<string>();
         using (var reader = command.ExecuteReader())
-        while (reader.Read())
-            plan.Add(reader.GetString(3));
+            while (reader.Read())
+                plan.Add(reader.GetString(3));
         Assert.Contains(plan, line => line.Contains("SEARCH r USING INDEX ix_ledger_receipts_transaction", StringComparison.Ordinal));
         Assert.DoesNotContain(plan, line => line.Contains("TEMP B-TREE", StringComparison.Ordinal));
         Assert.Equal(before, f.Snapshot());
