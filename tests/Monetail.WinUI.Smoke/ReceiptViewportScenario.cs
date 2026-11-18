@@ -12,8 +12,25 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
-    private static FieldInfo ReceiptViewField(string name) => typeof(ReceiptListView).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
-        ?? throw new InvalidOperationException("レシート一覧の表示状態がありません: " + name);
+    private static object Viewport(object view) => view.GetType()
+        .GetField("viewport", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(view)
+        ?? throw new InvalidOperationException("一覧の共通表示状態がありません。");
+
+    private static FieldInfo ViewportField(object controller, string name) => controller.GetType()
+        .GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
+        ?? throw new InvalidOperationException("一覧の観測状態がありません: " + name);
+
+    private static object? ViewportValue(object view, string name)
+    {
+        var controller = Viewport(view);
+        return ViewportField(controller, name).GetValue(controller);
+    }
+
+    private static void SetViewportValue(object view, string name, object value)
+    {
+        var controller = Viewport(view);
+        ViewportField(controller, name).SetValue(controller, value);
+    }
 
     private async Task CheckReceiptViewportBindings()
     {
@@ -53,19 +70,19 @@ public partial class App
         await Wait(() => model.Rows.Count == 300 && !model.IsLoading && model.CanContinue);
         Check(reads.SequenceEqual(new[] { 0, 100, 200 }) && model.AutomaticFillCount == 2 && scroll.ScrollableHeight == 0,
             "レシートViewの行/サイズ変更は確定レイアウトで最大300件まで補充する");
-        await Wait(() => !(bool)ReceiptViewField("viewportQueued").GetValue(view)!);
+        await Wait(() => !(bool)ViewportValue(view, "viewportQueued")!);
         model.SearchText = "未確定店舗";
         model.CanRegister = false;
-        Check(!(bool)ReceiptViewField("viewportQueued").GetValue(view)!, "レシートの店名下書き/登録可否の通知は可視範囲測定を予約しない");
+        Check(!(bool)ViewportValue(view, "viewportQueued")!, "レシートの店名下書き/登録可否の通知は可視範囲測定を予約しない");
         await Wait(() => !Find<Button>(root, "NewReceiptButton").IsEnabled);
         model.CanRegister = true;
         await Wait(() => Find<Button>(root, "NewReceiptButton").IsEnabled);
         Check(reads.Count == 3, "レシート登録ButtonのCanExecute通知は追加GETせず有効状態を往復する");
         view.RememberPosition();
-        ReceiptViewField("scrollIntent").SetValue(view, true);
-        ReceiptViewField("queuedUserScroll").SetValue(view, true);
+        SetViewportValue(view, "scrollIntent", true);
+        SetViewportValue(view, "queuedUserScroll", true);
         view.RestorePosition();
-        await Wait(() => !(bool)ReceiptViewField("scrollIntent").GetValue(view)! && !(bool)ReceiptViewField("queuedUserScroll").GetValue(view)!);
+        await Wait(() => !(bool)ViewportValue(view, "scrollIntent")! && !(bool)ViewportValue(view, "queuedUserScroll")!);
         await Settle();
         Check(reads.Count == 3 && model.Rows.Count == 300, "レシートの表示復元は利用者スクロールとみなさず、300件上限を解除しない");
         var more = Find<Button>(root, "ReceiptContinue");
@@ -84,7 +101,7 @@ public partial class App
         await Wait(() => scroll.ViewportHeight > 150 && model.ViewportFilled && !model.CanContinue);
         var selected = model.Rows[0];
         model.SelectedItem = selected;
-        ReceiptViewField("returnPosition").SetValue(view, (Math.Min(80, scroll.ScrollableWidth), scroll.ScrollableHeight - 30));
+        SetViewportValue(view, "returnPosition", (Math.Min(80, scroll.ScrollableWidth), scroll.ScrollableHeight - 30));
         view.RestorePosition();
         await Wait(() => scroll.VerticalOffset >= scroll.ScrollableHeight - 31);
         await Settle();
@@ -117,7 +134,7 @@ public partial class App
         catch (OperationCanceledException error)
         {
             var panel = list.ItemsPanelRoot as ItemsStackPanel;
-            throw new InvalidOperationException($"レシートのホイール取得: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; last={panel?.LastVisibleIndex}; rows={model.Rows.Count}; reads={string.Join(',', reads)}; moved={moved}; intent={ReceiptViewField("scrollIntent").GetValue(view)}", error);
+            throw new InvalidOperationException($"レシートのホイール取得: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; last={panel?.LastVisibleIndex}; rows={model.Rows.Count}; reads={string.Join(',', reads)}; moved={moved}; intent={ViewportValue(view, "scrollIntent")}", error);
         }
         var gate = nextPage ?? throw new InvalidOperationException("追加ページの待機がありません。");
         nextPage = null;

@@ -22,6 +22,7 @@
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/ReceiptFilterChoice.cs" Link="ReceiptFilterChoice.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Views/ListViewportController.cs" Link="Views/ListViewportController.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml" Link="Views/Receipts/ReceiptListView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml.cs" Link="Views/Receipts/ReceiptListView.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml" Link="Views/Transfers/TransferListView.xaml" />
