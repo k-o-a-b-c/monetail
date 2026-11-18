@@ -55,9 +55,9 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 残る依存は、MainWindowからの一覧更新・選択/フィルター参照・操作可否の反映と5通知、および既存CategoryRow/CategoryInfoの共有。MainWindowの業務状態17個は今回削減しない。全件参照とイベント境界が増える代わりに、直接のコントロール操作をViewへ閉じ込める。取得/解除は既存DisplayCategories/ResetCategoriesから同期する。検証は[tests/README.md](../tests/README.md)を参照。
 
-## 振替一覧のMVVM移行（設計方針・未実装）
+## 振替一覧のMVVM移行（実装済み）
 
-振替一覧を起点に、WinUI 3の画面固有処理を段階的にMVVMへ移行する。振替一覧については**既存の`TransferListState`を新ViewModelで包まず、状態管理を`TransferListViewModel`へ一本化する**。既存クラス・ファイルを維持することを目的とせず、表示仕様・API契約・失敗時の操作を維持して内部構造を組み直す。振替入力画面、レシート、他の管理画面のMVVM化は別工程とする。
+振替一覧を起点に、WinUI 3の画面固有処理を段階的にMVVMへ移行する。振替一覧については**既存の`TransferListState`を新ViewModelで包まず、状態管理を`TransferListViewModel`へ一本化した**。既存クラス・ファイルを維持することを目的とせず、表示仕様・API契約・失敗時の操作を維持して内部構造を組み直す。振替入力画面、レシート、他の管理画面のMVVM化は別工程とする。
 
 | 置き場所 | 役割 |
 | --- | --- |
@@ -70,9 +70,9 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 `Monetail.Windows.Presentation`は**WinUI 3を参照しない`net10.0`のクラスライブラリ**とし、既存Clientと`CommunityToolkit.Mvvm`を参照する。DIコンテナー、新しい汎用ナビゲーション/Service/イベント基盤は追加しない。ViewModelはコンストラクターで必要な依存を受け取り、`MainWindow`や`Microsoft.UI.Xaml`を参照しない。検索の適用済み条件は引き続き`RecordSearchState`を正本とし、ViewModel内に別の適用済みフィルター状態を複製しない。検索欄の未確定入力と適用済み条件は区別する。
 
-### 公開インターフェースの境界（内部シグネチャは実装時に決定）
+### 公開インターフェースの境界
 
-ファイル間の**機能と所有者**だけを固定する。以下のメンバー名は候補であり、コマンド引数、privateメソッド、イベントの型、細かなフラグ分割はCodexが必要最小限で決める。外部から新しい汎用サービスやWindow全体を渡さない。
+ファイル間の**機能と所有者**だけを固定する。公開名は実装に対応する。privateメソッドやイベントの型はこの境界内で必要最小限とする。外部から新しい汎用サービスやWindow全体を渡さない。
 
 | 境界 | 公開する状態・操作の目安 | 公開しないもの |
 | --- | --- | --- |
@@ -98,13 +98,47 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 3. 登録/編集 → VMの操作要求をMainWindowが受けて入力画面を開く → VMは中断し、必要ならViewが位置を記憶。保存/削除成功時はMainWindowが共通条件を調整後にVMへ確定クエリと保存ID（削除時は選択解除）を渡して一覧を更新。保存失敗時は一覧条件や選択を変更しない。
 4. 一覧取得失敗 → VMが初回/追加の失敗状態を通知 → Viewが対応箇所に表示。認証失効の遷移だけMainWindowが判断する。家計簿/アカウント切替・ウィンドウ終了で中断/破棄し、旧レスポンスを反映しない。
 
-**移行境界**：`MainWindow.Transfers.cs`の一覧固有処理、`MainWindow.xaml`の振替一覧領域、`TransferRow.cs`を新構成へ移し、`TransferListState.cs`は依存する実装・テストの移管完了後に削除する。振替入力・保存・認証復帰が旧一覧の`x:Name`や内部フィールドを直接参照する箇所は、新Viewの必要最小限の公開操作に置き換える。途中段階で旧/新の二重取得や二重選択を残さない。共通フィルターやレシートには仕様変更を加えない。
+**移行境界**：`MainWindow.Transfers.cs`の一覧固有処理、`MainWindow.xaml`の振替一覧領域、`TransferRow.cs`を新構成へ移し、`TransferListState.cs`と`TransferRow.cs`は実装・テストの移管完了後に削除済み。振替入力・保存・認証復帰が旧一覧の`x:Name`や内部フィールドを直接参照する箇所は、新Viewの必要最小限の公開操作に置き換える。途中段階で旧/新の二重取得や二重選択を残さない。共通フィルターやレシートには仕様変更を加えない。
 
 **受入条件**：既存[振替画面仕様](ledger-transfer-ui.md)を維持する。特に初回最大300件補充、スクロール残り20行で追加100件、上限到達後の明示続行、`invalid_cursor`からの1回復旧、古い非同期応答の破棄、401による認証復帰、失敗したページだけの明示再試行、一覧復帰時の選択・縦横スクロール、保存行の探索/フォーカス、旧API順/検索条件、登録/編集への遷移を検証する。Clientの旧`TransferListState`直接テストは表示状態を対象とするものをPresentationのViewModelテストへ移し、`RecordSearchState`等Client契約のテストは残す。WinUIスモークは製品と同一XAMLをリンクし、既存の操作/AutomationIdを維持する。Windowsで製品・スモークをビルドして検証し、実施できない場合は未検証を明記する。
 
+
+### 実装の所有者と構造比較
+
+- `TransferListViewModel`は読取delegate・`RecordSearchState`・マスタ名称読取delegateを受け取る。`ObservableObject`/`RelayCommand`（CommunityToolkit.Mvvm 8.4.2）を使用し、WinUI/HTTP/認証の別実装を持たない。`Rows`は単一`ObservableCollection`の読取専用ラッパーで、`SelectedTransferId`は`SelectedItem`から導出する。`SearchText`には保存フィールドがなく、外部変更は`RefreshSearchText`で通知する。
+- `SearchCommand`/`RegisterCommand`/`EditCommand`は`SearchRequested`/`OpenRequested`の2通知だけでWindowへ委譲する。検索中の新しい検索も許可し、旧取得の中断/世代照合はVMで行う。登録可否はWindowが既存ルールで計算した`CanRegister`。`RetryCommand`/`ContinueCommand`/`ReturnToStartCommand`と一覧取得世代・中断/再開・保存行探索はVMが所有する。探索中の未解決IDもVMにだけ保持し、通常の選択IDと二重管理しない。
+- Viewの公開面は`ViewModel`、編集開始待ちのWindow所有UIを配置する`OpeningContent`（標準ContentControlの内容スロット）、`RememberPosition`/`RestorePosition`/`ScrollSelectionIntoView`/`ObserveViewport`。ListView・ScrollViewer・検索TextBoxは公開しない。IMEと実スクロールの状態はViewへ移し、外側の共通Enter移動との二重処理を防ぐ。
+- `MainWindow.Transfers.cs`は共通条件の確定、Workspaceの既存依存をVMへ渡す接続、外部権限による登録可否、認証例外による画面遷移だけを担当する。編集/保存/401復帰は同じView/VMを使い、検索条件を変更しない往復では行・選択・縦横スクロールを保つ。
+
+```mermaid
+flowchart LR
+    Window[MainWindow: 共通条件・遷移・認証] --> View[TransferListView: XAML・実UI]
+    Window --> VM[Presentation: TransferListViewModel]
+    View -->|x:Bind / Command / 可視範囲| VM
+    VM -->|検索確定・登録/編集の要求| Window
+    VM --> Client[Client: Workspace・DTO・RecordSearchState]
+    View --> Item[Presentation: TransferListItem]
+```
+
+| 集計対象 | 基点main `f7fb0e8` | 分離後 |
+| --- | ---: | ---: |
+| WinUI＋Client＋PresentationのC#/XAML総行数 | 10,161 | 10,460 |
+| WinUIのC#/XAML行数 | 6,206 | 6,286 |
+| MainWindow.xaml / 全partial C#行数 | 959 / 4,661 | 908 / 4,550 |
+| MainWindowから一覧内部への直接参照（コントロール種類 / 出現数） | 13 / 29 | 0 / 0 |
+| MainWindowの一覧用明示フィールド（編集側の保存行・表示位置を含む） | 11 | 0 |
+| 行の格納先 | StateのDTO列＋Windowの表示列 | VMの表示列1つ |
+| 選択の正本 | StateのIDとWindow/ListViewとの手動同期 | VMのSelectedItem（IDは導出、Viewへ双方向バインド） |
+
+行数は各`src/Monetail.WinUI`/`Monetail.Windows.Client`/`Monetail.Windows.Presentation`の追跡済み`.cs`/`.xaml`、空行込み・生成物除外。差引299行増であり、コード量削減を成果としない。Viewの261行とPresentationの355行を追加し、旧State136行・旧Row19行を削除。MainWindowのXAML51行/C#111行減。移管対象のx:Nameの識別子一致で直接参照を数える（編集開始待ち4要素はWindow所有のまま対象外）。
+
+状態が消えたのではなく、旧Stateの15格納箇所に対しVMは19箇所（追加は読取専用ラッパー・外部CanRegister、Windowから移した探索ID/探索中の2つ）。注入依存、イベントdelegate、Toolkit生成Command、UIの生成フィールドはこの数に含めない。Viewの明示フィールドは7つで、IME helper・ScrollViewer・実スクロール観測・復帰位置tupleを保持する。VMに行/選択/検索下書きのコピーはなく、Viewにも行/選択ID/カーソルを持たせない。
+
+増えた依存はWinUI→Presentation→Clientと、Toolkitの通知/6 Command、2操作通知、Viewの2プロパティ/4操作である。共通条件・権限/認証・編集開始待ちのスロットはWindow、実表示位置はViewという境界の受け渡しは残る。汎用イベント/Service/DI基盤や、他画面のViewModel化は追加しない。関連テスト・CIと未検証事項は[tests/README.md](../tests/README.md)を参照する。
+
 ## WinUIの責務棚卸しと段階的分離（検討順序・未実装）
 
-現状、`MainWindow.xaml`に複数画面のXAMLがあり、`MainWindow*.cs`の多数のpartialがコントロールと状態を共有する。partialのファイル分割は責務の分割ではない。既存Clientの保存・入力・通信の業務契約は維持しながら、振替一覧は前節の方針でMVVMへ移行する。状態の複製は行わない。
+現状、`MainWindow.xaml`に複数画面のXAMLがあり、`MainWindow*.cs`の多数のpartialがコントロールと状態を共有する。partialのファイル分割は責務の分割ではない。既存Clientの保存・入力・通信の業務契約は維持しながら、振替一覧は前節の構成へ移行済み。状態の複製は行わない。
 
 | 検討順 | 現状の主な所有者 | 次の境界候補 | 分離に際して残すもの |
 | --- | --- | --- | --- |
@@ -112,7 +146,8 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 | 1 | `MainWindow.Ledgers.cs`の作成フォームと`MainWindow.xaml` | 家計簿作成フォームの表示・入力をViewへ | `LedgerCreationDraft`の再試行、実際のCreate/画面遷移、取消時の行き先はWindow/Clientの契約を維持 |
 | 2 | `MainWindow.xaml.cs`/`MainWindow.Persons.cs`の人物一覧 | 一覧・フィルター・選択をViewへ | 権限、編集ダイアログ、並び順、401復帰のガードは動作を確認しながら別工程 |
 | 3（一部完了） | `MainWindow.Categories.cs`/`MainWindow.Payments.cs` | 科目一覧はCategoryListViewへ分離済み。支払方法一覧は後続 | グループ順、権限、削除、競合、並び替え/復帰を同時に再設計しない |
-| 今回優先 | `MainWindow.Transfers.cs`と振替一覧XAML | 振替一覧をView・ViewModel・Clientに再配置（前節） | 初回/追加読込・401・画面往復・保存行探索を維持 |\n| 後段 | `MainWindow.Receipts.cs`/`ReceiptEditor.cs`／`MainWindow.TransferEditor.cs` | レシート一覧と専用入力画面・振替専用入力画面の機能別分離 | 未確定入力、保存結果不明、401復帰、未保存確認、画面往復の状態を壊さない |
+| 完了 | 振替一覧 | TransferListView・TransferListViewModelへ移行（前節） | 初回/追加読込・401・画面往復・保存行探索を維持 |
+| 後段 | `MainWindow.Receipts.cs`/`ReceiptEditor.cs`／`MainWindow.TransferEditor.cs` | レシート一覧と専用入力画面・振替専用入力画面の機能別分離 | 未確定入力、保存結果不明、401復帰、未保存確認、画面往復の状態を壊さない |
 | 維持 | `MainWindow.xaml.cs`/`Connection.cs`/`Activation.cs`など | Window全体のオーケストレーション | 家計簿・アカウント切替、グローバルナビゲーション、寿命・未保存ガード |
 
 この順序は**コード構造の調査に基づく実装候補**であり、対象画面の仕様変更・実装承認・テスト成功を意味しない。各段階の着手前にXAMLイベント・呼出関係・テスト参照を確認し、最小のView公開面と変更前後の依存を示してから小さなPRにする。守るべき契約は対象機能の正本、実装指針は[`monetail-winui-architecture` Skill](../.agents/skills/monetail-winui-architecture/SKILL.md)。
@@ -158,7 +193,7 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 `RecordSearchState`が既存`ReceiptSearchState`を保持し、年月・全期間・人物・支払方法を両一覧へ共通適用する。店名・振替名の下書きと確定値は独立させ、共通年月だけの確定では名前下書きを適用しない。表示・操作の正本は[ホーム3一覧](ledger-transfer-ui.md#3つの一覧と共通フィルター確定範囲)と[共通UI](../UI_DESIGN.md)。
 
-`MainWindow.Transfers.cs`が`TransfersWorkspace.ListAsync`へ接続し、UI非依存の`TransferListState`で取得世代・ページング・中断／再開を管理する。`TransferRow`はAPI順と保存金額を維持し、支払方法名を既存マスタキャッシュから表示する。レシートと振替はそれぞれ読込・失敗・再試行を管理し、共通条件変更時は両一覧の旧世代を破棄する。マスタ取得はホーム文脈のCancellationTokenで共有し、片方の検索中断だけでは他方のマスタ待機を失敗させない。
+`MainWindow.Transfers.cs`が既存`TransfersWorkspace.ListAsync`をPresentationへ接続し、UI非依存の`TransferListViewModel`で取得世代・ページング・中断／再開を管理する。`TransferListItem`はAPI順と保存金額を維持し、支払方法名を既存マスタキャッシュから表示する。レシートと振替はそれぞれ読込・失敗・再試行を管理し、共通条件変更時は両一覧の旧世代を破棄する。マスタ取得はホーム文脈のCancellationTokenで共有し、片方の検索中断だけでは他方のマスタ待機を失敗させない。
 
 共通フィルターは横1行の標準`ScrollViewer`、一覧は各`ListView`内のスクロールを使用する。初期の上下60:40・下段左右2:1を実装済み。振替入力・保存後focusは下記の第3工程で接続。残高データ・スプリッター・比率保存は後続。
 
@@ -176,7 +211,7 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 `MainWindow.TransferEditor.cs`で`TransferEditorState`／`TransferDraft`を表示し、共通の日付・時刻と`FormKeyboard`を利用する。`MainWindow.TransferSuggestions.cs`は標準`AutoSuggestBox`の入力・プレビュー・確定を分け、画面内候補キャッシュ、デバウンス、IME保護、旧応答破棄、モデルの入力由来に従った補完を行う。既存内部TextBoxにも共通IME監視を登録する。
 
-`MainWindow.TransferSave.cs`は`TransferWriteRequest`を一操作で一度だけ作成し、結果不明時は同じオブジェクトを保持する。保存後の共通条件調整は`RecordSearchState.ApplySavedTransfer`、最大300件の探索とフォーカス開始／404の1回復旧は`TransferListState`で管理する。API保存と一覧再取得は区別し、保存後の一覧取得失敗で再度保存しない。新規と既存に応じた確認・保存不可時の離脱保護を共通ナビゲーションに接続する。
+`MainWindow.TransferSave.cs`は`TransferWriteRequest`を一操作で一度だけ作成し、結果不明時は同じオブジェクトを保持する。保存後の共通条件調整は`RecordSearchState.ApplySavedTransfer`、最大300件の探索とフォーカス開始／404の1回復旧は`TransferListViewModel`で管理する。API保存と一覧再取得は区別し、保存後の一覧取得失敗で再度保存しない。新規と既存に応じた確認・保存不可時の離脱保護を共通ナビゲーションに接続する。
 
 第4-Aでは`MainWindow.TransferSave.cs`が409 `revision_conflict`の2択を表示し、破棄確認後の`TransferEditorState.AdoptLatest(true)`で通常編集へ戻す。`RenderTransferEditor`は競合中のコピー可能な読み取り専用表示と［最新を読み込む］を維持する。応答latestを使い、採用時の詳細GET・自動再保存は行わない。`request_conflict`やアクセス喪失・結果不明を採用対象にしない。
 

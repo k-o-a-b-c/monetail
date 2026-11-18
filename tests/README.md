@@ -9,11 +9,31 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1235 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1206 |
+| Windows Presentation（振替一覧VM・投影・Command・ページング・復帰） | 40 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
-| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 77 |
-| 合計 | 3662 |
+| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
+| 合計 | 3678 |
+
+## 振替一覧のPresentation MVVM移行
+
+[TransferListViewModelTests](Monetail.Windows.Presentation.Tests/TransferListViewModelTests.cs)・[TransferPagingTests](Monetail.Windows.Presentation.Tests/TransferPagingTests.cs)・[TransferSavedListTests](Monetail.Windows.Presentation.Tests/TransferSavedListTests.cs)へ旧Clientの表示状態29件を移管した。共通条件/検索下書き/保存後条件調整の契約は[RecordSearchStateTests](Monetail.Windows.Client.Tests/RecordSearchStateTests.cs)とClient側のTransferPaging/TransferSavedListTestsへ残す。旧3ファイルの26テストメソッドの属性・InlineData・Assert数が移管後も維持されることを照合し、カーソル復旧の選択解除は解除前の選択を明示して強化した。
+
+[TransferPresentationTests](Monetail.Windows.Presentation.Tests/TransferPresentationTests.cs)は新規11件。通知/Command、読取専用の唯一の行コレクション・選択、RecordSearchStateへの未確定原文の窓口、外部変更通知、マスタ名称だけの再表示、認証エラーをWindowへ残すこと、保存行探索の明示再試行/同じカーソルからの再開・同期404の1回復旧、検索中の再検索と旧応答破棄を確認する。検索Commandは既存どおり前の取得待ちでも使用でき、実要求の中断/世代検証はVMで行う。
+
+WinUIの既存確認は新ViewのNameScopeとTransferListItemへ取得方法を移し、期待値を維持した。[TransferMvvmScenario](Monetail.WinUI.Smoke/TransferMvvmScenario.cs)を既存`transfer-list`に接続し、同一ItemsSource、余分なTab停止なし、実Enter/Tab/Shift+Tab/上下キー、合成IME中の検索・外側Enter移動の抑止の5確認を追加。製品と同じView XAML/C#をスモークにリンクする。既存の初回/追加中断・復帰、縦横スクロール/選択、保存行探索/フォーカス、編集の連続401/別アカウント/マスタ再取得、409・結果不明・未保存保護も維持する。
+
+```sh
+dotnet test tests/Monetail.Windows.Presentation.Tests/Monetail.Windows.Presentation.Tests.csproj -c Release
+dotnet test tests/Monetail.Windows.Client.Tests/Monetail.Windows.Client.Tests.csproj -c Release
+```
+
+CIは既存`windows-client-tests`内で両プロジェクトを実行する。Presentation製品変更は`windows_client`/`winui`、Presentation試験変更は`windows_client`だけを選び、選択・fingerprintの2回帰試験を追加した。既存のmain未検証検出・未分類ファイルの安全側判定・成功記録の再利用は変更しない。共通の選択定義を変更した初回は既存ルールどおり各検証の指紋が変わるため、API/旧Windows/性能も必須CIで確認する。以降のViewModel/Viewだけの修正は非変更部分の成功を再利用する。
+
+基点main `f7fb0e8`の[push Tests 44204197511](https://github.com/k-o-a-b-c/monetail/actions/runs/44204197511)成功を変更前の根拠とする。ローカルClient1,206件、Presentation40件、Python81件が成功。初回のローカル復元/IPCはサンドボックスで拒否されたため許可された実行で再試行し、通信可能な復元後のログにNU1900等の追加警告はない。初回Windowsビルドはx:Bind関数のstatic呼出不一致で失敗し、インスタンスメソッド化で修正した。Viewの継承メンバーとの同名警告も解消した。
+
+ソース`654306d`の[Tests 44207601522](https://github.com/k-o-a-b-c/monetail/actions/runs/44207601522)で製品/検証用x64 Release・起動・全36シナリオ/702確認（旧697＋新5）と単独3シナリオ/選択一覧/計測/不正指定拒否/PNG4枚生成が成功。両ビルドは各29件の既存WUI2011警告/0エラー、ネイティブアクセス違反は観測していない。保存行探索/検索Commandの境界補足後、最終製品/テストソース`0f19853`の[Tests 44210963664](https://github.com/k-o-a-b-c/monetail/actions/runs/44210963664)も成功。Client1,206件/Presentation40件とWindows全件を再確認し、非変更API/DB・Docker・旧Windows/性能/計算照合は同じ指紋の成功記録を再利用した。前の全体CIではAPI2,140件・Node・Docker/配備スモーク・旧Windows等も成功している。`git diff --check`と対象の書式検査も成功。構造比較は[構成資料](../docs/architecture-winui.md#実装の所有者と構造比較)を参照する。WinApp CLI/WinUIを実行できないLinuxのためWindows CIを使用し、実Windowsでの物理IME・タッチ・高DPI/支援技術等の手動操作は未検証。
 
 ## WinUI：科目一覧UserControlの分離
 
@@ -137,7 +157,7 @@ Clientには同一IDとCR/LF/CRLFの入力/保存済みID/版の保全4件を追
 
 ## WinUI：振替一覧・記録ホームの共通フィルター
 
-[TransferListStateTests.cs](Monetail.Windows.Client.Tests/TransferListStateTests.cs)・[TransferPagingTests.cs](Monetail.Windows.Client.Tests/TransferPagingTests.cs)にClient新規27件を追加。共通条件と独立した店名/振替名の下書き、年月境界、0/1/99/100/101/201件、API順/カーソル/選択、300件補充上限・続行、二重取得、手動再試行、invalid_cursorの1回復旧、検索変更・中断/復帰・旧応答破棄を検証する。ローカルReleaseは最小2件→関連30件→追加の旧検索応答1件が成功（段階間に重複あり、失敗/skipなし）。関連検証の初回はコピー元型名が残ったコンパイルエラーで未実行となり、既存共通検索モデルへ修正した。
+導入時はClientに新規27件を追加した。現在の表示状態は[TransferListViewModelTests](Monetail.Windows.Presentation.Tests/TransferListViewModelTests.cs)等へ移管し、共通検索契約は[RecordSearchStateTests](Monetail.Windows.Client.Tests/RecordSearchStateTests.cs)等へ残す。共通条件と独立した店名/振替名の下書き、年月境界、0/1/99/100/101/201件、API順/カーソル/選択、300件補充上限・続行、二重取得、手動再試行、invalid_cursorの1回復旧、検索変更・中断/復帰・旧応答破棄を検証する。ローカルReleaseは最小2件→関連30件→追加の旧検索応答1件が成功（段階間に重複あり、失敗/skipなし）。関連検証の初回はコピー元型名が残ったコンパイルエラーで未実行となり、既存共通検索モデルへ修正した。
 
 [TransferListScenario.cs](Monetail.WinUI.Smoke/TransferListScenario.cs)・[TransferNavigationScenario.cs](Monetail.WinUI.Smoke/TransferNavigationScenario.cs)で初期配置、6列表示、共通AND条件、独立した文字列検索、狭幅1行/横スクロール/画面外への標準フォーカス移動・UIA、一覧スクロールとの独立、0件/読込/失敗/再試行、401/404、初回と追加取得の中断・同一条件での復帰/選択/非先頭スクロール保持を追加。振替/残高の登録入口は無効のままで、振替一覧GETだけを呼ぶ。スモーク作成中の失敗は、検証プロジェクトの新規ソース参照漏れ、名前のない既存ボタンの検索方式、通信完了直後の描画未確定での寸法確認を修正した。寸法は`UpdateLayout()`後に確認し、判定条件やタイムアウトは緩和していない。
 
