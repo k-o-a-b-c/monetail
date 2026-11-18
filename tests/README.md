@@ -33,7 +33,15 @@ CIは既存`windows-client-tests`内で両プロジェクトを実行する。Pr
 
 基点main `f7fb0e8`の[push Tests 44204197511](https://github.com/k-o-a-b-c/monetail/actions/runs/44204197511)成功を変更前の根拠とする。ローカルClient1,206件、Presentation40件、Python81件が成功。初回のローカル復元/IPCはサンドボックスで拒否されたため許可された実行で再試行し、通信可能な復元後のログにNU1900等の追加警告はない。初回Windowsビルドはx:Bind関数のstatic呼出不一致で失敗し、インスタンスメソッド化で修正した。Viewの継承メンバーとの同名警告も解消した。
 
-ソース`654306d`の[Tests 44207601522](https://github.com/k-o-a-b-c/monetail/actions/runs/44207601522)で製品/検証用x64 Release・起動・全36シナリオ/702確認（旧697＋新5）と単独3シナリオ/選択一覧/計測/不正指定拒否/PNG4枚生成が成功。両ビルドは各29件の既存WUI2011警告/0エラー、ネイティブアクセス違反は観測していない。保存行探索/検索Commandの境界補足後、最終製品/テストソース`0f19853`の[Tests 44210963664](https://github.com/k-o-a-b-c/monetail/actions/runs/44210963664)も成功。Client1,206件/Presentation40件とWindows全件を再確認し、非変更API/DB・Docker・旧Windows/性能/計算照合は同じ指紋の成功記録を再利用した。前の全体CIではAPI2,140件・Node・Docker/配備スモーク・旧Windows等も成功している。`git diff --check`と対象の書式検査も成功。構造比較は[構成資料](../docs/architecture-winui.md#実装の所有者と構造比較)を参照する。WinApp CLI/WinUIを実行できないLinuxのためWindows CIを使用し、実Windowsでの物理IME・タッチ・高DPI/支援技術等の手動操作は未検証。
+ソース`654306d`の[Tests 44207601522](https://github.com/k-o-a-b-c/monetail/actions/runs/44207601522)で製品/検証用x64 Release・起動・全36シナリオ/702確認（旧697＋新5）と単独3シナリオ/選択一覧/計測/不正指定拒否/PNG4枚生成が成功。両ビルドは各29件の既存WUI2011警告/0エラー、ネイティブアクセス違反は観測していない。保存行探索/検索Commandの境界補足後、MVVM移行時の製品/テストソース`0f19853`の[Tests 44210963664](https://github.com/k-o-a-b-c/monetail/actions/runs/44210963664)も成功。Client1,206件/Presentation40件とWindows全件を再確認し、非変更API/DB・Docker・旧Windows/性能/計算照合は同じ指紋の成功記録を再利用した。前の全体CIではAPI2,140件・Node・Docker/配備スモーク・旧Windows等も成功している。`git diff --check`と対象の書式検査も成功。構造比較は[構成資料](../docs/architecture-winui.md#実装の所有者と構造比較)を参照する。WinApp CLI/WinUIを実行できないLinuxのためWindows CIを使用し、実Windowsでの物理IME・タッチ・高DPI/支援技術等の手動操作は未検証。
+
+### TransferListViewの観測・表示要求の簡素化
+
+[TransferViewSimplificationScenario.cs](Monetail.WinUI.Smoke/TransferViewSimplificationScenario.cs)を同じ`transfer-list`へ接続し、20確認を追加した。巨大な合成表示領域で100→300件の補充上限/明示続行、Rows/Size変更後の測定、無関係なVM通知での予約なし、復元時の操作意図解除を確認する。実入力用には画面内へ配置を戻し、SendInputによるホイール/標準垂直Thumbのドラッグ/Endキー、合成DirectManipulation開始後の移動で100件ずつ1回だけ追加することを検証する。保存行250件目/450件目の可視範囲表示と探索要求数、標準ButtonのCanExecute通知、権限/編集中の起動待ち/取消後の有効状態も確認する。既存の縦横復元/選択/画面切替/401/IME/Tabの確認は維持した。
+
+基点`b71c7fa`の[Tests 44211936108](https://github.com/k-o-a-b-c/monetail/actions/runs/44211936108)成功を採用。今回のローカルPresentation40件（失敗/skip 0）、対象限定の書式検査、`git diff --check`が成功した。ソース`2e44d43`の[Tests 44242928618](https://github.com/k-o-a-b-c/monetail/actions/runs/44242928618)で製品/検証用x64 Release（各29件の既存WUI2011警告/0エラー）・製品起動・全36シナリオ/722確認が成功。振替一覧は50確認/9.788秒。個別3シナリオ・選択一覧/全件照合・計測・不正指定拒否・PNG4枚生成も成功した。非変更のClient/API/DB/Docker/旧Windows/性能/計算照合等は既存CIの同一fingerprintの成功を再利用した。
+
+自動補充の追加試験で、Loaded時の保持参照が現在のScrollViewerと一致せず監視できない状態を検出し、製品の接続をレイアウト確定後へ変更した。実入力試験は標準垂直Thumbの明示指定、画面内座標の確認、操作間の製品RestorePosition経路、移動も含むSendInputへ修正している。期待件数・既存判定・タイムアウトは緩和していない。途中の[Tests 44240087770 初回](https://github.com/k-o-a-b-c/monetail/actions/runs/44240087770/attempts/1)では、追加試験到達前に既存`input-controls`のEnter後フォーカス確認が1回失敗した。失敗ジョブの再実行と最終全件では通ったが、この一時失敗の原因は未特定であり、解決済みとは扱わない。物理IME/タッチ、高DPI・支援技術等の実Windows手動操作は未検証。タッチ開始は合成呼出であり、実タッチの検証ではない。
 
 ## WinUI：科目一覧UserControlの分離
 

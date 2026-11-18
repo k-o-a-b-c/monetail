@@ -107,7 +107,7 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 - `TransferListViewModel`は読取delegate・`RecordSearchState`・マスタ名称読取delegateを受け取る。`ObservableObject`/`RelayCommand`（CommunityToolkit.Mvvm 8.4.2）を使用し、WinUI/HTTP/認証の別実装を持たない。`Rows`は単一`ObservableCollection`の読取専用ラッパーで、`SelectedTransferId`は`SelectedItem`から導出する。`SearchText`には保存フィールドがなく、外部変更は`RefreshSearchText`で通知する。
 - `SearchCommand`/`RegisterCommand`/`EditCommand`は`SearchRequested`/`OpenRequested`の2通知だけでWindowへ委譲する。検索中の新しい検索も許可し、旧取得の中断/世代照合はVMで行う。登録可否はWindowが既存ルールで計算した`CanRegister`。`RetryCommand`/`ContinueCommand`/`ReturnToStartCommand`と一覧取得世代・中断/再開・保存行探索はVMが所有する。探索中の未解決IDもVMにだけ保持し、通常の選択IDと二重管理しない。
-- Viewの公開面は`ViewModel`、編集開始待ちのWindow所有UIを配置する`OpeningContent`（標準ContentControlの内容スロット）、`RememberPosition`/`RestorePosition`/`ScrollSelectionIntoView`/`ObserveViewport`。ListView・ScrollViewer・検索TextBoxは公開しない。IMEと実スクロールの状態はViewへ移し、外側の共通Enter移動との二重処理を防ぐ。
+- Viewの公開面は`ViewModel`、編集開始待ちのWindow所有UIを配置する`OpeningContent`（標準ContentControlの内容スロット）、`RememberPosition`/`RestorePosition`/`ObserveViewport`。ListView・ScrollViewer・検索TextBoxは公開しない。IMEと実スクロールの状態はViewへ移し、外側の共通Enter移動との二重処理を防ぐ。
 - `MainWindow.Transfers.cs`は共通条件の確定、Workspaceの既存依存をVMへ渡す接続、外部権限による登録可否、認証例外による画面遷移だけを担当する。編集/保存/401復帰は同じView/VMを使い、検索条件を変更しない往復では行・選択・縦横スクロールを保つ。
 
 ```mermaid
@@ -122,19 +122,28 @@ flowchart LR
 
 | 集計対象 | 基点main `f7fb0e8` | 分離後 |
 | --- | ---: | ---: |
-| WinUI＋Client＋PresentationのC#/XAML総行数 | 10,161 | 10,460 |
-| WinUIのC#/XAML行数 | 6,206 | 6,286 |
-| MainWindow.xaml / 全partial C#行数 | 959 / 4,661 | 908 / 4,550 |
+| WinUI＋Client＋PresentationのC#/XAML総行数 | 10,161 | 10,479 |
+| WinUIのC#/XAML行数 | 6,206 | 6,305 |
+| MainWindow.xaml / 全partial C#行数 | 959 / 4,661 | 908 / 4,549 |
 | MainWindowから一覧内部への直接参照（コントロール種類 / 出現数） | 13 / 29 | 0 / 0 |
 | MainWindowの一覧用明示フィールド（編集側の保存行・表示位置を含む） | 11 | 0 |
 | 行の格納先 | StateのDTO列＋Windowの表示列 | VMの表示列1つ |
 | 選択の正本 | StateのIDとWindow/ListViewとの手動同期 | VMのSelectedItem（IDは導出、Viewへ双方向バインド） |
 
-行数は各`src/Monetail.WinUI`/`Monetail.Windows.Client`/`Monetail.Windows.Presentation`の追跡済み`.cs`/`.xaml`、空行込み・生成物除外。差引299行増であり、コード量削減を成果としない。Viewの261行とPresentationの355行を追加し、旧State136行・旧Row19行を削除。MainWindowのXAML51行/C#111行減。移管対象のx:Nameの識別子一致で直接参照を数える（編集開始待ち4要素はWindow所有のまま対象外）。
+行数は各`src/Monetail.WinUI`/`Monetail.Windows.Client`/`Monetail.Windows.Presentation`の追跡済み`.cs`/`.xaml`、空行込み・生成物除外。差引318行増であり、コード量削減を成果としない。Viewの281行とPresentationの355行を追加し、旧State136行・旧Row19行を削除。MainWindowのXAML51行/C#112行減。移管対象のx:Nameの識別子一致で直接参照を数える（編集開始待ち4要素はWindow所有のまま対象外）。
 
 状態が消えたのではなく、旧Stateの15格納箇所に対しVMは19箇所（追加は読取専用ラッパー・外部CanRegister、Windowから移した探索ID/探索中の2つ）。注入依存、イベントdelegate、Toolkit生成Command、UIの生成フィールドはこの数に含めない。Viewの明示フィールドは7つで、IME helper・ScrollViewer・実スクロール観測・復帰位置tupleを保持する。VMに行/選択/検索下書きのコピーはなく、Viewにも行/選択ID/カーソルを持たせない。
 
-増えた依存はWinUI→Presentation→Clientと、Toolkitの通知/6 Command、2操作通知、Viewの2プロパティ/4操作である。共通条件・権限/認証・編集開始待ちのスロットはWindow、実表示位置はViewという境界の受け渡しは残る。汎用イベント/Service/DI基盤や、他画面のViewModel化は追加しない。関連テスト・CIと未検証事項は[tests/README.md](../tests/README.md)を参照する。
+増えた依存はWinUI→Presentation→Clientと、Toolkitの通知/6 Command、2操作通知、Viewの2プロパティ/3操作である。共通条件・権限/認証・編集開始待ちのスロットはWindow、実表示位置はViewという境界の受け渡しは残る。汎用イベント/Service/DI基盤や、他画面のViewModel化は追加しない。関連テスト・CIと未検証事項は[tests/README.md](../tests/README.md)を参照する。
+
+### 一覧Viewの観測境界
+
+- `ModelChanged`は保存行探索による非NULLの`SelectedItem`変更だけを監視し、同じVM/行であることを予約実行時にも確認して表示する。`SearchText`/`CanRegister`等の通知では測定しない。XAMLの`x:Bind`通知は独立して維持する。
+- 可視範囲は既存の`Rows.CollectionChanged`、`Loaded`、`ScrollViewer.ViewChanged`と`ListView.SizeChanged`、Windowからの表示復帰要求で測る。常時の`LayoutUpdated`は使用しない。既存の低優先Dispatcher要求へまとめ、`UpdateLayout`完了後に行範囲/スクロール領域を読む。レイアウト確定中の通知も同じ要求へまとめる。`Loaded`時点の参照を固定せず、確定後の現在のScrollViewerと異なる場合だけ旧購読を解除して接続し直す。タイマーや新しい状態フィールドは追加しない。
+- 保存行の`ScrollIntoView`はViewの選択通知に一本化し、保存処理からの重複呼出と公開`ScrollSelectionIntoView`を削除した。表示位置復元と保存行表示の前に操作意図を解除し、プログラムによるスクロールを追加取得の操作とみなさない。利用者のホイール/バー/キー/タッチ開始を表す既存フラグは残す。
+- 登録Buttonの有効状態は`RegisterCommand.CanExecute`だけで制御し、重複する`IsEnabled`バインディングを削除した。登録可否の計算、編集中の一覧非表示と編集開始ガードは既存のまま。
+
+レビュー修正の基点`b71c7fa`との比較では、ViewのXAML/C#は261→281行、製品全体は19行増。明示フィールド7つ（bool 3つ）は不変、公開操作4→3（代わりにprivateの`ConnectScroller`を追加、総メソッド数は不変）、保存行の表示要求元2→1、全プロパティ通知からの測定を0にした。行数を減らすための変更ではなく、観測対象・表示要求の所有者を絞り、遅延実行時の対象確認とレイアウト確定を明示する変更である。
 
 ## WinUIの責務棚卸しと段階的分離（検討順序・未実装）
 
