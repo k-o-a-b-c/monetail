@@ -163,12 +163,19 @@ public partial class App
         Check(((Monetail.Windows.Presentation.Transfers.TransferListItem)Find<ListView>(root, "TransferList").SelectedItem).Transfer.TransferId == saved.TransferId, "登録成功後は保存行を選択する");
         Find<ListView>(root, "TransferList").SelectedIndex = 0; await Settle(); Check(server.Details == 0, "振替の単一選択は詳細GETしない");
         var doubleTapCount = 0;
-        Find<ListView>(root, "TransferList").DoubleTapped += (_, _) => doubleTapCount++;
+        var routedDoubleTapCount = 0;
+        var pointerPressedCount = 0;
+        var taps = 0;
+        var transferList = Find<ListView>(root, "TransferList");
+        transferList.DoubleTapped += (_, _) => doubleTapCount++;
+        transferList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler((_, _) => routedDoubleTapCount++), true);
+        transferList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => pointerPressedCount++), true);
+        transferList.AddHandler(UIElement.TappedEvent, new TappedEventHandler((_, _) => taps++), true);
         await DoubleClickTransfer(root);
         try { await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded); }
         catch (TaskCanceledException error)
         {
-            throw new InvalidOperationException($"ダブルクリック後の編集開始: doubleTapped={doubleTapCount}; details={server.Details}; opening={Find<StackPanel>(root, "TransferOpenNotice").Visibility}; editor={TransferEditing is not null}", error);
+            throw new InvalidOperationException($"ダブルクリック後の編集開始: pointerPressed={pointerPressedCount}; tapped={taps}; handledDoubleTapped={routedDoubleTapCount}; doubleTapped={doubleTapCount}; details={server.Details}; opening={Find<StackPanel>(root, "TransferOpenNotice").Visibility}; editor={TransferEditing is not null}", error);
         }
         Check(server.Details == 1, "振替行の実ダブルクリックは詳細GETを1回だけ実行する");
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Revision == saved.Revision && Equals(Find<Button>(root, "TransferSave").Content, "更新"), "既存編集はID・版・保存値と更新操作を復元");
