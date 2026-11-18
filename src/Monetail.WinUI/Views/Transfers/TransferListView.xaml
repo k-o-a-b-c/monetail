@@ -68,7 +68,7 @@
                 <TextBlock x:Name="TransferInitialError" Text="{x:Bind ViewModel.ErrorText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                 <Button x:Name="TransferInitialRetry" Content="再試行" Command="{x:Bind ViewModel.RetryCommand, Mode=OneWay}" AutomationProperties.AutomationId="TransferInitialRetry"/>
             </StackPanel>
-                <Border Style="{StaticResource Card}" Padding="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="400"
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Padding="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="400"
                         Visibility="{x:Bind OpeningContent.Visibility, Mode=OneWay}">
                     <ContentControl Content="{x:Bind OpeningContent, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
                 </Border>
