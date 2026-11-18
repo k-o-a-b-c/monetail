@@ -210,7 +210,9 @@ public sealed partial class TransferListViewModel(
         if (ViewportFilled != filled)
         {
             ViewportFilled = filled;
-            NotifyState();
+            OnPropertyChanged(nameof(ViewportFilled));
+            OnPropertyChanged(nameof(CanContinue));
+            ContinueCommand.NotifyCanExecuteChanged();
         }
         if (IsFindingSaved || suspended || !HasLoaded || IsLoading || Failure is not null || NextCursor is null)
             return;
