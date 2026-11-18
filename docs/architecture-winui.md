@@ -61,12 +61,12 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 | 置き場所 | 役割 |
 | --- | --- |
-| `Monetail.WinUI/Views/Transfers/TransferListView.xaml` | 6列の一覧、振替名検索、登録、読込中・空・エラー・再試行・続きを読み込む等の表示 |
-| `Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs` | WinUI固有のListView可視範囲・スクロール・IME/キーボード・フォーカス、画面遷移通知。Window内部コントロールへは依存しない |
+| `Monetail.WinUI/Views/Transfers/TransferListView.xaml` | 6列の一覧、見出し・登録・focus時の先頭復帰、読込中・空・エラー・再試行・続きを読み込む等の表示 |
+| `Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs` | WinUI固有のListView可視範囲・スクロール・フォーカス、画面遷移通知。Window内部コントロールへは依存しない |
 | `Monetail.Windows.Presentation/Transfers/TransferListViewModel.cs` | `CommunityToolkit.Mvvm`による通知・Command、唯一の行コレクション・選択・一覧取得・カーソル・失敗/再試行・中断/再開・保存行の探索状態 |
 | `Monetail.Windows.Presentation/Transfers/TransferListItem.cs` | API応答からの表示用投影（日時・振替元/先名称・金額・メモ）。マスタ名の再取得で必要な項目を更新できること |
 | `Monetail.Windows.Client` | `TransfersWorkspace`、`TransferListQuery`、API DTO、認証例外と通信契約。移管後は一覧状態を二重保持しない |
-| `MainWindow` | 共通年月・人物・支払方法、振替名の確定済み検索条件の連携、家計簿切替、入力画面への遷移、401認証復帰とWindow寿命 |
+| `MainWindow` | 共通年月・人物・支払方法・共通キーワードの適用、家計簿切替、入力画面への遷移、401認証復帰とWindow寿命 |
 
 `Monetail.Windows.Presentation`は**WinUI 3を参照しない`net10.0`のクラスライブラリ**とし、既存Clientと`CommunityToolkit.Mvvm`を参照する。DIコンテナー、新しい汎用ナビゲーション/Service/イベント基盤は追加しない。ViewModelはコンストラクターで必要な依存を受け取り、`MainWindow`や`Microsoft.UI.Xaml`を参照しない。検索の適用済み条件は引き続き`RecordSearchState`を正本とし、ViewModel内に別の適用済みフィルター状態を複製しない。検索欄の未確定入力と適用済み条件は区別する。
 
@@ -79,21 +79,21 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 | `TransferListViewModel` → `TransferListView` | 読み取り専用の`Rows`、双方向の`SelectedItem`・`SearchText`、初回/追加読込・空・失敗と再試行可否・エラー文、登録可否、`Search`/`Retry`/`Continue`/`ReturnToStart`コマンド | `ScrollViewer`、`Visibility`などWinUI型や画面要素 |
 | `TransferListView` → `TransferListViewModel` | 選択通知、可視最終行・領域が埋まったか・利用者の下方向スクロール意図の通知 | ScrollViewerそのものやXAMLの内部`x:Name`をVMへ渡さない |
 | `MainWindow` → `TransferListViewModel` | 現行家計簿に対応する一覧開始/再検索（確定済み`TransferListQuery`を渡す）、保存行探索・再選択、画面離脱の`Suspend`と復帰の`Resume`、終了時の破棄、支払方法表示名変更の通知、登録可否の更新 | 同じ行コレクション/カーソル/選択をMainWindowでも保持しない |
-| `TransferListViewModel` → `MainWindow` | 振替名の検索適用要求、登録/選択行の編集要求、認証継続不可を判別する取得エラーの通知・参照 | Windowの画面遷移・ContentDialog・共通年月の直接操作 |
+| `TransferListViewModel` → `MainWindow` | 登録/選択行の編集要求（共通キーワード検索の確定はMainWindowから実行）、認証継続不可を判別する取得エラーの通知・参照 | Windowの画面遷移・ContentDialog・共通年月の直接操作 |
 | `MainWindow` ↔ `TransferListView` | 編集画面との往復に必要な縦横スクロール位置の記憶・復元、選択行を必要なときだけ画面内に表示する操作 | ListView/ScrollViewerのインスタンスや内部ボタンを公開しない |
 | `TransferListViewModel` → `TransfersWorkspace` | 既存`ListAsync(TransferListQuery, CancellationToken)`でデータ取得。支払方法名称は既存マスタから提供された読み取り手段で表示投影する | API認証・JSON・業務クエリ契約の再実装 |
 
 **状態の正本**：
 
-- 共通年月・人物・支払方法と、振替名の**適用済み**検索条件は従来どおり`RecordSearchState`が正本。検索欄の**未確定**振替名も`RecordSearchState.TransferText`を正本とし、VMのバインド用`SearchText`はその値を読み書きする公開窓口（別の保存フィールドを持たない）。保存後の`ApplySavedTransfer`など、外部で値が更新されたらVMの変更通知を発火させる。確定の成否とレシート一覧の再取得要否は共通フィルターを管理するMainWindowで判断し、VMには確定済みのクエリを渡す。
+- 共通年月・人物・支払方法・両一覧の文字列検索の適用値は`RecordSearchState`と内包する`ReceiptSearchState`が正本。表示中の共通キーワード下書きは`MainWindow.RecordKeyword`に保持し、［検索］／Enterで`ApplySharedText`が年月を検証して両方へ確定する。個別VMの`SearchText`は互換の公開窓口として残すが各一覧に検索欄は置かない。振替保存後は`ApplySavedTransfer`の調整後に共通キーワードも両方へ同期し、Viewの表示値も更新する。
 - 一覧データ・選択行・読み込み/失敗・後続カーソル・初回自動補充回数・要求世代・中断再開情報は**VMのみに保持**する。`SelectedItem`から振替IDを導出し、同じ選択を別フィールドでも常時保持しない。API実行中の固定クエリは遅延応答を判定するためのスナップショットであり、共通フィルターの新しい正本ではない。
 - 表示用`TransferListItem`はAPI行の投影と、支払方法名の変更通知だけを持つ。新しい永続状態・業務検証・Commandを持たない。行を一意に特定できる振替IDは提供する。
-- `TransferListView`は実コントロール、スクロールの一時位置・利用者操作意図、IME/フォーカスだけを保持する。行・選択ID・ページングをView内に複製しない。既存Home領域とViewのインスタンスを維持して隠す/戻す際、選択と縦横スクロールを復元する。
+- `TransferListView`は実コントロール、スクロールの一時位置・利用者操作意図・フォーカスだけを保持する。行・選択ID・ページングをView内に複製しない。既存Home領域とViewのインスタンスを維持して隠す/戻す際、選択と縦横スクロールを復元する。
 - 登録ボタンの可否は既存の権限判定と編集中のオープン状態から**外側で確定した結果**をVMへ渡してバインドする。VMに認証/権限の別判定を実装しない。取得401の認証画面遷移もWindowの責務で、VMから直接`NavigateToLogin`しない。
 
 **操作の流れ**：
 
-1. 共通フィルター変更 → MainWindowが確定条件を生成 → VMが旧要求を無効化して一覧先頭からGET → `Rows`と表示状態をバインド更新。振替名検索ボタン/EnterはViewからVMの操作要求を経てMainWindowが共通年月の入力検証も行い、必要な一覧だけ再取得する。IME変換中のEnterで検索しない。
+1. 共通フィルター変更 → MainWindowが確定条件を生成 → VMが旧要求を無効化して一覧先頭からGET → `Rows`と表示状態をバインド更新。共通キーワード欄の［検索］／EnterはMainWindowが共通年月の入力検証も行い、レシート・振替の両一覧を再取得する。IME変換中のEnterで検索しない。
 2. 一覧の下方向スクロール/サイズ変更 → Viewが可視行・領域充足・利用者スクロールを通知 → VMが既存の先読み/最大300件仕様で必要な場合にのみ追加取得する。スクロール位置そのものはViewに残す。
 3. 登録/編集 → VMの操作要求をMainWindowが受けて入力画面を開く → VMは中断し、必要ならViewが位置を記憶。保存/削除成功時はMainWindowが共通条件を調整後にVMへ確定クエリと保存ID（削除時は選択解除）を渡して一覧を更新。保存失敗時は一覧条件や選択を変更しない。
 4. 一覧取得失敗 → VMが初回/追加の失敗状態を通知 → Viewが対応箇所に表示。認証失効の遷移だけMainWindowが判断する。家計簿/アカウント切替・ウィンドウ終了で中断/破棄し、旧レスポンスを反映しない。
@@ -151,7 +151,7 @@ PR #202の振替一覧と同じ責務境界へ移行し、旧`ReceiptListState`�
 
 | 所有者 | 担当 |
 | --- | --- |
-| `Views/Receipts/ReceiptListView.xaml/.cs` | 既存6列・店名検索・登録・読込/空/失敗/再試行/続行、可視範囲と実スクロール・IME・フォーカス・縦横位置の記憶/復元 |
+| `Views/Receipts/ReceiptListView.xaml/.cs` | 既存6列・見出し・登録・focus時の先頭復帰・読込/空/失敗/再試行/続行、可視範囲と実スクロール・フォーカス・縦横位置の記憶/復元 |
 | `Presentation/Receipts/ReceiptListViewModel` | 唯一の表示行コレクション・選択、取得世代/カーソル、100件取得・300件補充・20行先読み、中断/再開・1回カーソル復旧、通知と5 Command |
 | `Presentation/Receipts/ReceiptListItem` | 保存済み応答の表示用投影。ローカル秒精度・NULL・保存済み合計額を保持し、マスタ名称だけ再表示。独自ソート/再計算なし |
 | `MainWindow.Receipts.cs`等 | `RecordSearchState`、共通年月/人物/支払方法、検索確定、共有マスタ取得、Workspace接続、登録可否・編集遷移・認証/Window寿命 |
@@ -159,7 +159,7 @@ PR #202の振替一覧と同じ責務境界へ移行し、旧`ReceiptListState`�
 
 Viewは`ViewModel`/`OpeningContent`の2プロパティと`RememberPosition`/`RestorePosition`/`ObserveViewport`の3操作だけを公開する。WindowやClientSession、一覧内コントロールは渡さない。編集開始待ちUIはWindowの名前スコープ/所有権を維持した内容スロットに置き、そのVisibilityにラッパーも追従して従来の間隔を維持する。
 
-VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口。`SelectedReceiptId`は`SelectedItem`から導出し、ListViewへ双方向バインドする。旧WindowのDTO→表示行同期と選択ID同期は削除した。`SearchText`は`RecordSearchState.Receipts.ShopText`の窓口で別の格納先を持たず、確定はWindowの`SearchRequested`処理へ委譲する。要求中の`conditions`はカーソル/世代に結び付いた読取スナップショットであり、新しい編集用フィルターではない。
+VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口。`SelectedReceiptId`は`SelectedItem`から導出し、ListViewへ双方向バインドする。旧WindowのDTO→表示行同期と選択ID同期は削除した。`SearchText`は`RecordSearchState.Receipts.ShopText`の窓口で別の格納先を持たないが、現行WinUIの共通キーワード検索はWindowが直接確定する。要求中の`conditions`はカーソル/世代に結び付いた読取スナップショットであり、新しい編集用フィルターではない。
 
 `SearchCommand`/`RegisterCommand`/`EditCommand`と2通知（`SearchRequested`/`OpenRequested`）を使用する。登録可否は従来のWindowルールを`CanRegister`へ渡す。登録/編集の進行中ガードもWindowの既存`receiptOpening`等が正本であり、取消済みの旧HTTP応答待ちをCommandの別ガードとして残さない。検索の競合はVMの世代管理で、編集開始の競合はWindowの既存照合で処理する。`RetryCommand`/`ContinueCommand`はVMの現在状態に従う。
 
@@ -284,11 +284,11 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 ## 記録ホームの共通フィルター・振替一覧
 
-`RecordSearchState`が既存`ReceiptSearchState`を保持し、年月・全期間・人物・支払方法を両一覧へ共通適用する。店名・振替名の下書きと確定値は独立させ、共通年月だけの確定では名前下書きを適用しない。表示・操作の正本は[ホーム3一覧](ledger-transfer-ui.md#3つの一覧と共通フィルター確定範囲)と[共通UI](../UI_DESIGN.md)。
+`RecordSearchState`が既存`ReceiptSearchState`を保持し、年月・全期間・人物・支払方法を両一覧へ共通適用する。上部のキーワード入力1つを検索確定時に店名と振替名の両方へ適用する。共通年月だけの確定ではキーワード下書きを適用しない。表示・操作の正本は[ホーム3一覧](ledger-transfer-ui.md#3つの一覧と共通フィルター確定範囲)と[共通UI](../UI_DESIGN.md)。
 
 `MainWindow.Transfers.cs`が既存`TransfersWorkspace.ListAsync`をPresentationへ接続し、UI非依存の`TransferListViewModel`で取得世代・ページング・中断／再開を管理する。`TransferListItem`はAPI順と保存金額を維持し、支払方法名を既存マスタキャッシュから表示する。レシートと振替はそれぞれ読込・失敗・再試行を管理し、共通条件変更時は両一覧の旧世代を破棄する。マスタ取得はホーム文脈のCancellationTokenで共有し、片方の検索中断だけでは他方のマスタ待機を失敗させない。
 
-共通フィルターは横1行の標準`ScrollViewer`、一覧は各`ListView`内のスクロールを使用する。初期の上下60:40・下段左右2:1を実装済み。振替入力・保存後focusは下記の第3工程で接続。残高データ・スプリッター・比率保存は後続。
+年月・人物・支払方法フィルターは横1行の標準`ScrollViewer`、その下に共通キーワード1行を置く。各一覧は見出し・登録（必要時の［先頭に戻る］）の1行の下に`ListView`を持ち、編集開始通知は一覧に重ねる。各一覧のスクロールは独立する。初期の上下60:40・下段左右2:1を実装済み。振替入力・保存後focusは下記の第3工程で接続。残高データ・スプリッター・比率保存は後続。
 
 ## 振替のClient書込接続
 
