@@ -5,15 +5,42 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Monetail.WinUI.Input;
 using Monetail.WinUI.Views.Receipts;
+using Monetail.Windows.Client.Authentication;
+using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transport;
 
 namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
+    private async Task CheckReceiptOffHomeAuthentication()
+    {
+        using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
+        var masters = new PaymentServer();
+        var reject = false;
+        fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
+        fixture.PaymentsHandler = masters.HandleAsync;
+        fixture.ReceiptsHandler = (_, _) => reject
+            ? Task.FromException<HttpResponseMessage>(new AuthenticationContextChangedException())
+            : Task.FromResult(PaymentServer.Json(new ReceiptListInfo([], null)));
+        var root = await OpenSyntheticWindow(fixture);
+        await StartSyntheticAsync();
+        await Wait(() => window!.ReceiptHomeReady);
+        var model = Find<ReceiptListView>(root, "ReceiptsView").ViewModel
+            ?? throw new InvalidOperationException("レシート一覧VMがありません。");
+        await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+        await Wait(() => Visible(root, "ManagementPage"));
+        reject = true;
+        await model.StartAsync(new ReceiptListQuery("all"));
+        await Settle();
+        Check(model.Failure is AuthenticationContextChangedException && Visible(root, "ManagementPage") && !Visible(root, "LoginPage"),
+            "管理画面表示中のレシート一覧の失効通知は現在画面のナビゲーションを横取りしない");
+    }
+
     private async Task CheckReceiptMvvmBoundary()
     {
         await CheckReceiptViewportBindings();
+        await CheckReceiptOffHomeAuthentication();
         await CheckReceiptSavedRows();
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var masters = new PaymentServer();
