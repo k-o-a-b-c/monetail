@@ -13,6 +13,39 @@ namespace Monetail.Windows.Presentation.Tests;
 public sealed class TransferPresentationTests
 {
     [Fact]
+    public async Task ViewportFillChangeNotifiesOnlyDependentPropertiesAndContinueCommand()
+    {
+        var calls = 0;
+        using var model = Create((_, _) =>
+            Task.FromResult(new TransferListInfo(Rows(calls++ * 100, 100), "next")));
+        await model.StartAsync(new("all"));
+        await model.ObserveViewportAsync(99, false, false);
+        await model.ObserveViewportAsync(199, false, false);
+        Assert.True(model.CanContinue);
+
+        var changed = new List<string?>();
+        var commandChanges = 0;
+        model.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        model.ContinueCommand.CanExecuteChanged += (_, _) => commandChanges++;
+
+        await model.ObserveViewportAsync(299, true, false);
+        Assert.Equal(new[] { nameof(model.ViewportFilled), nameof(model.CanContinue) }, changed);
+        Assert.False(model.ContinueCommand.CanExecute(null));
+        Assert.Equal(1, commandChanges);
+
+        changed.Clear();
+        await model.ObserveViewportAsync(299, true, false);
+        Assert.Empty(changed);
+        Assert.Equal(1, commandChanges);
+
+        await model.ObserveViewportAsync(299, false, false);
+        Assert.Equal(new[] { nameof(model.ViewportFilled), nameof(model.CanContinue) }, changed);
+        Assert.True(model.ContinueCommand.CanExecute(null));
+        Assert.Equal(2, commandChanges);
+        Assert.Equal(3, calls);
+    }
+
+    [Fact]
     public async Task SearchProxiesTheSingleSharedDraftAndRequestsCommitWithoutFetchingOrChangingFilters()
     {
         var search = new RecordSearchState(new(2026, 12, 31));
