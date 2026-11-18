@@ -51,7 +51,14 @@ public partial class App
 
         // 物理画面より大きい合成レイアウトで、100件でも埋まらない表示領域を再現する。
         view.Height = 20000;
-        await Wait(() => model.Rows.Count == 300 && !model.IsLoading && model.CanContinue);
+        try
+        {
+            await Wait(() => model.Rows.Count == 300 && !model.IsLoading && model.CanContinue);
+        }
+        catch (OperationCanceledException error)
+        {
+            throw new InvalidOperationException($"補充後の状態: rows={model.Rows.Count}, reads={string.Join(',', reads)}, fill={model.AutomaticFillCount}, loading={model.IsLoading}, filled={model.ViewportFilled}, view={view.ActualHeight}, list={list.ActualHeight}, viewport={scroll.ViewportHeight}, extent={scroll.ExtentHeight}, scrollable={scroll.ScrollableHeight}", error);
+        }
         await Settle();
         Check(reads.SequenceEqual(new[] { 0, 100, 200 }) && model.AutomaticFillCount == 2 && scroll.ScrollableHeight == 0,
             "SizeChangedと行追加でレイアウト確定後に2回補充し、300件で自動取得を停止する");
