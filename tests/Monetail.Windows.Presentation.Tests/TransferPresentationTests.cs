@@ -131,7 +131,11 @@ public sealed class TransferPresentationTests
     {
         var name = "現金";
         var reads = 0;
-        var saved = Rows(0, 1)[0] with { Amount = 12345, Memo = "保存済み" };
+        var saved = Rows(0, 1)[0] with
+        {
+            Amount = 12345,
+            Memo = "保存済み"
+        };
         using var model = new TransferListViewModel((_, _) => { reads++; return Task.FromResult(new TransferListInfo([saved], null)); }, new(new(2026, 11, 10)), _ => name);
         await model.StartAsync(new("all"));
         model.SelectedItem = model.Rows[0];

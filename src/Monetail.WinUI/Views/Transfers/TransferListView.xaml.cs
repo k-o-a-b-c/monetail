@@ -58,7 +58,7 @@ public sealed partial class TransferListView : UserControl
                 scrollIntent = scroller?.ScrollableHeight > 0;
         }), true);
     }
-    private static Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+    private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
     private void ChangeModel(TransferListViewModel? previous, TransferListViewModel? current)
     {
         if (previous is not null)
@@ -84,7 +84,8 @@ public sealed partial class TransferListView : UserControl
     }
     private void RowsChanged(object? sender, NotifyCollectionChangedEventArgs args)
     {
-        if (args.Action == NotifyCollectionChangedAction.Reset) ResetViewport();
+        if (args.Action == NotifyCollectionChangedAction.Reset)
+            ResetViewport();
     }
     private void ResetViewport()
     {
@@ -95,31 +96,37 @@ public sealed partial class TransferListView : UserControl
     public void RememberPosition() => returnPosition = (scroller?.HorizontalOffset ?? 0, scroller?.VerticalOffset ?? 0);
     public void RestorePosition() => DispatcherQueue.TryEnqueue(() =>
     {
-        if (CanObserve()) scroller?.ChangeView(returnPosition.Horizontal, returnPosition.Vertical, null, true);
+        if (CanObserve())
+            scroller?.ChangeView(returnPosition.Horizontal, returnPosition.Vertical, null, true);
     });
     public void ScrollSelectionIntoView()
     {
-        if (ViewModel?.SelectedItem is { } row) TransferList.ScrollIntoView(row);
+        if (ViewModel?.SelectedItem is { } row)
+            TransferList.ScrollIntoView(row);
     }
     private bool CanObserve()
     {
-        if (!IsLoaded || scroller is null || ViewModel is null) return false;
+        if (!IsLoaded || scroller is null || ViewModel is null)
+            return false;
         for (DependencyObject? element = this; element is not null; element = VisualTreeHelper.GetParent(element))
-            if (element is FrameworkElement { Visibility: Visibility.Collapsed }) return false;
+            if (element is FrameworkElement { Visibility: Visibility.Collapsed })
+                return false;
         return true;
     }
     public void ObserveViewport() => ScheduleViewport(false);
     private void ScheduleViewport(bool user)
     {
         queuedUserScroll |= user;
-        if (viewportQueued || !CanObserve()) return;
+        if (viewportQueued || !CanObserve())
+            return;
         viewportQueued = true;
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, async () =>
         {
             viewportQueued = false;
             var scrolled = queuedUserScroll;
             queuedUserScroll = false;
-            if (!CanObserve() || ViewModel is not { } model || scroller is null) return;
+            if (!CanObserve() || ViewModel is not { } model || scroller is null)
+                return;
             var panel = TransferList.ItemsPanelRoot as ItemsStackPanel;
             await model.ObserveViewportAsync(panel?.LastVisibleIndex ?? -1, scroller.ScrollableHeight > 0, scrolled);
         });
@@ -129,8 +136,10 @@ public sealed partial class TransferListView : UserControl
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T result) return result;
-            if (Descendant<T>(child) is { } nested) return nested;
+            if (child is T result)
+                return result;
+            if (Descendant<T>(child) is { } nested)
+                return nested;
         }
         return null;
     }
@@ -141,18 +150,20 @@ public sealed partial class TransferListView : UserControl
         {
             scroller.ViewChanged -= ViewChanged;
             scroller.ViewChanged += ViewChanged;
-            scroller.DirectManipulationStarted -= ManipulationStarted;
-            scroller.DirectManipulationStarted += ManipulationStarted;
+            scroller.DirectManipulationStarted -= ListManipulationStarted;
+            scroller.DirectManipulationStarted += ListManipulationStarted;
         }
         ObserveViewport();
     }
-    private void ManipulationStarted(object? sender, object args) => scrollIntent = scroller?.ScrollableHeight > 0;
+    private void ListManipulationStarted(object? sender, object args) => scrollIntent = scroller?.ScrollableHeight > 0;
     private void ViewChanged(object? sender, ScrollViewerViewChangedEventArgs args)
     {
-        if (scroller is null) return;
+        if (scroller is null)
+            return;
         var user = scrollIntent && scroller.VerticalOffset > previousOffset;
         previousOffset = scroller.VerticalOffset;
-        if (!args.IsIntermediate) scrollIntent = false;
+        if (!args.IsIntermediate)
+            scrollIntent = false;
         ScheduleViewport(user);
     }
     private void TransferLayoutChanged(object sender, object args) => ObserveViewport();
@@ -168,7 +179,8 @@ public sealed partial class TransferListView : UserControl
     }
     private void TransferTextKeyDown(object sender, KeyRoutedEventArgs args)
     {
-        if (args.Key != VirtualKey.Enter) return;
+        if (args.Key != VirtualKey.Enter)
+            return;
         // TextBox/IMEの標準処理後、外側の共通Enter移動へ流さない。
         if (keyboard.IsComposing)
         {
@@ -177,7 +189,8 @@ public sealed partial class TransferListView : UserControl
         }
         if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down) ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) ||
-            InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down)) return;
+            InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down))
+            return;
         args.Handled = true;
         ViewModel?.SearchCommand.Execute(null);
     }

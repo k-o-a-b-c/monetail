@@ -25,7 +25,8 @@ public sealed partial class TransferListViewModel(
         get => selectedItem;
         set
         {
-            if (SetProperty(ref selectedItem, value)) OnPropertyChanged(nameof(SelectedTransferId));
+            if (SetProperty(ref selectedItem, value))
+                OnPropertyChanged(nameof(SelectedTransferId));
         }
     }
     public Guid? SelectedTransferId => SelectedItem?.TransferId;
@@ -34,7 +35,8 @@ public sealed partial class TransferListViewModel(
         get => search.TransferText;
         set
         {
-            if (search.TransferText == value) return;
+            if (search.TransferText == value)
+                return;
             search.TransferText = value;
             OnPropertyChanged();
         }
@@ -46,7 +48,8 @@ public sealed partial class TransferListViewModel(
         get => canRegister;
         set
         {
-            if (SetProperty(ref canRegister, value)) RegisterCommand.NotifyCanExecuteChanged();
+            if (SetProperty(ref canRegister, value))
+                RegisterCommand.NotifyCanExecuteChanged();
         }
     }
     public event Func<Task>? SearchRequested;
@@ -59,24 +62,46 @@ public sealed partial class TransferListViewModel(
     private Task EditAsync(Guid transferId) => OpenRequested?.Invoke(transferId) ?? Task.CompletedTask;
     public void RefreshNames()
     {
-        foreach (var row in rows) row.RefreshName();
+        foreach (var row in rows)
+            row.RefreshName();
     }
-    public bool IsLoading { get; private set; }
-    public bool HasLoaded { get; private set; }
+    public bool IsLoading
+    {
+        get; private set;
+    }
+    public bool HasLoaded
+    {
+        get; private set;
+    }
     public bool IsInitialLoading => IsLoading && !HasLoaded;
     public bool IsContinuationLoading => IsLoading && HasLoaded;
-    public Exception? Failure { get; private set; }
+    public Exception? Failure
+    {
+        get; private set;
+    }
     public bool IsInitialFailure => Failure is not null && !HasLoaded;
     public bool IsContinuationFailure => Failure is not null && HasLoaded;
-    public string? NextCursor { get; private set; }
-    public int AutomaticFillCount { get; private set; }
-    public bool ViewportFilled { get; private set; }
+    public string? NextCursor
+    {
+        get; private set;
+    }
+    public int AutomaticFillCount
+    {
+        get; private set;
+    }
+    public bool ViewportFilled
+    {
+        get; private set;
+    }
     public bool CanContinue => HasLoaded && !IsLoading && Failure is null && NextCursor is not null && !ViewportFilled && Rows.Count >= 300;
     public Guid? FocusTransferId => conditions?.FocusTransferId;
     public bool IsFocused => FocusTransferId is not null && HasLoaded;
     public bool IsEmpty => HasLoaded && Rows.Count == 0 && Failure is null && !IsLoading;
     public bool CanRetry => Failure is not null && !IsLoading;
-    public bool IsFindingSaved { get; private set; }
+    public bool IsFindingSaved
+    {
+        get; private set;
+    }
     private Guid? savedTarget;
     public string ErrorText => Failure switch
     {
@@ -100,9 +125,18 @@ public sealed partial class TransferListViewModel(
     }
     private Task StartReadAsync(TransferListQuery query, CancellationToken token, bool findingSaved = false)
     {
-        Stop(false, false); IsFindingSaved = findingSaved; suspended = false; conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusTransferId: query.FocusTransferId);
-        rows.Clear(); SelectedItem = null; NextCursor = null; HasLoaded = false; Failure = null;
-        AutomaticFillCount = 0; ViewportFilled = false; recoveredCursor = false;
+        Stop(false, false);
+        IsFindingSaved = findingSaved;
+        suspended = false;
+        conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusTransferId: query.FocusTransferId);
+        rows.Clear();
+        SelectedItem = null;
+        NextCursor = null;
+        HasLoaded = false;
+        Failure = null;
+        AutomaticFillCount = 0;
+        ViewportFilled = false;
+        recoveredCursor = false;
         return ReadAsync(false, token);
     }
     public Task ShowSavedAsync(TransferListQuery query, Guid transferId, CancellationToken token = default)
@@ -121,7 +155,8 @@ public sealed partial class TransferListViewModel(
                 while (epoch == generation && Failure is null && !Rows.Any(r => r.TransferId == transferId) &&
                     NextCursor is not null && AutomaticFillCount < 2)
                     await ReadAsync(true, token, automaticFill: true);
-                if (epoch != generation || Failure is not null || token.IsCancellationRequested) return;
+                if (epoch != generation || Failure is not null || token.IsCancellationRequested)
+                    return;
                 if (!Rows.Any(r => r.TransferId == transferId))
                 {
                     var focused = StartReadAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q,
@@ -130,7 +165,8 @@ public sealed partial class TransferListViewModel(
                     await focused;
                 }
             }
-            if (epoch == generation && Failure is null && !token.IsCancellationRequested) SelectSaved(transferId);
+            if (epoch == generation && Failure is null && !token.IsCancellationRequested)
+                SelectSaved(transferId);
         }
         finally
         {
@@ -144,7 +180,8 @@ public sealed partial class TransferListViewModel(
     }
     private void SelectSaved(Guid id)
     {
-        if (Rows.FirstOrDefault(r => r.TransferId == id) is not { } row) return;
+        if (Rows.FirstOrDefault(r => r.TransferId == id) is not { } row)
+            return;
         SelectedItem = row;
         savedTarget = null;
     }
@@ -155,20 +192,37 @@ public sealed partial class TransferListViewModel(
     private void Stop(bool remember, bool notify)
     {
         var wasLoading = IsLoading;
-        if (!remember) { interruptedRead = null; IsFindingSaved = false; }
-        else if (wasLoading) interruptedRead = activeRead;
-        generation++; suspended = true;
-        cancellation?.Cancel(); cancellation?.Dispose(); cancellation = null;
-        activeRead = null; IsLoading = false; IsFindingSaved = false;
-        if (notify && wasLoading) NotifyState();
+        if (!remember)
+        {
+            interruptedRead = null;
+            IsFindingSaved = false;
+        }
+        else if (wasLoading)
+            interruptedRead = activeRead;
+        generation++;
+        suspended = true;
+        cancellation?.Cancel();
+        cancellation?.Dispose();
+        cancellation = null;
+        activeRead = null;
+        IsLoading = false;
+        IsFindingSaved = false;
+        if (notify && wasLoading)
+            NotifyState();
     }
     public async Task ObserveViewportAsync(int lastVisible, bool filled, bool userScrolled, CancellationToken token = default)
     {
-        if (ViewportFilled != filled) { ViewportFilled = filled; NotifyState(); }
-        if (IsFindingSaved || suspended || !HasLoaded || IsLoading || Failure is not null || NextCursor is null) return;
+        if (ViewportFilled != filled)
+        {
+            ViewportFilled = filled;
+            NotifyState();
+        }
+        if (IsFindingSaved || suspended || !HasLoaded || IsLoading || Failure is not null || NextCursor is null)
+            return;
         if (userScrolled)
         {
-            if (lastVisible >= 0 && Rows.Count - 1 - lastVisible <= 20) await ReadAsync(true, token);
+            if (lastVisible >= 0 && Rows.Count - 1 - lastVisible <= 20)
+                await ReadAsync(true, token);
         }
         else if (!filled && AutomaticFillCount < 2 && Rows.Count < 300)
             await ReadAsync(true, token, automaticFill: true);
@@ -180,9 +234,11 @@ public sealed partial class TransferListViewModel(
         : savedTarget is Guid id ? ShowSavedAsync(search.TransferQuery(), id, token) : ReadAsync(HasLoaded, token);
     public Task ResumeAsync(CancellationToken token = default)
     {
-        if (IsLoading) return Task.CompletedTask;
+        if (IsLoading)
+            return Task.CompletedTask;
         suspended = false;
-        if (Failure is not null || conditions is null) return Task.CompletedTask;
+        if (Failure is not null || conditions is null)
+            return Task.CompletedTask;
         if (interruptedRead is { } pending)
         {
             interruptedRead = null;
@@ -194,10 +250,16 @@ public sealed partial class TransferListViewModel(
     }
     private async Task ReadAsync(bool append, CancellationToken token, bool automaticFill = false)
     {
-        if (suspended || IsLoading || conditions is null || append && NextCursor is null) return;
+        if (suspended || IsLoading || conditions is null || append && NextCursor is null)
+            return;
         var epoch = generation;
-        cancellation?.Dispose(); cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var ct = cancellation.Token; activeRead = new(append, automaticFill); IsLoading = true; Failure = null; NotifyState();
+        cancellation?.Dispose();
+        cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var ct = cancellation.Token;
+        activeRead = new(append, automaticFill);
+        IsLoading = true;
+        Failure = null;
+        NotifyState();
         try
         {
             while (true)
@@ -207,25 +269,45 @@ public sealed partial class TransferListViewModel(
                 {
                     activeRead = new(append, automaticFill && append);
                     var page = await load(query, ct);
-                    if (epoch != generation || ct.IsCancellationRequested) return;
+                    if (epoch != generation || ct.IsCancellationRequested)
+                        return;
                     // 復帰した補充も成功時に一度だけ数え、カーソル復旧の先頭ページは数えない。
-                    if (automaticFill && append) AutomaticFillCount++;
-                    foreach (var row in page.Transfers) rows.Add(new(row, paymentName));
-                    NextCursor = page.NextCursor; HasLoaded = true; return;
+                    if (automaticFill && append)
+                        AutomaticFillCount++;
+                    foreach (var row in page.Transfers)
+                        rows.Add(new(row, paymentName));
+                    NextCursor = page.NextCursor;
+                    HasLoaded = true;
+                    return;
                 }
                 catch (TransferRequestException error) when (error.StatusCode == HttpStatusCode.NotFound && query.FocusTransferId is not null)
                 {
-                    if (epoch != generation || ct.IsCancellationRequested) return;
+                    if (epoch != generation || ct.IsCancellationRequested)
+                        return;
                     conditions = new(conditions.Month, conditions.OwnerPersonId, conditions.PaymentMethodId, conditions.Q);
-                    append = false; activeRead = new(false, false); NotifyState();
+                    append = false;
+                    activeRead = new(false, false);
+                    NotifyState();
                 }
                 catch (TransferRequestException error) when (error.StatusCode == HttpStatusCode.BadRequest && error.Code == "invalid_cursor")
                 {
-                    if (epoch != generation || ct.IsCancellationRequested) return;
+                    if (epoch != generation || ct.IsCancellationRequested)
+                        return;
                     conditions = new(conditions.Month, conditions.OwnerPersonId, conditions.PaymentMethodId, conditions.Q);
-                    rows.Clear(); SelectedItem = null; HasLoaded = false; NextCursor = null; AutomaticFillCount = 0;
-                    if (recoveredCursor || query.Cursor is null) { Failure = error; return; }
-                    recoveredCursor = true; append = false; activeRead = new(false, false); NotifyState();
+                    rows.Clear();
+                    SelectedItem = null;
+                    HasLoaded = false;
+                    NextCursor = null;
+                    AutomaticFillCount = 0;
+                    if (recoveredCursor || query.Cursor is null)
+                    {
+                        Failure = error;
+                        return;
+                    }
+                    recoveredCursor = true;
+                    append = false;
+                    activeRead = new(false, false);
+                    NotifyState();
                 }
             }
         }
@@ -233,7 +315,10 @@ public sealed partial class TransferListViewModel(
         catch (Exception error) when (error is ApiConnectionException or TransferRequestException or AuthenticationRejectedException or AuthenticationContextChangedException
             or PeopleRequestException or PaymentMethodRequestException or CategoryRequestException or IOException or HttpRequestException
             or OperationCanceledException or UnauthorizedAccessException or CryptographicException or SocketException)
-        { if (epoch == generation && !ct.IsCancellationRequested) Failure = error; }
+        {
+            if (epoch == generation && !ct.IsCancellationRequested)
+                Failure = error;
+        }
         finally { if (epoch == generation) { IsLoading = false; activeRead = null; NotifyState(); } }
     }
     private void NotifyState()
