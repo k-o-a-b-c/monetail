@@ -94,6 +94,42 @@ public sealed class TransferPresentationTests
         Assert.True(canExecuteChanges >= 2);
         Assert.Equal(0, reads);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OpeningCommandCanRestartAfterCancellationWithoutWaitingForOldTask(bool edit)
+    {
+        using var model = Create((_, _) => Task.FromResult(new TransferListInfo([], null)));
+        var target = edit ? Guid.NewGuid() : (Guid?)null;
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var opened = new List<Guid?>();
+        model.OpenRequested += id =>
+        {
+            opened.Add(id);
+            return opened.Count == 1 ? pending.Task : Task.CompletedTask;
+        };
+        Func<Task> execute = edit
+            ? () => model.EditCommand.ExecuteAsync(target!.Value)
+            : () => model.RegisterCommand.ExecuteAsync(null);
+        Func<bool> canExecute = edit
+            ? () => model.EditCommand.CanExecute(target!.Value)
+            : () => model.RegisterCommand.CanExecute(null);
+        model.CanRegister = true;
+        var first = execute();
+        Assert.True(canExecute());
+        // Windowが古い入力要求を取り消して入口を戻したとき、Commandの実行状態で閉塞しない。
+        model.CanRegister = false;
+        if (!edit)
+            Assert.False(canExecute());
+        model.CanRegister = true;
+        Assert.True(canExecute());
+        await execute();
+        Assert.Equal(new Guid?[] { target, target }, opened);
+        Assert.False(first.IsCompleted);
+        pending.SetResult();
+        await first;
+    }
+
     [Fact]
     public async Task TheReadOnlyCollectionHasOneLifetimeAndSelectionUsesTheSameItemInstances()
     {

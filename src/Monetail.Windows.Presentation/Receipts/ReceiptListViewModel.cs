@@ -43,6 +43,7 @@ public sealed partial class ReceiptListViewModel(
     public event Func<Guid?, Task>? OpenRequested;
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task SearchAsync() => SearchRequested?.Invoke() ?? Task.CompletedTask;
+    // 取消済みの旧入力GETが未完了でも再度開けるよう、実際の二重起動はWindowの入口ガードで防ぐ。
     [RelayCommand(CanExecute = nameof(CanRegister), AllowConcurrentExecutions = true)]
     private Task RegisterAsync() => OpenRequested?.Invoke(null) ?? Task.CompletedTask;
     [RelayCommand(AllowConcurrentExecutions = true)]

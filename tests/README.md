@@ -10,11 +10,19 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1193 |
-| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 99 |
+| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 101 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3759 |
+| 合計 | 3761 |
+
+## レシート・振替一覧の401画面判定とアクセシビリティ（PR #207）
+
+レシート一覧の認証失効通知は振替と同じくホーム表示中に限ってログイン画面へ遷移する。既存のホーム内401復帰に加え、管理画面に切り替えた後のレシート一覧取得が認証コンテキスト失効を返しても画面を横取りしない実WinUIスモーク1確認を追加した。レシート見出しLevel2と0件案内のPolite live regionを実コントロールで検証する1確認も追加。検索、ページング、保存行探索の機能は変更しない。
+
+レシート・振替の登録・編集Commandをともに`AllowConcurrentExecutions=true`へ統一。旧HTTP要求を取り消した後、旧Task完了を待たずに再操作できる。実際の二重起動は引き続き各Window入口の`receiptOpening`/`transferOpening`ガードで防ぐ。レシートの[既存取消後再操作テスト](Monetail.Windows.Presentation.Tests/ReceiptViewModelTests.cs)を維持し、振替の登録・編集の[新規2ケース](Monetail.Windows.Presentation.Tests/TransferPresentationTests.cs)で同じ契約を検証する。
+
+[Tests 44401903671](https://github.com/k-o-a-b-c/monetail/actions/runs/44401903671)でClient1,193件・Presentation101件（新規2件）、WinUI 3製品/スモークReleaseビルド、製品起動と全36シナリオ（アクセシビリティ/画面遷移の追加2確認込み）、シナリオ選択・計測、CI証跡が成功。非変更のAPI等はCIの既存成功結果を再利用。実Windowsでのスクリーンリーダー・物理IME/タッチ・高DPIの手動確認は未実施。
 
 ## レシート一覧のfocus取得・保存行探索
 

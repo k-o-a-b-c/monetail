@@ -107,7 +107,8 @@ public sealed partial class MainWindow
     {
         if (closed || !ReferenceEquals(sender, ReceiptListModel) || args.PropertyName != nameof(ReceiptListViewModel.Failure))
             return;
-        if (!RecordEditorActive && ReceiptListModel?.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
+        if (!RecordEditorActive && HomePage.Visibility == Visibility.Visible &&
+            ReceiptListModel?.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
             NavigateToLogin("ログインを継続できません。もう一度ログインしてください。");
     }
     private void UpdateReceiptActions()
