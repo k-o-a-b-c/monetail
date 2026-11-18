@@ -14,9 +14,6 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
-    private static FieldInfo TransferViewField(string name) => typeof(TransferListView).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
-        ?? throw new InvalidOperationException("一覧の観測状態がありません: " + name);
-
     private async Task CheckTransferViewportTriggers()
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
@@ -60,25 +57,25 @@ public partial class App
         catch (OperationCanceledException error)
         {
             var suspended = model.GetType().GetField("suspended", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(model);
-            throw new InvalidOperationException($"補充後の状態: rows={model.Rows.Count}, reads={string.Join(',', reads)}, fill={model.AutomaticFillCount}, loading={model.IsLoading}, filled={model.ViewportFilled}, view={view.ActualHeight}, list={list.ActualHeight}, viewport={scroll.ViewportHeight}, extent={scroll.ExtentHeight}, scrollable={scroll.ScrollableHeight}, sameScroller={ReferenceEquals(TransferViewField("scroller").GetValue(view), scroll)}, queued={TransferViewField("viewportQueued").GetValue(view)}, suspended={suspended}, cursor={model.NextCursor}, finding={model.IsFindingSaved}, failure={model.Failure}", error);
+            throw new InvalidOperationException($"補充後の状態: rows={model.Rows.Count}, reads={string.Join(',', reads)}, fill={model.AutomaticFillCount}, loading={model.IsLoading}, filled={model.ViewportFilled}, view={view.ActualHeight}, list={list.ActualHeight}, viewport={scroll.ViewportHeight}, extent={scroll.ExtentHeight}, scrollable={scroll.ScrollableHeight}, sameScroller={ReferenceEquals(ViewportValue(view, "scroller"), scroll)}, queued={ViewportValue(view, "viewportQueued")}, suspended={suspended}, cursor={model.NextCursor}, finding={model.IsFindingSaved}, failure={model.Failure}", error);
         }
         await Settle();
         Check(reads.SequenceEqual(new[] { 0, 100, 200 }) && model.AutomaticFillCount == 2 && scroll.ScrollableHeight == 0,
             "SizeChangedと行追加でレイアウト確定後に2回補充し、300件で自動取得を停止する");
-        await Wait(() => !(bool)TransferViewField("viewportQueued").GetValue(view)!);
+        await Wait(() => !(bool)ViewportValue(view, "viewportQueued")!);
         model.SearchText = "未確定の下書き";
         model.CanRegister = false;
-        Check(!(bool)TransferViewField("viewportQueued").GetValue(view)!, "SearchText/CanRegisterの変更だけでは表示範囲の測定を予約しない");
+        Check(!(bool)ViewportValue(view, "viewportQueued")!, "SearchText/CanRegisterの変更だけでは表示範囲の測定を予約しない");
         await Wait(() => !Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled);
         model.CanRegister = true;
         await Wait(() => Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled);
         Check(reads.Count == 3, "登録CommandのCanExecute通知だけで標準Buttonの有効状態が往復し、検索や取得を行わない");
 
         view.RememberPosition();
-        TransferViewField("scrollIntent").SetValue(view, true);
-        TransferViewField("queuedUserScroll").SetValue(view, true);
+        SetViewportValue(view, "scrollIntent", true);
+        SetViewportValue(view, "queuedUserScroll", true);
         view.RestorePosition();
-        await Wait(() => !(bool)TransferViewField("scrollIntent").GetValue(view)! && !(bool)TransferViewField("queuedUserScroll").GetValue(view)!);
+        await Wait(() => !(bool)ViewportValue(view, "scrollIntent")! && !(bool)ViewportValue(view, "queuedUserScroll")!);
         view.ObserveViewport();
         await Settle();
         Check(reads.Count == 3 && model.Rows.Count == 300, "表示位置の復元は操作意図を解除し、300件到達後の自動取得を再開しない");
@@ -104,7 +101,7 @@ public partial class App
         async Task NearEnd()
         {
             // 次の操作位置への準備も製品の復元経路を使い、直前のホイール意図を持ち越さない。
-            TransferViewField("returnPosition").SetValue(view, (scroll.HorizontalOffset, scroll.ScrollableHeight - 30));
+            SetViewportValue(view, "returnPosition", (scroll.HorizontalOffset, scroll.ScrollableHeight - 30));
             view.RestorePosition();
             await Wait(() => scroll.VerticalOffset >= scroll.ScrollableHeight - 31);
             await Settle();
@@ -137,23 +134,23 @@ public partial class App
         SendTransferMouse(0x0002);
         try
         {
-            await Wait(() => (bool)TransferViewField("scrollIntent").GetValue(view)! || model.IsLoading);
+            await Wait(() => (bool)ViewportValue(view, "scrollIntent")! || model.IsLoading);
             if (!model.IsLoading)
                 SendTransferMouse(0x0001, deltaY: 20);
             await Wait(() => model.IsLoading && reads.Count == 6);
         }
         catch (OperationCanceledException error)
         {
-            throw new InvalidOperationException($"垂直Thumb操作後: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}, value={bar.Value}/{bar.Maximum}, thumb={thumb.ActualWidth}x{thumb.ActualHeight}, intent={TransferViewField("scrollIntent").GetValue(view)}, queued={TransferViewField("queuedUserScroll").GetValue(view)}, reads={string.Join(',', reads)}", error);
+            throw new InvalidOperationException($"垂直Thumb操作後: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}, value={bar.Value}/{bar.Maximum}, thumb={thumb.ActualWidth}x{thumb.ActualHeight}, intent={ViewportValue(view, "scrollIntent")}, queued={ViewportValue(view, "queuedUserScroll")}, reads={string.Join(',', reads)}", error);
         }
         finally { SendTransferMouse(0x0004); }
         await FinishPage(6);
 
         await NearEnd();
         pageGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var manipulation = typeof(TransferListView).GetMethod("ListManipulationStarted", BindingFlags.NonPublic | BindingFlags.Instance)
+        var manipulation = Viewport(view).GetType().GetMethod("ListManipulationStarted", BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new InvalidOperationException("タッチ相当の開始処理がありません。");
-        manipulation.Invoke(view, [scroll, new object()]);
+        manipulation.Invoke(Viewport(view), [scroll, new object()]);
         scroll.ChangeView(null, scroll.ScrollableHeight, null, true);
         await FinishPage(7);
 
