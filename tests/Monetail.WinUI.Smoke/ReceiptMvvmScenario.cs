@@ -36,7 +36,7 @@ public partial class App
             ReferenceEquals(list.ItemsSource, model.Rows) && !view.IsTabStop &&
             AutomationProperties.GetAutomationId(list) == "ReceiptList" && AutomationProperties.GetAutomationId(text) == "ReceiptShop",
             "レシート一覧はViewのNameScopeとVMの唯一の行コレクションを使い、余分なTab停止を追加しない");
-        Check(AutomationProperties.GetHeadingLevel(All(view).OfType<TextBlock>().Single(t => t.Text == "レシート")).ToString() == "Level2" &&
+        Check((int)AutomationProperties.GetHeadingLevel(All(view).OfType<TextBlock>().Single(t => t.Text == "レシート")) == 2 &&
             AutomationProperties.GetLiveSetting(Find<TextBlock>(root, "ReceiptEmpty")).ToString() == "Polite",
             "レシート一覧の見出しレベルと空状態の読み上げ指定を振替一覧にそろえる");
         await FocusTransferControl(text);
