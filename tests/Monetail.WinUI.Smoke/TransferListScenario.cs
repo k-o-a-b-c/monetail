@@ -61,11 +61,11 @@ public partial class App
         var peer = new ScrollViewerAutomationPeer(filter); var scrollPattern = (IScrollProvider?)peer.GetPattern(PatternInterface.Scroll);
         Check(scrollPattern is { HorizontallyScrollable: true } && AutomationProperties.GetName(filter) == "記録の共通フィルター", "共通フィルターは標準UIAスクロールと操作名を公開");
         window.AppWindow.ResizeClient(new SizeInt32(1100, 780)); await Settle();
-        var month = Find<TextBox>(root, "ReceiptMonth"); var shop = Find<TextBox>(root, "ReceiptShop"); var name = Find<TextBox>(root, "TransferNameSearch");
+        var month = Find<TextBox>(root, "ReceiptMonth"); var keyword = Find<TextBox>(root, "RecordKeyword");
         var current = DateTime.Now.ToString("yyyy-MM", CultureInfo.InvariantCulture);
         month.Text = "bad"; await InvokeAsync(() => Find<Button>(root, "RecordMonthApply"));
         Check(transfers.Count == 1 && receipts.Count == 1 && Find<TextBlock>(root, "ReceiptMonthError").Visibility == Visibility.Visible, "不正共通年月は両APIを呼ばず近傍エラー");
-        month.Text = "2027-01"; shop.Text = "未確定店"; name.Text = "未確定振替";
+        month.Text = "2027-01"; keyword.Text = "未確定";
         payment.SelectedItem = payment.Items.Cast<ReceiptFilterChoice>().Single(v => v.Id == masters.ActiveId);
         await Wait(() => window.ReceiptHomeReady && transfers.Count == 2 && receipts.Count == 2);
         owner.SelectedItem = owner.Items.Cast<ReceiptFilterChoice>().Single(v => v.Id == masters.Other);
@@ -74,17 +74,17 @@ public partial class App
         Check(values["month"] == current && values["q"] == "" && values["ownerPersonId"] == masters.Other.ToString("D") && values["paymentMethodId"] == masters.ActiveId.ToString("D") && ((ReceiptFilterChoice)payment.SelectedItem).Id == masters.ActiveId,
             "人物・支払方法は独立ANDで両一覧へ適用し未確定年月や名前を確定しない");
         await InvokeAsync(() => Find<Button>(root, "RecordMonthApply")); await Wait(() => window.ReceiptHomeReady && transfers.Count == 4 && receipts.Count == 4);
-        Check(TransferQueryValues(transfers[^1])["month"] == "2027-01" && TransferQueryValues(transfers[^1])["q"] == "" && TransferQueryValues(receipts[^1])["q"] == "" && name.Text == "未確定振替" && shop.Text == "未確定店",
-            "共通年月だけの確定は両方の名前下書きを保持");
-        await InvokeAsync(() => Find<Button>(root, "ReceiptSearchButton")); await Wait(() => window.ReceiptHomeReady && receipts.Count == 5);
-        Check(transfers.Count == 4 && TransferQueryValues(receipts[^1])["q"] == "未確定店", "店名の確定はレシートだけを再取得");
-        await InvokeAsync(() => Find<Button>(root, "TransferSearchButton")); await Wait(() => window.TransferHomeReady && transfers.Count == 5);
-        Check(receipts.Count == 5 && TransferQueryValues(transfers[^1])["q"] == "未確定振替", "振替名の確定は振替だけを再取得");
+        Check(TransferQueryValues(transfers[^1])["month"] == "2027-01" && TransferQueryValues(transfers[^1])["q"] == "" && TransferQueryValues(receipts[^1])["q"] == "" && keyword.Text == "未確定",
+            "共通年月だけの確定はキーワード下書きを確定しない");
+        await InvokeAsync(() => Find<Button>(root, "RecordKeywordSearch"));
+        await Wait(() => window.ReceiptHomeReady && receipts.Count == 5 && transfers.Count == 5);
+        Check(TransferQueryValues(receipts[^1])["q"] == "未確定" && TransferQueryValues(transfers[^1])["q"] == "未確定",
+            "共通キーワードの確定は店名と振替名の両方へ適用して各一覧を再取得");
         Find<RadioButton>(root, "ReceiptAllPeriods").IsChecked = true; await Wait(() => window.ReceiptHomeReady && transfers.Count == 6 && receipts.Count == 6);
         Check(TransferQueryValues(transfers[^1])["month"] == "all" && !month.IsEnabled, "全期間は両一覧へ共通適用し年月操作を無効化");
         Find<RadioButton>(root, "RecordMonthPeriod").IsChecked = true; await Wait(() => window.ReceiptHomeReady && transfers.Count == 7 && receipts.Count == 7);
         Check(TransferQueryValues(transfers[^1])["month"] == "2027-01" && ((ReceiptFilterChoice)owner.SelectedItem).Id == masters.Other, "月指定復帰は保持年月・人物・支払方法を維持");
-        count = 101; await InvokeAsync(() => Find<Button>(root, "TransferSearchButton")); await Wait(() => list.Items.Count == 100 && window.TransferHomeReady);
+        count = 101; await InvokeAsync(() => Find<Button>(root, "RecordKeywordSearch")); await Wait(() => list.Items.Count == 100 && window.TransferHomeReady);
         var first = (Monetail.Windows.Presentation.Transfers.TransferListItem)list.Items[0]; list.SelectedItem = first;
         await Wait(() => All(list).OfType<TextBlock>().Any(t => t.Text == "振替0"));
         Check(first.FromName == "本日有効" && first.ToName == "（母）母の現金" && first.TransactionAt == "2026/11/10 12:34:56" && first.Amount == 12345.ToString("N0", CultureInfo.CurrentCulture) && first.Memo == "", "振替6列は元表記・保存額・本人/他人物の支払方法名を表示");
@@ -95,17 +95,17 @@ public partial class App
         var failures = transfers.Count; await Settle(); Check(transfers.Count == failures && list.Items.Count == 100 && ReferenceEquals(list.SelectedItem, first), "追加取得失敗は行・選択を保持し自動再試行しない");
         await InvokeAsync(() => Find<Button>(root, "TransferNextRetry")); await Wait(() => list.Items.Count == 101 && !state.IsLoading);
         Check(ReferenceEquals(list.SelectedItem, first), "追加ページの明示再試行は選択を維持して末尾へ追記");
-        await InvokeAsync(() => Find<Button>(root, "TransferSearchButton")); await Wait(() => list.Items.Count == 100 && !state.IsLoading);
+        await InvokeAsync(() => Find<Button>(root, "RecordKeywordSearch")); await Wait(() => list.Items.Count == 100 && !state.IsLoading);
         invalidCursor = true; var beforeRecovery = transfers.Count; await state.ObserveViewportAsync(79, true, true);
         await Wait(() => !state.IsLoading && transfers.Count == beforeRecovery + 2);
         Check(list.Items.Count == 100 && state.Failure is null && TransferQueryValues(transfers[^1])["month"] == "2027-01" && !TransferQueryValues(transfers[^1]).ContainsKey("cursor"), "invalid_cursorは同じ条件で先頭を1回だけ自動再取得");
-        fail = true; await InvokeAsync(() => Find<Button>(root, "TransferSearchButton")); await Wait(() => state.IsInitialFailure);
+        fail = true; await InvokeAsync(() => Find<Button>(root, "RecordKeywordSearch")); await Wait(() => state.IsInitialFailure);
         Check(Find<StackPanel>(root, "TransferInitialFailure").Visibility == Visibility.Visible && Find<Button>(root, "SettingsButton").IsEnabled, "振替初回失敗は中央で再試行でき他操作を塞がない");
         count = 1; await InvokeAsync(() => Find<Button>(root, "TransferInitialRetry")); await Wait(() => list.Items.Count == 1 && !state.IsLoading);
         root.RequestedTheme = ElementTheme.Dark; await Settle(); Check(root.ActualTheme == ElementTheme.Dark && list.Items.Count == 1, "振替一覧と共通フィルターは標準ダークテーマで状態を保持"); root.RequestedTheme = ElementTheme.Default;
         Check(fixture.Requests.Where(p => p.Contains("/transfers", StringComparison.Ordinal)).All(p => p.EndsWith("/transfers", StringComparison.Ordinal)), "この工程は振替一覧GETだけを接続し詳細・書込を呼ばない");
         fixture.TransfersHandler = (_, _) => Task.FromResult(PaymentServer.Json(new { code = "not_found", field = (string?)null, latest = (object?)null, permissions = new { currentRole = (string?)null, myPersonId = (Guid?)null } }, HttpStatusCode.NotFound));
-        await InvokeAsync(() => Find<Button>(root, "TransferSearchButton")); await Wait(() => state.IsInitialFailure); var missingReads = fixture.Requests.Count;
+        await InvokeAsync(() => Find<Button>(root, "RecordKeywordSearch")); await Wait(() => state.IsInitialFailure); var missingReads = fixture.Requests.Count;
         await Settle(); Check(Find<TextBlock>(root, "TransferInitialError").Text.Contains("参加状態") && fixture.Requests.Count == missingReads, "振替のアクセス喪失は専用メッセージで自動再試行しない");
         fixture.RejectSession = true; await InvokeAsync(() => Find<Button>(root, "TransferInitialRetry")); await Wait(() => Visible(root, "LoginPage"));
         var stoppedReads = fixture.Requests.Count; await Settle(); Check(list.Items.Count == 0 && fixture.Requests.Count == stoppedReads, "振替401は既存ログインへ戻り一覧を破棄し無限再試行しない");
