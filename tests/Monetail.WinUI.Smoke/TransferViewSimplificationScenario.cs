@@ -119,7 +119,10 @@ public partial class App
         await NearEnd();
         pageGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var bar = All(scroll).OfType<ScrollBar>().First(b => b.Orientation == Orientation.Vertical);
-        var thumb = All(bar).OfType<Thumb>().First(t => t.IsLoaded && t.ActualHeight > 0);
+        // 標準テンプレートには水平Thumbもある。ホバーで表示された垂直Thumbを操作する。
+        var thumb = All(bar).OfType<Thumb>().Single(t => t.Name == "VerticalThumb");
+        await PositionTransferPointer(root, bar, bar.ActualWidth / 2, bar.ActualHeight / 2);
+        await Wait(() => thumb.IsLoaded && thumb.ActualHeight > 0 && thumb.Opacity > 0.9);
         var point = await PositionTransferPointer(root, thumb, thumb.ActualWidth / 2, thumb.ActualHeight / 2);
         SendTransferMouse(0x0002);
         try
@@ -128,6 +131,10 @@ public partial class App
             if (!SetCursorPos(point.X, point.Y + 20))
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             await Wait(() => model.IsLoading && reads.Count == 6);
+        }
+        catch (OperationCanceledException error)
+        {
+            throw new InvalidOperationException($"垂直Thumb操作後: offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}, value={bar.Value}/{bar.Maximum}, thumb={thumb.ActualWidth}x{thumb.ActualHeight}, intent={TransferViewField("scrollIntent").GetValue(view)}, queued={TransferViewField("queuedUserScroll").GetValue(view)}, reads={string.Join(',', reads)}", error);
         }
         finally { SendTransferMouse(0x0004); }
         await FinishPage(6);
