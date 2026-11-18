@@ -3,14 +3,13 @@ using System.ComponentModel;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Monetail.WinUI.Input;
+using Monetail.WinUI.Views;
 using Monetail.Windows.Presentation.Transfers;
 using Windows.System;
 using Windows.UI.Core;
-using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
 
 namespace Monetail.WinUI.Views.Transfers;
 
@@ -32,33 +31,20 @@ public sealed partial class TransferListView : UserControl
         get => (UIElement?)GetValue(OpeningContentProperty);
         set => SetValue(OpeningContentProperty, value);
     }
+
     private readonly FormKeyboard keyboard;
-    private ScrollViewer? scroller;
-    private bool viewportQueued, scrollIntent, queuedUserScroll;
-    private double previousOffset;
-    private (double Horizontal, double Vertical) returnPosition;
+    private readonly ListViewportController viewport;
 
     public TransferListView()
     {
         InitializeComponent();
         keyboard = new FormKeyboard(this, null, null, TransferNameSearch);
-        TransferList.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, _) => scrollIntent = scroller?.ScrollableHeight > 0), true);
-        TransferList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, args) =>
-        {
-            for (var element = args.OriginalSource as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
-                if (element is ScrollBar)
-                {
-                    scrollIntent = true;
-                    break;
-                }
-        }), true);
-        TransferList.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler((_, args) =>
-        {
-            if (args.Key is VirtualKey.Down or VirtualKey.PageDown or VirtualKey.End or VirtualKey.Space)
-                scrollIntent = scroller?.ScrollableHeight > 0;
-        }), true);
+        viewport = new(this, TransferList, () => ViewModel is not null,
+            (last, filled, user) => ViewModel?.ObserveViewportAsync(last, filled, user) ?? Task.CompletedTask);
     }
+
     private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+
     private void ChangeModel(TransferListViewModel? previous, TransferListViewModel? current)
     {
         if (previous is not null)
@@ -66,16 +52,16 @@ public sealed partial class TransferListView : UserControl
             previous.PropertyChanged -= ModelChanged;
             ((INotifyCollectionChanged)previous.Rows).CollectionChanged -= RowsChanged;
         }
-        returnPosition = default;
-        ResetViewport();
+        viewport.ResetForModel();
         if (current is not null)
         {
             current.PropertyChanged += ModelChanged;
             ((INotifyCollectionChanged)current.Rows).CollectionChanged += RowsChanged;
         }
         Bindings.Update();
-        ObserveViewport();
+        viewport.Observe();
     }
+
     private void ModelChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName != nameof(TransferListViewModel.SelectedItem) ||
@@ -85,108 +71,17 @@ public sealed partial class TransferListView : UserControl
         {
             if (!ReferenceEquals(ViewModel, model) || !ReferenceEquals(model.SelectedItem, selected))
                 return;
-            scrollIntent = queuedUserScroll = false;
+            viewport.IgnoreUserScroll();
             TransferList.ScrollIntoView(selected);
         });
     }
-    private void RowsChanged(object? sender, NotifyCollectionChangedEventArgs args)
-    {
-        if (args.Action == NotifyCollectionChangedAction.Reset)
-            ResetViewport();
-        ObserveViewport();
-    }
-    private void ResetViewport()
-    {
-        scrollIntent = queuedUserScroll = false;
-        previousOffset = 0;
-        scroller?.ChangeView(null, 0, null, true);
-    }
-    public void RememberPosition() => returnPosition = (scroller?.HorizontalOffset ?? 0, scroller?.VerticalOffset ?? 0);
-    public void RestorePosition() => DispatcherQueue.TryEnqueue(() =>
-    {
-        if (CanObserve())
-        {
-            scrollIntent = queuedUserScroll = false;
-            scroller?.ChangeView(returnPosition.Horizontal, returnPosition.Vertical, null, true);
-        }
-    });
-    private bool CanObserve()
-    {
-        if (!IsLoaded || ViewModel is null)
-            return false;
-        for (DependencyObject? element = this; element is not null; element = VisualTreeHelper.GetParent(element))
-            if (element is FrameworkElement { Visibility: Visibility.Collapsed })
-                return false;
-        return true;
-    }
-    public void ObserveViewport() => ScheduleViewport(false);
-    private void ScheduleViewport(bool user)
-    {
-        queuedUserScroll |= user;
-        if (viewportQueued || !CanObserve())
-            return;
-        viewportQueued = true;
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, async () =>
-        {
-            // 行/サイズ変更のArrangeを終えてから可視範囲を読む。確定中の通知も同じ要求へまとめる。
-            if (CanObserve())
-            {
-                TransferList.UpdateLayout();
-                ConnectScroller();
-            }
-            viewportQueued = false;
-            var scrolled = queuedUserScroll;
-            queuedUserScroll = false;
-            if (!CanObserve() || ViewModel is not { } model || scroller is null)
-                return;
-            var panel = TransferList.ItemsPanelRoot as ItemsStackPanel;
-            await model.ObserveViewportAsync(panel?.LastVisibleIndex ?? -1, scroller.ScrollableHeight > 0, scrolled);
-        });
-    }
-    private static T? Descendant<T>(DependencyObject parent) where T : DependencyObject
-    {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T result)
-                return result;
-            if (Descendant<T>(child) is { } nested)
-                return nested;
-        }
-        return null;
-    }
-    private void ConnectScroller()
-    {
-        var current = Descendant<ScrollViewer>(TransferList);
-        if (ReferenceEquals(scroller, current))
-            return;
-        if (scroller is not null)
-        {
-            scroller.ViewChanged -= ViewChanged;
-            scroller.DirectManipulationStarted -= ListManipulationStarted;
-        }
-        scroller = current;
-        previousOffset = scroller?.VerticalOffset ?? 0;
-        scrollIntent = queuedUserScroll = false;
-        if (scroller is not null)
-        {
-            scroller.ViewChanged += ViewChanged;
-            scroller.DirectManipulationStarted += ListManipulationStarted;
-        }
-    }
-    private void TransferListLoaded(object sender, RoutedEventArgs args) => ObserveViewport();
-    private void ListManipulationStarted(object? sender, object args) => scrollIntent = scroller?.ScrollableHeight > 0;
-    private void ViewChanged(object? sender, ScrollViewerViewChangedEventArgs args)
-    {
-        if (scroller is null)
-            return;
-        var user = scrollIntent && scroller.VerticalOffset > previousOffset;
-        previousOffset = scroller.VerticalOffset;
-        if (!args.IsIntermediate)
-            scrollIntent = false;
-        ScheduleViewport(user);
-    }
-    private void TransferSizeChanged(object sender, SizeChangedEventArgs args) => ObserveViewport();
+
+    private void RowsChanged(object? sender, NotifyCollectionChangedEventArgs args) => viewport.RowsChanged(args);
+
+    public void RememberPosition() => viewport.RememberPosition();
+    public void RestorePosition() => viewport.RestorePosition();
+    public void ObserveViewport() => viewport.Observe();
+
     private void TransferDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
         for (var element = args.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, TransferList); element = VisualTreeHelper.GetParent(element))
@@ -197,6 +92,7 @@ public sealed partial class TransferListView : UserControl
                 return;
             }
     }
+
     private void TransferTextKeyDown(object sender, KeyRoutedEventArgs args)
     {
         if (args.Key != VirtualKey.Enter)
