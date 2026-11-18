@@ -10,11 +10,21 @@
 | ASP.NET Core API | 2140 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1183 |
-| Windows Presentation（レシート/振替一覧VM・投影・Command・ページング・復帰） | 73 |
+| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 82 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3688 |
+| 合計 | 3697 |
+
+## レシート・振替ViewModelの共通ページング
+
+既存Presentation73件の期待値・検証条件を維持し、[CursorListViewModelTests](Monetail.Windows.Presentation.Tests/CursorListViewModelTests.cs)6件と[PagingAdapterTests](Monetail.Windows.Presentation.Tests/PagingAdapterTests.cs)3件を追加した。単一の行/選択・100/300/20の境界、予算、Continue/Retry Command、中断したカーソルの再開、旧世代の遅延成功/失敗、1回だけのカーソル復旧、未知例外の伝播、両VMで古い応答を名称投影前に拒否すること、focus後の通常カーソル404の非再検索を検証する。振替の保存行探索/再試行/認証/中断復帰とレシートのページング/中断復帰/破棄は既存テストをそのまま使用する。
+
+ローカルReleaseは最小6件→既存73件→追加9件込みの全82件が成功（段階間の重複あり、失敗/skipなし）。最初の最小実行はサンドボックスのMSBuild名前付きパイプが拒否され、権限付き実行で成功した。ローカルNuGet監査情報の取得にNU1900が出たため、Windows CIの警告と区別する。構造の数え方と共通化しない責務は[構成正本](../docs/architecture-winui.md#レシート振替のviewmodelページング共通化実装済み)を参照する。
+
+基点main `a7c3dc5`の[push Tests 44279501605](https://github.com/k-o-a-b-c/monetail/actions/runs/44279501605)は既存receipt-listのホイール追加取得待機で失敗し、変更前全件成功とは扱わない。PR #204先端の[Tests 44277468709](https://github.com/k-o-a-b-c/monetail/actions/runs/44277468709)は成功している。共通化ソース`7991449`の[Clientジョブ134721865763](https://github.com/k-o-a-b-c/monetail/actions/runs/44281116739/job/134721865763)でClient1183件・Presentation82件が成功した（親run全体は同じホイール試験で失敗）。失敗時だけ操作直前の位置/可視行/読込状態を出す診断を追加し、期待値・タイムアウト・製品スクロール処理は変更していない。
+
+診断追加後のソース`f84195d`の[Tests 44282081990](https://github.com/k-o-a-b-c/monetail/actions/runs/44282081990)で製品/検証用x64 Releaseビルド（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/737確認、個別3シナリオ・一覧/全件照合・PNG4枚・不正指定拒否/計測が成功した。receipt-list28確認・transfer-list50確認、レシート401復帰30確認・振替401復帰70確認と競合/保存後focusも含む。Client成功記録は同じ入力の先行ジョブを再利用し、影響外のAPI/Docker/旧Windows等は既存のCI選択/fingerprintに従って再実行していない。ローカルの対象書式検査、文書ローカルリンク176件、git diff --checkも成功した。ホイール試験の一時失敗原因は未特定で、今回の成功を根本解決とは扱わない。実Windows手動操作・物理IME/タッチ/高DPIは未検証。API/DB/Clientの契約とWinUIの表示/入力処理、レシートの未接続保存UI/focus APIは変更していない。
 
 ## レシート一覧のPresentation MVVM移行
 
