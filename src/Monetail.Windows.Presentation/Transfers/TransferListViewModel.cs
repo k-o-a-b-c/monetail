@@ -73,8 +73,8 @@ public sealed partial class TransferListViewModel(
         conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusTransferId: query.FocusTransferId);
         return ReadAsync(false, token);
     }
-    public Task ShowSavedAsync(TransferListQuery query, Guid id, CancellationToken token = default) =>
-        base.ShowSavedAsync(id, () => StartReadAsync(query, token, findingSaved: true), query.FocusTransferId is not null, token);
+    public Task ShowSavedAsync(TransferListQuery query, Guid transferId, CancellationToken token = default) =>
+        base.ShowSavedAsync(transferId, () => StartReadAsync(query, token, findingSaved: true), query.FocusTransferId is not null, token);
     protected override bool HasFocus => conditions?.FocusTransferId is not null;
     protected override TransferListItem? FindSavedItem(Guid id) => Rows.FirstOrDefault(row => row.TransferId == id);
     protected override Task FocusSavedAsync(Guid id, CancellationToken token)

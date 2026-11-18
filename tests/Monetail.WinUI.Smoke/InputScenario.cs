@@ -55,7 +55,7 @@ public partial class App
             await navigation.HandleEnter(false, false)!;
             await Settle();
             Check(ReferenceEquals(FocusManager.GetFocusedElement(panel.XamlRoot), save) && saves == 0 && date.Text == "2026/04/01",
-                "最後の入力欄のEnterは日付を確定して保存ボタンへ移動し、そのキーでは保存しない");
+                $"最後の入力欄のEnterは日付を確定して保存ボタンへ移動し、そのキーでは保存しない: focusIsSave={ReferenceEquals(FocusManager.GetFocusedElement(panel.XamlRoot), save)}; normalized={date.Text == "2026/04/01"}; saves={saves}; foreground={GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(inputWindow)}");
             Check(navigation.HandleEnter(false, false) is null && saves == 0, "ボタン上のEnterを横取りしない");
 
             date.Focus(FocusState.Keyboard);

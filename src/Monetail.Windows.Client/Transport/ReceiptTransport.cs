@@ -29,7 +29,9 @@ public sealed partial class MonetailApiClient
     public async Task<ReceiptListInfo> ListReceiptsAsync(string access, Guid ledgerId, ReceiptListQuery query, CancellationToken token = default)
     {
         var page = await SendReceiptAsync<ReceiptPagePayload>($"{ReceiptPath(ledgerId)}/receipts?{query.Query}", access, token, stream: true);
-        if (page.Receipts is null || page.Receipts.Select(row => row.ReceiptId).Distinct().Count() != page.Receipts.Count) throw new ApiConnectionException();
+        if (page.Receipts is null || page.Receipts.Select(row => row.ReceiptId).Distinct().Count() != page.Receipts.Count ||
+            query.FocusReceiptId is Guid focus && (page.Receipts.Count == 0 || page.Receipts[0].ReceiptId != focus))
+            throw new ApiConnectionException();
         foreach (var row in page.Receipts) CheckReceiptText(row.ShopName, row.ShopLocation);
         return new(page.Receipts.Select(row => row with { Memo = ReceiptMemoValue.Normalize(row.Memo) }).ToArray(), page.NextCursor);
     }

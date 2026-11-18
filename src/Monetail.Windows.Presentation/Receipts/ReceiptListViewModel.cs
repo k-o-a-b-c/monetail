@@ -79,8 +79,8 @@ public sealed partial class ReceiptListViewModel(
         conditions = new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, focusReceiptId: query.FocusReceiptId);
         return ReadAsync(false, token);
     }
-    public Task ShowSavedAsync(ReceiptListQuery query, Guid id, CancellationToken token = default) =>
-        base.ShowSavedAsync(id, () => StartReadAsync(query, token, findingSaved: true), query.FocusReceiptId is not null, token);
+    public Task ShowSavedAsync(ReceiptListQuery query, Guid receiptId, CancellationToken token = default) =>
+        base.ShowSavedAsync(receiptId, () => StartReadAsync(query, token, findingSaved: true), query.FocusReceiptId is not null, token);
     protected override bool HasFocus => conditions?.FocusReceiptId is not null;
     protected override ReceiptListItem? FindSavedItem(Guid id) => Rows.FirstOrDefault(row => row.ReceiptId == id);
     protected override Task FocusSavedAsync(Guid id, CancellationToken token)

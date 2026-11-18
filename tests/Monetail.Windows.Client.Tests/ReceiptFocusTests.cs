@@ -20,14 +20,24 @@ public sealed partial class ReceiptsWorkspaceTests
             Assert.Equal(query.Q, values["q"]);
             Assert.Equal(Owner.ToString("D"), values["ownerPersonId"]);
             Assert.Equal(Payment.ToString("D"), values["paymentMethodId"]);
-            Assert.Equal(Receipt.ToString("D"), values["focusReceiptId"]);
-            Assert.False(values.ContainsKey("cursor"));
+            if (values.TryGetValue("focusReceiptId", out var focus))
+            {
+                Assert.Equal(Receipt.ToString("D"), focus);
+                Assert.False(values.ContainsKey("cursor"));
+            }
+            else
+            {
+                Assert.Equal("opaque/+next", values["cursor"]);
+                Assert.False(values.ContainsKey("focusReceiptId"));
+            }
             return Json(Page(cursor: "opaque/+next"));
         });
         var page = await f.Workspace.ListAsync(query);
         Assert.Equal(Receipt, Assert.Single(page.Receipts).ReceiptId);
         Assert.Equal("opaque/+next", page.NextCursor);
         Assert.Single(f.Requests);
+        await f.Workspace.ListAsync(new(query.Month, query.OwnerPersonId, query.PaymentMethodId, query.Q, page.NextCursor));
+        Assert.Equal(2, f.Requests.Count);
     }
 
     [Theory]
@@ -65,6 +75,23 @@ public sealed partial class ReceiptsWorkspaceTests
         var error = await Assert.ThrowsAsync<ReceiptRequestException>(() => f.Workspace.ListAsync(new("all", focusReceiptId: Receipt)));
         Assert.Equal(code, error.Code);
         Assert.Equal("focusReceiptId", error.Field);
+        Assert.Single(f.Requests);
+    }
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("different")]
+    [InlineData("second")]
+    public async Task ReceiptFocusRejectsSuccessfulPagesWhoseFirstRowIsNotTheTarget(string kind)
+    {
+        var other = Summary(Guid.NewGuid());
+        var rows = kind switch
+        {
+            "empty" => Array.Empty<ReceiptSummaryInfo>(),
+            "different" => [other],
+            _ => [other, Summary()]
+        };
+        using var f = new Fixture(_ => Json(Page(rows)));
+        await Assert.ThrowsAsync<ApiConnectionException>(() => f.Workspace.ListAsync(new("all", focusReceiptId: Receipt)));
         Assert.Single(f.Requests);
     }
 }
