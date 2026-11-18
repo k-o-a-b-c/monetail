@@ -123,7 +123,9 @@ public sealed partial class MainWindow
         // 保存後の残高キャッシュ連動は次工程。保存済み基準残高を変更しない。
         if (!deleted && snapshot is not null && recordSearch is not null && TransferMethods is { } methods)
         {
-            recordSearch.ApplySavedTransfer(snapshot, methods); RenderRecordFilterControls();
+            recordSearch.ApplySavedTransfer(snapshot, methods);
+            recordSearch.ApplySharedText(recordSearch.TransferText);
+            RenderRecordFilterControls();
         }
         ResetTransferSuggestions(); ResetTransferEditor();
         if (returnToList) ShowPage(HomePage);
@@ -139,7 +141,8 @@ public sealed partial class MainWindow
     private void RenderRecordFilterControls()
     {
         if (receiptSearch is null || recordSearch is null) return;
-        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; TransferListModel?.RefreshSearchText();
+        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; RecordKeyword.Text = recordSearch.TransferText;
+        ReceiptListModel?.RefreshSearchText(); TransferListModel?.RefreshSearchText();
         RecordMonthPeriod.IsChecked = !receiptSearch.AllPeriods; ReceiptAllPeriods.IsChecked = receiptSearch.AllPeriods;
         receiptFiltersUpdating = false;
         RefreshReceiptChoices();
