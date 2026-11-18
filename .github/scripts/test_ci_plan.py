@@ -14,6 +14,11 @@ from select_tests import FLAGS
 
 
 class FingerprintTests(unittest.TestCase):
+    def test_presentation_inputs_invalidate_portable_and_winui_proofs(self):
+        self.assert_changed("src/Monetail.Windows.Presentation/Transfers/TransferListViewModel.cs", "windows_client", "winui")
+        self.assert_changed("src/Monetail.Windows.Presentation/Monetail.Windows.Presentation.csproj", "windows_client", "winui")
+        self.assert_changed("tests/Monetail.Windows.Presentation.Tests/TransferListViewModelTests.cs", "windows_client")
+
     def setUp(self):
         self.records = {
             "README.md": "100644 blob docs",

@@ -127,26 +127,20 @@ public sealed partial class MainWindow
         }
         ResetTransferSuggestions(); ResetTransferEditor();
         if (returnToList) ShowPage(HomePage);
-        if (transferState is { } list && recordSearch is not null)
+        if (TransferListModel is { } list && recordSearch is not null)
         {
-            transferRestoringSaved = true;
-            try
-            {
-                var receipt = receiptState?.StartAsync(receiptSearch!.Query(), lifetime.Token) ?? Task.CompletedTask;
-                transferSavedSelection = deleted ? null : savedId;
-                if (deleted) await list.StartAsync(recordSearch.TransferQuery(), lifetime.Token);
-                else if (savedId is Guid id) await list.ShowSavedAsync(recordSearch.TransferQuery(), id, lifetime.Token);
-                await receipt;
-                if (!deleted) SelectSavedTransferRow();
-            }
-            finally { transferRestoringSaved = false; }
+            var receipt = receiptState?.StartAsync(receiptSearch!.Query(), lifetime.Token) ?? Task.CompletedTask;
+            if (deleted) await list.StartAsync(recordSearch.TransferQuery(), lifetime.Token);
+            else if (savedId is Guid id) await list.ShowSavedAsync(recordSearch.TransferQuery(), id, lifetime.Token);
+            await receipt;
+            if (!deleted) TransfersView.ScrollSelectionIntoView();
         }
         return !closed && account?.AuthUserId == accountId && currentLedger?.LedgerId == request.LedgerId;
     }
     private void RenderRecordFilterControls()
     {
         if (receiptSearch is null || recordSearch is null) return;
-        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; TransferNameSearch.Text = recordSearch.TransferText;
+        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; TransferListModel?.RefreshSearchText();
         RecordMonthPeriod.IsChecked = !receiptSearch.AllPeriods; ReceiptAllPeriods.IsChecked = receiptSearch.AllPeriods;
         receiptFiltersUpdating = false; RefreshReceiptChoices(); RenderReceiptState();
     }
@@ -170,12 +164,6 @@ public sealed partial class MainWindow
             (!TransferEditorRules.CanUse(methods, from) || !TransferEditorRules.CanUse(methods, to)))
             editor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
         PopulateTransferEditor();
-    }
-    private void SelectSavedTransferRow()
-    {
-        if (transferState?.SelectedTransferId is not Guid id) return;
-        var row = transferRows.FirstOrDefault(r => r.Transfer.TransferId == id);
-        if (row is not null) { TransferList.SelectedItem = row; TransferList.ScrollIntoView(row); transferSavedSelection = null; }
     }
     private void FocusTransferField(string field)
     {

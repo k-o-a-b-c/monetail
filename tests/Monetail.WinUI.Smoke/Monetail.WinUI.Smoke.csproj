@@ -22,7 +22,8 @@
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/ReceiptRow.cs" Link="ReceiptRow.cs" />
-    <Compile Include="../../src/Monetail.WinUI/TransferRow.cs" Link="TransferRow.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml" Link="Views/Transfers/TransferListView.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs" Link="Views/Transfers/TransferListView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Transfers.cs" Link="MainWindow.Transfers.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferEditor.cs" Link="MainWindow.TransferEditor.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSave.cs" Link="MainWindow.TransferSave.cs" />
@@ -47,5 +48,6 @@
 
     <ProjectReference Include="../../src/Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
     <Content Update="Assets/PreviewFont.otf" Condition="Exists('Assets/PreviewFont.otf')" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../../src/Monetail.Windows.Presentation/Monetail.Windows.Presentation.csproj" />
   </ItemGroup>
 </Project>

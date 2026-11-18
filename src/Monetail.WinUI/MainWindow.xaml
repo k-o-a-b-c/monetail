@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Monetail.WinUI"
     xmlns:views="using:Monetail.WinUI.Views"
+    xmlns:transfers="using:Monetail.WinUI.Views.Transfers"
     xmlns:input="using:Monetail.WinUI.Input">
     <Grid x:Name="WorkspaceRoot" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.Resources>
@@ -229,67 +230,15 @@
                     </Grid>
                 </Border>
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12">
-                    <Grid RowSpacing="8">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="振替" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Bottom" AutomationProperties.HeadingLevel="Level2"/>
-                            <TextBox x:Name="TransferNameSearch" Grid.Column="1" Header="振替名" PlaceholderText="部分一致で検索" TextChanged="TransferDraftChanged" KeyDown="TransferTextKeyDown" AutomationProperties.AutomationId="TransferNameSearch"/>
-                            <Button x:Name="TransferSearchButton" Grid.Column="2" Content="検索" Click="ApplyTransferText" VerticalAlignment="Bottom" AutomationProperties.Name="振替名で検索" AutomationProperties.AutomationId="TransferSearchButton"/>
-                            <Button x:Name="TransferReturnToStart" Grid.Column="3" Content="先頭に戻る" Click="ReturnTransferToStart" Visibility="Collapsed" VerticalAlignment="Bottom" AutomationProperties.AutomationId="TransferReturnToStart"/>
-                            <Button x:Name="TransferRegisterPlaceholder" Click="NewTransfer" Grid.Column="4" Content="＋ 登録" IsEnabled="False" VerticalAlignment="Bottom" AutomationProperties.Name="振替の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder"/>
-                        </Grid>
-                        <StackPanel x:Name="TransferOpenNotice" Grid.Row="1" Visibility="Collapsed" Spacing="8">
-                            <ProgressRing x:Name="TransferOpenProgress" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"/>
-                            <TextBlock x:Name="TransferOpenMessage" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            <Button x:Name="TransferOpenRetry" Content="再試行" Click="RetryTransferOpening" Visibility="Collapsed"/>
-                        </StackPanel>
-                        <Grid Grid.Row="2">
-                            <ListView x:Name="TransferList" DoubleTapped="TransferDoubleTapped" SelectionMode="Single" SelectionChanged="TransferSelected" Loaded="TransferListLoaded" LayoutUpdated="TransferLayoutChanged" HorizontalContentAlignment="Stretch"
-                                      ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="振替一覧" AutomationProperties.AutomationId="TransferList">
-                                <ListView.Header>
-                                    <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                        <TextBlock Text="日時"/><TextBlock Grid.Column="1" Text="振替名"/><TextBlock Grid.Column="2" Text="振替元"/><TextBlock Grid.Column="3" Text="振替先"/>
-                                        <TextBlock Grid.Column="4" Text="金額" HorizontalAlignment="Right"/><TextBlock Grid.Column="5" Text="メモ"/>
-                                    </Grid>
-                                </ListView.Header>
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="local:TransferRow">
-                                        <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
-                                            <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                            <TextBlock Text="{x:Bind TransactionAt, Mode=OneWay}"/>
-                                            <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Name, Mode=OneWay}"/>
-                                            <TextBlock Grid.Column="2" Text="{x:Bind FromName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind FromName, Mode=OneWay}"/>
-                                            <TextBlock Grid.Column="3" Text="{x:Bind ToName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ToName, Mode=OneWay}"/>
-                                            <TextBlock Grid.Column="4" Text="{x:Bind Amount, Mode=OneWay}" HorizontalAlignment="Right"/>
-                                            <TextBlock Grid.Column="5" Text="{x:Bind Memo, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Memo, Mode=OneWay}"/>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                                <ListView.Footer>
-                                    <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="12">
-                                        <StackPanel x:Name="TransferNextNotice" Visibility="Collapsed" Orientation="Horizontal" Spacing="8">
-                                            <ProgressRing x:Name="TransferNextProgress" IsActive="False" Width="20" Height="20"/><TextBlock Text="読み込み中…" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel x:Name="TransferNextFailure" Visibility="Collapsed" Spacing="8">
-                                            <TextBlock Text="読み込みに失敗しました" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                            <Button x:Name="TransferNextRetry" Content="再試行" Click="RetryTransfer" AutomationProperties.AutomationId="TransferNextRetry"/>
-                                        </StackPanel>
-                                        <Button x:Name="TransferContinue" Content="続きを読み込む" Visibility="Collapsed" Click="ContinueTransfer" AutomationProperties.AutomationId="TransferContinue"/>
-                                    </StackPanel>
-                                </ListView.Footer>
-                            </ListView>
-                            <StackPanel x:Name="TransferInitialNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                                <ProgressRing x:Name="TransferInitialProgress" IsActive="False" Width="32" Height="32"/><TextBlock Text="読み込み中…"/>
+                    <transfers:TransferListView x:Name="TransfersView">
+                        <transfers:TransferListView.OpeningContent>
+                            <StackPanel x:Name="TransferOpenNotice" Grid.Row="1" Visibility="Collapsed" Spacing="8">
+                                <ProgressRing x:Name="TransferOpenProgress" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"/>
+                                <TextBlock x:Name="TransferOpenMessage" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                <Button x:Name="TransferOpenRetry" Content="再試行" Click="RetryTransferOpening" Visibility="Collapsed"/>
                             </StackPanel>
-                            <TextBlock x:Name="TransferEmpty" Text="該当する振替がありません" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            <StackPanel x:Name="TransferInitialFailure" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                                <TextBlock x:Name="TransferInitialError" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                <Button x:Name="TransferInitialRetry" Content="再試行" Click="RetryTransfer" AutomationProperties.AutomationId="TransferInitialRetry"/>
-                            </StackPanel>
-                        </Grid>
-                    </Grid>
+                        </transfers:TransferListView.OpeningContent>
+                    </transfers:TransferListView>
                 </Border>
                 <Border Grid.Column="1" Grid.Row="2" Style="{StaticResource Card}" Padding="12">
                     <Grid RowSpacing="20">

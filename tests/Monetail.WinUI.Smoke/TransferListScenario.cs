@@ -20,6 +20,7 @@ public partial class App
         .Select(p => p.Split('=', 2)).ToDictionary(p => p[0], p => Uri.UnescapeDataString(p[1]));
     private async Task CheckTransferList()
     {
+        await CheckTransferMvvmBoundary();
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var masters = new PaymentServer(); var transfers = new List<Uri>(); var receipts = new List<Uri>();
         var count = 0; var fail = false; var invalidCursor = false;
@@ -84,10 +85,10 @@ public partial class App
         Find<RadioButton>(root, "RecordMonthPeriod").IsChecked = true; await Wait(() => window.ReceiptHomeReady && transfers.Count == 7 && receipts.Count == 7);
         Check(TransferQueryValues(transfers[^1])["month"] == "2027-01" && ((ReceiptFilterChoice)owner.SelectedItem).Id == masters.Other, "月指定復帰は保持年月・人物・支払方法を維持");
         count = 101; await InvokeAsync(() => Find<Button>(root, "TransferSearchButton")); await Wait(() => list.Items.Count == 100 && window.TransferHomeReady);
-        var first = (TransferRow)list.Items[0]; list.SelectedItem = first;
+        var first = (Monetail.Windows.Presentation.Transfers.TransferListItem)list.Items[0]; list.SelectedItem = first;
         await Wait(() => All(list).OfType<TextBlock>().Any(t => t.Text == "振替0"));
         Check(first.FromName == "本日有効" && first.ToName == "（母）母の現金" && first.TransactionAt == "2026/11/10 12:34:56" && first.Amount == 12345.ToString("N0", CultureInfo.CurrentCulture) && first.Memo == "", "振替6列は元表記・保存額・本人/他人物の支払方法名を表示");
-        var state = (TransferListState)typeof(MainWindow).GetField("transferState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(window)!;
+        var state = Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel!;
         var offset = filter.HorizontalOffset; list.ScrollIntoView(list.Items[79]); await Settle();
         Check(filter.HorizontalOffset == offset, "振替一覧の縦スクロールは共通フィルターから独立");
         fail = true; await state.ObserveViewportAsync(79, true, true); await Wait(() => Find<StackPanel>(root, "TransferNextFailure").Visibility == Visibility.Visible);
