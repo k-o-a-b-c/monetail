@@ -3,6 +3,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Monetail.WinUI.Views.Receipts;
 using Monetail.Windows.Client.Transport;
 using Windows.Graphics;
@@ -95,8 +96,14 @@ public partial class App
         try
         {
             await PositionTransferPointer(root, scroll, scroll.ActualWidth / 2, scroll.ActualHeight / 2);
-            SendTransferMouse(0x0001, deltaY: 1);
+            SendTransferMouse(0x2001, deltaY: 20);
             await Wait(() => moved);
+        }
+        catch (OperationCanceledException error)
+        {
+            var point = scroll.TransformToVisual(root).TransformPoint(new(scroll.ActualWidth / 2, scroll.ActualHeight / 2));
+            var hits = VisualTreeHelper.FindElementsInHostCoordinates(point, root).Select(element => (element as FrameworkElement)?.Name ?? element.GetType().Name);
+            throw new InvalidOperationException($"レシートのPointerMoved未到達: point={point.X},{point.Y}; root={root.ActualWidth}x{root.ActualHeight}; viewport={scroll.ViewportWidth}x{scroll.ViewportHeight}; enabled={list.IsEnabled}; active={GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(window!)}; hits={string.Join(',', hits)}", error);
         }
         finally
         {
