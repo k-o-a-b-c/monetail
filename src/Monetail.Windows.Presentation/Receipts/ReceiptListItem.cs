@@ -1,26 +1,18 @@
-using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using System.Globalization;
 using Monetail.Windows.Client.Transport;
 
-namespace Monetail.WinUI;
+namespace Monetail.Windows.Presentation.Receipts;
 
-[Microsoft.UI.Xaml.Data.Bindable]
-public sealed class ReceiptRow(ReceiptSummaryInfo receipt, Func<Guid, string> paymentName) : INotifyPropertyChanged
+public sealed class ReceiptListItem(ReceiptSummaryInfo receipt, Func<Guid, string> paymentName) : ObservableObject
 {
     public ReceiptSummaryInfo Receipt { get; } = receipt;
+    public Guid ReceiptId => Receipt.ReceiptId;
     public string TransactionAt => Receipt.TransactionAt.ToString("yyyy/MM/dd HH:mm:ss", CultureInfo.InvariantCulture);
     public string ShopName => Receipt.ShopName;
     public string ShopLocation => Receipt.ShopLocation ?? "";
     public string PaymentName => paymentName(Receipt.PaymentMethodId);
     public string TotalAmount => Receipt.TotalAmount.ToString("N0", CultureInfo.CurrentCulture);
     public string Memo => Receipt.Memo ?? "";
-    public event PropertyChangedEventHandler? PropertyChanged;
-    public void RefreshName() => PropertyChanged?.Invoke(this, new(nameof(PaymentName)));
-}
-
-[Microsoft.UI.Xaml.Data.Bindable]
-public sealed class ReceiptFilterChoice(Guid? id, string name)
-{
-    public Guid? Id { get; } = id;
-    public string Name { get; } = name;
+    public void RefreshName() => OnPropertyChanged(nameof(PaymentName));
 }

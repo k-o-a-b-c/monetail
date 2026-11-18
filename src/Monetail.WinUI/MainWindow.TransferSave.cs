@@ -129,7 +129,7 @@ public sealed partial class MainWindow
         if (returnToList) ShowPage(HomePage);
         if (TransferListModel is { } list && recordSearch is not null)
         {
-            var receipt = receiptState?.StartAsync(receiptSearch!.Query(), lifetime.Token) ?? Task.CompletedTask;
+            var receipt = ReceiptListModel?.StartAsync(receiptSearch!.Query(), lifetime.Token) ?? Task.CompletedTask;
             if (deleted) await list.StartAsync(recordSearch.TransferQuery(), lifetime.Token);
             else if (savedId is Guid id) await list.ShowSavedAsync(recordSearch.TransferQuery(), id, lifetime.Token);
             await receipt;
@@ -141,7 +141,9 @@ public sealed partial class MainWindow
         if (receiptSearch is null || recordSearch is null) return;
         receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; TransferListModel?.RefreshSearchText();
         RecordMonthPeriod.IsChecked = !receiptSearch.AllPeriods; ReceiptAllPeriods.IsChecked = receiptSearch.AllPeriods;
-        receiptFiltersUpdating = false; RefreshReceiptChoices(); RenderReceiptState();
+        receiptFiltersUpdating = false;
+        RefreshReceiptChoices();
+        RenderRecordFilters();
     }
     private async Task OfferTransferConflictAsync(TransferEditorState editor)
     {

@@ -81,7 +81,9 @@ public partial class App
             catch (TaskCanceledException error)
             {
                 var view = context?.GetType();
-                throw new InvalidOperationException($"レシート復帰位置: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; selection={price.SelectionStart},{price.SelectionLength}; offset={scroller.VerticalOffset}/{offset}; capturedFocus={(view?.GetProperty("Focus")?.GetValue(context) as FrameworkElement)?.Name}; capturedSelection={view?.GetProperty("SelectionStart")?.GetValue(context)},{view?.GetProperty("SelectionLength")?.GetValue(context)}; phase={TransferRuntime("receiptRecoveryPhase")}; loaded={price.IsLoaded}; readonly={price.IsReadOnly}", error);
+                var positions = view?.GetProperty("Scrolls")?.GetValue(context) as (ScrollViewer Viewer, double X, double Y)[];
+                var captured = positions?.FirstOrDefault(position => ReferenceEquals(position.Viewer, scroller));
+                throw new InvalidOperationException($"レシート復帰位置: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; selection={price.SelectionStart},{price.SelectionLength}; offset={scroller.VerticalOffset}/{offset}; capturedOffset={captured?.Y}; capturedFocus={(view?.GetProperty("Focus")?.GetValue(context) as FrameworkElement)?.Name}; capturedSelection={view?.GetProperty("SelectionStart")?.GetValue(context)},{view?.GetProperty("SelectionLength")?.GetValue(context)}; phase={TransferRuntime("receiptRecoveryPhase")}; loaded={price.IsLoaded}; readonly={price.IsReadOnly}", error);
             }
             Check(ReferenceEquals(originalWindow, window) && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) &&
                 ReferenceEquals(price, Find<TextBox>(root, "ReceiptItemPrice")) && people.All(p => Find<StackPanel>(root, "ReceiptDetailPeople").Children.Contains(p)),

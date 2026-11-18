@@ -65,7 +65,7 @@ public partial class App
             memo.Focus(FocusState.Keyboard); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
             composing.Add(memo); await PressReceiptKey(0x0D); await Settle();
             Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo) && group.Details.Count == 1 && group.Details[0].Values.Memo == detailMemo,
-                $"{memo.Name}のIME変換確定Enterはフォーカス移動も明細反映もしない");
+                $"{memo.Name}のIME変換確定Enterはフォーカス移動も明細反映もしない: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; composing={keyboard.IsComposing}; details={group.Details.Count}; savedMemoUnchanged={group.Details.Count == 1 && group.Details[0].Values.Memo == detailMemo}; active={GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(window!)}");
             composing.Clear();
             // 合成終了がKeyDownに先行する場合も既存の共通ガードを通す。
             typeof(FormKeyboard).GetField("completingWithEnter", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(keyboard, true);

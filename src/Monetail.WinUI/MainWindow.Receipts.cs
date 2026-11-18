@@ -1,11 +1,7 @@
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Net;
-using DispatcherQueuePriority = Microsoft.UI.Dispatching.DispatcherQueuePriority;
+using System.ComponentModel;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Monetail.WinUI.Input;
@@ -13,6 +9,7 @@ using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Receipts;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Presentation.Receipts;
 using Windows.System;
 using Windows.UI.Core;
 
@@ -20,61 +17,57 @@ namespace Monetail.WinUI;
 
 public sealed partial class MainWindow
 {
-    private ReceiptListState? receiptState;
-    private ReceiptSearchState? receiptSearch;
+    private ReceiptListViewModel? ReceiptListModel => ReceiptsView.ViewModel;
+    private ReceiptSearchState? receiptSearch => recordSearch?.Receipts;
     private RecordSearchState? recordSearch;
     private CancellationTokenSource? recordMasterLifetime;
-    private readonly ObservableCollection<ReceiptRow> receiptRows = [];
-    private ScrollViewer? receiptScroller;
-    private FormKeyboard receiptKeyboard = null!;
-    private bool receiptFiltersUpdating, receiptViewportQueued, receiptScrollIntent;
-    private double receiptPreviousOffset;
-    internal bool ReceiptHomeReady => account is null || (receiptState is { HasLoaded: true } or { Failure: not null }) && TransferHomeReady;
+    private FormKeyboard recordKeyboard = null!;
+    private bool receiptFiltersUpdating;
+    internal bool ReceiptHomeReady => account is null || (ReceiptListModel is { HasLoaded: true } or { Failure: not null }) && TransferHomeReady;
 
     private void InitializeReceipts()
     {
-        ReceiptList.ItemsSource = receiptRows;
-        receiptKeyboard = new FormKeyboard(RecordContent, null, null, ReceiptMonth, ReceiptShop);
+        recordKeyboard = new FormKeyboard(RecordFilters, null, null, ReceiptMonth);
         connection.Masters.Changed += ReceiptMasterChanged;
-        ReceiptList.AddHandler(UIElement.PointerWheelChangedEvent, new PointerEventHandler((_, _) => receiptScrollIntent = receiptScroller?.ScrollableHeight > 0), true);
-        ReceiptList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, args) =>
-        {
-            for (var element = args.OriginalSource as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
-                if (element is ScrollBar) { receiptScrollIntent = true; break; }
-        }), true);
-        ReceiptList.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler((_, args) =>
-        { if (args.Key is VirtualKey.Down or VirtualKey.PageDown or VirtualKey.End or VirtualKey.Space) receiptScrollIntent = receiptScroller?.ScrollableHeight > 0; }), true);
     }
     private void ResetRecordHome()
     {
         receiptRestorePending = false;
         ResetTransfers(); recordSearch = null; recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose(); recordMasterLifetime = null;
-        receiptState?.Dispose(); receiptState = null; receiptSearch = null;
-        connection.Masters.Clear(); receiptRows.Clear(); receiptScrollIntent = false;
+        if (ReceiptListModel is { } model)
+        {
+            model.PropertyChanged -= ReceiptListChanged;
+            model.SearchRequested -= ApplyReceiptTextAsync;
+            model.OpenRequested -= OpenReceiptEditorAsync;
+            model.Dispose();
+        }
+        ReceiptsView.ViewModel = null;
+        connection.Masters.Clear();
     }
     private void StartReceiptHome()
     {
         if (account is null || currentLedger is null) return;
         var ledger = currentLedger.LedgerId; var api = connection.Api; var session = connection.Session;
-        recordSearch = new(DateOnly.FromDateTime(DateTime.Now)); receiptSearch = recordSearch.Receipts;
+        recordSearch = new(DateOnly.FromDateTime(DateTime.Now));
         recordMasterLifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); var masterToken = recordMasterLifetime.Token;
-        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; ReceiptShop.Text = ""; RecordMonthPeriod.IsChecked = true; receiptFiltersUpdating = false;
+        receiptFiltersUpdating = true;
+        ReceiptMonth.Text = recordSearch.Receipts.MonthText;
+        RecordMonthPeriod.IsChecked = true;
+        receiptFiltersUpdating = false;
         var workspace = new ReceiptsWorkspace(api, session, ledger);
-        var state = new ReceiptListState(async (query, token) =>
+        var model = new ReceiptListViewModel(async (query, token) =>
         {
             await GetRecordMastersAsync(ledger, api, session, masterToken, token);
             return await workspace.ListAsync(query, token);
-        });
-        receiptState = state;
-        state.Rows.CollectionChanged += (_, args) =>
-        {
-            if (!ReferenceEquals(receiptState, state)) return;
-            if (args.Action == NotifyCollectionChangedAction.Reset) { receiptScrollIntent = receiptQueuedUserScroll = false; receiptPreviousOffset = 0; receiptRows.Clear(); receiptScroller?.ChangeView(null, 0, null, true); }
-            else if (args.NewItems is not null)
-                foreach (ReceiptSummaryInfo row in args.NewItems) receiptRows.Add(new(row, id => connection.Masters.PaymentName(ledger, id)));
-        };
-        state.Changed += () => { if (ReferenceEquals(receiptState, state)) RenderReceiptState(); };
-        RefreshReceiptChoices(); _ = state.StartAsync(receiptSearch.Query(), lifetime.Token);
+        }, recordSearch, id => connection.Masters.PaymentName(ledger, id));
+        model.SearchRequested += ApplyReceiptTextAsync;
+        model.OpenRequested += OpenReceiptEditorAsync;
+        model.PropertyChanged += ReceiptListChanged;
+        ReceiptsView.ViewModel = model;
+        UpdateReceiptActions();
+        RefreshReceiptChoices();
+        RenderRecordFilters();
+        _ = model.StartAsync(recordSearch.Receipts.Query(), lifetime.Token);
         StartTransferHome(ledger, api, session, masterToken);
     }
     private async Task GetRecordMastersAsync(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken, CancellationToken token)
@@ -89,7 +82,8 @@ public sealed partial class MainWindow
     {
         if (currentLedger?.LedgerId != ledger || closed) return;
         RefreshReceiptEditorChoices(); RefreshTransferEditorChoices(); RenderTransferEditor();
-        RefreshReceiptChoices(); foreach (var row in receiptRows) row.RefreshName();
+        RefreshReceiptChoices();
+        ReceiptListModel?.RefreshNames();
         TransferListModel?.RefreshNames(); UpdateTransferActions();
     }
     private void RefreshReceiptChoices()
@@ -109,27 +103,22 @@ public sealed partial class MainWindow
         ReceiptPayment.ItemsSource = payments; ReceiptPayment.SelectedItem = payments.FirstOrDefault(p => p.Id == receiptSearch.PaymentMethodId);
         receiptFiltersUpdating = false;
     }
-    private void RenderReceiptState()
+    private void ReceiptListChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (closed || receiptState is not { } state) return;
-        if (!RecordEditorActive && state.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
-        { NavigateToLogin("ログインを継続できません。もう一度ログインしてください。"); return; }
-        ReceiptInitialProgress.IsActive = state.IsInitialLoading;
-        ReceiptInitialNotice.Visibility = state.IsInitialLoading ? Visibility.Visible : Visibility.Collapsed;
-        ReceiptEmpty.Visibility = state.HasLoaded && state.Rows.Count == 0 && state.Failure is null && !state.IsLoading ? Visibility.Visible : Visibility.Collapsed;
-        ReceiptInitialFailure.Visibility = state.IsInitialFailure ? Visibility.Visible : Visibility.Collapsed;
-        ReceiptNextProgress.IsActive = state.IsContinuationLoading;
-        ReceiptNextNotice.Visibility = state.IsContinuationLoading ? Visibility.Visible : Visibility.Collapsed;
-        ReceiptNextFailure.Visibility = state.IsContinuationFailure ? Visibility.Visible : Visibility.Collapsed;
-        ReceiptContinue.Visibility = state.CanContinue ? Visibility.Visible : Visibility.Collapsed;
-        ReceiptInitialError.Text = state.Failure switch
-        {
-            ReceiptRequestException { StatusCode: HttpStatusCode.NotFound } => "この家計簿は開けません。参加状態を確認してください。",
-            ReceiptRequestException { StatusCode: HttpStatusCode.Forbidden } => "この操作を行う権限がありません。",
-            ReceiptRequestException { StatusCode: HttpStatusCode.TooManyRequests } => "操作回数の上限に達しました。しばらく待って再試行してください。",
-            PeopleRequestException or PaymentMethodRequestException => "マスタ情報を取得できませんでした。参加状態と権限を確認してください。",
-            _ => "レシートを取得できませんでした"
-        };
+        if (closed || !ReferenceEquals(sender, ReceiptListModel) || args.PropertyName != nameof(ReceiptListViewModel.Failure))
+            return;
+        if (!RecordEditorActive && ReceiptListModel?.Failure is (AuthenticationRejectedException or AuthenticationContextChangedException))
+            NavigateToLogin("ログインを継続できません。もう一度ログインしてください。");
+    }
+    private void UpdateReceiptActions()
+    {
+        if (ReceiptListModel is { } model)
+            model.CanRegister = account is not null && receiptOpening is null;
+    }
+    private void RenderRecordFilters()
+    {
+        if (closed)
+            return;
         ReceiptMonthError.Text = receiptSearch?.MonthError ?? "";
         ReceiptMonthError.Visibility = receiptSearch?.MonthError is null ? Visibility.Collapsed : Visibility.Visible;
         if (receiptSearch is { } search)
@@ -137,47 +126,55 @@ public sealed partial class MainWindow
             ReceiptAppliedMonth.Text = "適用中：" + (search.AllPeriods ? "全期間" : search.AppliedMonth);
             ReceiptMonth.IsEnabled = !search.AllPeriods; RecordMonthApply.IsEnabled = !search.AllPeriods; ReceiptPrevious.IsEnabled = search.CanMove(-1); ReceiptNextMonth.IsEnabled = search.CanMove(1);
         }
-        ScheduleReceiptViewport(false);
     }
-    private async void ApplyReceiptText(object sender, RoutedEventArgs args) => await ApplyReceiptTextAsync();
     private async Task ApplyReceiptTextAsync()
     {
-        if (receiptSearch is null || receiptState is null) return;
+        if (receiptSearch is null || ReceiptListModel is null) return;
         var previousMonth = receiptSearch.Query().Month;
-        receiptSearch.MonthText = ReceiptMonth.Text; receiptSearch.ShopText = ReceiptShop.Text;
-        if (!receiptSearch.ApplyText()) { RenderReceiptState(); ReceiptMonth.Focus(FocusState.Programmatic); return; }
+        receiptSearch.MonthText = ReceiptMonth.Text;
+        if (!receiptSearch.ApplyText())
+        {
+            RenderRecordFilters();
+            ReceiptMonth.Focus(FocusState.Programmatic);
+            return;
+        }
         await ReloadRecordsAsync(true, receiptSearch.Query().Month != previousMonth);
     }
     private async void ReceiptTextKeyDown(object sender, KeyRoutedEventArgs args)
     {
-        if (args.Key != VirtualKey.Enter || receiptKeyboard.IsComposing ||
+        if (args.Key != VirtualKey.Enter || recordKeyboard.IsComposing ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down) ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) ||
             InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down)) return;
         args.Handled = true;
-        if (ReferenceEquals(sender, ReceiptMonth)) await ApplyRecordMonthAsync(); else await ApplyReceiptTextAsync();
+        await ApplyRecordMonthAsync();
     }
     private void ReceiptDraftChanged(object sender, TextChangedEventArgs args)
-    { if (!receiptFiltersUpdating && receiptSearch is { } search) { search.MonthText = ReceiptMonth.Text; search.ShopText = ReceiptShop.Text; } }
+    {
+        if (!receiptFiltersUpdating && receiptSearch is { } search)
+        {
+            search.MonthText = ReceiptMonth.Text;
+        }
+    }
     private async void MoveReceiptMonth(object sender, RoutedEventArgs args)
     {
-        if (receiptSearch is null || receiptState is null || !receiptSearch.MoveMonth(ReferenceEquals(sender, ReceiptPrevious) ? -1 : 1)) return;
+        if (receiptSearch is null || ReceiptListModel is null || !receiptSearch.MoveMonth(ReferenceEquals(sender, ReceiptPrevious) ? -1 : 1)) return;
         receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; receiptFiltersUpdating = false;
         await ReloadRecordsAsync(true, true);
     }
     private async void ReceiptPeriodChanged(object sender, RoutedEventArgs args)
     {
-        if (receiptFiltersUpdating || receiptSearch is null || receiptState is null) return;
+        if (receiptFiltersUpdating || receiptSearch is null || ReceiptListModel is null) return;
         receiptSearch.AllPeriods = ReferenceEquals(sender, ReceiptAllPeriods); await ReloadRecordsAsync(true, true);
     }
     private async void ReceiptOwnerChanged(object sender, SelectionChangedEventArgs args)
     {
-        if (receiptFiltersUpdating || receiptSearch is null || receiptState is null || ReceiptOwner.SelectedItem is not ReceiptFilterChoice value) return;
+        if (receiptFiltersUpdating || receiptSearch is null || ReceiptListModel is null || ReceiptOwner.SelectedItem is not ReceiptFilterChoice value) return;
         receiptSearch.OwnerPersonId = value.Id; await ReloadRecordsAsync(true, true);
     }
     private async void ReceiptPaymentChanged(object sender, SelectionChangedEventArgs args)
     {
-        if (receiptFiltersUpdating || receiptSearch is null || receiptState is null || ReceiptPayment.SelectedItem is not ReceiptFilterChoice value) return;
+        if (receiptFiltersUpdating || receiptSearch is null || ReceiptListModel is null || ReceiptPayment.SelectedItem is not ReceiptFilterChoice value) return;
         receiptSearch.PaymentMethodId = value.Id; await ReloadRecordsAsync(true, true);
     }
     private async void ApplyRecordMonth(object sender, RoutedEventArgs args) => await ApplyRecordMonthAsync();
@@ -185,54 +182,22 @@ public sealed partial class MainWindow
     {
         if (receiptSearch is null) return;
         receiptSearch.MonthText = ReceiptMonth.Text;
-        if (!receiptSearch.ApplyMonthText()) { RenderReceiptState(); ReceiptMonth.Focus(FocusState.Programmatic); return; }
+        if (!receiptSearch.ApplyMonthText())
+        {
+            RenderRecordFilters();
+            ReceiptMonth.Focus(FocusState.Programmatic);
+            return;
+        }
         await ReloadRecordsAsync(true, true);
     }
     private async Task ReloadRecordsAsync(bool receipts, bool transfers)
     {
         if (receiptSearch is null || recordSearch is null) return;
-        var receipt = receipts && receiptState is not null ? receiptState.StartAsync(receiptSearch.Query(), lifetime.Token) : Task.CompletedTask;
+        var receipt = receipts && ReceiptListModel is not null ? ReceiptListModel.StartAsync(receiptSearch.Query(), lifetime.Token) : Task.CompletedTask;
         var transfer = transfers && TransferListModel is not null ? TransferListModel.StartAsync(recordSearch.TransferQuery(), lifetime.Token) : Task.CompletedTask;
-        RenderReceiptState(); await Task.WhenAll(receipt, transfer);
+        RenderRecordFilters();
+        await Task.WhenAll(receipt, transfer);
     }
-    private async void RetryReceipt(object sender, RoutedEventArgs args) { if (receiptState is { } state) await state.RetryAsync(lifetime.Token); }
-    private async void ContinueReceipt(object sender, RoutedEventArgs args) { if (receiptState is { } state) await state.ContinueAsync(lifetime.Token); }
-    private void ReceiptSelected(object sender, SelectionChangedEventArgs args) { if (receiptState is { } state) state.SelectedReceiptId = (ReceiptList.SelectedItem as ReceiptRow)?.Receipt.ReceiptId; }
-    private void ReceiptListLoaded(object sender, RoutedEventArgs args)
-    {
-        receiptScroller = Descendant<ScrollViewer>(ReceiptList);
-        if (receiptScroller is not null)
-        {
-            receiptScroller.ViewChanged -= ReceiptViewChanged; receiptScroller.ViewChanged += ReceiptViewChanged;
-            receiptScroller.DirectManipulationStarted -= ReceiptManipulationStarted;
-            receiptScroller.DirectManipulationStarted += ReceiptManipulationStarted;
-        }
-        ScheduleReceiptViewport(false);
-    }
-    private void ReceiptManipulationStarted(object? sender, object args) => receiptScrollIntent = receiptScroller?.ScrollableHeight > 0;
-    private void ReceiptViewChanged(object? sender, ScrollViewerViewChangedEventArgs args)
-    {
-        if (receiptScroller is null) return;
-        var user = receiptScrollIntent && receiptScroller.VerticalOffset > receiptPreviousOffset;
-        receiptPreviousOffset = receiptScroller.VerticalOffset;
-        if (!args.IsIntermediate) receiptScrollIntent = false;
-        ScheduleReceiptViewport(user);
-    }
-    private bool receiptQueuedUserScroll;
-    private void ScheduleReceiptViewport(bool user)
-    {
-        receiptQueuedUserScroll |= user;
-        if (receiptViewportQueued || closed || HomePage.Visibility != Visibility.Visible || RecordEditorActive || receiptState is null) return;
-        receiptViewportQueued = true;
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, async () =>
-        {
-            receiptViewportQueued = false; var scrolled = receiptQueuedUserScroll; receiptQueuedUserScroll = false;
-            if (closed || HomePage.Visibility != Visibility.Visible || RecordEditorActive || receiptState is not { } state || receiptScroller is null) return;
-            var panel = ReceiptList.ItemsPanelRoot as ItemsStackPanel;
-            await state.ObserveViewportAsync(panel?.LastVisibleIndex ?? -1, receiptScroller.ScrollableHeight > 0, scrolled, lifetime.Token);
-        });
-    }
-    private void ReceiptLayoutChanged(object sender, object args) => ScheduleReceiptViewport(false);
     private static T? Descendant<T>(DependencyObject parent) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)

@@ -1,0 +1,81 @@
+<UserControl
+    x:Class="Monetail.WinUI.Views.Receipts.ReceiptListView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:presentation="using:Monetail.Windows.Presentation.Receipts"
+    IsTabStop="False" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    <Grid RowSpacing="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="1" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="レシート" Style="{ThemeResource SubtitleTextBlockStyle}" />
+            <Button x:Name="NewReceiptButton" Grid.Column="1" Content="＋ 登録" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}"
+                    AutomationProperties.Name="レシートの登録"  AutomationProperties.AutomationId="NewReceiptButton"/>
+        </Grid>
+        <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
+        <Grid Grid.Row="2" RowSpacing="12">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <StackPanel x:Name="ReceiptFilters" Spacing="8">
+                <ContentControl Content="{x:Bind OpeningContent, Mode=OneWay}" Visibility="{x:Bind OpeningContent.Visibility, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="ReceiptShop" Header="店名" PlaceholderText="部分一致で検索" Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptShop"/>
+                    <Button x:Name="ReceiptSearchButton" Grid.Column="1" Content="検索" Command="{x:Bind ViewModel.SearchCommand, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptSearchButton"/>
+                </Grid>
+            </StackPanel>
+            <Grid Grid.Row="1">
+                <ListView x:Name="ReceiptList" SelectionMode="Single" DoubleTapped="ReceiptDoubleTapped" Loaded="ReceiptListLoaded" SizeChanged="ReceiptSizeChanged" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
+                          HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                          AutomationProperties.Name="レシート一覧" AutomationProperties.AutomationId="ReceiptList">
+                    <ListView.Header>
+                        <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="日時"/><TextBlock Grid.Column="1" Text="店名"/><TextBlock Grid.Column="2" Text="所在地"/>
+                            <TextBlock Grid.Column="3" Text="支払方法"/><TextBlock Grid.Column="4" Text="合計額" HorizontalAlignment="Right"/><TextBlock Grid.Column="5" Text="メモ"/>
+                        </Grid>
+                    </ListView.Header>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="presentation:ReceiptListItem">
+                            <Grid MinWidth="1000" Padding="12,12" ColumnSpacing="12">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="164"/><ColumnDefinition Width="170"/><ColumnDefinition Width="150"/><ColumnDefinition Width="170"/><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{x:Bind TransactionAt, Mode=OneWay}"/>
+                                <TextBlock Grid.Column="1" Text="{x:Bind ShopName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ShopName, Mode=OneWay}"/>
+                                <TextBlock Grid.Column="2" Text="{x:Bind ShopLocation, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ShopLocation, Mode=OneWay}"/>
+                                <TextBlock Grid.Column="3" Text="{x:Bind PaymentName, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind PaymentName, Mode=OneWay}"/>
+                                <TextBlock Grid.Column="4" Text="{x:Bind TotalAmount, Mode=OneWay}" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Column="5" Text="{x:Bind Memo, Mode=OneWay}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Memo, Mode=OneWay}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                    <ListView.Footer>
+                        <StackPanel HorizontalAlignment="Left" Spacing="8" Margin="12">
+                            <StackPanel x:Name="ReceiptNextNotice" Visibility="{x:Bind Show(ViewModel.IsContinuationLoading), Mode=OneWay}" Orientation="Horizontal" Spacing="8">
+                                <ProgressRing x:Name="ReceiptNextProgress" IsActive="{x:Bind ViewModel.IsContinuationLoading, Mode=OneWay}" Width="20" Height="20"/><TextBlock Text="読み込み中…" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel x:Name="ReceiptNextFailure" Visibility="{x:Bind Show(ViewModel.IsContinuationFailure), Mode=OneWay}" Spacing="8">
+                                <TextBlock Text="読み込みに失敗しました" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                <Button x:Name="ReceiptNextRetry" Content="再試行" Command="{x:Bind ViewModel.RetryCommand, Mode=OneWay}" AutomationProperties.AutomationId="ReceiptNextRetry"/>
+                            </StackPanel>
+                            <Button x:Name="ReceiptContinue" Content="続きを読み込む" Visibility="{x:Bind Show(ViewModel.CanContinue), Mode=OneWay}" Command="{x:Bind ViewModel.ContinueCommand, Mode=OneWay}" AutomationProperties.AutomationId="ReceiptContinue"/>
+                        </StackPanel>
+                    </ListView.Footer>
+                </ListView>
+                <StackPanel x:Name="ReceiptInitialNotice" Visibility="{x:Bind Show(ViewModel.IsInitialLoading), Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                    <ProgressRing x:Name="ReceiptInitialProgress" IsActive="{x:Bind ViewModel.IsInitialLoading, Mode=OneWay}" Width="32" Height="32"/><TextBlock Text="読み込み中…"/>
+                </StackPanel>
+                <TextBlock x:Name="ReceiptEmpty" Text="該当するレシートがありません" Visibility="{x:Bind Show(ViewModel.IsEmpty), Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <StackPanel x:Name="ReceiptInitialFailure" Visibility="{x:Bind Show(ViewModel.IsInitialFailure), Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                    <TextBlock x:Name="ReceiptInitialError" Text="{x:Bind ViewModel.ErrorText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                    <Button x:Name="ReceiptInitialRetry" Content="再試行" Command="{x:Bind ViewModel.RetryCommand, Mode=OneWay}" AutomationProperties.AutomationId="ReceiptInitialRetry"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
