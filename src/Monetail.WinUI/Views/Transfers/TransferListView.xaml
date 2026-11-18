@@ -12,11 +12,11 @@
             <TextBox x:Name="TransferNameSearch" Grid.Column="1" Header="振替名" PlaceholderText="部分一致で検索" Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="TransferTextKeyDown" AutomationProperties.AutomationId="TransferNameSearch"/>
             <Button x:Name="TransferSearchButton" Grid.Column="2" Content="検索" Command="{x:Bind ViewModel.SearchCommand, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.Name="振替名で検索" AutomationProperties.AutomationId="TransferSearchButton"/>
             <Button x:Name="TransferReturnToStart" Grid.Column="3" Content="先頭に戻る" Command="{x:Bind ViewModel.ReturnToStartCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.IsFocused), Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="TransferReturnToStart"/>
-            <Button x:Name="TransferRegisterPlaceholder" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}" Grid.Column="4" Content="＋ 登録" IsEnabled="{x:Bind ViewModel.CanRegister, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.Name="振替の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder"/>
+            <Button x:Name="TransferRegisterPlaceholder" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}" Grid.Column="4" Content="＋ 登録" VerticalAlignment="Bottom" AutomationProperties.Name="振替の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder"/>
         </Grid>
         <ContentControl Grid.Row="1" Content="{x:Bind OpeningContent, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
         <Grid Grid.Row="2">
-            <ListView x:Name="TransferList" DoubleTapped="TransferDoubleTapped" SelectionMode="Single" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}" Loaded="TransferListLoaded" LayoutUpdated="TransferLayoutChanged" HorizontalContentAlignment="Stretch"
+            <ListView x:Name="TransferList" DoubleTapped="TransferDoubleTapped" SelectionMode="Single" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}" Loaded="TransferListLoaded" SizeChanged="TransferSizeChanged" HorizontalContentAlignment="Stretch"
                       ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="振替一覧" AutomationProperties.AutomationId="TransferList">
                 <ListView.Header>
                     <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">

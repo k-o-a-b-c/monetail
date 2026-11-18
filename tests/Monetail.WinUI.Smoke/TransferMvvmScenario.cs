@@ -12,6 +12,8 @@ public partial class App
 {
     private async Task CheckTransferMvvmBoundary()
     {
+        await CheckTransferViewportTriggers();
+        await CheckTransferRegistrationCommand();
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var masters = new PaymentServer();
         var reads = 0;

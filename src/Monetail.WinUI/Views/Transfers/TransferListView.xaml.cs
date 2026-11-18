@@ -78,14 +78,22 @@ public sealed partial class TransferListView : UserControl
     }
     private void ModelChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(TransferListViewModel.SelectedItem) && ViewModel is { IsFindingSaved: true })
-            DispatcherQueue.TryEnqueue(ScrollSelectionIntoView);
-        ObserveViewport();
+        if (args.PropertyName != nameof(TransferListViewModel.SelectedItem) ||
+            ViewModel is not { IsFindingSaved: true, SelectedItem: { } selected } model)
+            return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!ReferenceEquals(ViewModel, model) || !ReferenceEquals(model.SelectedItem, selected))
+                return;
+            scrollIntent = queuedUserScroll = false;
+            TransferList.ScrollIntoView(selected);
+        });
     }
     private void RowsChanged(object? sender, NotifyCollectionChangedEventArgs args)
     {
         if (args.Action == NotifyCollectionChangedAction.Reset)
             ResetViewport();
+        ObserveViewport();
     }
     private void ResetViewport()
     {
@@ -97,13 +105,11 @@ public sealed partial class TransferListView : UserControl
     public void RestorePosition() => DispatcherQueue.TryEnqueue(() =>
     {
         if (CanObserve())
+        {
+            scrollIntent = queuedUserScroll = false;
             scroller?.ChangeView(returnPosition.Horizontal, returnPosition.Vertical, null, true);
+        }
     });
-    public void ScrollSelectionIntoView()
-    {
-        if (ViewModel?.SelectedItem is { } row)
-            TransferList.ScrollIntoView(row);
-    }
     private bool CanObserve()
     {
         if (!IsLoaded || scroller is null || ViewModel is null)
@@ -122,6 +128,9 @@ public sealed partial class TransferListView : UserControl
         viewportQueued = true;
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, async () =>
         {
+            // 行/サイズ変更のArrangeを終えてから可視範囲を読む。確定中の通知も同じ要求へまとめる。
+            if (CanObserve())
+                TransferList.UpdateLayout();
             viewportQueued = false;
             var scrolled = queuedUserScroll;
             queuedUserScroll = false;
@@ -166,7 +175,7 @@ public sealed partial class TransferListView : UserControl
             scrollIntent = false;
         ScheduleViewport(user);
     }
-    private void TransferLayoutChanged(object sender, object args) => ObserveViewport();
+    private void TransferSizeChanged(object sender, SizeChangedEventArgs args) => ObserveViewport();
     private void TransferDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
         for (var element = args.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, TransferList); element = VisualTreeHelper.GetParent(element))

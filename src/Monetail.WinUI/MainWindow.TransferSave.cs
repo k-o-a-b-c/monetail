@@ -133,7 +133,6 @@ public sealed partial class MainWindow
             if (deleted) await list.StartAsync(recordSearch.TransferQuery(), lifetime.Token);
             else if (savedId is Guid id) await list.ShowSavedAsync(recordSearch.TransferQuery(), id, lifetime.Token);
             await receipt;
-            if (!deleted) TransfersView.ScrollSelectionIntoView();
         }
         return !closed && account?.AuthUserId == accountId && currentLedger?.LedgerId == request.LedgerId;
     }
