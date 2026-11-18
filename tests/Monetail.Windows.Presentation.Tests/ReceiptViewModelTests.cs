@@ -194,4 +194,54 @@ public sealed class ReceiptViewModelTests
         pending.SetResult();
         await first;
     }
+    [Fact]
+    public async Task DisposalClearsTheOwnedRowsAndSelectionAndRejectsDelayedPages()
+    {
+        var pending = new TaskCompletionSource<ReceiptListInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        using var model = ReceiptListViewModelTests.Create((_, _) => ++calls == 1
+            ? Task.FromResult(new ReceiptListInfo(ReceiptListViewModelTests.Rows(0, 100), "next")) : pending.Task);
+        await model.StartAsync(new("all"));
+        model.SelectedItem = model.Rows[0];
+        var rows = model.Rows;
+        var read = model.ObserveViewportAsync(99, true, true);
+        model.Dispose();
+        Assert.Same(rows, model.Rows);
+        Assert.Empty(rows);
+        Assert.Null(model.SelectedItem);
+        Assert.Null(model.SelectedReceiptId);
+        Assert.False(model.IsLoading);
+        pending.SetResult(new(ReceiptListViewModelTests.Rows(100, 100), "old"));
+        await read;
+        Assert.Empty(rows);
+        Assert.Null(model.SelectedItem);
+    }
+
+    [Fact]
+    public async Task ViewportChangesNotifyOnlyTheViewportAndContinueAvailability()
+    {
+        var reads = 0;
+        using var model = ReceiptListViewModelTests.Create((_, _) =>
+        {
+            reads++;
+            return Task.FromResult(new ReceiptListInfo(ReceiptListViewModelTests.Rows(0, 100), "next"));
+        });
+        await model.StartAsync(new("all"));
+        model.CanRegister = true;
+        model.SelectedItem = model.Rows[0];
+        var selected = model.SelectedItem;
+        var properties = new List<string?>();
+        var retries = 0;
+        var continues = 0;
+        model.PropertyChanged += (_, args) => properties.Add(args.PropertyName);
+        model.RetryCommand.CanExecuteChanged += (_, _) => retries++;
+        model.ContinueCommand.CanExecuteChanged += (_, _) => continues++;
+        await model.ObserveViewportAsync(0, true, false);
+        Assert.Equal(new[] { nameof(model.ViewportFilled), nameof(model.CanContinue) }, properties);
+        Assert.Equal(1, continues);
+        Assert.Equal(0, retries);
+        Assert.Equal(1, reads);
+        Assert.True(model.CanRegister);
+        Assert.Same(selected, model.SelectedItem);
+    }
 }

@@ -148,7 +148,9 @@ public sealed partial class ReceiptListViewModel(
         if (ViewportFilled != filled)
         {
             ViewportFilled = filled;
-            NotifyState();
+            OnPropertyChanged(nameof(ViewportFilled));
+            OnPropertyChanged(nameof(CanContinue));
+            ContinueCommand.NotifyCanExecuteChanged();
         }
         if (suspended || !HasLoaded || IsLoading || Failure is not null || NextCursor is null)
             return;
@@ -250,5 +252,11 @@ public sealed partial class ReceiptListViewModel(
         RetryCommand.NotifyCanExecuteChanged();
         ContinueCommand.NotifyCanExecuteChanged();
     }
-    public void Dispose() => Stop(false, false);
+    public void Dispose()
+    {
+        Stop(false, false);
+        // 退避はSuspend、破棄はDispose。nullのバインド更新だけでは古い表示行が残り得る。
+        rows.Clear();
+        SelectedItem = null;
+    }
 }
