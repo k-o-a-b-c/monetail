@@ -72,7 +72,7 @@ public sealed partial class TransferListView : UserControl
     private void TransferDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
         for (var element = args.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, TransferList); element = VisualTreeHelper.GetParent(element))
-            if (element is FrameworkElement { DataContext: TransferListItem row })
+            if (element is ListViewItem item && TransferList.ItemFromContainer(item) is TransferListItem row)
             {
                 args.Handled = true;
                 ViewModel?.EditCommand.Execute(row.TransferId);
