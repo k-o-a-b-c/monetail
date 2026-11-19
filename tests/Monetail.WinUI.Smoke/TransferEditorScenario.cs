@@ -6,7 +6,6 @@ using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Windowing;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Ledgers;
@@ -84,10 +83,7 @@ public partial class App
         var logical = label.TransformToVisual(root).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2)); var scale = root.XamlRoot.RasterizationScale;
         var point = new ReceiptScreenPoint { X = (int)Math.Round(logical.X * scale), Y = (int)Math.Round(logical.Y * scale) };
         if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(editorWindow), ref point)) throw new Win32Exception(Marshal.GetLastWin32Error());
-        var hits = VisualTreeHelper.FindElementsInHostCoordinates(logical, root)
-            .OfType<FrameworkElement>().Take(8).Select(e => e.GetType().Name + ":" + e.Name);
-        var opening = Find<StackPanel>(root, "TransferOpenNotice");
-        TraceInvocation($"transferDoubleClick: point={point.X},{point.Y}; scale={scale}; hits={string.Join("|", hits)}; opening={opening.Visibility}");
+        TraceInvocation($"transferDoubleClick: point={point.X},{point.Y}; scale={scale}");
         if (point.X < area.X || point.Y < area.Y || point.X >= area.X + area.Width || point.Y >= area.Y + area.Height) throw new InvalidOperationException("振替のクリック対象が画面外です。");
         if (!SetCursorPos(point.X, point.Y)) throw new Win32Exception(Marshal.GetLastWin32Error());
         var events = new uint[] { 2, 4 }.Select(flag => new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = flag } } }).ToArray();
@@ -162,21 +158,7 @@ public partial class App
         var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == " ATM " && server.Writes.Count == 1, "振替POSTは入力通知を処理してからTrimせず現在の6項目を送り201空本文とLocationから保存行へ戻る");
         Check(((Monetail.Windows.Presentation.Transfers.TransferListItem)Find<ListView>(root, "TransferList").SelectedItem).Transfer.TransferId == saved.TransferId, "登録成功後は保存行を選択する");
         Find<ListView>(root, "TransferList").SelectedIndex = 0; await Settle(); Check(server.Details == 0, "振替の単一選択は詳細GETしない");
-        var doubleTapCount = 0;
-        var routedDoubleTapCount = 0;
-        var pointerPressedCount = 0;
-        var taps = 0;
-        var transferList = Find<ListView>(root, "TransferList");
-        transferList.DoubleTapped += (_, _) => doubleTapCount++;
-        transferList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler((_, _) => routedDoubleTapCount++), true);
-        transferList.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) => pointerPressedCount++), true);
-        transferList.AddHandler(UIElement.TappedEvent, new TappedEventHandler((_, _) => taps++), true);
-        await DoubleClickTransfer(root);
-        try { await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded); }
-        catch (TaskCanceledException error)
-        {
-            throw new InvalidOperationException($"ダブルクリック後の編集開始: pointerPressed={pointerPressedCount}; tapped={taps}; handledDoubleTapped={routedDoubleTapCount}; doubleTapped={doubleTapCount}; details={server.Details}; opening={Find<StackPanel>(root, "TransferOpenNotice").Visibility}; editor={TransferEditing is not null}", error);
-        }
+        await DoubleClickTransfer(root); await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded);
         Check(server.Details == 1, "振替行の実ダブルクリックは詳細GETを1回だけ実行する");
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Revision == saved.Revision && Equals(Find<Button>(root, "TransferSave").Content, "更新"), "既存編集はID・版・保存値と更新操作を復元");
         Check(Find<Button>(root, "TransferSave").IsEnabled, "業務値が未変更でも更新の確認・無変更PUTを利用可能");
