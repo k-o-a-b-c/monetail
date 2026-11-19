@@ -22,6 +22,10 @@
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/ReceiptFilterChoice.cs" Link="ReceiptFilterChoice.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/RecordListPanel.xaml" Link="Views/RecordListPanel.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/RecordListPanel.xaml.cs" Link="Views/RecordListPanel.xaml.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/RecordListFooter.xaml" Link="Views/RecordListFooter.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/RecordListFooter.xaml.cs" Link="Views/RecordListFooter.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/Views/ListViewportController.cs" Link="Views/ListViewportController.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml" Link="Views/Receipts/ReceiptListView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml.cs" Link="Views/Receipts/ReceiptListView.xaml.cs" />

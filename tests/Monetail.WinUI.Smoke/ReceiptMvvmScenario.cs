@@ -39,6 +39,7 @@ public partial class App
 
     private async Task CheckReceiptMvvmBoundary()
     {
+        await CheckRecordListPanel();
         await CheckReceiptViewportBindings();
         await CheckReceiptOffHomeAuthentication();
         await CheckReceiptSavedRows();
