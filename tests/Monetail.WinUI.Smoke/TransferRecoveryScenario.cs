@@ -262,10 +262,11 @@ public partial class App
             "再認証への退避は進行中の候補を中断し、遅延応答で隠れた画面や入力を更新しない");
         await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
         // 最後のWindowを閉じると検証プロセス自体が正常終了する。既存ヘルパーで次のWindowを先に開き、対象だけ閉じる。
+        var closingView = TransferView;
         using var nextFixture = new SyntheticConnection();
         await OpenSyntheticWindow(nextFixture);
         object? ClosedState(string field) => typeof(MainWindow).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(originalWindow);
-        Check(Find<Monetail.WinUI.Views.Transfers.TransferEditorView>(root, "TransferEntry").ViewModel is null && ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && ClosedState("transferPending") is null && Equals(ClosedState("closed"), true),
+        Check(closingView.ViewModel is null && ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && ClosedState("transferPending") is null && Equals(ClosedState("closed"), true),
             "再認証中のアプリ終了ではメモリの編集・復帰情報・要求を破棄する");
     }
 }
