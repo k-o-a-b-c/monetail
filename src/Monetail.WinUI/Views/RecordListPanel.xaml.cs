@@ -83,8 +83,8 @@ public sealed partial class RecordListPanel : UserControl
 
     private static void Refresh(DependencyObject owner, DependencyPropertyChangedEventArgs args) =>
         ((RecordListPanel)owner).Bindings.Update();
-    private static Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-    private static string Id(string prefix, string suffix) => prefix + suffix;
-    private static string RegistrationName(string heading) => heading + "の登録";
-    private static Visibility OpeningVisibility(UIElement? content, Visibility visibility) => content is null ? Visibility.Collapsed : visibility;
+    private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+    private string Id(string prefix, string suffix) => prefix + suffix;
+    private string RegistrationName(string heading) => heading + "の登録";
+    private Visibility OpeningVisibility(UIElement? content, Visibility visibility) => content is null ? Visibility.Collapsed : visibility;
 }

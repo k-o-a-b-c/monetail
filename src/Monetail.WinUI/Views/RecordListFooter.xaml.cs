@@ -34,6 +34,6 @@ public sealed partial class RecordListFooter : UserControl
 
     private static void Refresh(DependencyObject owner, DependencyPropertyChangedEventArgs args) =>
         ((RecordListFooter)owner).Bindings.Update();
-    private static Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-    private static string Id(string prefix, string suffix) => prefix + suffix;
+    private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+    private string Id(string prefix, string suffix) => prefix + suffix;
 }
