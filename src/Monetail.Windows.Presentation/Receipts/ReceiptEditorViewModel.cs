@@ -32,7 +32,10 @@ public sealed partial class ReceiptEditorViewModel(ReceiptEditorState editor, Fu
     [ObservableProperty] private bool intervalInvalid;
     [ObservableProperty] private bool paymentInvalid;
     [ObservableProperty] private string accountingTotal = "会計合計（反映済み明細）：未計算";
-    [ObservableProperty] private string calculationNotice = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCalculationNotice))]
+    private string? calculationNotice;
+    public bool HasCalculationNotice => CalculationNotice is not null;
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task BackAsync() => ActionRequested?.Invoke(ReceiptEditorAction.Back) ?? Task.CompletedTask;
     [RelayCommand(AllowConcurrentExecutions = true)]
@@ -92,7 +95,7 @@ public sealed partial class ReceiptEditorViewModel(ReceiptEditorState editor, Fu
     public void ShowCalculation(ReceiptCalculationDisplay result)
     {
         AccountingTotal = "会計合計（反映済み明細）：" + (result.Amounts?.TotalAmount.ToString("N0", CultureInfo.CurrentCulture) ?? "未計算");
-        CalculationNotice = result.Message ?? "";
+        CalculationNotice = result.Message;
     }
     public void Refresh()
     {

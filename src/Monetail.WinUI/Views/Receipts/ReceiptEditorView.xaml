@@ -67,7 +67,7 @@
     </ScrollViewer>
     <StackPanel Grid.Row="1" Spacing="8">
         <TextBlock x:Name="ReceiptAccountingTotal" Text="{x:Bind ViewModel.AccountingTotal, Mode=OneWay}" TextWrapping="Wrap"/>
-        <TextBlock x:Name="ReceiptCalculationNotice" Text="{x:Bind ViewModel.CalculationNotice, Mode=OneWay}" TextWrapping="Wrap" Visibility="{x:Bind HasText(ViewModel.CalculationNotice), Mode=OneWay, FallbackValue=Collapsed}"/>
+        <TextBlock x:Name="ReceiptCalculationNotice" Text="{x:Bind ViewModel.CalculationNotice, Mode=OneWay}" TextWrapping="Wrap" Visibility="{x:Bind Show(ViewModel.HasCalculationNotice), Mode=OneWay, FallbackValue=Collapsed}"/>
         <TextBlock Text="現在は保存できません。登録・更新・流用登録は後続工程で接続します。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         <StackPanel Orientation="Horizontal" Spacing="12">
             <Button x:Name="ReceiptRegister" Visibility="{x:Bind Show(ViewModel.IsNew), Mode=OneWay, FallbackValue=Collapsed}" Content="登録" IsEnabled="False" AutomationProperties.AutomationId="ReceiptRegister"/>

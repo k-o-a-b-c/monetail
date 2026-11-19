@@ -192,5 +192,17 @@ public sealed class ReceiptEditorViewModelTests
         Assert.Equal(result.Message, model.CalculationNotice);
         Assert.Same(header, model.Editor.Header);
         Assert.False(model.Editor.NeedsLeaveConfirmation);
+        model.ShowCalculation(result with
+        {
+            Message = null
+        });
+        Assert.False(model.HasCalculationNotice);
+        Assert.Null(model.CalculationNotice);
+        model.ShowCalculation(result with
+        {
+            Message = ""
+        });
+        Assert.True(model.HasCalculationNotice);
+        Assert.Equal("", model.CalculationNotice);
     }
 }

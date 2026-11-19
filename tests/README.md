@@ -10,11 +10,21 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
-| Windows Presentation（レシート/振替一覧VM・振替編集VM・投影・Command・共通ページング・復帰） | 133 |
+| Windows Presentation（レシート/振替一覧VM・振替編集VM・レシート親情報VM・投影・Command・共通ページング・復帰） | 143 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3794 |
+| 合計 | 3804 |
+
+## レシート親情報・画面枠のMVVM分離 第1段階（PR #213）
+
+[ReceiptEditorViewModelTests](Monetail.Windows.Presentation.Tests/ReceiptEditorViewModelTests.cs)へ10ケースを追加。元Editor/Headerの参照・未変更初期値、保存済みID/revision/税由来、同じRadioButton値の手動設定、未確定日時/不正周期の保護、周期なし、所在地のnull/空文字、検証通知、支払方法の順序/期限外・不明選択保持、読み取り専用と2 Command、既存計算結果の表示/null通知を確認する。科目/明細の下書きと既存Clientモデル/検証はそのまま使う。
+
+WinUIでは親情報コントロールの検索を新Viewの名前スコープへ、FormKeyboard/ParentInputの検査を同じ新所有者へ変更する。2確認を追加し、同じEditor・科目/明細Content・余分なTab停止なし・Command接続を確認。連続401では同じViewModel/ParentInputも保持することを既存の同一モデル検証へ加える。既存の期待値/タイムアウトは緩和しない。構造計測・親情報だけに限定した理由・科目/明細の残る依存は[構成正本](../docs/architecture-winui.md#レシート親情報のmvvm分離)を参照。
+
+基点main `4bfd30e`の[Tests 44483049258](https://github.com/k-o-a-b-c/monetail/actions/runs/44483049258)成功を変更前の根拠に利用。ローカルReleaseはPresentationビルド・追加最小10件→全143件が成功し、計算通知のnull/空文字を旧条件と照合した追加境界も最小10件で確認した。新規C#対象書式検査はネストしたforeachと追加テストのwith式を整え、終了コード0で確認した。XML解析・git diff --checkも確認した。
+
+初回ソース`075b912`の[Tests 44485583848](https://github.com/k-o-a-b-c/monetail/actions/runs/44485583848)は成功。[Clientジョブ135428211417](https://github.com/k-o-a-b-c/monetail/actions/runs/44485583848/job/135428211417)でClient全1,194件・Presentation全143件、[Windowsジョブ135428212248](https://github.com/k-o-a-b-c/monetail/actions/runs/44485583848/job/135428212248)で製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/765確認、個別3シナリオ・選択一覧/不正指定/計測/スクリーンショットが成功した。科目/明細の実装済み機能、親情報操作19・基本編集7・明細33・メモ26・計算18/税取得5、レシート401復帰30と振替/管理画面も含む。保存ボタンは無効のままで、実POST/PUT/DELETEを画面から確認した意味ではない。
 
 ## 振替編集の書込状態の単一所有 第2段階（PR #212）
 

@@ -162,7 +162,6 @@ public sealed partial class ReceiptEditorView : UserControl
     }
     private static string? Choice(ComboBox box) => (box.SelectedItem as ComboBoxItem)?.Tag as string;
     private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-    private Visibility HasText(string? text) => Show(!string.IsNullOrEmpty(text));
     private void ReceiptParentTextChanged(object sender, TextChangedEventArgs args) => SynchronizeParent();
     private void ReceiptParentChoiceChanged(object sender, SelectionChangedEventArgs args) => SynchronizeParent();
     private void ReceiptTaxChecked(object sender, RoutedEventArgs args) => SynchronizeParent();
