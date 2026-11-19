@@ -49,7 +49,7 @@ public partial class App
             }
             else
             {
-                originalWindow.ActivateReceiptCategory(editor.Groups[0].Key);
+                ReceiptView.ActivateReceiptCategory(editor.Groups[0].Key);
                 Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
                 await Wait(() => editor.SelectedDetailKey is not null);
             }
