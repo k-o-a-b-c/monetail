@@ -73,7 +73,7 @@ public sealed partial class MainWindow
     }
     private void ReceiptPeopleKeyDown(object sender, KeyRoutedEventArgs args)
     {
-        if (args.Key is not (VirtualKey.Up or VirtualKey.Down) || receiptEditorKeyboard.IsComposing) return;
+        if (args.Key is not (VirtualKey.Up or VirtualKey.Down) || ReceiptEntry.IsComposing) return;
         var boxes = ReceiptDetailPeople.Children.OfType<CheckBox>().ToArray();
         var focused = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as CheckBox;
         var index = Array.IndexOf(boxes, focused);
@@ -193,12 +193,12 @@ public sealed partial class MainWindow
     }
     private void ReceiptDetailListKeyDown(object sender, KeyRoutedEventArgs args)
     {
-        if (receiptEditor?.SelectedDetailKey is not null && args.Key == VirtualKey.Enter && !receiptEditorKeyboard.IsComposing && !ReceiptModifier(VirtualKey.Control) && !ReceiptModifier(VirtualKey.Menu))
+        if (receiptEditor?.SelectedDetailKey is not null && args.Key == VirtualKey.Enter && !ReceiptEntry.IsComposing && !ReceiptModifier(VirtualKey.Control) && !ReceiptModifier(VirtualKey.Menu))
         { ReceiptItemName.Focus(FocusState.Keyboard); args.Handled = true; }
     }
     private void ReceiptDetailKeyDown(object sender, KeyRoutedEventArgs args)
     {
-        if (args.Key != VirtualKey.Enter || receiptEditorKeyboard.IsComposing || ReceiptItemTax.IsDropDownOpen || ReceiptItemExpense.IsDropDownOpen || ReceiptItemOccurrence.IsDropDownOpen) return;
+        if (args.Key != VirtualKey.Enter || ReceiptEntry.IsComposing || ReceiptItemTax.IsDropDownOpen || ReceiptItemExpense.IsDropDownOpen || ReceiptItemOccurrence.IsDropDownOpen) return;
         if (ReceiptModifier(VirtualKey.Control)) { args.Handled = true; return; } // レシート保存は後続工程。
         if (ReceiptModifier(VirtualKey.Menu)) { args.Handled = true; ApplyReceiptDetailCore(true); }
     }

@@ -23,7 +23,7 @@ public partial class App
     {
         var editor = ReceiptEditing!; var group = editor.SelectedGroup!;
         var name = Find<TextBox>(root, "ReceiptItemName"); var price = Find<TextBox>(root, "ReceiptItemPrice");
-        var keyboard = (FormKeyboard)typeof(MainWindow).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+        var keyboard = (FormKeyboard)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ReceiptView)!;
         name.Focus(FocusState.Keyboard); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), name));
         await PressReceiptKey(0x0D); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), price));
         await PressReceiptKey(0x0D, 0x10); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), name));

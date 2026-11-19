@@ -54,15 +54,15 @@ public partial class App
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
             await window!.OpenReceiptEditorAsync(null);
             var editor = ReceiptEditing ?? throw new InvalidOperationException("レシート編集モデルがありません。");
-            var input = TransferRuntime("receiptParentInput"); var memo = Find<TextBox>(root, "ReceiptMemo"); memo.Text = "保持するメモ";
+            var input = ReceiptView.ViewModel?.ParentInput; var memo = Find<TextBox>(root, "ReceiptMemo"); memo.Text = "保持するメモ";
             Call("ResetRecordHome");
-            Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, TransferRuntime("receiptParentInput")) &&
+            Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, ReceiptView.ViewModel?.ParentInput) &&
                 ReferenceEquals(memo, Find<TextBox>(root, "ReceiptMemo")) && memo.Text == "保持するメモ",
                 "記録一覧のリセットはレシート編集モデル・入力状態・コントロールも破棄しない");
             Call("ClearLedger");
             Check(ReferenceEquals(editor, ReceiptEditing) && memo.Text == "保持するメモ", "家計簿の解除とレシート編集破棄も独立する");
             Call("DiscardLedgerContents");
-            Check(ReceiptEditing is null && TransferRuntime("receiptParentInput") is null && !Visible(root, "ReceiptEditorPage"),
+            Check(ReceiptEditing is null && ReceiptView.ViewModel?.ParentInput is null && !Visible(root, "ReceiptEditorPage"),
                 "明示的な破棄でレシート編集も終了するが401復帰機能は追加しない");
         }
     }

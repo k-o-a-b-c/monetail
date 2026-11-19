@@ -52,7 +52,8 @@ public partial class App
                 Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
                 await Wait(() => editor.SelectedDetailKey is not null);
             }
-            var draft = editor.Draft; var parent = TransferRuntime("receiptParentInput"); var input = TransferRuntime("receiptDetailInput");
+            var editorModel = ReceiptView.ViewModel;
+            var draft = editor.Draft; var parent = editorModel?.ParentInput; var input = TransferRuntime("receiptDetailInput");
             var groupKey = editor.SelectedGroupKey; var detailKey = editor.SelectedDetailKey; var revision = editor.Revision;
             var price = Find<TextBox>(root, "ReceiptItemPrice");
             await ActivateReceiptInputWindowAsync(); await FocusTransferControl(price);
@@ -66,7 +67,7 @@ public partial class App
             var dirty = editor.NeedsLeaveConfirmation; var reads = server.Details;
             await ExpireReceiptLogin(fixture); await Wait(() => Visible(root, "LoginPage"));
             var context = TransferRuntime("receiptAuthentication");
-            Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) && ReferenceEquals(parent, TransferRuntime("receiptParentInput")) &&
+            Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) && ReferenceEquals(editorModel, ReceiptView.ViewModel) && ReferenceEquals(parent, ReceiptView.ViewModel?.ParentInput) &&
                 ReferenceEquals(input, TransferRuntime("receiptDetailInput")) && !VisibleAncestors(Find<Grid>(root, "ReceiptEditorPage")), "レシート401は元の編集/親入力/未反映下書き/コントロールを保持して非表示にする");
             await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
             await InvokeAsync(() => Find<Button>(root, "CancelLoginButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
@@ -171,7 +172,7 @@ public partial class App
             // 元の支払方法が他人物所有の場合、現在値を本人所有へ変えても旧側の権限を省略できない。
             var currentId = role == "Editor" ? server.Payments.ActiveId : server.Payments.OtherActiveId;
             var methodBox = Find<ComboBox>(root, "ReceiptEditorPayment");
-            methodBox.SelectedItem = methodBox.Items.OfType<ReceiptFilterChoice>().Single(p => p.Id == currentId);
+            methodBox.SelectedItem = methodBox.Items.OfType<Monetail.Windows.Presentation.Receipts.ReceiptPaymentChoice>().Single(p => p.Id == currentId);
             await ExpireReceiptLogin(fixture);
             server.Payments.Role = role == "Viewer" ? "Viewer" : "Editor";
             if (role == "unmapped") server.Payments.Mapped = false;
