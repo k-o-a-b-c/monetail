@@ -20,7 +20,7 @@ public sealed class TransferEditorViewModelTests
         new(Outside, OtherOwner, "期限外", 0, null, Day.AddDays(-1), Guid.NewGuid())], [], Owner, role);
     private static TransferInfo Saved() => new(Guid.CreateVersion7(), Day.ToDateTime(new(12, 34, 56)), "振替", From, To, 1000, null, Guid.NewGuid());
     private static TransferEditorViewModel Create(TransferEditorState state, Func<TransferEditorAvailability>? availability = null) =>
-        new(state, availability ?? (() => default), id => id == From ? "現金" : id == To ? "銀行" : "期限外",
+        new(state, availability ?? (() => new(false, false, false, false, true)), id => id == From ? "現金" : id == To ? "銀行" : "期限外",
             (_, _) => Task.FromResult(new TransferSuggestionsInfo([], false)),
             (_, _) => Task.FromResult(new TransferAutofillInfo(null, null)));
 
@@ -136,8 +136,7 @@ public sealed class TransferEditorViewModelTests
             });
         else
             state.EnterReadOnly(reason);
-        var model = Create(state, () => new(false, false, false, false, false, false, false,
-            reason == TransferReadOnlyReason.Conflict, false));
+        var model = Create(state);
         model.UpdateMasters(People(), Methods());
         model.UpdateInput("2020/01/01", "00:00:00", "1", "上書き");
         Assert.True(model.IsFrozen);
@@ -155,7 +154,7 @@ public sealed class TransferEditorViewModelTests
     {
         var saved = Saved();
         var state = TransferEditorState.Edit(saved);
-        var model = Create(state, () => new(false, false, false, false, true, true, false, true, false));
+        var model = Create(state);
         model.UpdateMasters(People(), Methods());
         var actions = new List<TransferEditorAction>();
         model.ActionRequested += action =>
@@ -181,18 +180,22 @@ public sealed class TransferEditorViewModelTests
     [Fact]
     public void WindowAvailabilityIsReadLiveAndOnlyRefreshedForPresentation()
     {
-        var current = default(TransferEditorAvailability);
+        var current = new TransferEditorAvailability(false, false, false, false, true);
         var state = TransferEditorState.Edit(Saved());
         var model = Create(state, () => current);
         model.UpdateMasters(People(), Methods());
         Assert.True(model.CanSave);
-        current = new(true, false, true, false, false, false, true, false, false);
+        current = new(true, false, true, false, true);
         model.Refresh();
         Assert.True(model.IsFrozen);
-        Assert.True(model.IsSending);
+        Assert.False(model.IsSending);
         Assert.False(model.CanSave);
         Assert.False(state.HasUnsavedChanges);
-        current = new(true, false, false, true, true, false, false, false, false);
+        current = new(false, false, false, false, true);
+        model.PrepareWrite(Guid.NewGuid(), model.PrepareSave(false));
+        model.StartSending();
+        model.SetUncertainResult(true);
+        model.FinishSending();
         model.Refresh();
         Assert.True(model.ShowSave);
         Assert.True(model.CanRetryWrite);

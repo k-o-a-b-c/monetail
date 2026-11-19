@@ -361,10 +361,13 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
-        transferAuthentication = null; transferEditor = null; transferPending = null; transferPendingSnapshot = null;
+        transferAuthentication = null;
+        transferEditor = null;
         ReceiptListModel?.Dispose();
         CancelTransferOpening();
+        var transferModel = TransferEntry.ViewModel;
         TransferEntry.ViewModel = null;
+        transferModel?.DiscardWrite();
         TransferEntry.CancelRequests();
         TransferListModel?.Dispose(); recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose();
         ResetReceiptEditor();

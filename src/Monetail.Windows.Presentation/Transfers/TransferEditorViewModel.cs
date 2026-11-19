@@ -14,11 +14,11 @@ public enum TransferNoticeLevel
 {
     Information, Warning, Error
 }
-// Windowが所有する通信・認証・ダイアログ状態の読み取り窓口。入力や業務状態を複製しない。
-public readonly record struct TransferEditorAvailability(bool Frozen, bool Stopped, bool Sending, bool Unknown,
-    bool RetryWrite, bool MastersFailed, bool MastersLoading, bool AdoptLatest, bool DialogOpen);
+// Windowに残る認証・マスタ再取得・ダイアログのコンテキスト。書込状態は含めない。
+public readonly record struct TransferEditorAvailability(bool RecoveryBlocked, bool MastersFailed, bool MastersLoading,
+    bool DialogOpen, bool HasAccount);
 public sealed record TransferPaymentChoice(Guid Id, string Name);
-/// <summary>入力の正本はEditor/Draft。表示・検証とWindowへの操作要求だけを担当する。</summary>
+/// <summary>入力の正本はEditor/Draft。書込状態・表示・検証とWindowへの操作要求を担当する。</summary>
 public sealed partial class TransferEditorViewModel(
     TransferEditorState editor,
     Func<TransferEditorAvailability> availability,
@@ -37,13 +37,46 @@ public sealed partial class TransferEditorViewModel(
     public string Name => Editor.Draft.Name;
     public string Title => Editor.IsExisting ? "振替の編集" : "振替の登録";
     public string SaveText => Editor.IsExisting ? "更新" : "登録";
-    public bool IsFrozen => Editor.IsReadOnly || availability().Frozen;
-    public bool IsSending => availability().Sending;
-    public bool ShowSave => !(Editor.IsReadOnly || availability().Stopped) || availability().Unknown;
-    public bool ShowExistingActions => Editor.IsExisting && !Editor.IsReadOnly && !availability().Stopped;
-    public bool ShowRetryWrite => availability().RetryWrite;
+    public TransferWriteRequest? PendingRequest
+    {
+        get; private set;
+    }
+    public TransferSnapshot? PendingSnapshot
+    {
+        get; private set;
+    }
+    public bool IsSending
+    {
+        get; private set;
+    }
+    public bool IsUnknown
+    {
+        get; private set;
+    }
+    public bool IsStopped
+    {
+        get; private set;
+    }
+    public bool RetryAfterLogin
+    {
+        get; private set;
+    }
+    public bool IsPreparingSave
+    {
+        get; private set;
+    }
+    public bool IsFrozen => Editor.IsReadOnly || availability().RecoveryBlocked || availability().DialogOpen ||
+        IsSending || PendingRequest is not null || IsStopped;
+    public bool CanAdoptLatest => !availability().RecoveryBlocked && !IsStopped && !IsUnknown && PendingRequest is null &&
+        Editor is { ReadOnlyReason: TransferReadOnlyReason.Conflict, Latest: not null };
+    public bool HasUnknownWrite => PendingRequest is not null && IsUnknown;
+    public bool CanRetryPendingWrite => !availability().RecoveryBlocked && !IsStopped && availability().HasAccount &&
+        !Editor.IsReadOnly && PendingRequest is not null && (IsUnknown || RetryAfterLogin);
+    public bool ShowSave => !(Editor.IsReadOnly || IsStopped) || IsUnknown;
+    public bool ShowExistingActions => Editor.IsExisting && !Editor.IsReadOnly && !IsStopped;
+    public bool ShowRetryWrite => CanRetryPendingWrite;
     public bool ShowRetryMasters => availability().MastersFailed;
-    public bool ShowLoadLatest => availability().AdoptLatest;
+    public bool ShowLoadLatest => CanAdoptLatest;
     public bool CanDelete => Editor.IsExisting && !IsFrozen;
     public bool CanRetryWrite => ShowRetryWrite && !IsSending && !availability().DialogOpen;
     public bool CanRetryMasters => ShowRetryMasters && !availability().MastersLoading && !availability().DialogOpen;
@@ -93,6 +126,70 @@ public sealed partial class TransferEditorViewModel(
     public Task<TransferSuggestionsInfo> SuggestAsync(TransferSuggestionQuery query, CancellationToken token) => suggest(query, token);
     public Task<TransferAutofillInfo> AutofillAsync(TransferAutofillQuery query, CancellationToken token) => autofill(query, token);
     public void RequireAuthentication() => AuthenticationRequired?.Invoke();
+    public void SetPreparingSave(bool preparing)
+    {
+        IsPreparingSave = preparing;
+        Refresh();
+    }
+    // 確認後に一度だけ作成する。不明結果/401後はこの要求そのものを明示再送する。
+    public void PrepareWrite(Guid ledgerId, TransferSavePreparation prepared)
+    {
+        var request = prepared.Kind == TransferSaveKind.Update
+            ? TransferWriteRequest.Update(ledgerId, prepared.TransferId!.Value, prepared.Revision!.Value, prepared.Snapshot)
+            : TransferWriteRequest.Create(ledgerId, prepared.Snapshot);
+        PendingRequest = request;
+        PendingSnapshot = prepared.Snapshot;
+        Refresh();
+    }
+    public void PrepareDeleteWrite(Guid ledgerId)
+    {
+        var target = Editor.PrepareDelete();
+        var request = TransferWriteRequest.Delete(ledgerId, target.TransferId, target.Revision);
+        PendingRequest = request;
+        PendingSnapshot = null;
+        Refresh();
+    }
+    public void StartSending()
+    {
+        IsSending = true;
+        IsUnknown = false;
+        RetryAfterLogin = false;
+        NoticeOpen = false;
+        Refresh();
+    }
+    public void FinishSending()
+    {
+        IsSending = false;
+        Refresh();
+    }
+    public void SetUncertainResult(bool uncertain)
+    {
+        IsUnknown = uncertain;
+        Refresh();
+    }
+    public void RememberAuthentication()
+    {
+        RetryAfterLogin |= PendingRequest is not null;
+        Refresh();
+    }
+    public void ClearPendingWrite()
+    {
+        PendingRequest = null;
+        PendingSnapshot = null;
+        Refresh();
+    }
+    public void StopWriting()
+    {
+        IsStopped = true;
+        Refresh();
+    }
+    public void DiscardWrite()
+    {
+        PendingRequest = null;
+        PendingSnapshot = null;
+        IsSending = IsUnknown = IsStopped = RetryAfterLogin = IsPreparingSave = false;
+        Refresh();
+    }
     public void UpdateInput(string dateText, string timeText, string amountText, string memoText)
     {
         if (IsFrozen)
@@ -155,7 +252,9 @@ public sealed partial class TransferEditorViewModel(
         if (Editor.IsReadOnly && !NoticeOpen)
             ShowNotice("この振替は読み取り専用です。", TransferNoticeLevel.Information);
         foreach (var name in new[] { nameof(Name), nameof(Title), nameof(SaveText), nameof(IsFrozen), nameof(IsSending), nameof(ShowSave),
-            nameof(ShowExistingActions), nameof(ShowRetryWrite), nameof(ShowRetryMasters), nameof(ShowLoadLatest), nameof(ToError) })
+            nameof(ShowExistingActions), nameof(ShowRetryWrite), nameof(ShowRetryMasters), nameof(ShowLoadLatest), nameof(ToError),
+            nameof(PendingRequest), nameof(PendingSnapshot), nameof(IsUnknown), nameof(IsStopped), nameof(RetryAfterLogin),
+            nameof(IsPreparingSave), nameof(CanAdoptLatest), nameof(HasUnknownWrite), nameof(CanRetryPendingWrite) })
             OnPropertyChanged(name);
         SaveCommand.NotifyCanExecuteChanged();
         ReuseCommand.NotifyCanExecuteChanged();

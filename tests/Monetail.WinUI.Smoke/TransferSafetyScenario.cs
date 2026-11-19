@@ -19,16 +19,17 @@ public partial class App
             try { await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible || Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded || Find<InfoBar>(root, "TransferEditorNotice").IsOpen || TransferEditing is null); }
             catch (TaskCanceledException error)
             {
-                var flags = string.Join(",", new[] { "transferSending", "transferDialogOpen", "transferStopped", "transferUnknown" }.Select(n => n + "=" + typeof(MainWindow).GetField(n, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)));
+                var model = TransferView.ViewModel;
+                var flags = $"sending={model?.IsSending},dialog={TransferRuntime("transferDialogOpen")},stopped={model?.IsStopped},unknown={model?.IsUnknown}";
                 throw new InvalidOperationException($"結果不明待機: {flags}; writes={server.Writes.Count}; rows={server.Rows.Count}; saveEnabled={Find<Button>(root, "TransferSave").IsEnabled}; time={TransferEditing?.Draft.TransactionTime}; amount={TransferEditing?.Draft.Amount}; popup={Find<AutoSuggestBox>(root, "TransferName").IsSuggestionListOpen}", error);
             }
             if (Find<Button>(root, "TransferWriteRetry").Visibility != Visibility.Visible) throw new InvalidOperationException($"結果不明診断: writes={server.Writes.Count}; rows={server.Rows.Count}; notice={Find<InfoBar>(root, "TransferEditorNotice").Message}; dialog={Find<ContentDialog>(root, "TransferConfirmationDialog").Content}; time={TransferEditing?.Draft.TransactionTime}; from={TransferEditing?.Draft.From.Source}; to={TransferEditing?.Draft.To.Source}");
-            var pending = typeof(MainWindow).GetField("transferPending", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
+            var pending = TransferView.ViewModel?.PendingRequest;
             Check(server.Rows.Count == 1 && server.Writes.Count == 1 && !Find<Button>(root, "TransferSave").IsEnabled && Find<TextBox>(root, "TransferAmount").IsReadOnly,
                 "応答喪失では登録済みか断定せず入力・元要求を保持して編集と別保存を禁止");
             Check(Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Collapsed, "通信結果不明では競合用の最新採用を提示しない");
             await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.None);
-            Check(ReferenceEquals(pending, typeof(MainWindow).GetField("transferPending", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)), "結果未確認の離脱取消は元のrequestId付き要求を保持");
+            Check(ReferenceEquals(pending, TransferView.ViewModel?.PendingRequest), "結果未確認の離脱取消は元のrequestId付き要求を保持");
             await InvokeAsync(() => Find<Button>(root, "TransferWriteRetry")); await Wait(() => TransferEditing is null);
             Check(server.Rows.Count == 1 && server.Writes.Count == 2 && server.Writes[0].Body == server.Writes[1].Body, "結果不明の明示再試行は同じJSONで二重登録せず成功行へ戻る");
         }
@@ -54,7 +55,7 @@ public partial class App
                 await Wait(() => Visible(root, "LoginPage"));
                 Check(Find<TextBox>(root, "TransferAmount").Text == "2000" && TransferEditing?.Revision == saved.Revision && !VisibleAncestors(Find<Grid>(root, "TransferEditorPage")), "401は入力と旧版を保持して専用の再ログイン画面へ退避する");
                 await CompleteTransferLogin(fixture, root);
-                Check(Equals(TransferRuntime("transferUnknown"), false) && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible, "確定401の復帰は結果不明にせず、保持した要求の明示再試行を提示する");
+                Check(Equals(TransferView.ViewModel?.IsUnknown, false) && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible, "確定401の復帰は結果不明にせず、保持した要求の明示再試行を提示する");
             }
             await Wait(() => Find<InfoBar>(root, "TransferEditorNotice").IsOpen && Find<TextBox>(root, "TransferAmount").IsReadOnly);
             Check(TransferEditing!.Revision == saved.Revision && Find<TextBox>(root, "TransferAmount").Text == "2000" && !Find<Button>(root, "TransferSave").IsEnabled && !Find<Button>(root, "TransferDelete").IsEnabled,
