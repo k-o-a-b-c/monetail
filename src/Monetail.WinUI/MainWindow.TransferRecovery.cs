@@ -13,7 +13,7 @@ public sealed partial class MainWindow
     // 入力値は元のモデル/コントロールに残す。ここには復帰先だけを保持し、フォーカスと表示位置はViewへ任せる。
     private sealed record TransferAuthentication(Guid AccountId, Guid LedgerId, string ApiOrigin);
     private TransferAuthentication? transferAuthentication;
-    private bool transferAwaitingLogin, transferMastersLoading, transferMastersFailed, transferRetryAfterLogin, transferRecoveryLedgerReady;
+    private bool transferAwaitingLogin, transferMastersLoading, transferMastersFailed, transferRecoveryLedgerReady;
 
     // 表示切替と分けて退避を決める。入力/要求は既存オブジェクトに保持する。
     private bool SuspendTransferForAuthentication()
@@ -36,7 +36,7 @@ public sealed partial class MainWindow
             transferAuthentication = new(account.AuthUserId, currentLedger.LedgerId, connection.Endpoint.Value);
         }
         transferAwaitingLogin = true; transferRecoveryLedgerReady = false; transferMastersFailed = false;
-        transferRetryAfterLogin |= transferPending is not null;
+        TransferEntry.ViewModel?.RememberAuthentication();
         TransferEntry.Suspend();
         ReceiptListModel?.Suspend();
         TransferListModel?.Suspend();
@@ -90,10 +90,10 @@ public sealed partial class MainWindow
             var canEdit = TransferEditorRules.CanCreate(methods) && (!editor.IsExisting ||
                 editor.SavedFromPaymentMethodId is Guid from && editor.SavedToPaymentMethodId is Guid to && TransferEditorRules.CanUse(methods, from) && TransferEditorRules.CanUse(methods, to));
             if (!canEdit) { editor.EnterReadOnly(TransferReadOnlyReason.Forbidden); TransferNotice("編集権限がなくなったため、保存できません"); }
-            else if (editor.ReadOnlyReason == TransferReadOnlyReason.Conflict && !transferStopped)
+            else if (editor.ReadOnlyReason == TransferReadOnlyReason.Conflict && TransferEntry.ViewModel?.IsStopped == false)
                 TransferNotice("他の端末で更新されています。入力を保持して読み取り専用にしました。編集を再開するには最新情報を読み込んでください。", InfoBarSeverity.Warning);
-            else if (!editor.IsReadOnly && !transferStopped)
-                TransferNotice(transferPending is not null ? transferUnknown ? "保存結果を確認できていません。同じ要求で再試行してください。" : "再ログインしました。保存処理は再開していません。同じ要求で再試行してください。" : "再ログインしました。入力内容を確認してください。", InfoBarSeverity.Informational);
+            else if (!editor.IsReadOnly && TransferEntry.ViewModel?.IsStopped == false)
+                TransferNotice(TransferEntry.ViewModel?.PendingRequest is not null ? TransferEntry.ViewModel.IsUnknown ? "保存結果を確認できていません。同じ要求で再試行してください。" : "再ログインしました。保存処理は再開していません。同じ要求で再試行してください。" : "再ログインしました。入力内容を確認してください。", InfoBarSeverity.Informational);
             transferAuthentication = null;
         }
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)

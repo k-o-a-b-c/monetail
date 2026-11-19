@@ -10,17 +10,29 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
-| Windows Presentation（レシート/振替一覧VM・振替編集VM・投影・Command・共通ページング・復帰） | 122 |
+| Windows Presentation（レシート/振替一覧VM・振替編集VM・投影・Command・共通ページング・復帰） | 133 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3783 |
+| 合計 | 3794 |
+
+## 振替編集の書込状態の単一所有 第2段階（PR #212）
+
+[TransferEditorWriteStateTests](Monetail.Windows.Presentation.Tests/TransferEditorWriteStateTests.cs)へ11ケースを追加。保留要求/スナップショットの同一参照、requestId/旧revision、送信中/結果不明/確定401・連続401/明示再試行、確定エラー後の別要求、request_conflictの書込停止、409 latest非自動採用、成功後の一覧調整用値、削除要求、二重破棄、Windowコンテキストによる抑止と状態通知/Command実行可否を確認する。入力値やEditor/Draftをコピーせず、通知/認証復帰だけでは操作要求やAPI読取/送信を発生させない。
+
+既存VM10ケースは書込状態の操作先をVMへ、AvailabilityはWindowコンテキスト5項目へ変更。WinUIの安全性/401復帰/通常離脱では、移管した状態の検査先だけを同じViewModelへ変更し、終了検証では閉じる前に取得したVMの保留要求も消去されることを確認する。既存の判定/件数/待機・タイムアウトは維持し、テスト不安定性の対策は混ぜない。構造計測と残る責務は[構成正本](../docs/architecture-winui.md#振替編集画面のmvvm分離)を参照する。
+
+ローカルReleaseは既存VM最小10件→新規11件を含む関連21件→Presentation全133件が成功。最初の実行はMSBuildの名前付きパイプがサンドボックスで拒否され、権限付き実行で確認した。追加テストの初回コンパイルではDTO名前空間と既存Draftの書換メソッドを修正した。NuGet監査情報の取得にNU1900が出ており、CI上のビルド警告とは区別する。変更前は最新main `d37e20e`の[Tests 44477879954](https://github.com/k-o-a-b-c/monetail/actions/runs/44477879954)成功を採用する。
+
+ソース`d2ee77f`の[Tests 44480363038](https://github.com/k-o-a-b-c/monetail/actions/runs/44480363038)が成功。[Clientジョブ135410936498](https://github.com/k-o-a-b-c/monetail/actions/runs/44480363038/job/135410936498)でClient全1,194件・Presentation全133件、[Windowsジョブ135410937295](https://github.com/k-o-a-b-c/monetail/actions/runs/44480363038/job/135410937295)で製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/763確認、個別3シナリオと選択一覧/不正指定/計測/スクリーンショットが成功した。振替の連続401を含む復帰70・409競合23・入力18・安全性28・一覧52、レシート復帰30/一覧50と管理画面も含む。既存スモークは件数を維持し、追加の警告はない。非変更のAPI/DB/Docker/旧Windows等はCI選択/fingerprintに従いmainの既存成功を再利用した。
+
+変更対象VM/テストの書式検査、文書ローカルリンク224件、旧Window書込フィールドへの製品/スモーク参照が残らないこと、`git diff --check`も確認。実Windowsの手動操作、物理IME/タッチ/高DPI/スクリーンリーダー、実API接続は未検証。既存のテスト不安定性は今回の変更対象外で、今回の成功を根本解決とは扱わない。
 
 ## 振替編集画面のView・Presentation分離 第1段階（PR #211）
 
 [TransferEditorViewModelTests](Monetail.Windows.Presentation.Tests/TransferEditorViewModelTests.cs)の新規10件で、同一Editor/Draft・初期未変更、未確定文字列/旧ID・版、保存可否/同一支払方法エラー、期間/権限付き候補と選択保持、マスタ不在時の入力保護、読み取り専用/競合latest非自動採用、7操作の通知、Window状態のライブ参照を確認する。新規ライブラリ/汎用基盤、Client/API/DBの変更はない。
 
-WinUIは既存期待値を維持し、移管したコントロールの取得を新Viewの名前スコープへ、UI専用のprivate診断と支払方法候補型を新所有者へ変更する。transfer-editorへ名前スコープ/同一正本とCommandの接続の2確認を追加。連続401では同じViewModelも保持すること、終了時には閉じる前に保持した同じViewのVM参照が解除されることを追加検証する。入力・保存・流用・削除・結果不明・409・401・フォーカス/表示位置・IME/Enterの既存シナリオは全件対象のまま。責務・状態・依存/行数と後続範囲は[構成正本](../docs/architecture-winui.md#振替編集画面のmvvm分離第1段階)を参照する。
+WinUIは既存期待値を維持し、移管したコントロールの取得を新Viewの名前スコープへ、UI専用のprivate診断と支払方法候補型を新所有者へ変更する。transfer-editorへ名前スコープ/同一正本とCommandの接続の2確認を追加。連続401では同じViewModelも保持すること、終了時には閉じる前に保持した同じViewのVM参照が解除されることを追加検証する。入力・保存・流用・削除・結果不明・409・401・フォーカス/表示位置・IME/Enterの既存シナリオは全件対象のまま。責務・状態・依存/行数と後続範囲は[構成正本](../docs/architecture-winui.md#振替編集画面のmvvm分離)を参照する。
 
 ローカルReleaseは新規VM10件→Presentation全122件が成功。新規C#の対象書式検査、XAML/XML解析、文書ローカルリンク、`git diff --check`も確認した。Client全1,194件・Presentation全122件は[成功ジョブ135311795904](https://github.com/k-o-a-b-c/monetail/actions/runs/44450117251/job/135311795904)で確認し、以後のWinUI専用変更では同じfingerprintの成功を再利用した（親run全体はWinUIのコンパイル失敗）。非変更のAPI/DB/Docker/旧Windows等もCI選択に従って既存成功を再利用する。
 

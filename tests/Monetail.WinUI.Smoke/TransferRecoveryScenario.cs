@@ -55,22 +55,22 @@ public partial class App
             var controls = new Control[] { Find<DateInputBox>(root, "TransferDate"), Find<TimeInputBox>(root, "TransferTime"), Find<AutoSuggestBox>(root, "TransferName"), Find<ComboBox>(root, "TransferFrom"), Find<ComboBox>(root, "TransferTo"), Find<TextBox>(root, "TransferAmount"), Find<TextBox>(root, "TransferMemo") };
             var from = draft.From; var to = draft.To; var revision = editor.Revision; var amount = draft.Amount;
             await SubmitTransferToExpiredLogin(fixture, server, root, operation);
-            var pending = TransferRuntime("transferPending") as TransferWriteRequest ?? throw new InvalidOperationException("元要求がありません。");
+            var pending = TransferView.ViewModel?.PendingRequest ?? throw new InvalidOperationException("元要求がありません。");
             var reads = server.Reads.Count; var beforePeople = peopleReads; var beforePayments = masters.Reads;
             Check(ReferenceEquals(window, originalWindow) && ReferenceEquals(editor, TransferEditing) && ReferenceEquals(draft, TransferEditing?.Draft) && !VisibleAncestors(controls[0]) && server.Writes.Count == 1,
                 $"振替{operation}の401はWindow・モデル・Draftを破棄せず入力画面を隠す");
-            Check(Equals(TransferRuntime("transferUnknown"), false) && editor.Revision == revision && draft.From == from && draft.To == to && draft.Amount == amount,
+            Check(Equals(TransferView.ViewModel?.IsUnknown, false) && editor.Revision == revision && draft.From == from && draft.To == to && draft.Amount == amount,
                 "確定401を結果不明にせず入力・選択由来・旧revisionと要求を保持する");
             if (operation == "new")
             {
                 await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
                 await InvokeAsync(() => Find<Button>(root, "CancelLoginButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
-                Check(ReferenceEquals(editor, TransferEditing) && ReferenceEquals(pending, TransferRuntime("transferPending")) && !VisibleAncestors(controls[0]), "ログイン取消後もログイン画面に留まり編集と元要求を保持する");
+                Check(ReferenceEquals(editor, TransferEditing) && ReferenceEquals(pending, TransferView.ViewModel?.PendingRequest) && !VisibleAncestors(controls[0]), "ログイン取消後もログイン画面に留まり編集と元要求を保持する");
             }
             server.WriteError = null;
             var capturedView = TransferRuntime("transferAuthentication"); expirePeople = true;
             await CompleteTransferLogin(fixture, root, mastersExpireAgain: true);
-            Check(capturedView is not null && ReferenceEquals(capturedView, TransferRuntime("transferAuthentication")) && ReferenceEquals(pending, TransferRuntime("transferPending")) &&
+            Check(capturedView is not null && ReferenceEquals(capturedView, TransferRuntime("transferAuthentication")) && ReferenceEquals(pending, TransferView.ViewModel?.PendingRequest) &&
                 ReferenceEquals(editor, TransferEditing) && ReferenceEquals(draft, editor.Draft) && editor.Revision == revision && draft.From == from && draft.To == to && draft.Amount == amount && server.Writes.Count == 1,
                 $"振替{operation}の人物再取得401は最初の復帰情報と元要求を再利用し、入力・由来・旧版を変更しない");
             await CompleteTransferLogin(fixture, root);
@@ -78,7 +78,7 @@ public partial class App
                 draft.From == from && draft.To == to && draft.Amount == amount && editor.Revision == revision, "同じ本人への復帰は元の入力コントロールとモデルを再利用し値・由来・旧版を変更しない");
             Check(peopleReads == beforePeople + 2 && masters.Reads == beforePayments + 1 && server.Reads.Count == reads && server.Writes.Count == 1,
                 "復帰時は人物・支払方法だけを再取得し、振替詳細GET・自動保存・自動再送しない");
-            Check(ReferenceEquals(pending, TransferRuntime("transferPending")) && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible && Find<TextBox>(root, "TransferAmount").IsReadOnly,
+            Check(ReferenceEquals(pending, TransferView.ViewModel?.PendingRequest) && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible && Find<TextBox>(root, "TransferAmount").IsReadOnly,
                 "未完了要求のrequestIdと本文を固定し、復帰後も別保存でなく明示再試行だけを許可する");
             await InvokeAsync(() => Find<Button>(root, "TransferWriteRetry")); await Wait(() => TransferEditing is null);
             Check(server.Writes.Count == 2 && server.Writes[0].Body == server.Writes[1].Body && server.Writes[0].Method == server.Writes[1].Method &&
@@ -188,12 +188,12 @@ public partial class App
                 await FocusTransferControl(change); await PressReceiptKey(0x0D); await Wait(() => Visible(root, "ConnectionPage"));
                 fixture.RejectAuthentication = false; Find<TextBox>(root, "ServerUrl").Text = "https://other.example.test/";
                 await InvokeAsync(() => Find<Button>(root, "ConnectButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
-                Check(TransferEditing is null && TransferRuntime("transferPending") is null && fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration"]),
+                Check(TransferEditing is null && TransferView.ViewModel?.PendingRequest is null && fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration"]),
                     "接続先変更は接続確認後に元の編集を破棄し、元トークンや未完了要求を別サーバーへ送らない");
             }
             else fixture.AccountId = Guid.NewGuid();
             server.WriteError = null; await CompleteTransferLogin(fixture, root);
-            Check(ReferenceEquals(window, originalWindow) && TransferEditing is null && TransferRuntime("transferPending") is null && Find<TextBox>(root, "TransferAmount").Text == "" && Find<Grid>(root, "RecordContent").Visibility == Visibility.Visible && server.Writes.Count == 1,
+            Check(ReferenceEquals(window, originalWindow) && TransferEditing is null && TransferView.ViewModel?.PendingRequest is null && Find<TextBox>(root, "TransferAmount").Text == "" && Find<Grid>(root, "RecordContent").Visibility == Visibility.Visible && server.Writes.Count == 1,
                 "別アカウント・別接続先では元の入力と要求を破棄し、通常のログイン後画面へ進む");
         }
     }
@@ -237,10 +237,12 @@ public partial class App
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
         var originalWindow = window ?? throw new InvalidOperationException("振替Windowがありません。"); await originalWindow.OpenTransferEditorAsync(null); await FillTransfer(root, masters);
         await InvokeAsync(() => Find<Button>(root, "TransferSave")); await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible);
-        var pending = TransferRuntime("transferPending"); fixture.RejectAuthentication = true; server.WriteError = HttpStatusCode.Unauthorized;
+        var pending = TransferView.ViewModel?.PendingRequest;
+        fixture.RejectAuthentication = true;
+        server.WriteError = HttpStatusCode.Unauthorized;
         await InvokeAsync(() => Find<Button>(root, "TransferWriteRetry")); await Wait(() => Visible(root, "LoginPage"));
         server.WriteError = null; await CompleteTransferLogin(fixture, root);
-        Check(Equals(TransferRuntime("transferUnknown"), true) && ReferenceEquals(pending, TransferRuntime("transferPending")) && server.Rows.Count == 1 && server.Writes.Count == 2 && server.Details == 0,
+        Check(Equals(TransferView.ViewModel?.IsUnknown, true) && ReferenceEquals(pending, TransferView.ViewModel?.PendingRequest) && server.Rows.Count == 1 && server.Writes.Count == 2 && server.Details == 0,
             "結果不明の再送中に401となっても結果不明と同じ元要求を保持し、再認証だけでは再送・詳細GETしない");
         await InvokeAsync(() => Find<Button>(root, "TransferWriteRetry")); await Wait(() => TransferEditing is null);
         Check(server.Rows.Count == 1 && server.Writes.Count == 3 && server.Writes.All(w => w.Body == server.Writes[0].Body), "結果不明の再認証後も同じ要求だけを明示再送し二重登録しない");
@@ -263,10 +265,11 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
         // 最後のWindowを閉じると検証プロセス自体が正常終了する。既存ヘルパーで次のWindowを先に開き、対象だけ閉じる。
         var closingView = TransferView;
+        var closingModel = closingView.ViewModel ?? throw new InvalidOperationException("終了前の振替ViewModelがありません。");
         using var nextFixture = new SyntheticConnection();
         await OpenSyntheticWindow(nextFixture);
         object? ClosedState(string field) => typeof(MainWindow).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(originalWindow);
-        Check(closingView.ViewModel is null && ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && ClosedState("transferPending") is null && Equals(ClosedState("closed"), true),
+        Check(closingView.ViewModel is null && ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && closingModel.PendingRequest is null && Equals(ClosedState("closed"), true),
             "再認証中のアプリ終了ではメモリの編集・復帰情報・要求を破棄する");
     }
 }

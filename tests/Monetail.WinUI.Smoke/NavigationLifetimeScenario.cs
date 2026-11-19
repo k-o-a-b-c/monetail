@@ -44,7 +44,7 @@ public partial class App
             Check(TransferRuntime("currentLedger") is null && ReferenceEquals(editor, TransferEditing) && amount.Text == "12x",
                 "家計簿コンテキストの解除だけでは振替編集を破棄しない");
             Call("DiscardLedgerContents");
-            Check(TransferEditing is null && TransferRuntime("transferPending") is null && TransferRuntime("transferAuthentication") is null &&
+            Check(TransferEditing is null && TransferView.ViewModel?.PendingRequest is null && TransferRuntime("transferAuthentication") is null &&
                 !Visible(root, "TransferEditorPage") && server.Details == details && server.Writes.Count == 0,
                 "明示的な破棄でのみ編集を終了し、詳細GET・保存を実行しない");
         }

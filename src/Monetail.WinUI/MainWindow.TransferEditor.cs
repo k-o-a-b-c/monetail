@@ -14,21 +14,14 @@ public sealed partial class MainWindow
     private TransferEditorState? transferEditor;
     private CancellationTokenSource? transferOpening;
     private Guid? transferOpenRetry;
-    private bool transferDialogOpen, transferLeaving, transferCloseApproved,
-        transferStopped, transferSending, transferUnknown,
-        transferRestorePending, transferPreparingSave;
-    private TransferWriteRequest? transferPending;
-    private TransferSnapshot? transferPendingSnapshot;
+    private bool transferDialogOpen, transferLeaving, transferCloseApproved, transferRestorePending;
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
     private bool TransferRecoveryBlocked => transferAwaitingLogin || transferMastersLoading || transferMastersFailed;
-    private bool TransferFrozen => TransferRecoveryBlocked || transferDialogOpen || transferSending ||
-        transferPending is not null || transferStopped || transferEditor?.IsReadOnly == true;
-    private bool TransferCanAdoptLatest => !TransferRecoveryBlocked && !transferStopped && !transferUnknown &&
-        transferPending is null && transferEditor is { ReadOnlyReason: TransferReadOnlyReason.Conflict, Latest: not null };
-    private bool TransferCanRetryWrite => !TransferRecoveryBlocked && !transferStopped && account is not null &&
-        transferEditor?.IsReadOnly == false && transferPending is not null && (transferUnknown || transferRetryAfterLogin);
+    private bool TransferFrozen => TransferEntry.ViewModel?.IsFrozen != false;
+    private bool TransferCanAdoptLatest => TransferEntry.ViewModel?.CanAdoptLatest == true;
+    private bool TransferCanRetryWrite => TransferEntry.ViewModel?.CanRetryPendingWrite == true;
     private void InitializeTransferEditor()
     {
         WorkspaceRoot.Children.Remove(TransferConfirmationDialog);
@@ -88,9 +81,7 @@ public sealed partial class MainWindow
             transferEditor = saved is null ? TransferEditorState.Create(DateOnly.FromDateTime(DateTime.Now)) : TransferEditorState.Edit(saved);
             if (saved is not null && (!TransferEditorRules.CanUse(methods, saved.FromPaymentMethodId) || !TransferEditorRules.CanUse(methods, saved.ToPaymentMethodId)))
                 transferEditor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
-            var model = new TransferEditorViewModel(transferEditor, () => new(TransferFrozen, transferStopped,
-                transferSending, transferUnknown, TransferCanRetryWrite, transferMastersFailed, transferMastersLoading,
-                TransferCanAdoptLatest, transferDialogOpen),
+            var model = new TransferEditorViewModel(transferEditor, () => new(TransferRecoveryBlocked, transferMastersFailed, transferMastersLoading, transferDialogOpen, account is not null),
                 paymentId => connection.Masters.PaymentName(ledger, paymentId), LoadTransferSuggestionsAsync, LoadTransferAutofillAsync);
             model.ActionRequested += ExecuteTransferActionAsync;
             model.AuthenticationRequired += StopTransferAuthentication;
@@ -101,9 +92,6 @@ public sealed partial class MainWindow
             ReceiptListModel?.Suspend();
             RecordContent.Visibility = Visibility.Collapsed;
             TransferEditorPage.Visibility = Visibility.Visible;
-            transferStopped = transferUnknown = false;
-            transferPending = null;
-            transferPendingSnapshot = null;
             PopulateTransferEditor();
             TransferEntry.FocusField("transactionAt");
         }
@@ -151,14 +139,13 @@ public sealed partial class MainWindow
     private void ResetTransferEditor()
     {
         transferAuthentication = null;
-        transferAwaitingLogin = transferMastersLoading = transferMastersFailed = transferRetryAfterLogin = transferRecoveryLedgerReady = false;
+        transferAwaitingLogin = transferMastersLoading = transferMastersFailed = transferRecoveryLedgerReady = false;
         CancelTransferOpening();
+        var transferModel = TransferEntry.ViewModel;
         TransferEntry.ViewModel = null;
+        transferModel?.DiscardWrite();
         TransferEntry.Discard();
         transferEditor = null;
-        transferPending = null;
-        transferPendingSnapshot = null;
-        transferStopped = transferUnknown = false;
         TransferEditorPage.Visibility = Visibility.Collapsed;
         RecordContent.Visibility = Visibility.Visible;
     }
