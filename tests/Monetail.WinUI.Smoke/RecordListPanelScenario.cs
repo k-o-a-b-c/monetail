@@ -72,7 +72,6 @@ public partial class App
             RegisterAutomationId = "ProbeRegister",
             State = state,
             RegisterCommand = register,
-            OpeningContent = opening,
             ListContent = list
         };
         var host = new Window { Content = panel };
@@ -86,7 +85,8 @@ public partial class App
             var progress = Element<ProgressRing>(panel, "InitialProgress");
             var registerButton = Element<Button>(panel, "Register");
             Check(progress.IsActive && Element<StackPanel>(panel, "InitialNotice").Visibility == Visibility.Visible &&
-                !panel.IsTabStop && !footer.IsTabStop && !registerButton.IsEnabled && Element<Button>(panel, "ReturnToStart").Visibility == Visibility.Collapsed,
+                !panel.IsTabStop && !footer.IsTabStop && !registerButton.IsEnabled && Element<Button>(panel, "ReturnToStart").Visibility == Visibility.Collapsed &&
+                Element<Border>(panel, "OpeningNotice").Visibility == Visibility.Collapsed,
                 "共通Panelは残高用の表示状態だけで初期読込・外部登録権限・focusなしを表示できる");
             canRegister = true;
             register.NotifyCanExecuteChanged();
@@ -135,6 +135,7 @@ public partial class App
             Check(continuations == 1 && ReferenceEquals(Element<Button>(footer, "Continue").Command, state.ContinueCommand),
                 "共通Footerの明示続行は外部Commandだけを実行する");
 
+            panel.OpeningContent = opening;
             opening.Visibility = Visibility.Visible;
             await Wait(() => Element<Border>(panel, "OpeningNotice").Visibility == Visibility.Visible);
             opening.Visibility = Visibility.Collapsed;
@@ -159,10 +160,13 @@ public partial class App
             state.Notify(nameof(state.IsEmpty));
             Check(Element<TextBlock>(panel, "Empty").Visibility == Visibility.Collapsed && ReferenceEquals(panel.State, replacement),
                 "状態参照の交換後は旧ViewModelの通知を反映せず、同じ正本だけを読む");
+            replacement.IsContinuationLoading = true;
+            replacement.Notify(nameof(replacement.IsContinuationLoading));
+            await Wait(() => Element<ProgressRing>(footer, "NextProgress").IsActive);
             panel.State = null;
             footer.State = null;
             await Wait(() => !progress.IsActive && Element<StackPanel>(panel, "InitialNotice").Visibility == Visibility.Collapsed);
-            Check(Element<StackPanel>(footer, "NextNotice").Visibility == Visibility.Collapsed,
+            Check(!Element<ProgressRing>(footer, "NextProgress").IsActive && Element<StackPanel>(footer, "NextNotice").Visibility == Visibility.Collapsed,
                 "状態の解除で共通のリングと読込通知を停止する");
         }
         finally
