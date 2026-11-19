@@ -144,7 +144,11 @@ public sealed class ReceiptEditorDetailsViewModelTests
         Assert.True(model.ApplyDetail());
         var row = model.Details[0];
         var prompts = 0;
-        model.ConfirmationRequested += _ => { prompts++; return Task.FromResult(ReceiptDraftChoice.Stay); };
+        model.ConfirmationRequested += _ =>
+        {
+            prompts++;
+            return Task.FromResult(ReceiptDraftChoice.Stay);
+        };
         var observedInput = false;
         model.PropertyChanged += (_, args) =>
         {

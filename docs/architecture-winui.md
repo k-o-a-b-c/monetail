@@ -398,39 +398,42 @@ Windowにあった`transferPending`/`transferPendingSnapshot`と5 bool（送信�
 
 ## レシート親情報のMVVM分離
 
-**第1段階は親情報と画面枠に限定する。** 親情報・科目・明細・計算・401の約1,000行を同時に移さず、科目/明細の既存モデル・イベント・3択を次の分離単位として残す。保存API/新しいUI操作を接続せず、全体のMVVM化が完了したとは扱わない。
+第1段階（PR #213）の親情報・画面枠に続き、第2段階で科目・明細を**同じ**View/VMへ統合した。節名は既存リンクを維持する。保存API・履歴候補・左上［戻る］へのUI変更は含めない。
 
-| 所有者 | 第1段階の責務 |
+| 所有者 | 現在の責務 |
 | --- | --- |
-| `Views/Receipts/ReceiptEditorView.xaml/.cs` | 親情報4行、回復通知、同じスクロールと無効の保存操作/戻るを含む画面枠、親の実コントロール/生文字列、RadioButtonの明示操作、親の狭幅配置、IME/Enter、表示位置復元 |
-| `Presentation/Receipts/ReceiptEditorViewModel` | 同じEditor/Headerと既存ParentInput、親情報の解析/周期・メモ検証、支払方法候補/警告の投影、計算結果の文字列表現、戻る/マスタ再試行の2 Command |
-| `MainWindow.ReceiptEditor/Details/Calculations/Recovery` | API/家計簿/本人/接続先・権限、画面遷移/Window所有ダイアログ/401復帰、科目/明細の入力と選択・3択、税率/正式計算呼出し、未保存離脱 |
-| 既存Clientの`ReceiptEditorState`/Header/明細Draft・`ReceiptDetailInput` | 入力/ID/revision/変更判定、未反映入力・検証の正本。コピー/再構築しない |
+| `Views/Receipts/ReceiptEditorView.xaml/.cs`・`.Details.cs` | 親・科目・明細の全XAML、実コントロール/生文字列、描画、選択イベント、フォーカス、狭幅配置、IME/Enter/Alt+Enter、表示位置復元 |
+| `Presentation/Receipts/ReceiptEditorViewModel`・`.Details.cs` | 同じEditor/Header/ParentInput/DetailInput、科目・明細の表示行、Editorのキーから導出する選択とボタン可否、入力検証、税率警告/共通計算の表示、画面内操作と切替Command |
+| `MainWindow.ReceiptEditor/Recovery` | API/マスタ取得、家計簿/本人/接続先・権限、画面遷移、Window所有の未反映3択・科目削除・全体離脱ダイアログ、401復帰の調整 |
+| 既存Clientの`ReceiptEditorState`/Header/明細Draft・`ReceiptDetailInput` | 入力/ID/revision/未反映入力/変更判定・検証の正本。コピー/再構築しない |
 
-既存`ReceiptEditorPage`境界を維持し、内部を同じWindow内のUserControlにする。`DetailsContent`にはWindowで宣言した同じ`ReceiptCategoryArea`（科目/明細）を渡す。複製・別Window・入力用ダイアログは追加しない。名前付き親コントロールをWindowへ公開せず、表示/同期/復帰の操作で接続する。科目/明細は引き続きWindowの名前スコープに属する。
+`ReceiptEditorPage`境界と同じWindowを維持し、`DetailsContent`を廃止した。Windowは内部の名前付きコントロールを参照しない。Viewの単一`rendering`だけで親・科目・明細の描画再入を抑止する。FormKeyboardは同じView内の全入力を所有し、親から明細へのTab/Enter・IME中の抑止を維持する。保存3ボタンとCtrl+Enterは引き続きAPIを書き込まない。
 
-FormKeyboardはViewが1つ所有し、Windowは残る明細TextBox群を既存`ObserveInput`へ明示登録する。親から明細へのTab/Enter、IME中の抑止、科目/明細のAlt+Enterを同じ画面スコープで維持する。狭幅判定は従来の780を使い、親の折り返しをView、科目/明細の配置をWindowが行う。保存3ボタンは無効のままで、Ctrl+EnterからもAPIを書き込まない。
+VMはマスタDTOを複製保持せず、Windowから渡したデータ取得delegateで既存キャッシュを読む（HTTP呼出しはしない）。税率履歴参照と既存DetailInputをWindowから移す。表示行はVMの配列をListViewがそのまま参照し、科目/明細の選択キー・保留中の切替先を別フィールドへ保存しない。切替先は既存`ReceiptEditTransition`をCommand引数に渡し、3択の解決後だけEditorを操作する。遷移中は既存AsyncRelayCommandの`IsRunning`を使い、独立した切替boolは置かない。確定時にDetailInput参照が変わった場合だけINotifyPropertyChangedでViewへ同期通知し、選択キー更新とフォーム反映の間に非同期の隙間を作らない。Viewはこのプロパティだけを監視し、全プロパティ変更で描画しない。ダイアログの実行とWindowの有効性照合はWindowに残す。 Windowへの確認通知1本とAvailabilityのDialogOpen読取1項目は、標準ダイアログの所有者を変えず操作の再入を防ぐために追加する。Commandは切替用1本だけ増やし、明細操作ごとのCommand群や保留先の状態コピーは追加しない。
 
-VMは生文字列を別途保存せず、引数で受け取って同じHeaderへ反映する。不正な日時/周期では以前の解析値を消さず、実テキストは元コントロールへ残して未保存保護の対象にする。`ReceiptParentInputState`は新しい編集を開く時だけVMが生成し、再描画/401では作り直さない。明示的なRadioButton選択（同じ値を含む）だけ由来を変更し、そのフラグだけでは未保存扱いにしない。所在地の保存済みnull/空文字の区別、空の周期と表示上の「月」、選択済み期間外/不明な支払方法も維持する。
+親の不正日時/周期は以前の解析値を消さず実テキストを保護する。明細の数値文字列は既存DetailInputに保持し、検証失敗・3択取消で選択/入力を変えない。並べ替え・流用は同じInputを維持し、適用/削除/確定した選択移動だけで次のフォームを作る。表示再計算は既存ReceiptCalculationDisplayを使い、税率警告と数値入力エラーを分ける。計算結果から入力・ID/revision・未保存判定を書き換えない。
 
-401の正本はWindowの既存RecoveryPhase/復帰情報で、VMはReadOnly/通知文/再試行可否の一時コンテキストをdelegateで読むだけ。元のView/VM/ParentInput/Header/明細Draft/実コントロールを保持する。Windowが現在権限を再評価してから親の操作可否をViewへ通知し、追加詳細GETや自動送信はしない。フォーカス/文字選択/スクロール復元は、既存の位置参照とWindowのコンテキスト照合を受けてViewが行う。
+401は元View/VM/ParentInput/DetailInput/Editor/実コントロールを保持する。Windowがマスタをすべて再取得し権限を確認するまで読み取り専用を維持し、Viewは候補・名称だけを更新する。追加詳細GETや自動送信は行わない。復元位置は元の実コントロール参照を使用し、入力全体のスナップショットを追加しない。
 
-| 比較（基点main `4bfd30e`、空行込み/生成物除外） | 前 | 分離後 |
+| 比較（基点main `cac9ddd`、空行込み/生成物除外） | 前 | 第2段階後 |
 | --- | ---: | ---: |
-| MainWindow XAML / 全partial C# | 808 / 4,235行 | 746 / 4,167行 |
-| WinUI / Presentation / Client C#/XAML | 6,779 / 890 / 3,739行 | 6,919 / 997 / 3,739行 |
-| 3製品プロジェクト合計 | 11,408行 | 11,655行 |
-| 親情報/画面枠内部へのWindow直接参照（種類/箇所） | 29 / 86 | 0 / 0 |
-| 編集固有の明示状態 Window / View / VM | 19 / 0 / 0 | 16 / 2 / 7 |
-| Editor/Header/明細Draft・ParentInputの正本 | 各1 | 同じく各1 |
+| MainWindow XAML / 全partial C# | 746 / 4,167行 | 658 / 3,760行 |
+| WinUI / Presentation / Client C#/XAML | 6,919 / 997 / 3,739行 | 6,853 / 1,398 / 3,739行 |
+| 3製品プロジェクト合計 | 11,655行 | 11,990行 |
+| 科目/明細内部へのWindow直接参照（種類/箇所、C#） | 28 / 121 | 0 / 0 |
+| 編集固有の明示状態 Window / View / VM | 16 / 2 / 7 | 10 / 2 / 12 |
+| 上記の格納bool合計 | 12 | 9 |
+| View接続面：設定 / 読取 / 通知 / 操作 | 3 / 4 / 2 / 9 | 2 / 2 / 0 / 10 |
+| うちpublic API / internal操作（DP登録・ctor除外） | 16 / 2 | 11 / 3 |
+| Windowが使うViewメンバーの種類 / 呼出箇所 | 16 / 24 | 11 / 24 |
 
-行数は247行増（新View XAML80+C#190、VM107、Window130行減）。状態数はReceiptEditor/Details/Calculations/Recoveryの明示フィールドと移管先の格納（auto propertyを含む）を数え、注入Editor参照/delegate/生成UI/DependencyProperty/Command/イベント/計算プロパティ/ローカル変数を除く。ParentInput・元の所在地・FormKeyboardの3保持先をWindowから移す。新たな親専用の再入防止bool1と、元はコントロールに設定していた5表示投影の通知を追加するため、明示格納数は6増える。入力値のコピーではない。VMは新規の1クラス、1コンテキスト値、1候補行型、1操作enum、1通知/2 Commandで、Service/DI/継承基盤や外部ライブラリは追加しない。
+明示状態はEditor/Details/Calculations/Recoveryのフィールドと移管先auto propertyを数え、注入Editor/delegate・生成UI/DP/Command・イベント・計算プロパティ・ローカル変数を除く。25→24で、Windowの描画bool2と切替bool1を除去し、既存検証boolをVMへ移す。表示行2配列は元のListView ItemsSourceからVMへ移した投影で、業務値の二重管理ではない。Commandが持つ実行Taskの状態は別に必要なため、全実行時状態が1減ると主張しない。
 
-Viewの接続面は3設定プロパティ、4読み取り情報、2通知、9操作（内部IME登録/再描画操作を含む、DP登録/ctor除外）で、Windowの24箇所から利用する。現在は親と科目/明細の境界に計算確定判定・IME状態・同期/復帰操作が残り、接続面そのものが最小化済みとは主張しない。後続では科目/明細のイベント・投影・UI状態を同じモデルへ接続し、Contentとこれらの呼出元ごと分離する。単なるメソッド転送用のWindowラッパーや入力スナップショットは追加しない。旧VBの親入力/RadioButtonと新版正本を照合し、新版で確定済みの1行メモ・同じWindow・未保存保護を維持する。検証は[tests/README](../tests/README.md)を参照。
+View接続面はctor/DP登録を除き、操作には既存スモーク用internal 3件を含む。DetailsContent・親変更/狭幅通知・外部からのIME登録を廃止する一方、全入力同期とマスタ反映を追加した。Windowからの呼出箇所数は変わらず、VM/税率の受け渡し・認証時の同期/消去は残る。総行数は335行増えるが、MainWindowは495行減る。既存の短い複数文を移管先で整形したこと、Commandと検証可能な投影/操作を明示したことによる増加で、新しいView/VMクラス・Service/DI/汎用状態機構は追加しない。旧VBの科目選択・明細初期化/削除と照合し、新版で確定済みの3択・削除後選択解除を優先する。検証は[tests/README](../tests/README.md)を参照。
 
 ## レシート編集の401復帰
 
-`MainWindow.ReceiptRecovery.cs`は元の`ReceiptEditorState`/親入力/明細下書き/コントロールを保持し、本人・家計簿・接続先と最初のフォーカス/文字選択/スクロール位置だけを記録する。共通操作が画面を無効化する前に位置を取得し、通常離脱と同じ既存同期関数で未通知の入力も既存バッファへ取り込む（明細の追加/更新はしない）。一つの復帰段階でログイン待ち・取得中・失敗・権限喪失を区別し、入力全体のコピーやディスク保存をしない。保護/消去は名前付きTextBoxへ直接適用し、非表示時のVisualTree実体化に依存しない。`NavigateToLogin`/`DiscardLedgerContents`に接続し、未承認遷移ガードはレシートにも適用する。
+`MainWindow.ReceiptRecovery.cs`は元の`ReceiptEditorState`/親入力/明細下書き/コントロールを保持し、本人・家計簿・接続先と最初のフォーカス/文字選択/スクロール位置だけを記録する。共通操作が画面を無効化する前に位置を取得し、通常離脱と同じ既存同期関数で未通知の入力も既存バッファへ取り込む（明細の追加/更新はしない）。一つの復帰段階でログイン待ち・取得中・失敗・権限喪失を区別し、入力全体のコピーやディスク保存をしない。保護/消去はView内の名前付きTextBoxへ適用し、非表示時のVisualTree実体化に依存しない。`NavigateToLogin`/`DiscardLedgerContents`に接続し、未承認遷移ガードはレシートにも適用する。
 
 同じ本人への復帰時は人物・科目・税率・支払方法を再取得し、最後の支払方法応答の現在ロール/本人対応と既存編集の保存基準支払方法から権限を確認する。Clientの`SavedPaymentMethodId`は既存baselineへの読み取り専用参照で、現在の入力値とは独立する。再取得中/失敗時は入力を保持した読み取り専用、失敗時だけ明示再試行。既存の科目行・人物CheckBoxを再利用して表示名を更新し、フォームの再読込や下書き反映を行わない。税率初期値も再取得した履歴を参照する。
 
@@ -489,11 +492,11 @@ WinUIの入力・認証復帰は上記の実装状態を参照。保存結果不
 
 離脱時は入力イベントの通知に頼らず現在のコントロール値を読み取り、未確定の日付／時刻も保護する。空欄へ戻した任意項目は元のNULL／空文字を維持して未変更判定を復元する。既存ナビゲーションの確認と通常終了の取消を共通化し、未承認の画面切替でも編集中の状態を捨てない。`TimeInputBox`は`DateInputBox`と同じ確定境界で既存Client補完を使う。標準ListViewの`SingleSelectionFollowsFocus=false`で科目のフォーカスと確定選択を分ける。画面の動作・暫定の保存禁止・残る実装は[UI正本](ledger-receipt-ui.md#工程6-d2の実装境界)を参照。
 
-税設定の由来はUI非依存の`ReceiptParentInputState`で項目別に保持する。`SelectTaxInclusion/SelectTaxRounding`は同値でも手動にし、`TryAutofill...`は手動/既存保存値を拒否する（HTTPは呼ばない）。状態をReceiptEditorStateの値比較から分け、由来だけの変更は未保存にしない。WinUIは標準RadioButtonのClickを明示操作、Checkedを値同期として扱い、`RenderReceiptTaxValues`は由来を変更せず描画する。`ReceiptRecurrenceInput.Parse`で間隔空欄と不正を区別し、不正時は入力文字列・最後の有効なモデル値を維持する。業務契約は[UI正本](ledger-receipt-ui.md#新規親情報の初期値dec-277)・[自動補完の正本](ledger-receipt-suggestions.md#radiobuttonの明示選択と補完保護dec-278)を参照。
+税設定の由来はUI非依存の`ReceiptParentInputState`で項目別に保持する。`SelectTaxInclusion/SelectTaxRounding`は同値でも手動にし、`TryAutofill...`は手動/既存保存値を拒否する（HTTPは呼ばない）。状態をReceiptEditorStateの値比較から分け、由来だけの変更は未保存にしない。WinUIは標準RadioButtonのClickを明示操作、Checkedを値同期として扱い、Viewの`RenderTaxValues`は由来を変更せず描画する。`ReceiptRecurrenceInput.Parse`で間隔空欄と不正を区別し、不正時は入力文字列・最後の有効なモデル値を維持する。業務契約は[UI正本](ledger-receipt-ui.md#新規親情報の初期値dec-277)・[自動補完の正本](ledger-receipt-suggestions.md#radiobuttonの明示選択と補完保護dec-278)を参照。
 
 ## レシート明細フォーム・一覧（工程6-D3）
 
-`MainWindow.ReceiptDetails.cs`は既存の`ReceiptEditorState`へ画面内操作を接続する。`ReceiptDetailInput`は未確定の数値文字列を可変下書きから分け、全数値の解析後だけ下書きを同期する。単価・単価値引の整数式は旧版と同じ+/-/*の優先順位・途中Int32範囲とし、解析失敗を0へ置き換えない。更新済み行と未反映フォームは別に保持する。
+`ReceiptEditorView.Details.cs`はUI操作を既存`ReceiptEditorViewModel`へ通知し、VMが既存`ReceiptEditorState`へ画面内操作を接続する。`ReceiptDetailInput`は未確定の数値文字列を可変下書きから分け、全数値の解析後だけ下書きを同期する。単価・単価値引の整数式は旧版と同じ+/-/*の優先順位・途中Int32範囲とし、解析失敗を0へ置き換えない。更新済み行と未反映フォームは別に保持する。
 
 一覧表示は`ReceiptDetailRow`、人物選択は標準CheckBoxと単一のTab停止位置・上下フォーカス移動を使用する。選択変更を一度元へ戻し、標準ContentDialogで未反映下書きを解決した後だけ新しい対象へ移動する。共通`FormKeyboard`に明細のIME追跡を含め、明細領域のPreviewKeyDownでAlt+Enterを扱う。業務仕様と未接続部分は[UI正本](ledger-receipt-ui.md#工程6-d3の実装境界)を参照。
 
@@ -511,6 +514,6 @@ WinUIの入力・認証復帰は上記の実装状態を参照。保存結果不
 
 ## 税率・正式計算の画面接続（工程6-D4-C実装済み）
 
-`MainWindow.ReceiptCalculations`が既存税率キャッシュと共通計算をレシート画面へ接続する。取得は編集開始前、候補/適合判定はClientの`ReceiptTaxRules`、正式金額は`ReceiptCalculationDisplay`→`ReceiptCalculations.CalculateApplied`を使用する。従来`FromEditor`の未反映拒否は維持し、表示専用経路は反映済みの値だけをコピーする。計算式をWinUIに複製しない。
+`ReceiptEditorViewModel.Calculate`が既存税率履歴参照と共通計算をレシート画面へ接続する。取得は編集開始前、候補/適合判定はClientの`ReceiptTaxRules`、正式金額は`ReceiptCalculationDisplay`→`ReceiptCalculations.CalculateApplied`を使用する。従来`FromEditor`の未反映拒否は維持し、表示専用経路は反映済みの値だけをコピーする。計算式をWinUIに複製しない。
 
 行は`INotifyPropertyChanged`の表示プロパティだけを更新し、入力欄・選択・フォーカス・下書きを再生成しない。候補の再構成中はSelectionChangedから入力へ書き戻さず、現在の期限外税率も保持する。取得失敗の再試行、日付/率不一致、計算不能/部分額を誤認させない表示の正本は[レシートUI](ledger-receipt-ui.md#税率候補正式計算の画面接続工程6-d4-c実装済み)を参照。API保存・税率の自動投入は接続しない。

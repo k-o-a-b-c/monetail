@@ -10,11 +10,21 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
-| Windows Presentation（レシート/振替一覧VM・振替編集VM・レシート親情報VM・投影・Command・共通ページング・復帰） | 143 |
+| Windows Presentation（レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 154 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3804 |
+| 合計 | 3815 |
+
+## レシート科目・明細のMVVM分離 第2段階（PR #214）
+
+[ReceiptEditorDetailsViewModelTests](Monetail.Windows.Presentation.Tests/ReceiptEditorDetailsViewModelTests.cs)へ11ケースを追加。元Editor/選択キー/Input参照、未反映3択の適用/破棄/取消、不正生入力の保全、Command実行中の二重切替抑止、未変更再選択、並べ替え/流用時のフォーム保持、削除後の選択解除、科目削除の確認取消、人物・税率3状態、税率警告と単価エラーの独立、二重破棄を確認する。既存親VM10件と合わせ、ローカル最小→全Presentation154件が成功した。最終の同一選択ガード追加後も関連11件が成功。
+
+既存WinUIスモークは科目/明細の検索と操作先を同じViewの名前スコープへ変更し、期待値・確認件数・タイムアウトを維持する。401では同じVM/DetailInput/実コントロール、終了時は保持していたVMのInput消去も確認する。MainWindow内部名参照0、移管28要素の配置/AutomationId等の静的属性、XML、対象C#書式検査、git diff --checkを確認した。表示文言/ボタン可否は従来設定値から同じVM投影へ移す。
+
+変更前は基点main `cac9ddd`の[push Tests 44493242124](https://github.com/k-o-a-b-c/monetail/actions/runs/44493242124)成功を採用。初回ソース`d69d879`の[Tests 44517046907](https://github.com/k-o-a-b-c/monetail/actions/runs/44517046907)でClient全1,194件・Presentation全154件が成功。Windowsビルドで移管先のReceiptMemoValue用using不足を修正した。続く`4f67379`の[Tests 44517536277](https://github.com/k-o-a-b-c/monetail/actions/runs/44517536277)は製品Releaseが成功し、スモークに残った旧Windowの科目選択メソッド参照1件を修正。`af7ff1a`の[Tests 44518128989](https://github.com/k-o-a-b-c/monetail/actions/runs/44518128989)は両ビルド成功後、メモ試験の削除済みprivate未保存プロパティ参照で失敗し、製品と同じViewの判定へ変更した。これらは移管時の参照漏れで、期待値/件数/タイムアウトを変えず修正している。`e6c5d8c`の[Tests 44519060370](https://github.com/k-o-a-b-c/monetail/actions/runs/44519060370)では明細の破棄移動後、モデルの選択先変更とViewのフォーム反映の間の非同期境界で既存確認が失敗した。DetailInput変更の同期通知へ切り替え、操作状態や入力のコピーを追加せず修正した。通知時の選択/入力が確定済みであることを既存単体テストへ追加し、関連11件が成功。ローカル再検証ではMSBuildの名前付きパイプがサンドボックスで拒否されたため、許可環境で実行した。`cfd56d6`の[Tests 44520397756・attempt 1](https://github.com/k-o-a-b-c/monetail/actions/runs/44520397756/attempts/1)ではClient/Presentationが成功し、Windowsは未変更の`transfer-suggestions`（TransferSuggestionScenario.cs:43/TypeTransferName）で実キー入力が反映されず失敗した（focused/foreground=True、text/draft一致=False）。振替側のコード・共通入力・テストには変更がなく、原因は未特定。条件/上限を変えず同一ソースの失敗Windowsジョブだけ再実行し、根本解決とは扱わない。同じソースの[attempt 2](https://github.com/k-o-a-b-c/monetail/actions/runs/44520397756/attempts/2)と[Windowsジョブ135549809168](https://github.com/k-o-a-b-c/monetail/actions/runs/44520397756/job/135549809168)で、製品/検証用x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/765確認、個別3シナリオ・不正指定/計測/スクリーンショットが成功。明細33・メモ26・税計算18・レシート401復帰30と、振替/管理画面の既存確認も維持し、Tests全体が成功した。新規警告なし。変更文書のローカルリンク220件・git diff --checkも成功。最後に新規単体テストの複数文ラムダを改行しただけで、期待値/実装は変えていない。影響外のAPI/DB/Docker/旧Windows等は既存CIの選択/fingerprintに従い成功結果を再利用する。
+
+実Windowsの手動操作、物理IME/タッチ/高DPI/スクリーンリーダーと実API接続は未検証。レシート全体の保存API・新しい履歴候補UI・左上［戻る］へのUI変更は追加しない。構造計測・状態の数え方・残るWindow調整は[構成正本](../docs/architecture-winui.md#レシート親情報のmvvm分離)を参照。
 
 ## レシート親情報・画面枠のMVVM分離 第1段階（PR #213）
 
