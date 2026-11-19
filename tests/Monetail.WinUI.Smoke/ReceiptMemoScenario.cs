@@ -39,7 +39,7 @@ public partial class App
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         var keyboard = (FormKeyboard)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ReceiptView)!;
         var composing = (HashSet<TextBox>)typeof(FormKeyboard).GetField("composing", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(keyboard)!;
-        bool Dirty() => (bool)typeof(MainWindow).GetProperty("ReceiptEditorDirty", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+        bool Dirty() => ReceiptView.NeedsLeaveConfirmation;
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
             "通常の1行メモを表示して選択するだけでは未保存変更にしない");
         var memos = new[] { Find<TextBox>(root, "ReceiptMemo"), Find<TextBox>(root, "ReceiptCategoryMemo"), Find<TextBox>(root, "ReceiptItemMemo") };
