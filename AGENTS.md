@@ -28,7 +28,9 @@
 - `.env`は変更・コミットしない。秘密情報や実データもコミットしない。
 
 ## WinUIの構造
-- 新しい画面固有処理を`MainWindow`へ追加せず、[`monetail-winui-architecture` Skill](.agents/skills/monetail-winui-architecture/SKILL.md)の責務分離・状態重複防止の基準に従う。WinUI/LOB/コードレビューの公式系Skillは用途に応じて併用する。
+- WinUI 3の画面設計・実装・レビューでは[`monetail-winui-architecture` Skill](.agents/skills/monetail-winui-architecture/SKILL.md)を**必ず読む**。単一Window、`Frame`を使う画面遷移、使用時生成と通常離脱後の解放、`MainWindow`との責務境界、状態の正本、例外的な401復帰の扱いは同Skillを基準とする。WinUI/LOB/コードレビューの公式系Skillを用途に応じて併用する。
+- 既存の「全画面を起動時に生成し、画面全体の`Visibility`で切り替える」実装を新規に追加・拡大しない。既存箇所は段階的な移行対象とし、未保存取消・401復帰の入力保全を優先して、単純な破棄による退行を起こさない。
+- WinUI変更PRでは生成時点・通常離脱後の参照/イベント解放・再表示・未保存/401復帰・古い非同期応答を影響範囲に応じて確認する。構造検査とライフサイクルのCIが未導入の間はレビューで確認し、実施していない検査を成功扱いしない。
 
 ## 文書の正本と履歴
 - 仕様は正本1か所で管理し、README・ロードマップ等への重複転記はせずリンクで整合させる。実装に伴う変更がある文書だけ更新し、改修ごとに新文書を増やさない。
