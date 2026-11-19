@@ -17,18 +17,6 @@ public sealed partial class ReceiptListViewModel(
 {
     protected override void SelectionChanged() => OnPropertyChanged(nameof(SelectedReceiptId));
     public Guid? SelectedReceiptId => SelectedItem?.ReceiptId;
-    public string SearchText
-    {
-        get => search.Receipts.ShopText;
-        set
-        {
-            if (search.Receipts.ShopText == value)
-                return;
-            search.Receipts.ShopText = value;
-            OnPropertyChanged();
-        }
-    }
-    public void RefreshSearchText() => OnPropertyChanged(nameof(SearchText));
     private bool canRegister;
     public bool CanRegister
     {
@@ -39,10 +27,7 @@ public sealed partial class ReceiptListViewModel(
                 RegisterCommand.NotifyCanExecuteChanged();
         }
     }
-    public event Func<Task>? SearchRequested;
     public event Func<Guid?, Task>? OpenRequested;
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task SearchAsync() => SearchRequested?.Invoke() ?? Task.CompletedTask;
     // 取消済みの旧入力GETが未完了でも再度開けるよう、実際の二重起動はWindowの入口ガードで防ぐ。
     [RelayCommand(CanExecute = nameof(CanRegister), AllowConcurrentExecutions = true)]
     private Task RegisterAsync() => OpenRequested?.Invoke(null) ?? Task.CompletedTask;
@@ -67,12 +52,6 @@ public sealed partial class ReceiptListViewModel(
     public Task StartAsync(ReceiptListQuery query, CancellationToken token = default)
     {
         return StartReadAsync(query, token);
-    }
-    public override void Dispose()
-    {
-        base.Dispose();
-        // 退避はSuspend、破棄はDispose。nullのバインド更新だけでは古い表示行が残り得る。
-        ClearRows();
     }
     private Task StartReadAsync(ReceiptListQuery query, CancellationToken token, bool findingSaved = false)
     {

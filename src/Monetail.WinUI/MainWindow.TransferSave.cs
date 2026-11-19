@@ -142,7 +142,6 @@ public sealed partial class MainWindow
     {
         if (receiptSearch is null || recordSearch is null) return;
         receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; RecordKeyword.Text = recordSearch.TransferText;
-        ReceiptListModel?.RefreshSearchText(); TransferListModel?.RefreshSearchText();
         RecordMonthPeriod.IsChecked = !receiptSearch.AllPeriods; ReceiptAllPeriods.IsChecked = receiptSearch.AllPeriods;
         receiptFiltersUpdating = false;
         RefreshReceiptChoices();

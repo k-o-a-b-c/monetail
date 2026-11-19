@@ -76,7 +76,7 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 | 境界 | 公開する状態・操作の目安 | 公開しないもの |
 | --- | --- | --- |
-| `TransferListViewModel` → `TransferListView` | 読み取り専用の`Rows`、双方向の`SelectedItem`・`SearchText`、初回/追加読込・空・失敗と再試行可否・エラー文、登録可否、`Search`/`Retry`/`Continue`/`ReturnToStart`コマンド | `ScrollViewer`、`Visibility`などWinUI型や画面要素 |
+| `TransferListViewModel` → `TransferListView` | 読み取り専用の`Rows`、双方向の`SelectedItem`、初回/追加読込・空・失敗と再試行可否・エラー文、登録可否、`Register`/`Edit`/`Retry`/`Continue`/`ReturnToStart`コマンド | `ScrollViewer`、`Visibility`などWinUI型や画面要素 |
 | `TransferListView` → `TransferListViewModel` | 選択通知、可視最終行・領域が埋まったか・利用者の下方向スクロール意図の通知 | ScrollViewerそのものやXAMLの内部`x:Name`をVMへ渡さない |
 | `MainWindow` → `TransferListViewModel` | 現行家計簿に対応する一覧開始/再検索（確定済み`TransferListQuery`を渡す）、保存行探索・再選択、画面離脱の`Suspend`と復帰の`Resume`、終了時の破棄、支払方法表示名変更の通知、登録可否の更新 | 同じ行コレクション/カーソル/選択をMainWindowでも保持しない |
 | `TransferListViewModel` → `MainWindow` | 登録/選択行の編集要求（共通キーワード検索の確定はMainWindowから実行）、認証継続不可を判別する取得エラーの通知・参照 | Windowの画面遷移・ContentDialog・共通年月の直接操作 |
@@ -85,7 +85,7 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 **状態の正本**：
 
-- 共通年月・人物・支払方法・両一覧の文字列検索の適用値は`RecordSearchState`と内包する`ReceiptSearchState`が正本。表示中の共通キーワード下書きは`MainWindow.RecordKeyword`に保持し、［検索］／Enterで`ApplySharedText`が年月を検証して両方へ確定する。個別VMの`SearchText`は互換の公開窓口として残すが各一覧に検索欄は置かない。振替保存後は`ApplySavedTransfer`の調整後に共通キーワードも両方へ同期し、Viewの表示値も更新する。
+- 共通年月・人物・支払方法・両一覧の文字列検索の適用値は`RecordSearchState`と内包する`ReceiptSearchState`が正本。表示中の共通キーワード下書きは`MainWindow.RecordKeyword`に保持し、［検索］／Enterで`ApplySharedText`が年月を検証して両方へ確定する。個別VMには検索Command・下書きの公開窓口を置かない。振替保存後は`ApplySavedTransfer`の調整後に共通キーワードも両方へ同期し、Viewの表示値も更新する。
 - 一覧データ・選択行・読み込み/失敗・後続カーソル・初回自動補充回数・要求世代・中断再開情報は**VMのみに保持**する。`SelectedItem`から振替IDを導出し、同じ選択を別フィールドでも常時保持しない。API実行中の固定クエリは遅延応答を判定するためのスナップショットであり、共通フィルターの新しい正本ではない。
 - 表示用`TransferListItem`はAPI行の投影と、支払方法名の変更通知だけを持つ。新しい永続状態・業務検証・Commandを持たない。行を一意に特定できる振替IDは提供する。
 - `TransferListView`は実コントロール、スクロールの一時位置・利用者操作意図・フォーカスだけを保持する。行・選択ID・ページングをView内に複製しない。既存Home領域とViewのインスタンスを維持して隠す/戻す際、選択と縦横スクロールを復元する。
@@ -105,8 +105,8 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 ### 実装の所有者と構造比較
 
-- `TransferListViewModel`は読取delegate・`RecordSearchState`・マスタ名称読取delegateを受け取る。`ObservableObject`/`RelayCommand`（CommunityToolkit.Mvvm 8.4.2）を使用し、WinUI/HTTP/認証の別実装を持たない。`Rows`は単一`ObservableCollection`の読取専用ラッパーで、`SelectedTransferId`は`SelectedItem`から導出する。`SearchText`には保存フィールドがなく、外部変更は`RefreshSearchText`で通知する。
-- `SearchCommand`/`RegisterCommand`/`EditCommand`は`SearchRequested`/`OpenRequested`の2通知だけでWindowへ委譲する。検索中の新しい検索も許可し、旧取得の中断/世代照合はVMで行う。登録可否はWindowが既存ルールで計算した`CanRegister`。`RetryCommand`/`ContinueCommand`/`ReturnToStartCommand`と一覧取得世代・中断/再開・保存行探索はVMが所有する。探索中の未解決IDもVMにだけ保持し、通常の選択IDと二重管理しない。
+- `TransferListViewModel`は読取delegate・`RecordSearchState`・マスタ名称読取delegateを受け取る。`ObservableObject`/`RelayCommand`（CommunityToolkit.Mvvm 8.4.2）を使用し、WinUI/HTTP/認証の別実装を持たない。`Rows`は単一`ObservableCollection`の読取専用ラッパーで、`SelectedTransferId`は`SelectedItem`から導出する。共通検索の確定はWindowから行い、各VMへ確定済みクエリを渡す。
+- `RegisterCommand`/`EditCommand`は`OpenRequested`通知だけでWindowへ委譲する。検索中の新しい検索も許可し、旧取得の中断/世代照合はVMで行う。登録可否はWindowが既存ルールで計算した`CanRegister`。`RetryCommand`/`ContinueCommand`/`ReturnToStartCommand`と一覧取得世代・中断/再開・保存行探索はVMが所有する。探索中の未解決IDもVMにだけ保持し、通常の選択IDと二重管理しない。
 - Viewの公開面は`ViewModel`、編集開始待ちのWindow所有UIを配置する`OpeningContent`（標準ContentControlの内容スロット）、`RememberPosition`/`RestorePosition`/`ObserveViewport`。ListView・ScrollViewer・検索TextBoxは公開しない。IMEと実スクロールの状態はViewへ移し、外側の共通Enter移動との二重処理を防ぐ。
 - `MainWindow.Transfers.cs`は共通条件の確定、Workspaceの既存依存をVMへ渡す接続、外部権限による登録可否、認証例外による画面遷移だけを担当する。編集/保存/401復帰は同じView/VMを使い、検索条件を変更しない往復では行・選択・縦横スクロールを保つ。
 
@@ -115,7 +115,7 @@ flowchart LR
     Window[MainWindow: 共通条件・遷移・認証] --> View[TransferListView: XAML・実UI]
     Window --> VM[Presentation: TransferListViewModel]
     View -->|x:Bind / Command / 可視範囲| VM
-    VM -->|検索確定・登録/編集の要求| Window
+    VM -->|登録/編集の要求| Window
     VM --> Client[Client: Workspace・DTO・RecordSearchState]
     View --> Item[Presentation: TransferListItem]
 ```
@@ -138,7 +138,7 @@ flowchart LR
 
 ### 一覧Viewの観測境界
 
-- `ModelChanged`は保存行探索による非NULLの`SelectedItem`変更だけを監視し、同じVM/行であることを予約実行時にも確認して表示する。`SearchText`/`CanRegister`等の通知では測定しない。XAMLの`x:Bind`通知は独立して維持する。
+- `ModelChanged`は保存行探索による非NULLの`SelectedItem`変更だけを監視し、同じVM/行であることを予約実行時にも確認して表示する。`CanRegister`等の一覧表示範囲に無関係な通知では測定しない。XAMLの`x:Bind`通知は独立して維持する。
 - 可視範囲は既存の`Rows.CollectionChanged`、`Loaded`、`ScrollViewer.ViewChanged`と`ListView.SizeChanged`、Windowからの表示復帰要求で測る。常時の`LayoutUpdated`は使用しない。既存の低優先Dispatcher要求へまとめ、`UpdateLayout`完了後に行範囲/スクロール領域を読む。レイアウト確定中の通知も同じ要求へまとめる。`Loaded`時点の参照を固定せず、確定後の現在のScrollViewerと異なる場合だけ旧購読を解除して接続し直す。タイマーや新しい状態フィールドは追加しない。
 - 保存行の`ScrollIntoView`はViewの選択通知に一本化し、保存処理からの重複呼出と公開`ScrollSelectionIntoView`を削除した。表示位置復元と保存行表示の前に操作意図を解除し、プログラムによるスクロールを追加取得の操作とみなさない。利用者のホイール/バー/キー/タッチ開始を表す既存フラグは残す。
 - 登録Buttonの有効状態は`RegisterCommand.CanExecute`だけで制御し、重複する`IsEnabled`バインディングを削除した。登録可否の計算、編集中の一覧非表示と編集開始ガードは既存のまま。
@@ -159,13 +159,13 @@ PR #202の振替一覧と同じ責務境界へ移行し、旧`ReceiptListState`�
 
 Viewは`ViewModel`/`OpeningContent`の2プロパティと`RememberPosition`/`RestorePosition`/`ObserveViewport`の3操作だけを公開する。WindowやClientSession、一覧内コントロールは渡さない。編集開始待ちUIはWindowの名前スコープ/所有権を維持した内容スロットに置き、そのVisibilityにラッパーも追従して従来の間隔を維持する。
 
-VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口。`SelectedReceiptId`は`SelectedItem`から導出し、ListViewへ双方向バインドする。旧WindowのDTO→表示行同期と選択ID同期は削除した。`SearchText`は`RecordSearchState.Receipts.ShopText`の窓口で別の格納先を持たないが、現行WinUIの共通キーワード検索はWindowが直接確定する。要求中の`conditions`はカーソル/世代に結び付いた読取スナップショットであり、新しい編集用フィルターではない。
+VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口。`SelectedReceiptId`は`SelectedItem`から導出し、ListViewへ双方向バインドする。旧WindowのDTO→表示行同期と選択ID同期は削除した。共通キーワードの下書きはWindowが保持し、`ApplySharedText`で確定したクエリをVMへ渡す。要求中の`conditions`はカーソル/世代に結び付いた読取スナップショットであり、新しい編集用フィルターではない。
 
-`SearchCommand`/`RegisterCommand`/`EditCommand`と2通知（`SearchRequested`/`OpenRequested`）を使用する。登録可否は従来のWindowルールを`CanRegister`へ渡す。登録/編集の進行中ガードもWindowの既存`receiptOpening`等が正本であり、取消済みの旧HTTP応答待ちをCommandの別ガードとして残さない。検索の競合はVMの世代管理で、編集開始の競合はWindowの既存照合で処理する。`RetryCommand`/`ContinueCommand`はVMの現在状態に従う。
+`RegisterCommand`/`EditCommand`と`OpenRequested`通知を使用する。登録可否は従来のWindowルールを`CanRegister`へ渡す。登録/編集の進行中ガードもWindowの既存`receiptOpening`等が正本であり、取消済みの旧HTTP応答待ちをCommandの別ガードとして残さない。検索の競合はVMの世代管理で、編集開始の競合はWindowの既存照合で処理する。`RetryCommand`/`ContinueCommand`はVMの現在状態に従う。
 
 可視範囲はRows/Size/Loaded/ViewChangedと復帰時の明示要求で測定し、全プロパティ通知や常時LayoutUpdatedには依存しない。既存の低優先Dispatcher要求へまとめ、レイアウト確定後に現在のScrollViewerへ接続する。ViewportFilledの変化はViewportFilled/CanContinueと続行Commandだけへ通知する。復元時は利用者の操作意図を解除し、自動補充上限を解除しない。
 
-退避は`Suspend`、明示破棄は`Dispose`と区別する。旧Windowが行っていた表示行クリアはVM.Disposeへ移し、所有する行・選択をクリアする。nullのバインド更新だけに頼らず、ログアウト後に古い行を残さない。通常の画面往復・同一アカウントの編集401復帰では元のView/VM/入力コントロールを保ち、既存の復帰・未保存保護を変更しない。全体保存/削除の画面接続は引き続き後続であり、保存ボタンは無効。振替保存後のレシート再取得は新VMのStartAsyncへ接続する。
+退避は`Suspend`、明示破棄は`Dispose`と区別する。表示行クリアは共通基底のDisposeが担当し、両VMの所有する行・選択をクリアする。nullのバインド更新だけに頼らず、ログアウト後に古い行を残さない。通常の画面往復・同一アカウントの編集401復帰では元のView/VM/入力コントロールを保ち、既存の復帰・未保存保護を変更しない。全体保存/削除の画面接続は引き続き後続であり、保存ボタンは無効。振替保存後のレシート再取得は新VMのStartAsyncへ接続する。
 
 ### 構造比較
 
@@ -220,7 +220,7 @@ VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口
 
 保存行への移動は両一覧で共通の要件として実装済み。`CursorListViewModel`が探索対象/探索中状態、最大300件探索、focusへの切替、選択、探索のキャンセル・中断再開/再試行を所有する。各VMは対象行のID照合、型付きfocusクエリ、現在の確定条件での再試行だけを実装し、探索ループや取得状態は複製しない。focusの404は各VMが既存の共通先頭復旧へ分類し、通常cursorの404と区別する。レシートfocusReceiptId APIと探索は接続済みだが、保存UIと保存後の検索条件解除は未接続/未決定のまま。正本は[レシートAPI](ledger-receipt-api.md)・[画面](ledger-receipt-ui.md)を参照。
 
-退避時は行/選択を保持し、破棄時のクリア方針は各VMの既存Dispose契約を維持する。特にレシートの明示クリアをSuspendへ混ぜない。WinUIのView・スクロール/IME、MainWindow、Client/API/DBに変更はない。共通基底1つとページ結果/失敗分類だけを追加し、設定クラス・DI・新しいライブラリはない。
+退避時は行/選択を保持し、破棄時は共通基底のDisposeが通信停止・取得世代の無効化・行/選択のクリアを行う。DisposeのクリアをSuspendへ混ぜない。WinUIの表示・スクロール/IME、通信・API・DBの契約は変えない。共通基底1つとページ結果/失敗分類だけを追加し、設定クラス・DI・新しいライブラリはない。
 
 | 集計対象 | 基点main `a7c3dc5` | 共通化後 |
 | --- | ---: | ---: |
@@ -232,6 +232,12 @@ VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口
 | ページングの取得ループ/状態遷移の実装 | 2組 | 1組 |
 
 行数は追跡済みの対象拡張子の物理行、空行込み・生成物除外。状態数には読取専用ラッパーと自動プロパティを含める。共通宣言の削減は実行時メモリ削減を意味しない。必要な取得状態を減らさず、変更箇所を一元化するための抽出である。Query/HTTPエラー分類・保存行の業務制御は共通化せず、1段の継承と限定したprotected拡張点が新しい依存になる。検証結果・未検証事項は[tests/README](../tests/README.md)を参照する。
+
+### 一覧の破棄と共通検索の入口
+
+`CursorListViewModel<TItem>.Dispose`へ停止・古い応答の無効化・行コレクションの消去・選択解除を揃え、レシート固有のoverrideを削除した。振替も同じ破棄動作を使う。Suspend/Resumeの実装は変更せず、通信中の退避では元の行・選択と中断カーソルを保持する。破棄した一覧は新しいVMへ置き換える既存のWindow寿命を維持し、新しい破棄フラグや例外分岐は追加しない。
+
+製品未使用だった個別検索Command/イベント/下書き窓口と、テスト専用だったRecordSearchStateの個別確定メソッドを削除した。共通キーワードと年月は引き続きWindowの入力→ApplySharedText→両VMのStartAsyncという一経路で扱う。RecordSearchStateの検索条件と保存後調整、保存後の共通フィルター再表示は保持し、古い下書き通知呼出だけを除く。検索中の再検索・旧応答破棄は同じ取得世代管理を使う。新規の抽象化・状態フィールド・外部依存はなく、製品コードは基点main `b85fb49`から37行減。検証は[tests/README](../tests/README.md)を参照する。
 
 ### レシート保存行探索の追加と振替との共通化
 

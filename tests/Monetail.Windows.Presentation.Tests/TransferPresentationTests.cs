@@ -46,32 +46,26 @@ public sealed class TransferPresentationTests
     }
 
     [Fact]
-    public async Task SearchProxiesTheSingleSharedDraftAndRequestsCommitWithoutFetchingOrChangingFilters()
+    public async Task SharedSearchRejectsInvalidMonthWithoutFetchingOrChangingAppliedFilters()
     {
         var search = new RecordSearchState(new(2026, 12, 31));
-        search.TransferText = "確定";
-        Assert.True(search.ApplyTransferText());
+        Assert.True(search.ApplySharedText("確定"));
         search.Receipts.MonthText = "未確定年月";
-        search.Receipts.ShopText = "店の下書き";
         var reads = 0;
-        using var model = new TransferListViewModel((_, _) => { reads++; return Task.FromResult(new TransferListInfo([], null)); }, search, _ => "現金");
-        var notified = new List<string?>();
-        model.PropertyChanged += (_, e) => notified.Add(e.PropertyName);
-        model.SearchText = " 未確定ＡＴＭ ";
-        Assert.Equal(model.SearchText, search.TransferText);
-        Assert.Equal("確定", search.TransferQuery().Q);
-        var committed = 0;
-        model.SearchRequested += () => { committed++; Assert.False(search.ApplyTransferText()); return Task.CompletedTask; };
-        await model.SearchCommand.ExecuteAsync(null);
-        Assert.Equal(1, committed);
+        using var model = new TransferListViewModel((_, _) =>
+        {
+            reads++;
+            return Task.FromResult(new TransferListInfo([], null));
+        }, search, _ => "現金");
+        var draft = " 未確定ＡＴＭ ";
+        if (search.ApplySharedText(draft))
+            await model.StartAsync(search.TransferQuery());
         Assert.Equal(0, reads);
-        Assert.Equal(" 未確定ＡＴＭ ", model.SearchText);
+        Assert.Equal(" 未確定ＡＴＭ ", draft);
+        Assert.Equal("確定", search.TransferQuery().Q);
+        Assert.Equal("確定", search.Receipts.Query().Q);
         Assert.Equal("未確定年月", search.Receipts.MonthText);
-        Assert.Equal("店の下書き", search.Receipts.ShopText);
-        search.TransferText = "外部の変更";
-        model.RefreshSearchText();
-        Assert.Equal("外部の変更", model.SearchText);
-        Assert.Equal(2, notified.Count(n => n == nameof(model.SearchText)));
+        Assert.NotNull(search.Receipts.MonthError);
     }
     [Fact]
     public async Task OpeningCommandsOnlyNotifyAndUseTheExternallyDeterminedRegistrationPermission()
@@ -306,7 +300,7 @@ public sealed class TransferPresentationTests
     }
 
     [Fact]
-    public async Task ANewSearchCanReplaceAPendingSearchWithoutDisablingTheSearchCommand()
+    public async Task SharedSearchCanReplaceAPendingReadAndRejectTheOldReply()
     {
         var search = new RecordSearchState(new(2026, 11, 10));
         var pending = new TaskCompletionSource<TransferListInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -316,23 +310,19 @@ public sealed class TransferPresentationTests
             queries.Add(q);
             return q.Q == "old" ? pending.Task : Task.FromResult(new TransferListInfo(Rows(100, 1), null));
         }, search, _ => "現金");
-        model.SearchRequested += () =>
-        {
-            Assert.True(search.ApplyTransferText());
-            return model.StartAsync(search.TransferQuery());
-        };
-        model.SearchText = "old";
-        var old = model.SearchCommand.ExecuteAsync(null);
-        Assert.True(model.SearchCommand.CanExecute(null));
-        model.SearchText = "new";
-        await model.SearchCommand.ExecuteAsync(null);
+        Assert.True(search.ApplySharedText("old"));
+        var old = model.StartAsync(search.TransferQuery());
+        Assert.True(model.IsInitialLoading);
+        Assert.True(search.ApplySharedText("new"));
+        await model.StartAsync(search.TransferQuery());
         pending.SetResult(new(Rows(0, 100), "stale"));
         await old;
         Assert.Equal(new[] { "old", "new" }, queries.Select(q => q.Q));
         Assert.Single(model.Rows);
         Assert.Equal(Rows(100, 1)[0].TransferId, model.Rows[0].TransferId);
         Assert.Null(model.NextCursor);
-        Assert.Equal("new", model.SearchText);
+        Assert.Equal("new", search.TransferQuery().Q);
+        Assert.Equal("new", search.Receipts.Query().Q);
     }
 
 }

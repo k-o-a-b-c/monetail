@@ -17,18 +17,6 @@ public sealed partial class TransferListViewModel(
 {
     protected override void SelectionChanged() => OnPropertyChanged(nameof(SelectedTransferId));
     public Guid? SelectedTransferId => SelectedItem?.TransferId;
-    public string SearchText
-    {
-        get => search.TransferText;
-        set
-        {
-            if (search.TransferText == value)
-                return;
-            search.TransferText = value;
-            OnPropertyChanged();
-        }
-    }
-    public void RefreshSearchText() => OnPropertyChanged(nameof(SearchText));
     private bool canRegister;
     public bool CanRegister
     {
@@ -39,10 +27,7 @@ public sealed partial class TransferListViewModel(
                 RegisterCommand.NotifyCanExecuteChanged();
         }
     }
-    public event Func<Task>? SearchRequested;
     public event Func<Guid?, Task>? OpenRequested;
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task SearchAsync() => SearchRequested?.Invoke() ?? Task.CompletedTask;
     // 旧入力要求の取消後、古いTaskが完了する前でもWindowの入口ガードを通して再操作できる。
     [RelayCommand(CanExecute = nameof(CanRegister), AllowConcurrentExecutions = true)]
     private Task RegisterAsync() => OpenRequested?.Invoke(null) ?? Task.CompletedTask;

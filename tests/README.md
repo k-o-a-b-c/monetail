@@ -10,11 +10,21 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
-| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 103 |
+| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 112 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3764 |
+| 合計 | 3773 |
+
+## 一覧の破棄統一・旧個別検索の削除（PR #210）
+
+[ListDisposalTests](Monetail.Windows.Presentation.Tests/ListDisposalTests.cs)の新規8ケースで、レシート/振替の初回・追加取得中のDispose、通信取消、同じ行コレクションの消去/選択解除、遅延した成功/失敗、新VM再生成、二重Disposeを確認する。[共通基底](Monetail.Windows.Presentation.Tests/CursorListViewModelTests.cs)へキャンセル通知中に旧応答が完了する1ケースも追加した。既存のSuspend/Resume・失敗後手動再試行・保存行探索/復帰の期待値は維持する。
+
+旧個別検索Command/下書き通知のテストは整理し、共通ApplySharedText→各VM.StartAsyncで確定値・検索中の再検索・旧応答破棄を検証する。Clientの年月/人物/支払方法・保存後条件調整も同じ共通検索で初期設定する。WinUIはVMの削除済みプロパティの代わりに共通キーワードTextBoxと実際のHTTPクエリを使い、各一覧に二重Dispose後の実ListView表示/選択解除の1確認を追加する。構成と変更範囲は[構成正本](../docs/architecture-winui.md#一覧の破棄と共通検索の入口)を参照する。
+
+基点main `b85fb49`の[push Tests 44440371384](https://github.com/k-o-a-b-c/monetail/actions/runs/44440371384)成功を利用。ローカルReleaseは破棄/共通検索の最小12件→Presentation全111件、Client関連17件、追加したキャンセル通知中の応答完了1件が成功（段階間の重複あり）。新規ファイルの対象書式検査・文書ローカルリンク196件・git diff --checkと、旧個別検索メンバーのコード参照が残っていないことも確認した。
+
+ソース`50a9386`の[Tests 44442894444](https://github.com/k-o-a-b-c/monetail/actions/runs/44442894444)が成功。Client全1,194件・Presentation全112件、Windows実保存、WinUI製品/検証用x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/761確認（receipt-list50・transfer-list52）、個別3シナリオ・全件照合・スクリーンショット・不正指定拒否/計測が成功した。既存401復帰・保存行focus・表示位置復元・IME/キー操作も全件実行に含む。非変更のAPI/DB/Docker/旧Windows等はCI選択/fingerprintによって既存成功を再利用。画面配置・通信契約・外部ライブラリに変更なし。実Windowsでの物理IME・タッチ・高DPI・スクリーンリーダーと実API接続は手動未検証。
 
 ## 記録一覧の共通Panel・Footer（PR #209）
 
