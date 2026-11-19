@@ -72,7 +72,7 @@ public sealed partial class ReceiptListView : UserControl
     private void ReceiptDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
         for (var element = args.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, ReceiptList); element = VisualTreeHelper.GetParent(element))
-            if (element is FrameworkElement { DataContext: ReceiptListItem row })
+            if (element is ListViewItem item && ReceiptList.ItemFromContainer(item) is ReceiptListItem row)
             {
                 args.Handled = true;
                 ViewModel?.EditCommand.Execute(row.ReceiptId);
