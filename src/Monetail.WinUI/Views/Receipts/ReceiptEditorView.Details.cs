@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Monetail.Windows.Client.Input;
+using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Receipts;
 using Monetail.Windows.Presentation.Receipts;
 using Windows.System;
