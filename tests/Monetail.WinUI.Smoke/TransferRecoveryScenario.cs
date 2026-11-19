@@ -188,7 +188,7 @@ public partial class App
                 await FocusTransferControl(change); await PressReceiptKey(0x0D); await Wait(() => Visible(root, "ConnectionPage"));
                 fixture.RejectAuthentication = false; Find<TextBox>(root, "ServerUrl").Text = "https://other.example.test/";
                 await InvokeAsync(() => Find<Button>(root, "ConnectButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
-                Check(TransferEditing is null && TransferRuntime("transferPending") is null && fixture.OtherServerRequests.SequenceEqual(["/.well-known/openid-configuration"]),
+                Check(TransferEditing is null && TransferRuntime("transferPending") is null && fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration"]),
                     "接続先変更は接続確認後に元の編集を破棄し、元トークンや未完了要求を別サーバーへ送らない");
             }
             else fixture.AccountId = Guid.NewGuid();
