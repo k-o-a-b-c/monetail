@@ -31,6 +31,7 @@
 - WinUI画面の追加・遷移・生成/解放・MainWindow分離・レビューでは、[`monetail-winui-architecture` Skill](.agents/skills/monetail-winui-architecture/SKILL.md)を必ず参照する。XAML・コントロール選定前に[`winui-design` Skill](.agents/skills/winui-design/SKILL.md)、WinUIコードのレビューでは[`winui-code-review` Skill](.agents/skills/winui-code-review/SKILL.md)、一覧・表・入力フォーム・ダッシュボード等の業務UIでは[`windows-lob-xaml` Skill](.agents/skills/windows-lob-xaml/SKILL.md)も必ず参照する。画面仕様は`UI_DESIGN.md`と対象機能の正本を優先する。
 - **MVVMを基本**とし、複雑な一覧・入力画面は既存`Monetail.Windows.Presentation`のViewModelへ表示状態・Commandを分離する。Viewのコードビハインドにはフォーカス・IME・スクロール・ダイアログ等のUI固有処理を許容し、単純な画面に不要なViewModelを作らない。業務・編集状態の正本は既存Clientに置き、View・ViewModel間で重複させない。判断基準は同Skillに従う。
 - 主領域の画面遷移は原則`Frame`/`Page`を用い、未使用の画面やダイアログは先行生成しない。画面全体の`Visibility`切替、新しい画面固有処理の`MainWindow`追加、画面間の内部コントロール参照、不要な画面キャッシュ・状態の二重管理を増やさない。401認証復帰など既存の実コントロール保持契約は維持し、例外の保持期間・解放条件はSkillに従う。
+- WinUIの共通スタイル・入力/検証・通知・非同期処理は同Skillの「画面間で統一する実装パターン」に従う。既定のFluent/XAMLリソースと既存入力部品を再利用し、読取結果の画面寿命・要求世代を管理する。保存結果不明・401復帰・未保存保護などの業務契約を画面共通化で変更せず、不要な独自共通基盤を作らない。
 - 段階移行中も**新規の構造違反を禁止**する。WinUIのPRでは初回生成・通常離脱/再訪・未保存確認取消・認証復帰・イベント解放を影響範囲に応じて確認し、未検証項目を明示する。構造検査のCI実装前は手動レビューで確認し、自動検査済みとは報告しない。
 
 ## 文書の正本と履歴
