@@ -1,5 +1,4 @@
 using System.Globalization;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -220,7 +219,7 @@ public sealed partial class TransferEditorView : UserControl
     {
         var model = ViewModel;
         var saved = position;
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (!current() || !ReferenceEquals(model, ViewModel) || saved is null)
                 return;

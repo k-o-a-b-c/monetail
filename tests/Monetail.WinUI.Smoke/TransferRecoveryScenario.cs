@@ -265,7 +265,7 @@ public partial class App
         using var nextFixture = new SyntheticConnection();
         await OpenSyntheticWindow(nextFixture);
         object? ClosedState(string field) => typeof(MainWindow).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(originalWindow);
-        Check(ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && ClosedState("transferPending") is null && Equals(ClosedState("closed"), true),
+        Check(Find<Monetail.WinUI.Views.Transfers.TransferEditorView>(root, "TransferEntry").ViewModel is null && ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && ClosedState("transferPending") is null && Equals(ClosedState("closed"), true),
             "再認証中のアプリ終了ではメモリの編集・復帰情報・要求を破棄する");
     }
 }
