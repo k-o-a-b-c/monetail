@@ -150,57 +150,68 @@ public sealed partial class ReceiptEditorViewModel
         if (target.Kind == ReceiptTransitionKind.SelectGroup && target.GroupKey == Editor.SelectedGroupKey ||
             target.Kind == ReceiptTransitionKind.SelectDetail && target.DetailKey == Editor.SelectedDetailKey)
             return;
-        if (HasUnappliedInput)
-        {
-            var choice = ConfirmationRequested is { } confirm ? await confirm(ReceiptEditorConfirmation.UnappliedDetail) : ReceiptDraftChoice.Stay;
-            if (IsReadOnly || choice == ReceiptDraftChoice.Stay)
-                return;
-            if (choice == ReceiptDraftChoice.ApplyAndMove)
-            {
-                if (!ApplyDetailCore())
-                    return;
-            }
-            else
-            {
-                Editor.DiscardDraft();
-                LoadDetailInput();
-            }
-        }
-        if (target.Kind == ReceiptTransitionKind.RemoveGroup)
-        {
-            var choice = ConfirmationRequested is { } confirm ? await confirm(ReceiptEditorConfirmation.RemoveCategory) : ReceiptDraftChoice.Stay;
-            if (IsReadOnly || choice != ReceiptDraftChoice.ApplyAndMove)
-                return;
-        }
+        var input = DetailInput;
         try
         {
-            switch (target.Kind)
+            if (HasUnappliedInput)
             {
-                case ReceiptTransitionKind.AddGroup:
-                    Editor.AddCategory(target.CategoryId!.Value);
-                    RebuildGroups();
-                    break;
-                case ReceiptTransitionKind.SelectGroup:
-                    Editor.SelectGroup(target.GroupKey!.Value);
-                    break;
-                case ReceiptTransitionKind.SelectDetail:
-                    Editor.SelectDetail(target.DetailKey!.Value);
-                    break;
-                case ReceiptTransitionKind.RemoveGroup:
-                    Editor.RemoveSelectedGroup(true);
-                    RebuildGroups();
-                    break;
+                var choice = ConfirmationRequested is { } confirm ? await confirm(ReceiptEditorConfirmation.UnappliedDetail) : ReceiptDraftChoice.Stay;
+                if (IsReadOnly || choice == ReceiptDraftChoice.Stay)
+                    return;
+                if (choice == ReceiptDraftChoice.ApplyAndMove)
+                {
+                    if (!ApplyDetailCore())
+                        return;
+                }
+                else
+                {
+                    Editor.DiscardDraft();
+                    LoadDetailInput();
+                }
             }
-            LoadDetailInput();
-            if (target.Kind != ReceiptTransitionKind.SelectDetail)
-                RebuildDetails();
+            if (target.Kind == ReceiptTransitionKind.RemoveGroup)
+            {
+                var choice = ConfirmationRequested is { } confirm ? await confirm(ReceiptEditorConfirmation.RemoveCategory) : ReceiptDraftChoice.Stay;
+                if (IsReadOnly || choice != ReceiptDraftChoice.ApplyAndMove)
+                    return;
+            }
+            try
+            {
+                switch (target.Kind)
+                {
+                    case ReceiptTransitionKind.AddGroup:
+                        Editor.AddCategory(target.CategoryId!.Value);
+                        RebuildGroups();
+                        break;
+                    case ReceiptTransitionKind.SelectGroup:
+                        Editor.SelectGroup(target.GroupKey!.Value);
+                        break;
+                    case ReceiptTransitionKind.SelectDetail:
+                        Editor.SelectDetail(target.DetailKey!.Value);
+                        break;
+                    case ReceiptTransitionKind.RemoveGroup:
+                        Editor.RemoveSelectedGroup(true);
+                        RebuildGroups();
+                        break;
+                }
+                LoadDetailInput();
+                if (target.Kind != ReceiptTransitionKind.SelectDetail)
+                    RebuildDetails();
+            }
+            catch (ReceiptInputException) when (target.Kind == ReceiptTransitionKind.SelectGroup)
+            {
+                if (ActionRequested is { } notify)
+                    await notify(ReceiptEditorAction.CategoryUnavailable);
+            }
         }
-        catch (ReceiptInputException) when (target.Kind == ReceiptTransitionKind.SelectGroup)
+        finally
         {
-            if (ActionRequested is { } notify)
-                await notify(ReceiptEditorAction.CategoryUnavailable);
+            // 選択確定とフォーム反映の間に非同期の隙間を作らない。
+            if (!ReferenceEquals(input, DetailInput))
+                OnPropertyChanged(nameof(DetailInput));
         }
     }
+
     public void SetGroupMemo(string? memo)
     {
         if (!IsReadOnly && Editor.SelectedGroup is { } group && group.Memo != memo)

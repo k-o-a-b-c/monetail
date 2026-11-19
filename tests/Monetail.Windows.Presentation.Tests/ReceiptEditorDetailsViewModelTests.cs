@@ -145,7 +145,18 @@ public sealed class ReceiptEditorDetailsViewModelTests
         var row = model.Details[0];
         var prompts = 0;
         model.ConfirmationRequested += _ => { prompts++; return Task.FromResult(ReceiptDraftChoice.Stay); };
+        var observedInput = false;
+        model.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(model.DetailInput))
+            {
+                Assert.Equal(row.Key, model.SelectedDetail?.Key);
+                Assert.Equal("明細", model.DetailInput?.Values.Name);
+                observedInput = true;
+            }
+        };
         await model.TransitionCommand.ExecuteAsync(new ReceiptEditTransition(ReceiptTransitionKind.SelectDetail, DetailKey: row.Key));
+        Assert.True(observedInput);
         Assert.Same(row, model.SelectedDetail);
         Assert.Same(row, model.Details[0]);
         Assert.Equal(0, prompts);

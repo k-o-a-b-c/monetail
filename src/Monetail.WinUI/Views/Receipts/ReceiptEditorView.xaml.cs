@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -17,11 +18,38 @@ public sealed partial class ReceiptEditorView : UserControl
 {
     public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(nameof(ViewModel),
         typeof(ReceiptEditorViewModel), typeof(ReceiptEditorView), new PropertyMetadata(null,
-            (owner, _) => ((ReceiptEditorView)owner).Bindings.Update()));
+            (owner, args) => ((ReceiptEditorView)owner).ModelChanged(args.OldValue as ReceiptEditorViewModel, args.NewValue as ReceiptEditorViewModel)));
     public ReceiptEditorViewModel? ViewModel
     {
         get => (ReceiptEditorViewModel?)GetValue(ViewModelProperty);
         set => SetValue(ViewModelProperty, value);
+    }
+    private void ModelChanged(ReceiptEditorViewModel? previous, ReceiptEditorViewModel? current)
+    {
+        if (previous is not null)
+            previous.PropertyChanged -= ModelPropertyChanged;
+        if (current is not null)
+            current.PropertyChanged += ModelPropertyChanged;
+        Bindings.Update();
+    }
+    private void ModelPropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(ReceiptEditorViewModel.DetailInput) || !ReferenceEquals(sender, ViewModel) || ViewModel is not { } model)
+            return;
+        var groupChanged = (ReceiptCategories.SelectedItem as ReceiptCategoryRow)?.Key != model.Editor.SelectedGroupKey;
+        if (!ReferenceEquals(ReceiptCategories.ItemsSource, model.Groups))
+            RenderReceiptGroups();
+        else if (groupChanged)
+            SelectReceiptGroupPresentation();
+        else
+            LoadReceiptDetailForm();
+        if (groupChanged)
+        {
+            if (model.Editor.SelectedGroup is null)
+                ReceiptCategoryChoice.Focus(FocusState.Programmatic);
+            else
+                ReceiptItemName.Focus(FocusState.Programmatic);
+        }
     }
     public Func<DependencyObject?, bool>? IsCancellationTarget
     {

@@ -132,30 +132,9 @@ public sealed partial class ReceiptEditorView
         if (ReadOnly || rendering || ViewModel is not { IsDialogOpen: false, IsTransitioning: false } model)
             return;
         Synchronize();
-        var input = model.DetailInput;
         await model.TransitionCommand.ExecuteAsync(target);
         if (!ReferenceEquals(model, ViewModel))
             return;
-        if (!ReferenceEquals(input, model.DetailInput))
-        {
-            if (!ReferenceEquals(ReceiptCategories.ItemsSource, model.Groups))
-                RenderReceiptGroups();
-            else if (target.Kind != ReceiptTransitionKind.SelectDetail)
-                SelectReceiptGroupPresentation();
-            else
-                LoadReceiptDetailForm();
-            var moved = target.Kind switch
-            {
-                ReceiptTransitionKind.RemoveGroup => model.Editor.SelectedGroupKey is null,
-                ReceiptTransitionKind.AddGroup => model.Editor.SelectedGroup?.CategoryId == target.CategoryId,
-                ReceiptTransitionKind.SelectGroup => model.Editor.SelectedGroupKey == target.GroupKey,
-                _ => false
-            };
-            if (moved && target.Kind == ReceiptTransitionKind.RemoveGroup)
-                ReceiptCategoryChoice.Focus(FocusState.Programmatic);
-            else if (moved)
-                ReceiptItemName.Focus(FocusState.Programmatic);
-        }
         RefreshReceiptCalculation();
     }
     private void LoadReceiptDetailForm()
