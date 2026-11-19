@@ -19,9 +19,6 @@ public sealed partial class MainWindow
     private ReceiptRecoveryPhase receiptRecoveryPhase;
     private CancellationTokenSource? receiptRecoveryLoading;
     private bool ReceiptRecoveryReadOnly => receiptRecoveryPhase != ReceiptRecoveryPhase.None;
-    // 非表示/未レイアウト時にも必ず反映する。入力欄の制御にVisualTreeの実体化を使わない。
-    private TextBox[] ReceiptTextInputs => [ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo];
-
     private static IEnumerable<DependencyObject> ReceiptVisuals(DependencyObject root)
     {
         yield return root;
@@ -34,7 +31,7 @@ public sealed partial class MainWindow
     {
         // TextChangedの遅延があっても、通常離脱と同じ既存バッファへ未確定入力を同期する。
         if (receiptEditor is not null && receiptRecoveryPhase == ReceiptRecoveryPhase.None)
-        { SyncReceiptHeader(); SyncReceiptGroupMemo(); SyncReceiptDetailInput(); }
+        { ReceiptEntry.Synchronize(); }
         if (receiptEditor is not null && account is not null && currentLedger is not null && connection.Endpoint is not null &&
             (receiptAuthentication is not { } previous || previous.AccountId != account.AuthUserId ||
                 previous.LedgerId != currentLedger.LedgerId || previous.ApiOrigin != connection.Endpoint.Value))
@@ -56,7 +53,9 @@ public sealed partial class MainWindow
         if (receiptDialogOpen) ReceiptConfirmationDialog.Hide();
         ReceiptListModel?.Suspend();
         TransferListModel?.Suspend();
-        connection.Masters.Clear(); connection.Session.TaxRates.Clear(); receiptTaxRates = null;
+        connection.Masters.Clear();
+        connection.Session.TaxRates.Clear();
+        if (ReceiptEntry.ViewModel is { } model) model.TaxHistory = null;
         RenderReceiptRecovery();
         return true;
     }
@@ -64,16 +63,7 @@ public sealed partial class MainWindow
     private void DiscardReceiptAuthentication()
     {
         ResetReceiptEditor();
-        receiptEditorRendering = receiptDetailRendering = true;
-        try
-        {
-            foreach (var text in ReceiptTextInputs) text.Text = "";
-            ReceiptCategories.ItemsSource = ReceiptDetailsList.ItemsSource = null;
-            ReceiptDetailPeople.Children.Clear(); ReceiptItemTax.Items.Clear();
-            ReceiptCategoryChoice.ItemsSource = null;
-            ReceiptEntry.ClearParent();
-        }
-        finally { receiptEditorRendering = receiptDetailRendering = false; }
+        ReceiptEntry.Clear();
     }
 
     private async Task<bool> ResumeReceiptEditAsync(CancellationToken token)
@@ -103,7 +93,10 @@ public sealed partial class MainWindow
         bool Current() => !closed && !loading.IsCancellationRequested && ReferenceEquals(receiptAuthentication, context) &&
             ReferenceEquals(editor, receiptEditor) && receiptRecoveryPhase == ReceiptRecoveryPhase.Loading &&
             account?.AuthUserId == context.AccountId && connection.Endpoint?.Value == context.ApiOrigin && currentLedger?.LedgerId == context.LedgerId;
-        RenderReceiptRecovery(); connection.Masters.Clear(); session.TaxRates.Clear(); receiptTaxRates = null;
+        RenderReceiptRecovery();
+        connection.Masters.Clear();
+        session.TaxRates.Clear();
+        if (ReceiptEntry.ViewModel is { } model) model.TaxHistory = null;
         try
         {
             var ledger = await connection.Ledgers.OpenAsync(context.LedgerId, loading.Token);
@@ -117,26 +110,16 @@ public sealed partial class MainWindow
             // 本人対応とロールを含む支払方法を最後に取得し、その応答で編集権限を判断する。
             var payments = await new PaymentMethodsWorkspace(api, session, context.LedgerId).ListAsync(loading.Token);
             if (!Current()) return;
-            // マスタがすべて揃うまでは空データで選択肢や入力を置換しない。
-            receiptEditorRendering = receiptDetailRendering = true;
-            try
-            {
-                connection.Masters.UpdatePeople(context.LedgerId, people);
-                connection.Masters.UpdatePayments(context.LedgerId, payments);
-                connection.Masters.UpdateCategories(context.LedgerId, categories);
-                receiptTaxRates = taxes; DisplayLedgerHeader(ledger with { Role = payments.CurrentRole });
-            }
-            finally { receiptEditorRendering = receiptDetailRendering = false; }
+            // 取得中は読み取り専用のまま。すべて揃うまでViewの候補を置換しない。
+            connection.Masters.UpdatePeople(context.LedgerId, people);
+            connection.Masters.UpdatePayments(context.LedgerId, payments);
+            connection.Masters.UpdateCategories(context.LedgerId, categories);
+            if (ReceiptEntry.ViewModel is { } currentModel) currentModel.TaxHistory = taxes;
+            DisplayLedgerHeader(ledger with { Role = payments.CurrentRole });
             var canEdit = payments.CurrentRole == "Admin" || payments.CurrentRole == "Editor" && payments.MyPersonId is Guid person &&
                 (editor.ReceiptId is null || payments.PaymentMethods.Any(p => p.PaymentMethodId == editor.SavedPaymentMethodId && p.OwnerPersonId == person));
             receiptRecoveryPhase = canEdit ? ReceiptRecoveryPhase.None : ReceiptRecoveryPhase.Forbidden;
-            RefreshReceiptEditorChoices();
-            foreach (var row in ReceiptCategories.Items.OfType<ReceiptCategoryRow>())
-                row.SetName(categories.Categories.FirstOrDefault(c => c.CategoryId == row.CategoryId)?.Name ?? "科目名未取得");
-            receiptDetailRendering = true;
-            try { RenderReceiptDetailPeople(); RefreshReceiptTaxChoices(); }
-            finally { receiptDetailRendering = false; }
-            RefreshReceiptCalculation();
+            ReceiptEntry.RefreshMasters(true);
             receiptAuthentication = null;
         }
         catch (Exception error) when (error is AuthenticationRejectedException or AuthenticationContextChangedException)
@@ -158,22 +141,7 @@ public sealed partial class MainWindow
         }
     }
 
-    private void RenderReceiptRecovery()
-    {
-        var readOnly = ReceiptRecoveryReadOnly;
-        foreach (var text in ReceiptTextInputs) text.IsReadOnly = readOnly;
-        foreach (var choice in new Control[] { ReceiptCategoryChoice, ReceiptItemTax, ReceiptItemExpense, ReceiptItemOccurrence }) choice.IsEnabled = !readOnly;
-        foreach (var box in ReceiptDetailPeople.Children.OfType<CheckBox>()) box.IsEnabled = !readOnly;
-        UpdateReceiptCategoryActions();
-        ReceiptCategoryRemove.IsEnabled = !readOnly && receiptEditor?.SelectedGroup is not null;
-        if (readOnly)
-        {
-            foreach (var button in new[] { ReceiptDetailApply, ReceiptDetailReuse, ReceiptDetailDelete, ReceiptDetailUp, ReceiptDetailDown }) button.IsEnabled = false;
-            RefreshReceiptCalculation();
-        }
-        else if (receiptEditor is not null) RenderReceiptDetailList(refreshRows: false);
-        ReceiptEntry.RefreshRecovery();
-    }
+    private void RenderReceiptRecovery() => ReceiptEntry.RefreshRecovery();
     private string ReceiptRecoveryMessage => receiptRecoveryPhase switch
         {
             ReceiptRecoveryPhase.Login => "入力を保持しています。再ログインしてください。",

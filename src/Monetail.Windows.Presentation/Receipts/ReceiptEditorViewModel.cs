@@ -10,17 +10,42 @@ namespace Monetail.Windows.Presentation.Receipts;
 
 public enum ReceiptEditorAction
 {
-    Back, RetryMasters
+    Back, RetryMasters, CategoryUnavailable
 }
-public readonly record struct ReceiptEditorAvailability(bool ReadOnly, string Message, bool RetryMasters);
-public sealed record ReceiptPaymentChoice(Guid? Id, string Name);
-
-/// <summary>第1段階は親情報と画面枠。入力/変更判定は既存EditorとParentInputだけで管理する。</summary>
-public sealed partial class ReceiptEditorViewModel(ReceiptEditorState editor, Func<ReceiptEditorAvailability> availability) : ObservableObject
+public readonly record struct ReceiptEditorAvailability(bool ReadOnly, string Message, bool RetryMasters, bool DialogOpen = false);
+public sealed record ReceiptPaymentChoice(Guid? Id, string Name)
 {
-    public ReceiptEditorState Editor { get; } = editor;
-    public ReceiptParentInputState ParentInput { get; } = new(editor.Header, editor.ReceiptId is not null);
-    private readonly string? initialLocation = editor.Header.ShopLocation;
+    public override string ToString() => Name;
+}
+
+/// <summary>入力と選択の正本はEditor/既存Input。画面投影と画面内操作だけを担当する。</summary>
+public sealed partial class ReceiptEditorViewModel : ObservableObject
+{
+    public ReceiptEditorState Editor
+    {
+        get;
+    }
+    public ReceiptParentInputState ParentInput
+    {
+        get;
+    }
+    private readonly Func<ReceiptEditorAvailability> availability;
+    private readonly Func<(PeopleInfo? People, PaymentMethodsInfo? Payments, CategoriesInfo? Categories, Guid? Mine)>? masters;
+    private readonly Func<Guid, string>? paymentName;
+    private readonly string? initialLocation;
+    public ReceiptEditorViewModel(ReceiptEditorState editor, Func<ReceiptEditorAvailability> availability,
+        Func<(PeopleInfo? People, PaymentMethodsInfo? Payments, CategoriesInfo? Categories, Guid? Mine)>? masters = null,
+        Func<Guid, string>? paymentName = null)
+    {
+        Editor = editor;
+        ParentInput = new(editor.Header, editor.ReceiptId is not null);
+        initialLocation = editor.Header.ShopLocation;
+        memoInvalid = editor.Header.Memo is { Length: > 100 };
+        this.availability = availability;
+        this.masters = masters;
+        this.paymentName = paymentName;
+        TransitionCommand.PropertyChanged += (_, _) => Refresh();
+    }
     public event Func<ReceiptEditorAction, Task>? ActionRequested;
     public string Title => Editor.ReceiptId is null ? "レシートの登録" : "レシートの編集";
     public bool IsNew => Editor.ReceiptId is null;
@@ -28,7 +53,7 @@ public sealed partial class ReceiptEditorViewModel(ReceiptEditorState editor, Fu
     public bool IsReadOnly => availability().ReadOnly;
     public string RecoveryMessage => availability().Message;
     public bool ShowRetryMasters => availability().RetryMasters;
-    [ObservableProperty] private bool memoInvalid = editor.Header.Memo is { Length: > 100 };
+    [ObservableProperty] private bool memoInvalid;
     [ObservableProperty] private bool intervalInvalid;
     [ObservableProperty] private bool paymentInvalid;
     [ObservableProperty] private string accountingTotal = "会計合計（反映済み明細）：未計算";
@@ -99,7 +124,8 @@ public sealed partial class ReceiptEditorViewModel(ReceiptEditorState editor, Fu
     }
     public void Refresh()
     {
-        foreach (var name in new[] { nameof(Title), nameof(IsNew), nameof(IsExisting), nameof(IsReadOnly), nameof(RecoveryMessage), nameof(ShowRetryMasters) })
+        foreach (var name in new[] { nameof(Title), nameof(IsNew), nameof(IsExisting), nameof(IsReadOnly), nameof(RecoveryMessage), nameof(ShowRetryMasters), nameof(IsTransitioning), nameof(CanApply), nameof(CanChangeDetail),
+            nameof(CanMoveUp), nameof(CanMoveDown), nameof(CanRemoveCategory), nameof(ApplyText) })
             OnPropertyChanged(name);
         BackCommand.NotifyCanExecuteChanged();
         RetryMastersCommand.NotifyCanExecuteChanged();

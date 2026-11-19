@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Receipts;
 using System.Net;
 using System.Text.Json;
 using Microsoft.UI.Xaml.Input;

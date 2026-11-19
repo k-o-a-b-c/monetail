@@ -38,7 +38,7 @@ public partial class App
         var editor = ReceiptEditing!; var today = DateTime.Today;
         Check(ReceiptView.ViewModel is { } model && ReferenceEquals(model.Editor, editor) && !ReceiptView.IsTabStop &&
             ReferenceEquals(Find<TextBox>(root, "ReceiptShopName"), ReceiptView.FindName("ReceiptShopName")) &&
-            ReferenceEquals(Find<Grid>(root, "ReceiptCategoryArea"), ReceiptView.DetailsContent),
+            ReferenceEquals(Find<Grid>(root, "ReceiptCategoryArea"), ReceiptView.FindName("ReceiptCategoryArea")),
             "親情報は独立Viewの名前スコープと同じ編集モデルを使用し、余分なTab停止を増やさない");
         Check(Find<Button>(root, "ReceiptBack").Command == ReceiptView.ViewModel?.BackCommand &&
             Find<Button>(root, "ReceiptMasterRetry").Command == ReceiptView.ViewModel?.RetryMastersCommand,

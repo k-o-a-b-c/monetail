@@ -12,7 +12,7 @@ using Monetail.Windows.Presentation.Receipts;
 
 namespace Monetail.WinUI.Views.Receipts;
 
-/// <summary>親情報と画面枠。科目/明細のContentとその状態・イベントは第1段階ではWindowに残す。</summary>
+/// <summary>レシート入力の実コントロール、描画、フォーカス、IMEを所有する。</summary>
 public sealed partial class ReceiptEditorView : UserControl
 {
     public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(nameof(ViewModel),
@@ -23,27 +23,17 @@ public sealed partial class ReceiptEditorView : UserControl
         get => (ReceiptEditorViewModel?)GetValue(ViewModelProperty);
         set => SetValue(ViewModelProperty, value);
     }
-    public static readonly DependencyProperty DetailsContentProperty = DependencyProperty.Register(nameof(DetailsContent),
-        typeof(UIElement), typeof(ReceiptEditorView), new PropertyMetadata(null));
-    public UIElement? DetailsContent
-    {
-        get => (UIElement?)GetValue(DetailsContentProperty);
-        set => SetValue(DetailsContentProperty, value);
-    }
     public Func<DependencyObject?, bool>? IsCancellationTarget
     {
         get; set;
     }
-    public event Action<bool>? ParentChanged;
-    public event Action<bool>? CompactLayoutChanged;
     private bool rendering;
     private readonly FormKeyboard receiptEditorKeyboard;
-    public bool IsComposing => receiptEditorKeyboard.IsComposing;
-    private TextBox[] ParentTextInputs => [ReceiptDate, ReceiptTime, ReceiptShopName, ReceiptShopLocation, ReceiptInterval, ReceiptMemo];
+    private TextBox[] TextInputs => [ReceiptDate, ReceiptTime, ReceiptShopName, ReceiptShopLocation, ReceiptInterval, ReceiptMemo, ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo];
     public ReceiptEditorView()
     {
         InitializeComponent();
-        receiptEditorKeyboard = new FormKeyboard(this, null, null, ParentTextInputs);
+        receiptEditorKeyboard = new FormKeyboard(this, null, null, TextInputs);
         ReceiptDate.IsCancellationTarget = ReceiptTime.IsCancellationTarget = element =>
         {
             for (; element is not null; element = VisualTreeHelper.GetParent(element))
@@ -52,17 +42,12 @@ public sealed partial class ReceiptEditorView : UserControl
             return false;
         };
     }
-    // 同じ画面内の科目/明細も、一つのIME/Enterスコープとして既存どおり監視する。
-    internal void ObserveDetailInputs(params TextBox[] inputs)
-    {
-        foreach (var input in inputs)
-            receiptEditorKeyboard.ObserveInput(input);
-    }
     public DateOnly? ConfirmedDay => DateOnly.TryParseExact(ReceiptDate.Text, "yyyy/MM/dd", CultureInfo.InvariantCulture,
         DateTimeStyles.None, out var day) ? day : null;
-    public bool IsHeaderConfirmed => ConfirmedDay is not null && TimeOnly.TryParseExact(ReceiptTime.Text, "HH:mm:ss",
+    private bool IsHeaderConfirmed => ConfirmedDay is not null && TimeOnly.TryParseExact(ReceiptTime.Text, "HH:mm:ss",
         CultureInfo.InvariantCulture, DateTimeStyles.None, out _) && ReceiptRecurrenceInput.Parse(ReceiptInterval.Text, Choice(ReceiptUnit)).IsValid;
-    public bool HasUnresolvedInput => ViewModel?.HasUnresolvedInput(ReceiptDate.Text, ReceiptTime.Text, ReceiptInterval.Text, Choice(ReceiptUnit)) == true;
+    private bool HasUnresolvedInput => ViewModel?.HasUnresolvedInput(ReceiptDate.Text, ReceiptTime.Text, ReceiptInterval.Text, Choice(ReceiptUnit)) == true;
+    public bool NeedsLeaveConfirmation => ViewModel is { } model && (model.Editor.NeedsLeaveConfirmation || model.HasUnappliedInput || HasUnresolvedInput);
     public void Populate()
     {
         if (ViewModel is not { } model)
@@ -82,6 +67,12 @@ public sealed partial class ReceiptEditorView : UserControl
             model.Refresh();
         }
         finally { rendering = false; }
+        model.RebuildGroups();
+        model.LoadDetailInput();
+        model.RebuildDetails();
+        RefreshMasters(false);
+        RenderReceiptGroups();
+        RefreshRecovery();
     }
     internal void RenderTaxValues()
     {
@@ -98,7 +89,7 @@ public sealed partial class ReceiptEditorView : UserControl
         }
         finally { rendering = previous; }
     }
-    public void SynchronizeParent()
+    private void SynchronizeParent()
     {
         if (rendering || ViewModel is not { IsReadOnly: false } model)
             return;
@@ -107,9 +98,12 @@ public sealed partial class ReceiptEditorView : UserControl
             ReceiptTaxIncluded.IsChecked == true ? 0 : ReceiptTaxExcluded.IsChecked == true ? 1 : null,
             ReceiptTaxFloor.IsChecked == true ? "floor" : ReceiptTaxHalfUp.IsChecked == true ? "half_up" : null,
             ReceiptInterval.Text, Choice(ReceiptUnit));
-        ParentChanged?.Invoke(changed);
+        if (changed)
+            RefreshMasters(false);
+        RefreshReceiptTaxChoices();
+        RefreshReceiptCalculation();
     }
-    public void UpdatePaymentChoices(ReceiptPaymentChoice[] choices)
+    private void UpdatePaymentChoices(ReceiptPaymentChoice[] choices)
     {
         var previous = rendering;
         rendering = true;
@@ -124,20 +118,27 @@ public sealed partial class ReceiptEditorView : UserControl
     {
         ViewModel?.Refresh();
         var readOnly = ViewModel?.IsReadOnly == true;
-        foreach (var text in ParentTextInputs)
+        foreach (var text in TextInputs)
             text.IsReadOnly = readOnly;
-        foreach (var choice in new Control[] { ReceiptEditorPayment, ReceiptUnit, ReceiptTaxIncluded, ReceiptTaxExcluded, ReceiptTaxFloor, ReceiptTaxHalfUp })
+        foreach (var choice in new Control[] { ReceiptEditorPayment, ReceiptUnit, ReceiptTaxIncluded, ReceiptTaxExcluded, ReceiptTaxFloor, ReceiptTaxHalfUp, ReceiptCategoryChoice, ReceiptItemTax, ReceiptItemExpense, ReceiptItemOccurrence })
             choice.IsEnabled = !readOnly;
+        foreach (var box in ReceiptDetailPeople.Children.OfType<CheckBox>())
+            box.IsEnabled = !readOnly;
+        UpdateReceiptCategoryActions();
+        RenderReceiptDetailList();
     }
     public void SuppressCompletion(bool suppress) => ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = suppress;
-    public void ClearParent()
+    public void Clear()
     {
         rendering = true;
         try
         {
-            foreach (var input in ParentTextInputs)
+            foreach (var input in TextInputs)
                 input.Text = "";
-            ReceiptEditorPayment.ItemsSource = null;
+            ReceiptEditorPayment.ItemsSource = ReceiptCategoryChoice.ItemsSource = null;
+            ReceiptCategories.ItemsSource = ReceiptDetailsList.ItemsSource = null;
+            ReceiptDetailPeople.Children.Clear();
+            ReceiptItemTax.Items.Clear();
         }
         finally { rendering = false; }
     }
@@ -185,6 +186,11 @@ public sealed partial class ReceiptEditorView : UserControl
                 Grid.SetColumn((FrameworkElement)grid.Children[i], narrow ? 0 : i);
                 Grid.SetColumnSpan((FrameworkElement)grid.Children[i], narrow ? grid.ColumnDefinitions.Count : 1);
             }
-        CompactLayoutChanged?.Invoke(narrow);
+        for (var i = 0; i < ReceiptCategoryArea.Children.Count; i++)
+        {
+            Grid.SetRow((FrameworkElement)ReceiptCategoryArea.Children[i], narrow ? i : 0);
+            Grid.SetColumn((FrameworkElement)ReceiptCategoryArea.Children[i], narrow ? 0 : i);
+            Grid.SetColumnSpan((FrameworkElement)ReceiptCategoryArea.Children[i], narrow ? ReceiptCategoryArea.ColumnDefinitions.Count : 1);
+        }
     }
 }
