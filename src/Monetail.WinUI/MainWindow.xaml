@@ -132,7 +132,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="6*"/><RowDefinition Height="4*"/></Grid.RowDefinitions>
                 <Grid x:Name="RecordFilters" Grid.ColumnSpan="2" RowSpacing="8">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <ScrollViewer x:Name="RecordFilterScroller" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled"
                                   BringIntoViewOnFocusChange="True" IsTabStop="False" AutomationProperties.Name="記録の共通フィルター" AutomationProperties.AutomationId="RecordFilterScroller">
@@ -145,17 +145,14 @@
                             <Button MinWidth="0" x:Name="RecordMonthApply" Content="検索" Click="ApplyRecordMonth" VerticalAlignment="Bottom" AutomationProperties.Name="共通年月で検索" AutomationProperties.AutomationId="RecordMonthApply"/>
                             <ComboBox x:Name="ReceiptOwner" Header="支払者" Width="140" DisplayMemberPath="Name" SelectionChanged="ReceiptOwnerChanged" AutomationProperties.AutomationId="ReceiptOwner"/>
                             <ComboBox x:Name="ReceiptPayment" Header="支払方法" Width="180" DisplayMemberPath="Name" SelectionChanged="ReceiptPaymentChanged" AutomationProperties.AutomationId="ReceiptPayment"/>
+                            <TextBox x:Name="RecordKeyword" Header="キーワード" Width="240" PlaceholderText="店名・振替名を部分一致で検索"
+                                     KeyDown="RecordKeywordKeyDown" AutomationProperties.AutomationId="RecordKeyword"/>
+                            <Button x:Name="RecordKeywordSearch" Content="検索" Click="ApplyRecordKeyword" VerticalAlignment="Bottom"
+                                    AutomationProperties.Name="店名と振替名で検索" AutomationProperties.AutomationId="RecordKeywordSearch"/>
                             <TextBlock x:Name="ReceiptAppliedMonth" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
                         </StackPanel>
                     </ScrollViewer>
-                    <Grid Grid.Row="1" ColumnSpacing="8" HorizontalAlignment="Left">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="320"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <TextBox x:Name="RecordKeyword" Header="キーワード" PlaceholderText="店名・振替名を部分一致で検索"
-                                 KeyDown="RecordKeywordKeyDown" AutomationProperties.AutomationId="RecordKeyword"/>
-                        <Button x:Name="RecordKeywordSearch" Grid.Column="1" Content="検索" Click="ApplyRecordKeyword" VerticalAlignment="Bottom"
-                                AutomationProperties.Name="店名と振替名で検索" AutomationProperties.AutomationId="RecordKeywordSearch"/>
-                    </Grid>
-                    <TextBlock x:Name="ReceiptMonthError" Grid.Row="2" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBlock x:Name="ReceiptMonthError" Grid.Row="1" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
                 </Grid>
                 <Border Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource Card}" Padding="12">
                     <receipts:ReceiptListView x:Name="ReceiptsView">
