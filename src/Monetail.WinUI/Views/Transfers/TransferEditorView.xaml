@@ -22,14 +22,14 @@
                     <input:TimeInputBox x:Name="TransferTime" TabIndex="2" Grid.Column="1" Header="時刻" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferTime" IsReadOnly="{x:Bind ViewModel.IsFrozen, Mode=OneWay}"/>
                 </Grid>
                 <AutoSuggestBox x:Name="TransferName" TabIndex="3" Header="振替名" TextChanged="TransferNameChanged" SuggestionChosen="TransferSuggestionChosen" QuerySubmitted="TransferNameQuerySubmitted"
-                                GotFocus="TransferNameFocused" LostFocus="TransferNameLostFocus" PreviewKeyDown="TransferNamePreviewKeyDown" KeyUp="TransferNameKeyUp" MaxSuggestionListHeight="320" AutomationProperties.AutomationId="TransferName" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay}"/>
+                                GotFocus="TransferNameFocused" LostFocus="TransferNameLostFocus" PreviewKeyDown="TransferNamePreviewKeyDown" KeyUp="TransferNameKeyUp" MaxSuggestionListHeight="320" AutomationProperties.AutomationId="TransferName" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}"/>
                 <TextBox x:Name="TransferNameReadOnly" TabIndex="3" Header="振替名" IsReadOnly="True" Visibility="{x:Bind Show(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}" Text="{x:Bind ViewModel.Name, Mode=OneWay}"/>
                 <TextBlock x:Name="TransferSuggestionError" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.SuggestionError, Mode=OneWay}"/>
-                <ComboBox x:Name="TransferFrom" TabIndex="4" Header="振替元" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferFrom" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay}">
+                <ComboBox x:Name="TransferFrom" TabIndex="4" Header="振替元" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferFrom" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}">
                     <ComboBox.ItemTemplate><DataTemplate x:DataType="presentation:TransferPaymentChoice"><TextBlock Text="{x:Bind Name}"/></DataTemplate></ComboBox.ItemTemplate>
                 </ComboBox>
                 <TextBox x:Name="TransferFromReadOnly" TabIndex="4" Header="振替元" IsReadOnly="True" Visibility="{x:Bind Show(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}" Text="{x:Bind ViewModel.FromName, Mode=OneWay}"/>
-                <ComboBox x:Name="TransferTo" TabIndex="5" Header="振替先" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferTo" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay}">
+                <ComboBox x:Name="TransferTo" TabIndex="5" Header="振替先" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferTo" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}">
                     <ComboBox.ItemTemplate><DataTemplate x:DataType="presentation:TransferPaymentChoice"><TextBlock Text="{x:Bind Name}"/></DataTemplate></ComboBox.ItemTemplate>
                 </ComboBox>
                 <TextBox x:Name="TransferToReadOnly" TabIndex="5" Header="振替先" IsReadOnly="True" Visibility="{x:Bind Show(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}" Text="{x:Bind ViewModel.ToName, Mode=OneWay}"/>
