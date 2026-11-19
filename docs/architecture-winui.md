@@ -188,6 +188,28 @@ VMの`Rows`は単一`ObservableCollection<ReceiptListItem>`の読取専用窓口
 
 新しい業務フレームワーク・Service/DI・外部パッケージはなく、既存WinUI→Presentation→Clientの参照を使う。Viewの3操作と2内容プロパティ、VMの2通知/読取・名称delegateの受け渡しは残る。旧VBの6列表示・選択/ダブルクリックの実装を照合し、単一Windowとページングは新版の既存DEC-162/236等を優先して維持した。新しい旧版互換処理は追加しない。
 
+## 記録一覧の共通表示枠（実装済み）
+
+`Views/RecordListPanel`へ見出し・登録・focus時の先頭復帰・区切り線・初期読込・0件・初回失敗/再試行・編集開始通知を集約した。`Views/RecordListFooter`は追加読込・失敗/再試行・明示続行を所有し、各`ListView.Footer`の中へ配置する。Panelは一覧に高さ制約を渡すContentControlだけを挟み、外側にScrollViewerを追加しない。ItemsStackPanelによる仮想化と、Footerを含む同じ一覧内のスクロールを維持する。
+
+`Presentation/Lists/IRecordListState`は既存の読込/失敗/空/focus・エラー文・Retry/Continue Commandだけを公開する表示契約。`CursorListViewModel<TItem>`が直接実装し、状態ラッパー・フラグのコピー・別の行コレクションは作らない。Panel/Footerは同じ状態参照をx:Bindし、INotifyPropertyChangedで更新する。固有の見出し/0件/失敗文言、登録/先頭復帰Command、AutomationId、一覧と編集開始通知の内容は外側から渡す。登録可否は従来どおりCommand.CanExecuteだけで制御する。
+
+各ReceiptListView/TransferListViewには型付きDataTemplate・列見出し/幅/表示内容・単一選択・行ダブルクリックから型付きEditCommandへの接続と、既存ListViewportControllerへの通知を残す。MainWindowの公開境界、RecordSearchState、認証/未保存保護、編集開始通知の所有権は変えない。型ごとのQuery/投影/エラー分類/登録権限を共通の条件分岐へ押し込まず、両ViewModelも別クラスのままとする。
+
+将来のBalanceListViewも表示契約・外部Command・型付きListViewを渡して構成できる。スモークでは行/HTTP/ページングを持たない仮の残高表示状態で組込を確認するだけで、残高ViewModel・API・入力画面は実装しない。
+
+| 集計対象（空行込み・生成物除外） | 基点main `da86c3d` | 共通化後 |
+| --- | ---: | ---: |
+| 両一覧ViewのXAML / C# | 155 / 166行 | 83 / 162行 |
+| 共通Panel＋FooterのXAML / C# | 0 / 0行 | 55 / 128行 |
+| 一覧View＋共通部品の製品コード | 321行 | 428行 |
+| 共通表示契約 | なし | IRecordListState 49行・10プロパティ |
+| 新規のUI部品 / DP | 0 / 0 | 2 / 12（Panel 9・Footer 3） |
+| 新規の業務状態フラグ / ページング状態コピー | 0 / 0 | 0 / 0 |
+| 読込/空/失敗/通知のXAML実装 | 両Viewに2組 | Panel/Footerに各1組 |
+
+製品コードはWinUIで107行、Presentationの契約で49行増える。依存プロパティと名前スコープの境界を追加するためであり、総行数減とは扱わない。ListViewportControllerの所有者は各Viewのままで、各1フィールドを維持する。MainWindow/API/Client/DBへの新しい依存、型別スイッチ、汎用Service/DI/継承階層は追加しない。型付き選択/ダブルクリックと購読の少量の重複は、UIの型を保つため意図的に残す。検証結果は[tests/README](../tests/README.md)を参照する。
+
 ## レシート・振替のViewModelページング共通化（実装済み）
 
 `Presentation/Lists/CursorListViewModel<TItem>`の1段だけの共通基底に、行コレクション/選択、読込/失敗状態、カーソル、世代/キャンセル、中断要求、補充予算と通知/Retry/Continue Commandを集約した。各VMがこの状態を直接継承し、別のPagerとVMで行・選択・フラグを同期しない。共通処理はWinUI型・HTTP・Client DTO・業務検索条件を参照せず、表示行の列と不透明な次カーソルを受け取る。

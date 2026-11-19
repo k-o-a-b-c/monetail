@@ -38,8 +38,6 @@ public sealed partial class TransferListView : UserControl
             (last, filled, user) => ViewModel?.ObserveViewportAsync(last, filled, user) ?? Task.CompletedTask);
     }
 
-    private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-
     private void ChangeModel(TransferListViewModel? previous, TransferListViewModel? current)
     {
         if (previous is not null)

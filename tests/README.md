@@ -9,12 +9,22 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1193 |
-| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 101 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
+| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 103 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3761 |
+| 合計 | 3764 |
+
+## 記録一覧の共通Panel・Footer（PR #209）
+
+[RecordListStateTests](Monetail.Windows.Presentation.Tests/RecordListStateTests.cs)の新規2件で、共通表示契約が既存の両VMそのものを参照し、通知/Command/固有エラー/focusを複製しないことを確認する。[RecordListPanelScenario](Monetail.WinUI.Smoke/RecordListPanelScenario.cs)を既存receipt-listへ接続し、仮の残高表示状態でも初期読込・0件・失敗/再試行・登録可否・編集開始通知・追加読込/失敗/続行、状態参照交換/解除を検証する。ListViewの高さ制約/ItemsStackPanel仮想化とFooterが同じScrollViewer内にあることも確認する。残高のAPI/画面/業務機能は追加しない。
+
+既存レシート・振替スモークの期待値は維持し、共通部品へ移した要素の取得を新NameScope＋元のAutomationId照合へ変更する。既存の100/300件補充・20行先読み、キーボード/IME、保存行focus/先頭復帰、縦横位置復元、401復帰も全件実行の対象。列見出し・型付きDataTemplateの構造/属性/表示内容は基点mainと一致する。構成と行数/公開境界は[構成正本](../docs/architecture-winui.md#記録一覧の共通表示枠実装済み)を参照する。
+
+基点main `da86c3d`の[push Tests 44430826263](https://github.com/k-o-a-b-c/monetail/actions/runs/44430826263)成功を再利用。ローカルReleaseは既存両VMの最小6件→新規2件込みPresentation全103件が成功した。Client/Presentationが同じ入力の[成功ジョブ135264532911](https://github.com/k-o-a-b-c/monetail/actions/runs/44435860096/job/135264532911)でClient1,194件・Presentation103件を確認し、以後のWinUI専用修正では成功記録を再利用した。Client件数は基点mainも1,194件だったため冒頭の旧記載1,193を訂正した。
+
+最終ソース`969d3e4`の[Tests 44438322161](https://github.com/k-o-a-b-c/monetail/actions/runs/44438322161)が成功。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/759確認（共通部品の追加11確認込み、receipt-list49・transfer-list51）、個別3シナリオ・全件照合・スクリーンショット・不正指定拒否/計測が成功した。初回のx:Bind補助メソッド宣言と追加テストの名前空間指定を修正し、追加スモークで検出した状態参照null解除時の読込表示残留は明示的なFallbackValueで修正した。状態交換/解除と通知未指定も検証し、期待値・タイムアウトは緩和していない。対象C#書式検査・XAML/XML解析・文書ローカルリンク192件・git diff --checkが成功。非変更のAPI/DB/Docker/旧Windows等はCI選択/fingerprintに従って既存成功を再利用する。実Windowsでの物理IME・タッチ・高DPI・スクリーンリーダーと実API接続は手動未検証。
 
 ## レシート・振替一覧の401画面判定とアクセシビリティ（PR #207）
 

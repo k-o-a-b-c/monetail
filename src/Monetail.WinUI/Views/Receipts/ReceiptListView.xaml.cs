@@ -38,8 +38,6 @@ public sealed partial class ReceiptListView : UserControl
             (last, filled, user) => ViewModel?.ObserveViewportAsync(last, filled, user) ?? Task.CompletedTask);
     }
 
-    private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-
     private void ChangeModel(ReceiptListViewModel? previous, ReceiptListViewModel? current)
     {
         if (previous is not null)

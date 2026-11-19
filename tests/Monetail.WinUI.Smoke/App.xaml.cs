@@ -78,7 +78,24 @@ public partial class App : Application
             return All(dialog).OfType<T>().Where(element => element is Button button && Equals(button.Content, text)).OrderByDescending(element => element.IsLoaded).FirstOrDefault()
                 ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
         }
-        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? FindSharedRecordElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+    }
+    private static object? FindSharedRecordElement(FrameworkElement root, string automationId)
+    {
+        // 移管した要素は共通ControlのNameScopeで取得し、元のAutomationIdも照合する。
+        var localName = automationId is "NewReceiptButton" or "TransferRegisterPlaceholder" ? "Register"
+            : automationId.StartsWith("Receipt", StringComparison.Ordinal) ? automationId[7..]
+            : automationId.StartsWith("Transfer", StringComparison.Ordinal) ? automationId[8..] : automationId;
+        foreach (var viewName in new[] { "ReceiptsView", "TransfersView" })
+        {
+            if (root.FindName(viewName) is not FrameworkElement view)
+                continue;
+            foreach (var name in new[] { "Panel", "Footer" })
+                if (view.FindName(name) is FrameworkElement scope && scope.FindName(localName) is DependencyObject element &&
+                    Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(element) == automationId)
+                    return element;
+        }
+        return null;
     }
     private static bool EditorClosed(FrameworkElement root) =>
         Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Collapsed;
