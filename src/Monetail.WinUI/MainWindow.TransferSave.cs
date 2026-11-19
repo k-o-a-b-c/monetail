@@ -14,16 +14,21 @@ public sealed partial class MainWindow
     private async Task<ContentDialogResult> ConfirmTransferAsync(string title, string message, string primary, string secondary = "", string close = "キャンセル")
     {
         if (transferDialogOpen) return ContentDialogResult.None;
-        transferDialogOpen = true; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = true; CancelTransferSuggestions(); RestoreTransferTypedName();
+        transferDialogOpen = true;
+        TransferEntry.SetDialogOpen(true);
         try
         {
             var dialog = TransferConfirmationDialog; dialog.XamlRoot = WorkspaceRoot.XamlRoot; dialog.Title = title; dialog.Content = message;
             dialog.PrimaryButtonText = primary; dialog.SecondaryButtonText = secondary; dialog.CloseButtonText = close; dialog.DefaultButton = ContentDialogButton.Close;
             return await dialog.ShowAsync();
         }
-        finally { transferDialogOpen = false; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false; RenderTransferEditor(); }
+        finally
+        {
+            transferDialogOpen = false;
+            TransferEntry.SetDialogOpen(false);
+            RenderTransferEditor();
+        }
     }
-    private async void SaveTransfer(object sender, RoutedEventArgs args) => await SaveTransferAsync(ReferenceEquals(sender, TransferReuse));
     private async Task<bool> SaveTransferAsync(bool reuse, bool returnToList = true)
     {
         if (transferEditor is not { } state || currentLedger is null || TransferFrozen || transferDialogOpen || transferPreparingSave) return false;
@@ -37,7 +42,7 @@ public sealed partial class MainWindow
         }
         finally { transferPreparingSave = false; }
         if (closed || !ReferenceEquals(state, transferEditor) || currentLedger is null || TransferFrozen) return false;
-        TransferDate.Complete(); TransferTime.Complete(); SyncTransferInput();
+        TransferEntry.CompleteInput();
         TransferSavePreparation prepared;
         try { prepared = PrepareTransfer(reuse); }
         catch (TransferInputException error) { TransferNotice(error.Message); FocusTransferField(error.Field); return false; }
@@ -54,7 +59,7 @@ public sealed partial class MainWindow
             : TransferWriteRequest.Create(currentLedger.LedgerId, prepared.Snapshot);
         return await SendPendingTransferAsync(returnToList);
     }
-    private async void DeleteTransfer(object sender, RoutedEventArgs args)
+    private async Task DeleteTransferAsync()
     {
         if (transferEditor is not { } state || currentLedger is null || TransferFrozen || transferDialogOpen || transferPreparingSave) return;
         if (await ConfirmTransferAsync("振替の削除", $"「{state.Draft.Name}」を削除しますか？", "削除") != ContentDialogResult.Primary || !ReferenceEquals(state, transferEditor) || TransferFrozen) return;
@@ -62,12 +67,22 @@ public sealed partial class MainWindow
         transferPending = TransferWriteRequest.Delete(currentLedger.LedgerId, target.TransferId, target.Revision);
         await SendPendingTransferAsync(true);
     }
-    private async void RetryTransferWrite(object sender, RoutedEventArgs args) { if (TransferCanRetryWrite && !transferSending) await SendPendingTransferAsync(true); }
+    private async Task RetryTransferWriteAsync()
+    {
+        if (TransferCanRetryWrite && !transferSending)
+            await SendPendingTransferAsync(true);
+    }
     private async Task<bool> SendPendingTransferAsync(bool returnToList)
     {
         if (transferPending is not { } request || transferSending || transferEditor is not { } editor || currentLedger?.LedgerId != request.LedgerId) return false;
         var wasUnknown = transferUnknown;
-        transferSending = true; transferUnknown = false; transferRetryAfterLogin = false; TransferEditorNotice.IsOpen = false; CancelTransferSuggestions(); transferAutofillCancellation?.Cancel(); RenderTransferEditor();
+        transferSending = true;
+        transferUnknown = false;
+        transferRetryAfterLogin = false;
+        if (TransferEntry.ViewModel is { } model)
+            model.NoticeOpen = false;
+        TransferEntry.CancelRequests();
+        RenderTransferEditor();
         var accountId = account?.AuthUserId; string? inputErrorField = null; var offerLatest = false;
         var workspace = new TransfersWorkspace(connection.Api, connection.Session, request.LedgerId);
         Guid? savedId = request.TransferId;
@@ -127,7 +142,7 @@ public sealed partial class MainWindow
             recordSearch.ApplySharedText(recordSearch.TransferText);
             RenderRecordFilterControls();
         }
-        ResetTransferSuggestions(); ResetTransferEditor();
+        ResetTransferEditor();
         if (returnToList) ShowPage(HomePage);
         if (TransferListModel is { } list && recordSearch is not null)
         {
@@ -153,8 +168,11 @@ public sealed partial class MainWindow
         var choice = await ConfirmTransferAsync("振替が更新されています", "他の端末で更新されています。現在の入力は保持しています。", "最新を読み込む", close: "編集画面に戻る");
         if (choice == ContentDialogResult.Primary) await AdoptLatestTransferAsync(editor);
     }
-    private async void LoadLatestTransfer(object sender, RoutedEventArgs args)
-    { if (transferEditor is { } editor) await AdoptLatestTransferAsync(editor); }
+    private async Task LoadLatestTransferAsync()
+    {
+        if (transferEditor is { } editor)
+            await AdoptLatestTransferAsync(editor);
+    }
     private async Task AdoptLatestTransferAsync(TransferEditorState editor)
     {
         if (!ReferenceEquals(editor, transferEditor) || !TransferCanAdoptLatest || transferDialogOpen || transferSending || currentLedger is null) return;
@@ -168,11 +186,7 @@ public sealed partial class MainWindow
             editor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
         PopulateTransferEditor();
     }
-    private void FocusTransferField(string field)
-    {
-        Control target = field switch { "transactionAt" => TransferDate, "name" => TransferName, "fromPaymentMethodId" => TransferFrom, "toPaymentMethodId" => TransferTo, "amount" => TransferAmount, "memo" => TransferMemo, _ => TransferName };
-        target.Focus(FocusState.Programmatic);
-    }
+    private void FocusTransferField(string field) => TransferEntry.FocusField(field);
     private async Task<bool> LeaveTransferEditorAsync()
     {
         if (transferSending || transferDialogOpen || transferLeaving || transferPreparingSave) return false;
