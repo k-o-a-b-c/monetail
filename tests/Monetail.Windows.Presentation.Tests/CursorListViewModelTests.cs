@@ -125,6 +125,24 @@ public sealed class CursorListViewModelTests
     }
 
     [Fact]
+    public async Task DisposalInvalidatesTheReadBeforeCancellationCompletesIt()
+    {
+        var pending = new TaskCompletionSource<CursorPage<string>>();
+        using var model = new ListModel((_, token) =>
+        {
+            token.Register(() => pending.SetResult(Page(900)));
+            return pending.Task;
+        });
+        var read = model.StartAsync();
+        model.Dispose();
+        await read;
+        Assert.Empty(model.Rows);
+        Assert.Null(model.SelectedItem);
+        Assert.Null(model.Failure);
+        Assert.False(model.IsLoading);
+    }
+
+    [Fact]
     public async Task SuspensionCancelsAndResumesOnePendingCursorWhileFailureRequiresExplicitRetry()
     {
         var pending = new TaskCompletionSource<CursorPage<string>>(TaskCreationOptions.RunContinuationsAsynchronously);

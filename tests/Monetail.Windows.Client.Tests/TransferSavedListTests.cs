@@ -12,12 +12,15 @@ public sealed class TransferSavedListTests
     public void SavingAdjustsOnlyMismatchedConditionsAndPreservesShopDraft()
     {
         var state = new RecordSearchState(new(2026, 11, 1)); var from = Guid.NewGuid(); var to = Guid.NewGuid(); var owner = Guid.NewGuid();
-        Assert.True(state.ApplySharedText("atm")); state.Receipts.ShopText = "未確定店";
+        Assert.True(state.ApplySharedText("atm"));
+        state.Receipts.ShopText = "未確定店";
         state.Receipts.AllPeriods = true; state.Receipts.OwnerPersonId = owner; state.Receipts.PaymentMethodId = to;
         var methods = new PaymentMethodsInfo([new(from, owner, "現金", 0, null, null, Guid.NewGuid()), new(to, Guid.NewGuid(), "銀行", 0, null, null, Guid.NewGuid())], [], null, "Admin");
         state.ApplySavedTransfer(new(new(2027, 1, 1), "ＡＴＭ入金", from, to, 10, null), methods);
         Assert.Equal("2027-01", state.TransferQuery().Month); Assert.Equal(owner, state.TransferQuery().OwnerPersonId); Assert.Equal(to, state.TransferQuery().PaymentMethodId);
-        Assert.Equal("atm", state.TransferQuery().Q); Assert.Equal("未確定店", state.Receipts.ShopText); Assert.Equal("atm", state.Receipts.Query().Q);
+        Assert.Equal("atm", state.TransferQuery().Q);
+        Assert.Equal("未確定店", state.Receipts.ShopText);
+        Assert.Equal("atm", state.Receipts.Query().Q);
     }
     [Theory]
     [InlineData("ATM", "ａｔｍ", true)] [InlineData("ＡＴＭ１", "atm1", true)]
@@ -26,8 +29,13 @@ public sealed class TransferSavedListTests
     [Fact]
     public void SavingClearsOnlyTheMismatchedOwnerPaymentAndNameButNeverShop()
     {
-        var state = new RecordSearchState(new(2026, 11, 1)); Assert.True(state.ApplySharedText("ATM")); state.Receipts.ShopText = "確定店"; Assert.True(state.Receipts.ApplyText()); state.Receipts.ShopText = "店の下書き";
-        state.Receipts.OwnerPersonId = Guid.NewGuid(); state.Receipts.PaymentMethodId = Guid.NewGuid();
+        var state = new RecordSearchState(new(2026, 11, 1));
+        Assert.True(state.ApplySharedText("ATM"));
+        state.Receipts.ShopText = "確定店";
+        Assert.True(state.Receipts.ApplyText());
+        state.Receipts.ShopText = "店の下書き";
+        state.Receipts.OwnerPersonId = Guid.NewGuid();
+        state.Receipts.PaymentMethodId = Guid.NewGuid();
         var from = Guid.NewGuid(); var to = Guid.NewGuid(); var owner = Guid.NewGuid(); var methods = new PaymentMethodsInfo([new(from, owner, "現金", 0, null, null, Guid.NewGuid()), new(to, owner, "銀行", 1, null, null, Guid.NewGuid())], [], owner, "Admin");
         state.ApplySavedTransfer(new(new(2027, 2, 1), "振替", from, to, 100, null), methods);
         Assert.Null(state.TransferQuery().OwnerPersonId); Assert.Null(state.TransferQuery().PaymentMethodId); Assert.Equal("", state.TransferQuery().Q); Assert.Equal("", state.TransferText);
