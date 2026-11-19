@@ -69,7 +69,7 @@ public partial class App
         Check(Find<Button>(root, "ReceiptRegister").Visibility == Visibility.Collapsed && Find<Button>(root, "ReceiptUpdate").Visibility == Visibility.Visible &&
             Find<Button>(root, "ReceiptReuse").Visibility == Visibility.Visible && !Find<Button>(root, "ReceiptUpdate").IsEnabled && !Find<Button>(root, "ReceiptReuse").IsEnabled,
             "既存画面は更新/流用登録だけを無効状態で表示し保存成功を偽装しない");
-        window.ActivateReceiptCategory(originalGroup.Key);
+        ReceiptView.ActivateReceiptCategory(originalGroup.Key);
         Check(!editor.NeedsLeaveConfirmation && originalGroup.Details[0].Key == originalDetail.Key && originalGroup.Details[0].DetailId == originalDetail.DetailId &&
             originalDetail.Values.Tax.IsSelected && originalDetail.Values.Tax.Rate is null, "科目選択でも保存済み明細ID・実税率とNULLメモを変更しない");
         Find<TextBox>(root, "ReceiptMemo").Text = "一時編集"; await Wait(() => editor.Header.Memo == "一時編集");

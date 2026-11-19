@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Receipts;
 using System.Net;
 using System.Reflection;
 using Microsoft.UI.Xaml;
@@ -48,12 +49,12 @@ public partial class App
             }
             else
             {
-                originalWindow.ActivateReceiptCategory(editor.Groups[0].Key);
+                ReceiptView.ActivateReceiptCategory(editor.Groups[0].Key);
                 Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
                 await Wait(() => editor.SelectedDetailKey is not null);
             }
             var editorModel = ReceiptView.ViewModel;
-            var draft = editor.Draft; var parent = editorModel?.ParentInput; var input = TransferRuntime("receiptDetailInput");
+            var draft = editor.Draft; var parent = editorModel?.ParentInput; var input = ReceiptView.ViewModel?.DetailInput;
             var groupKey = editor.SelectedGroupKey; var detailKey = editor.SelectedDetailKey; var revision = editor.Revision;
             var price = Find<TextBox>(root, "ReceiptItemPrice");
             await ActivateReceiptInputWindowAsync(); await FocusTransferControl(price);
@@ -68,13 +69,13 @@ public partial class App
             await ExpireReceiptLogin(fixture); await Wait(() => Visible(root, "LoginPage"));
             var context = TransferRuntime("receiptAuthentication");
             Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) && ReferenceEquals(editorModel, ReceiptView.ViewModel) && ReferenceEquals(parent, ReceiptView.ViewModel?.ParentInput) &&
-                ReferenceEquals(input, TransferRuntime("receiptDetailInput")) && !VisibleAncestors(Find<Grid>(root, "ReceiptEditorPage")), "レシート401は元の編集/親入力/未反映下書き/コントロールを保持して非表示にする");
+                ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput) && !VisibleAncestors(Find<Grid>(root, "ReceiptEditorPage")), "レシート401は元の編集/親入力/未反映下書き/コントロールを保持して非表示にする");
             await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
             await InvokeAsync(() => Find<Button>(root, "CancelLoginButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
             Check(ReferenceEquals(context, TransferRuntime("receiptAuthentication")) && price.Text == "12x" && date.Text == "2026/", "ログイン取消は最初の復帰情報と未確定入力を保持してログイン画面に留まる");
             server.ExpireAt = "taxes";
             await CompleteReceiptLogin(fixture, root, expiresAgain: true);
-            Check(ReferenceEquals(context, TransferRuntime("receiptAuthentication")) && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, TransferRuntime("receiptDetailInput")),
+            Check(ReferenceEquals(context, TransferRuntime("receiptAuthentication")) && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput),
                 "税率再取得中の連続401でも最初の編集位置と同じモデル/下書きを再利用する");
             var taxReads = fixture.TaxRatesRequests;
             await CompleteReceiptLogin(fixture, root);
@@ -109,15 +110,15 @@ public partial class App
         var server = new ReceiptRecoveryServer(fixture);
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenReceiptEditorAsync(server.Id);
         var editor = ReceiptEditing ?? throw new InvalidOperationException("編集がありません。");
-        window.ActivateReceiptCategory(editor.Groups[0].Key); Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
+        ReceiptView.ActivateReceiptCategory(editor.Groups[0].Key); Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey is not null);
         var price = Find<TextBox>(root, "ReceiptItemPrice"); price.Text = "123x";
         var groupRow = Find<ListView>(root, "ReceiptCategories").Items.OfType<ReceiptCategoryRow>().First();
-        var input = TransferRuntime("receiptDetailInput"); var revision = editor.Revision;
+        var input = ReceiptView.ViewModel?.DetailInput; var revision = editor.Revision;
         await ExpireReceiptLogin(fixture); server.FailAt = "categories"; await CompleteReceiptLogin(fixture, root);
-        Check(price.IsReadOnly && price.IsEnabled && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, TransferRuntime("receiptDetailInput")) && input is ReceiptDetailInput { HasChanges: true } &&
+        Check(price.IsReadOnly && price.IsEnabled && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput) && input is ReceiptDetailInput { HasChanges: true } &&
             Find<InfoBar>(root, "ReceiptRecoveryNotice").Message == "マスタ情報を取得できませんでした" && Find<Button>(root, "ReceiptMasterRetry").Visibility == Visibility.Visible,
-            $"マスタ失敗は空データに置き換えず入力をコピー可能なreadonlyで保持し手動再試行を示す: phase={TransferRuntime("receiptRecoveryPhase")}; readonly={price.IsReadOnly}; enabled={price.IsEnabled}; sameEditor={ReferenceEquals(editor, ReceiptEditing)}; sameInput={ReferenceEquals(input, TransferRuntime("receiptDetailInput"))}; notice={Find<InfoBar>(root, "ReceiptRecoveryNotice").Message}; retry={Find<Button>(root, "ReceiptMasterRetry").Visibility}");
+            $"マスタ失敗は空データに置き換えず入力をコピー可能なreadonlyで保持し手動再試行を示す: phase={TransferRuntime("receiptRecoveryPhase")}; readonly={price.IsReadOnly}; enabled={price.IsEnabled}; sameEditor={ReferenceEquals(editor, ReceiptEditing)}; sameInput={ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput)}; notice={Find<InfoBar>(root, "ReceiptRecoveryNotice").Message}; retry={Find<Button>(root, "ReceiptMasterRetry").Visibility}");
         var before = editor.SelectedGroup?.Details.Count;
         global::Windows.ApplicationModel.DataTransfer.Clipboard.Clear();
         await FocusTransferControl(price); price.SelectAll(); await PressReceiptKey(0x43, 0x11); await Settle();
@@ -129,7 +130,7 @@ public partial class App
         server.FailAt = null; server.Rate = "1";
         var category = server.Categories.Rows[0]; server.Categories.Rows[0] = category with { Name = "更新後科目" };
         await InvokeAsync(() => Find<Button>(root, "ReceiptMasterRetry")); await Wait(() => TransferRuntime("receiptRecoveryPhase")?.ToString() == "None");
-        Check(!price.IsReadOnly && price.Text == "123x" && ReferenceEquals(input, TransferRuntime("receiptDetailInput")) && editor.Revision == revision &&
+        Check(!price.IsReadOnly && price.Text == "123x" && ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput) && editor.Revision == revision &&
             ReferenceEquals(groupRow, Find<ListView>(root, "ReceiptCategories").Items[0]) && groupRow.Name == "更新後科目" &&
             Find<TextBlock>(root, "ReceiptItemTaxWarning").Visibility == Visibility.Visible,
             "再試行成功は同じ入力と旧版/実税率を保ち、名称/候補だけ更新して税率不一致を示す");
@@ -207,11 +208,12 @@ public partial class App
         navigate.Invoke(window, ["再認証が必要です"]); gate.SetResult(true);
         await Wait(() => Equals(TransferRuntime("busy"), false));
         Check(Visible(root, "LoginPage") && ReferenceEquals(context, TransferRuntime("receiptAuthentication")) &&
-            ReferenceEquals(editor, ReceiptEditing) && TransferRuntime("receiptTaxRates") is null && Find<TextBox>(root, "ReceiptMemo").Text == "終了まで保持",
+            ReferenceEquals(editor, ReceiptEditing) && ReceiptView.ViewModel?.TaxHistory is null && Find<TextBox>(root, "ReceiptMemo").Text == "終了まで保持",
             "再退避で取得を中断し、遅延税率応答を適用せず最初の復帰情報/入力を保持する");
+        var closingModel = ReceiptView.ViewModel ?? throw new InvalidOperationException("終了前の編集モデルがありません。");
         using var next = new SyntheticConnection(); await OpenSyntheticWindow(next);
         object? State(string name) => typeof(MainWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(original);
-        Check(State("receiptEditor") is null && State("receiptAuthentication") is null && State("receiptDetailInput") is null && Equals(State("closed"), true) && server.Writes == 0,
+        Check(State("receiptEditor") is null && State("receiptAuthentication") is null && closingModel.DetailInput is null && Equals(State("closed"), true) && server.Writes == 0,
             "再認証中の終了は編集・未反映下書き・復帰情報を破棄し、自動保存しない");
     }
 

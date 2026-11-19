@@ -34,12 +34,12 @@ public partial class App
             }) });
         };
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenReceiptEditorAsync(id);
-        var editor = ReceiptEditing!; var group = editor.Groups.Single(); window.ActivateReceiptCategory(group.Key);
+        var editor = ReceiptEditing!; var group = editor.Groups.Single(); ReceiptView.ActivateReceiptCategory(group.Key);
         Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         var keyboard = (FormKeyboard)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ReceiptView)!;
         var composing = (HashSet<TextBox>)typeof(FormKeyboard).GetField("composing", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(keyboard)!;
-        bool Dirty() => (bool)typeof(MainWindow).GetProperty("ReceiptEditorDirty", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+        bool Dirty() => ReceiptView.NeedsLeaveConfirmation;
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
             "通常の1行メモを表示して選択するだけでは未保存変更にしない");
         var memos = new[] { Find<TextBox>(root, "ReceiptMemo"), Find<TextBox>(root, "ReceiptCategoryMemo"), Find<TextBox>(root, "ReceiptItemMemo") };
@@ -117,8 +117,8 @@ public partial class App
         catch (OperationCanceledException error)
         {
             var flags = BindingFlags.NonPublic | BindingFlags.Instance;
-            var input = (ReceiptDetailInput?)typeof(MainWindow).GetField("receiptDetailInput", flags)!.GetValue(window);
-            var rendering = (bool)typeof(MainWindow).GetField("receiptDetailRendering", flags)!.GetValue(window)!;
+            var input = ReceiptView.ViewModel?.DetailInput;
+            var rendering = (bool)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetField("rendering", flags)!.GetValue(ReceiptView)!;
             var box = Find<TextBox>(root, name); var parsed = "none";
             try { if (input is not null) { input.Read(); parsed = "valid"; } }
             catch (ReceiptInputException invalid) { parsed = invalid.Field; }

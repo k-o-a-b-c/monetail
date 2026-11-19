@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Receipts;
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.UI.Xaml;
@@ -37,7 +38,7 @@ public partial class App
             }) });
         };
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenReceiptEditorAsync(id);
-        var editor = ReceiptEditing!; var group = editor.Groups.Single(); window.ActivateReceiptCategory(group.Key);
+        var editor = ReceiptEditing!; var group = editor.Groups.Single(); ReceiptView.ActivateReceiptCategory(group.Key);
         var list = Find<ListView>(root, "ReceiptDetailsList"); list.SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
         var tax = Find<ComboBox>(root, "ReceiptItemTax");

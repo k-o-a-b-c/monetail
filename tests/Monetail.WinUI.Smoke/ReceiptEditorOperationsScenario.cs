@@ -26,12 +26,12 @@ public partial class App
         choices.SelectedIndex = 1; await InvokeAsync(() => Find<Button>(root, "ReceiptCategoryAdd"));
         await Wait(() => editor.Groups.Count == 2); var second = editor.Groups[1];
         // 別科目追加の直前でも、元のテキストを反映することを検証する。
-        window.ActivateReceiptCategory(first.Key);
+        ReceiptView.ActivateReceiptCategory(first.Key);
         Check(first.Memo == "最初の科目メモ" && editor.SelectedGroupKey == first.Key && Find<TextBox>(root, "ReceiptCategoryMemo").Text == "最初の科目メモ", "科目切替は他科目のメモと入力モデルを保持");
         groups.ScrollIntoView(groups.Items[1]); await Wait(() => groups.ContainerFromIndex(1) is ListViewItem { IsLoaded: true });
         ((ListViewItem)groups.ContainerFromIndex(1)).Focus(FocusState.Keyboard);
         Check(editor.SelectedGroupKey == first.Key && groups.SingleSelectionFollowsFocus == false, "科目行のフォーカス移動だけでは表示中の科目を変更しない");
-        Check(window.ActivateFocusedReceiptCategory() && editor.SelectedGroupKey == second.Key, "Enterと共通の確定処理でフォーカス行の科目へ切り替える");
+        Check(ReceiptView.ActivateFocusedReceiptCategory() && editor.SelectedGroupKey == second.Key, "Enterと共通の確定処理でフォーカス行の科目へ切り替える");
         await InvokeAsync(() => Find<Button>(root, "ReceiptCategoryRemove"));
         await Wait(() => Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded);
         var dialog = Find<ContentDialog>(root, "ReceiptConfirmationDialog");

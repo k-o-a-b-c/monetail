@@ -68,7 +68,7 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "ReceiptDetailDelete"));
         Check(group.Details.Count == 2 && editor.SelectedDetailKey is null && list.SelectedItem is null && !Find<Button>(root, "ReceiptDetailDelete").IsEnabled, "削除後は必ず選択解除し次の行を自動選択しない");
         // 無効な削除ボタンの実装メソッドも再実行し、連続操作で別明細まで消えないことを確認。
-        typeof(MainWindow).GetMethod("DeleteReceiptDetail", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(window, [null, new RoutedEventArgs()]);
+        typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetMethod("DeleteReceiptDetail", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(ReceiptView, [null, new RoutedEventArgs()]);
         Check(group.Details.Count == 2, "削除の連続操作でも2件目は消えない");
         var categoryChoice = Find<ComboBox>(root, "ReceiptCategoryChoice"); categoryChoice.SelectedIndex = 1;
         Find<StackPanel>(root, "ReceiptDetailPeople").Children.OfType<CheckBox>().First().IsChecked = true;
@@ -85,14 +85,14 @@ public partial class App
         await Wait(() => Find<ContentDialog>(root, "ReceiptConfirmationDialog").Title?.ToString() == "科目を削除");
         await ConfirmReceipt(root, false);
         Check(editor.Groups.Count == 2 && editor.SelectedGroupKey == second.Key && name.Text == "", "科目削除は下書き解決後に別の削除確認、取消では科目を保持");
-        window.ActivateReceiptCategory(group.Key); await Wait(() => editor.SelectedGroupKey == group.Key);
+        ReceiptView.ActivateReceiptCategory(group.Key); await Wait(() => editor.SelectedGroupKey == group.Key);
         Check(group.Details.Count == 3 && list.Items.Count == 3 && name.Text == "", "科目切替後も他科目の登録済み明細を保持し新規フォームに戻る");
         name.Text = "科目切替中"; price.Text = "途中";
-        window.ActivateReceiptCategory(second.Key); await ChooseReceiptDetailDraft(root, ContentDialogResult.None);
+        ReceiptView.ActivateReceiptCategory(second.Key); await ChooseReceiptDetailDraft(root, ContentDialogResult.None);
         Check(editor.SelectedGroupKey == group.Key && name.Text == "科目切替中" && price.Text == "途中", "別科目への切替取消も選択/入力を保護");
-        window.ActivateReceiptCategory(second.Key); await ChooseReceiptDetailDraft(root, ContentDialogResult.Secondary);
+        ReceiptView.ActivateReceiptCategory(second.Key); await ChooseReceiptDetailDraft(root, ContentDialogResult.Secondary);
         Check(editor.SelectedGroupKey == second.Key && group.Details.Count == 3 && name.Text == "", "別科目への破棄移動は元科目の登録済み明細を保持");
-        window.ActivateReceiptCategory(group.Key); await Wait(() => editor.SelectedGroupKey == group.Key);
+        ReceiptView.ActivateReceiptCategory(group.Key); await Wait(() => editor.SelectedGroupKey == group.Key);
         await CheckReceiptDetailKeyboard(root);
         Check(writes == 0 && !Find<Button>(root, "ReceiptRegister").IsEnabled, "全体保存APIは呼ばず保存ボタンも無効");
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, true);
