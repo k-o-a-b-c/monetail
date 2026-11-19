@@ -37,7 +37,7 @@ public partial class App
         var editor = ReceiptEditing!; var group = editor.Groups.Single(); window.ActivateReceiptCategory(group.Key);
         Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
-        var keyboard = (FormKeyboard)typeof(MainWindow).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+        var keyboard = (FormKeyboard)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ReceiptView)!;
         var composing = (HashSet<TextBox>)typeof(FormKeyboard).GetField("composing", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(keyboard)!;
         bool Dirty() => (bool)typeof(MainWindow).GetProperty("ReceiptEditorDirty", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
@@ -98,7 +98,7 @@ public partial class App
         // 他項目のイベント・再描画ではメモの値を変更しない。
         var shop = Find<TextBox>(root, "ReceiptShopName"); shop.Text = "一時変更"; await Wait(() => editor.Header.ShopName == "一時変更");
         shop.Text = "メモの確認"; await Wait(() => editor.Header.ShopName == "メモの確認");
-        window.RenderReceiptTaxValues();
+        ReceiptView.RenderTaxValues();
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
             "他項目変更/再描画では元のメモと未変更状態を維持");
         memos[2].Text = "ショートカット更新"; memos[2].Focus(FocusState.Keyboard);

@@ -1,5 +1,4 @@
 using System.Net;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -21,8 +20,7 @@ public sealed partial class MainWindow
     private CancellationTokenSource? receiptRecoveryLoading;
     private bool ReceiptRecoveryReadOnly => receiptRecoveryPhase != ReceiptRecoveryPhase.None;
     // 非表示/未レイアウト時にも必ず反映する。入力欄の制御にVisualTreeの実体化を使わない。
-    private TextBox[] ReceiptTextInputs => [ReceiptDate, ReceiptTime, ReceiptShopName, ReceiptShopLocation, ReceiptInterval,
-        ReceiptMemo, ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo];
+    private TextBox[] ReceiptTextInputs => [ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo];
 
     private static IEnumerable<DependencyObject> ReceiptVisuals(DependencyObject root)
     {
@@ -54,7 +52,7 @@ public sealed partial class MainWindow
         if (receiptEditor is null || RememberReceiptAuthenticationView() is not { } context || context.ApiOrigin != connection.Endpoint?.Value) return false;
         receiptRecoveryPhase = ReceiptRecoveryPhase.Login;
         receiptRecoveryLoading?.Cancel();
-        ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = true;
+        ReceiptEntry.SuppressCompletion(true);
         if (receiptDialogOpen) ReceiptConfirmationDialog.Hide();
         ReceiptListModel?.Suspend();
         TransferListModel?.Suspend();
@@ -72,7 +70,8 @@ public sealed partial class MainWindow
             foreach (var text in ReceiptTextInputs) text.Text = "";
             ReceiptCategories.ItemsSource = ReceiptDetailsList.ItemsSource = null;
             ReceiptDetailPeople.Children.Clear(); ReceiptItemTax.Items.Clear();
-            ReceiptEditorPayment.ItemsSource = ReceiptCategoryChoice.ItemsSource = null;
+            ReceiptCategoryChoice.ItemsSource = null;
+            ReceiptEntry.ClearParent();
         }
         finally { receiptEditorRendering = receiptDetailRendering = false; }
     }
@@ -89,7 +88,7 @@ public sealed partial class MainWindow
         return true;
     }
 
-    private async void RetryReceiptMasters(object sender, RoutedEventArgs args)
+    private async Task RetryReceiptMastersAsync()
     {
         if (receiptRecoveryPhase == ReceiptRecoveryPhase.Failed && receiptAuthentication is { } context)
             await LoadReceiptRecoveryMastersAsync(context, lifetime.Token);
@@ -163,8 +162,7 @@ public sealed partial class MainWindow
     {
         var readOnly = ReceiptRecoveryReadOnly;
         foreach (var text in ReceiptTextInputs) text.IsReadOnly = readOnly;
-        foreach (var choice in new Control[] { ReceiptEditorPayment, ReceiptUnit, ReceiptCategoryChoice, ReceiptTaxIncluded, ReceiptTaxExcluded,
-            ReceiptTaxFloor, ReceiptTaxHalfUp, ReceiptItemTax, ReceiptItemExpense, ReceiptItemOccurrence }) choice.IsEnabled = !readOnly;
+        foreach (var choice in new Control[] { ReceiptCategoryChoice, ReceiptItemTax, ReceiptItemExpense, ReceiptItemOccurrence }) choice.IsEnabled = !readOnly;
         foreach (var box in ReceiptDetailPeople.Children.OfType<CheckBox>()) box.IsEnabled = !readOnly;
         UpdateReceiptCategoryActions();
         ReceiptCategoryRemove.IsEnabled = !readOnly && receiptEditor?.SelectedGroup is not null;
@@ -174,7 +172,9 @@ public sealed partial class MainWindow
             RefreshReceiptCalculation();
         }
         else if (receiptEditor is not null) RenderReceiptDetailList(refreshRows: false);
-        ReceiptRecoveryNotice.Message = receiptRecoveryPhase switch
+        ReceiptEntry.RefreshRecovery();
+    }
+    private string ReceiptRecoveryMessage => receiptRecoveryPhase switch
         {
             ReceiptRecoveryPhase.Login => "入力を保持しています。再ログインしてください。",
             ReceiptRecoveryPhase.Loading => "マスタ情報を読み込み中…",
@@ -183,24 +183,12 @@ public sealed partial class MainWindow
             ReceiptRecoveryPhase.Unavailable => "レシートが削除されたか、アクセスできなくなりました。",
             _ => ""
         };
-        ReceiptRecoveryNotice.IsOpen = readOnly;
-        ReceiptMasterRetry.Visibility = receiptRecoveryPhase == ReceiptRecoveryPhase.Failed ? Visibility.Visible : Visibility.Collapsed;
-    }
 
     private void RestoreReceiptRecoveryView(ReceiptAuthentication context, Monetail.Windows.Client.Receipts.ReceiptEditorState editor)
     {
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
-        {
-            if (closed || receiptRecoveryPhase == ReceiptRecoveryPhase.Login || !ReferenceEquals(editor, receiptEditor) || HomePage.Visibility != Visibility.Visible ||
-                account?.AuthUserId != context.AccountId || connection.Endpoint?.Value != context.ApiOrigin || currentLedger?.LedgerId != context.LedgerId) return;
-            ReceiptInputScroller.UpdateLayout();
-            if (context.Focus is { IsLoaded: true, IsEnabled: true, Visibility: Visibility.Visible } focus)
-            {
-                focus.Focus(FocusState.Programmatic);
-                if (focus is TextBox text) text.Select(context.SelectionStart, context.SelectionLength);
-            }
-            foreach (var (viewer, x, y) in context.Scrolls) if (viewer.IsLoaded) viewer.ChangeView(x, y, null, true);
-            ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = false;
-        });
+        ReceiptEntry.RestorePosition(context.Focus, context.SelectionStart, context.SelectionLength, context.Scrolls,
+            () => !closed && receiptRecoveryPhase != ReceiptRecoveryPhase.Login && ReferenceEquals(editor, receiptEditor) &&
+                HomePage.Visibility == Visibility.Visible && account?.AuthUserId == context.AccountId &&
+                connection.Endpoint?.Value == context.ApiOrigin && currentLedger?.LedgerId == context.LedgerId);
     }
 }

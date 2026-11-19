@@ -8,7 +8,7 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
-    private ReceiptParentInputState ParentInput => (ReceiptParentInputState)typeof(MainWindow).GetField("receiptParentInput", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+    private ReceiptParentInputState ParentInput => ReceiptView.ViewModel?.ParentInput ?? throw new InvalidOperationException("親情報モデルがありません。");
     private async Task SelectReceiptRadio(FrameworkElement root, string name, bool keyboard = false)
     {
         await Wait(() => Find<RadioButton>(root, name) is { IsLoaded: true, ActualWidth: > 0, IsEnabled: true });
@@ -56,7 +56,7 @@ public partial class App
         Check(editor.Header.TaxInclusionMode == 1 && editor.Header.TaxRoundingMode == "half_up" && editor.NeedsLeaveConfirmation, "Spaceキーの標準選択でも値と手動設定を反映");
         await SelectReceiptRadio(root, "ReceiptTaxIncluded", keyboard: true); await SelectReceiptRadio(root, "ReceiptTaxFloor", keyboard: true);
         Check(!editor.NeedsLeaveConfirmation && !state.TryAutofillTaxInclusion(1) && !state.TryAutofillTaxRounding("half_up"), "値を初期値へ戻すと未保存変更は解消し手動保護は残る");
-        window.RenderReceiptTaxValues(); Check(ReferenceEquals(state, ParentInput) && state.TaxInclusionSource == ReceiptInputSource.Manual, "再描画は手動設定状態を再作成・解除しない");
+        ReceiptView.RenderTaxValues(); Check(ReferenceEquals(state, ParentInput) && state.TaxInclusionSource == ReceiptInputSource.Manual, "再描画は手動設定状態を再作成・解除しない");
         unit.SelectedIndex = 2; await Task.Yield();
         Check(editor.Header.RecurrenceInterval is null && editor.Header.RecurrenceUnit is null && !editor.NeedsLeaveConfirmation, "間隔空欄時の表示単位変更は保存対象を変更しない");
         interval.Text = "2"; await Wait(() => editor.Header.RecurrenceInterval == 2 && editor.Header.RecurrenceUnit == "Year");
@@ -79,7 +79,7 @@ public partial class App
         await Wait(() => secondEditor.Header.TaxInclusionMode == 1 && secondEditor.Header.TaxRoundingMode == "half_up");
         Check(fresh.TaxInclusionSource == ReceiptInputSource.Initial && fresh.TaxRoundingSource == ReceiptInputSource.Initial, "プログラムによるIsChecked設定は手動扱いにしない");
         Check(fresh.TryAutofillTaxInclusion(0) && fresh.TryAutofillTaxRounding("floor"), "未手動項目は表示値があっても自動補完できる");
-        window.RenderReceiptTaxValues();
+        ReceiptView.RenderTaxValues();
         Check(Find<RadioButton>(root, "ReceiptTaxIncluded").IsChecked == true && fresh.TaxInclusionSource == ReceiptInputSource.Automatic && !secondEditor.NeedsLeaveConfirmation,
             "自動値の再描画は手動扱いにせず元の入力値なら未変更");
         await SelectReceiptRadio(root, "ReceiptTaxIncluded", keyboard: true);

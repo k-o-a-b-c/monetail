@@ -200,60 +200,9 @@
             <Grid x:Name="TransferEditorPage" TabFocusNavigation="Local" Grid.Row="2" Visibility="Collapsed">
                 <transfers:TransferEditorView x:Name="TransferEntry"/>
             </Grid>
-            <Grid x:Name="ReceiptEditorPage" Grid.Row="2" Visibility="Collapsed" RowSpacing="16" SizeChanged="ReceiptEditorSizeChanged">
-                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <ScrollViewer x:Name="ReceiptInputScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Spacing="16">
-                        <InfoBar x:Name="ReceiptRecoveryNotice" IsOpen="False" IsClosable="False" Severity="Error" AutomationProperties.LiveSetting="Polite"/>
-                        <Button x:Name="ReceiptMasterRetry" Content="再試行" Click="RetryReceiptMasters" Visibility="Collapsed"/>
-                        <TextBlock x:Name="ReceiptEditorTitle" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                        <Grid x:Name="ReceiptHeaderRow1" ColumnSpacing="12" RowSpacing="12">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <input:DateInputBox x:Name="ReceiptDate" Header="取引日" AllowEmpty="False" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptDate"/>
-                            <input:TimeInputBox x:Name="ReceiptTime" Grid.Column="1" Header="時刻" AllowEmpty="False" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptTime"/>
-                        </Grid>
-                        <Grid x:Name="ReceiptHeaderRow2" ColumnSpacing="12" RowSpacing="12">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBox x:Name="ReceiptShopName" Header="店名" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptShopName"/>
-                            <TextBox x:Name="ReceiptShopLocation" Grid.Column="1" Header="店舗所在地" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptShopLocation"/>
-                        </Grid>
-                        <Grid x:Name="ReceiptHeaderRow3" ColumnSpacing="12" RowSpacing="12">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <ComboBox x:Name="ReceiptEditorPayment" Header="支払方法" DisplayMemberPath="Name" HorizontalAlignment="Stretch" SelectionChanged="ReceiptParentChoiceChanged" AutomationProperties.AutomationId="ReceiptEditorPayment"/>
-                            <StackPanel x:Name="ReceiptTaxInclusion" Grid.Column="1" Spacing="4">
-                                <TextBlock Text="税込／税抜"/>
-                                <RadioButton x:Name="ReceiptTaxIncluded" Content="税込" Tag="0" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxIncluded"/>
-                                <RadioButton x:Name="ReceiptTaxExcluded" Content="税抜" Tag="1" GroupName="ReceiptInclusion" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxExcluded"/>
-                            </StackPanel>
-                            <StackPanel x:Name="ReceiptTaxRounding" Grid.Column="2" Spacing="4">
-                                <TextBlock Text="税端数方式"/>
-                                <RadioButton x:Name="ReceiptTaxFloor" Content="切り捨て" Tag="floor" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxFloor"/>
-                                <RadioButton x:Name="ReceiptTaxHalfUp" Content="四捨五入" Tag="half_up" GroupName="ReceiptRounding" Checked="ReceiptTaxChecked" Click="ReceiptTaxSelected" AutomationProperties.AutomationId="ReceiptTaxHalfUp"/>
-                            </StackPanel>
-                        </Grid>
-                        <TextBlock x:Name="ReceiptPaymentWarning" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                        <Grid x:Name="ReceiptHeaderRow4" ColumnSpacing="12" RowSpacing="12">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="繰り返し周期"/>
-                                <Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    <TextBox x:Name="ReceiptInterval" Header="間隔" InputScope="Number" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptInterval"/>
-                                    <ComboBox x:Name="ReceiptUnit" Grid.Column="1" Header="単位" SelectionChanged="ReceiptParentChoiceChanged" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ReceiptUnit">
-                                        <ComboBoxItem Content="週" Tag="Week"/><ComboBoxItem Content="月" Tag="Month"/><ComboBoxItem Content="年" Tag="Year"/>
-                                    </ComboBox>
-                                </Grid>
-                                <TextBlock Text="間隔が空欄なら繰り返しなし" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <TextBlock x:Name="ReceiptIntervalError" Visibility="Collapsed" Text="間隔は1以上の整数を入力してください。" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            </StackPanel>
-                            <StackPanel x:Name="ReceiptMemoArea" Grid.Column="1" Spacing="4">
-                                <TextBox x:Name="ReceiptMemo" Header="レシートメモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="ReceiptParentTextChanged" AutomationProperties.AutomationId="ReceiptMemo"/>
-                                <TextBlock x:Name="ReceiptMemoError" Visibility="Collapsed" Text="レシートメモは100文字以内で入力してください。" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            </StackPanel>
-                        </Grid>
+            <Grid x:Name="ReceiptEditorPage" Grid.Row="2" Visibility="Collapsed">
+                <receipts:ReceiptEditorView x:Name="ReceiptEntry">
+                    <receipts:ReceiptEditorView.DetailsContent>
                         <Grid x:Name="ReceiptCategoryArea" ColumnSpacing="24" RowSpacing="16">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -339,19 +288,8 @@
                                 </ScrollViewer>
                             </StackPanel>
                         </Grid>
-                    </StackPanel>
-                </ScrollViewer>
-                <StackPanel Grid.Row="1" Spacing="8">
-                    <TextBlock x:Name="ReceiptAccountingTotal" Text="会計合計（反映済み明細）：未計算" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="ReceiptCalculationNotice" TextWrapping="Wrap" Visibility="Collapsed"/>
-                    <TextBlock Text="現在は保存できません。登録・更新・流用登録は後続工程で接続します。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="ReceiptRegister" Content="登録" IsEnabled="False" AutomationProperties.AutomationId="ReceiptRegister"/>
-                        <Button x:Name="ReceiptUpdate" Content="更新" IsEnabled="False" Visibility="Collapsed" AutomationProperties.AutomationId="ReceiptUpdate"/>
-                        <Button x:Name="ReceiptReuse" Content="流用登録" IsEnabled="False" Visibility="Collapsed" AutomationProperties.AutomationId="ReceiptReuse"/>
-                        <Button x:Name="ReceiptBack" Content="キャンセル／一覧に戻る" Click="BackFromReceiptEditor" AutomationProperties.AutomationId="ReceiptBack"/>
-                    </StackPanel>
-                </StackPanel>
+                    </receipts:ReceiptEditorView.DetailsContent>
+                </receipts:ReceiptEditorView>
             </Grid>
         </Grid>
 

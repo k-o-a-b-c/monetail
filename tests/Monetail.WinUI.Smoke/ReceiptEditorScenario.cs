@@ -9,6 +9,8 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
+    private Monetail.WinUI.Views.Receipts.ReceiptEditorView ReceiptView => ((FrameworkElement)window!.Content).FindName("ReceiptEntry")
+        as Monetail.WinUI.Views.Receipts.ReceiptEditorView ?? throw new InvalidOperationException("レシート親情報Viewがありません。");
     private ReceiptEditorState? ReceiptEditing => (ReceiptEditorState?)typeof(MainWindow).GetField("receiptEditor", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
     private static Button ReceiptConfirmationFooter(FrameworkElement root, bool accept)
     {
@@ -34,6 +36,13 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "NewReceiptButton"));
         await Wait(() => ReceiptEditing is not null && Find<Button>(root, "ReceiptBack").ActualWidth > 0);
         var editor = ReceiptEditing!; var today = DateTime.Today;
+        Check(ReceiptView.ViewModel is { } model && ReferenceEquals(model.Editor, editor) && !ReceiptView.IsTabStop &&
+            ReferenceEquals(Find<TextBox>(root, "ReceiptShopName"), ReceiptView.FindName("ReceiptShopName")) &&
+            ReferenceEquals(Find<Grid>(root, "ReceiptCategoryArea"), ReceiptView.DetailsContent),
+            "親情報は独立Viewの名前スコープと同じ編集モデルを使用し、余分なTab停止を増やさない");
+        Check(Find<Button>(root, "ReceiptBack").Command == ReceiptView.ViewModel?.BackCommand &&
+            Find<Button>(root, "ReceiptMasterRetry").Command == ReceiptView.ViewModel?.RetryMastersCommand,
+            "画面枠のCommandはWindowの遷移・再認証調整へ接続する");
         Check(editor.Header.TransactionAt == today && Find<DateInputBox>(root, "ReceiptDate").Text == today.ToString("yyyy/MM/dd", CultureInfo.InvariantCulture) &&
             Find<TimeInputBox>(root, "ReceiptTime").Text == "00:00:00", "新規親情報は画面を開いたローカル日付・午前0時");
         Check(!editor.NeedsLeaveConfirmation && editor.Header.PaymentMethodId is null && editor.Header.TaxInclusionMode == 0 && editor.Header.TaxRoundingMode == "floor" &&

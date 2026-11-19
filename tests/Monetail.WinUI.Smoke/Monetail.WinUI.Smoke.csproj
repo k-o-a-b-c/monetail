@@ -39,6 +39,8 @@
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferRecovery.cs" Link="MainWindow.TransferRecovery.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSuggestions.cs" Link="MainWindow.TransferSuggestions.cs" />
 
+    <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.xaml" Link="Views/Receipts/ReceiptEditorView.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.xaml.cs" Link="Views/Receipts/ReceiptEditorView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/ReceiptCategoryRow.cs" Link="ReceiptCategoryRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptRecovery.cs" Link="MainWindow.ReceiptRecovery.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptEditor.cs" Link="MainWindow.ReceiptEditor.cs" />
