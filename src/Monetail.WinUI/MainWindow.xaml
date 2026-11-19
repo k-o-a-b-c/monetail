@@ -145,6 +145,10 @@
                             <Button MinWidth="0" x:Name="RecordMonthApply" Content="検索" Click="ApplyRecordMonth" VerticalAlignment="Bottom" AutomationProperties.Name="共通年月で検索" AutomationProperties.AutomationId="RecordMonthApply"/>
                             <ComboBox x:Name="ReceiptOwner" Header="支払者" Width="140" DisplayMemberPath="Name" SelectionChanged="ReceiptOwnerChanged" AutomationProperties.AutomationId="ReceiptOwner"/>
                             <ComboBox x:Name="ReceiptPayment" Header="支払方法" Width="180" DisplayMemberPath="Name" SelectionChanged="ReceiptPaymentChanged" AutomationProperties.AutomationId="ReceiptPayment"/>
+                            <TextBox x:Name="RecordKeyword" Header="キーワード" Width="240" PlaceholderText="店名・振替名を部分一致で検索"
+                                     KeyDown="RecordKeywordKeyDown" AutomationProperties.AutomationId="RecordKeyword"/>
+                            <Button x:Name="RecordKeywordSearch" Content="検索" Click="ApplyRecordKeyword" VerticalAlignment="Bottom"
+                                    AutomationProperties.Name="店名と振替名で検索" AutomationProperties.AutomationId="RecordKeywordSearch"/>
                             <TextBlock x:Name="ReceiptAppliedMonth" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
                         </StackPanel>
                     </ScrollViewer>
@@ -164,7 +168,7 @@
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12">
                     <transfers:TransferListView x:Name="TransfersView">
                         <transfers:TransferListView.OpeningContent>
-                            <StackPanel x:Name="TransferOpenNotice" Grid.Row="1" Visibility="Collapsed" Spacing="8">
+                            <StackPanel x:Name="TransferOpenNotice" Visibility="Collapsed" Spacing="8">
                                 <ProgressRing x:Name="TransferOpenProgress" IsActive="False" Width="24" Height="24" HorizontalAlignment="Left"/>
                                 <TextBlock x:Name="TransferOpenMessage" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                                 <Button x:Name="TransferOpenRetry" Content="再試行" Click="RetryTransferOpening" Visibility="Collapsed"/>
@@ -173,18 +177,18 @@
                     </transfers:TransferListView>
                 </Border>
                 <Border Grid.Column="1" Grid.Row="2" Style="{StaticResource Card}" Padding="12">
-                    <Grid RowSpacing="20">
+                    <Grid RowSpacing="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="1" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <Grid ColumnSpacing="16">
+                        <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                            <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" VerticalAlignment="Center" />
                             <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
                                     AutomationProperties.Name="残高の登録" AutomationProperties.AutomationId="BalanceRegisterPlaceholder" />
                         </Grid>

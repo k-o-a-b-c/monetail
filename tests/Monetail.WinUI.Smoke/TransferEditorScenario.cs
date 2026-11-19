@@ -80,12 +80,19 @@ public partial class App
         var scroller = All(list).OfType<ScrollViewer>().First();
         await Wait(() => { var p = label.TransformToVisual(scroller).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2)); return p.X >= 0 && p.X < scroller.ViewportWidth && p.Y >= 0 && p.Y < scroller.ViewportHeight; });
         await ActivateReceiptInputWindowAsync();
-        var logical = label.TransformToVisual(root).TransformPoint(new(label.ActualWidth / 2, label.ActualHeight / 2)); var scale = root.XamlRoot.RasterizationScale;
+        // 狭い一覧で横スクロールバーがホバー表示されても重ならないよう、行の上寄りを操作する。
+        var logical = label.TransformToVisual(root).TransformPoint(new(label.ActualWidth / 2, Math.Min(2, label.ActualHeight / 2))); var scale = root.XamlRoot.RasterizationScale;
         var point = new ReceiptScreenPoint { X = (int)Math.Round(logical.X * scale), Y = (int)Math.Round(logical.Y * scale) };
         if (!ClientToScreen(WinRT.Interop.WindowNative.GetWindowHandle(editorWindow), ref point)) throw new Win32Exception(Marshal.GetLastWin32Error());
         TraceInvocation($"transferDoubleClick: point={point.X},{point.Y}; scale={scale}");
         if (point.X < area.X || point.Y < area.Y || point.X >= area.X + area.Width || point.Y >= area.Y + area.Height) throw new InvalidOperationException("振替のクリック対象が画面外です。");
         if (!SetCursorPos(point.X, point.Y)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        await Task.Delay(80);
+        var hit = Microsoft.UI.Xaml.Media.VisualTreeHelper.FindElementsInHostCoordinates(logical, root).FirstOrDefault();
+        bool overItem = false;
+        for (var source = hit as DependencyObject; source is not null; source = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(source))
+            if (source is ListViewItem) { overItem = true; break; }
+        if (!overItem) throw new InvalidOperationException($"ダブルクリックの対象が一覧行ではありません: hit={hit?.GetType().Name}, y={logical.Y}");
         var events = new uint[] { 2, 4 }.Select(flag => new ReceiptNativeInput { Type = 0, Data = new() { Mouse = new() { Flags = flag } } }).ToArray();
         if (SendInput(2, events, Marshal.SizeOf<ReceiptNativeInput>()) != 2) throw new Win32Exception(Marshal.GetLastWin32Error());
         // 2回の押下を別の入力ターンで配信し、同一タイムスタンプの合成クリックにしない。

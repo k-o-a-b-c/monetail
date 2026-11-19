@@ -8,6 +8,24 @@ namespace Monetail.Windows.Client.Tests;
 public sealed partial class RecordSearchStateTests
 {
     [Fact]
+    public void SharedKeywordAppliesToBothQueriesAndInvalidMonthKeepsAppliedValues()
+    {
+        var state = new RecordSearchState(new(2026, 11, 19));
+        Assert.True(state.ApplySharedText(" スーパー "));
+        Assert.Equal(" スーパー ", state.Receipts.Query().Q);
+        Assert.Equal(" スーパー ", state.TransferQuery().Q);
+        state.Receipts.MonthText = "2026-13";
+        Assert.False(state.ApplySharedText("銀行"));
+        Assert.Equal(" スーパー ", state.Receipts.Query().Q);
+        Assert.Equal(" スーパー ", state.TransferQuery().Q);
+        state.Receipts.MonthText = "2026-12";
+        Assert.True(state.ApplySharedText("銀行"));
+        Assert.Equal("2026-12", state.TransferQuery().Month);
+        Assert.Equal("銀行", state.Receipts.Query().Q);
+        Assert.Equal("銀行", state.TransferQuery().Q);
+    }
+
+    [Fact]
     public void RecordSearchSharesFiltersButKeepsBothPendingNamesIndependent()
     {
         var state = new RecordSearchState(new(2026, 12, 31)); var owner = Guid.NewGuid(); var payment = Guid.NewGuid();

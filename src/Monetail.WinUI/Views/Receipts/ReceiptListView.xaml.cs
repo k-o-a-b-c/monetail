@@ -1,15 +1,11 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
-using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Monetail.WinUI.Input;
 using Monetail.WinUI.Views;
 using Monetail.Windows.Presentation.Receipts;
-using Windows.System;
-using Windows.UI.Core;
 
 namespace Monetail.WinUI.Views.Receipts;
 
@@ -32,13 +28,12 @@ public sealed partial class ReceiptListView : UserControl
         set => SetValue(OpeningContentProperty, value);
     }
 
-    private readonly FormKeyboard keyboard;
     private readonly ListViewportController viewport;
 
     public ReceiptListView()
     {
         InitializeComponent();
-        keyboard = new FormKeyboard(this, null, null, ReceiptShop);
+        ReceiptList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(ReceiptDoubleTapped), true);
         viewport = new(this, ReceiptList, () => ViewModel is not null,
             (last, filled, user) => ViewModel?.ObserveViewportAsync(last, filled, user) ?? Task.CompletedTask);
     }
@@ -77,7 +72,7 @@ public sealed partial class ReceiptListView : UserControl
     private void ReceiptDoubleTapped(object sender, DoubleTappedRoutedEventArgs args)
     {
         for (var element = args.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, ReceiptList); element = VisualTreeHelper.GetParent(element))
-            if (element is FrameworkElement { DataContext: ReceiptListItem row })
+            if (element is ListViewItem item && ReceiptList.ItemFromContainer(item) is ReceiptListItem row)
             {
                 args.Handled = true;
                 ViewModel?.EditCommand.Execute(row.ReceiptId);
@@ -85,21 +80,4 @@ public sealed partial class ReceiptListView : UserControl
             }
     }
 
-    private void ReceiptTextKeyDown(object sender, KeyRoutedEventArgs args)
-    {
-        if (args.Key != VirtualKey.Enter)
-            return;
-        // TextBox/IMEの標準処理後、外側の共通Enter移動へ流さない。
-        if (keyboard.IsComposing)
-        {
-            args.Handled = true;
-            return;
-        }
-        if (InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down) ||
-            InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down) ||
-            InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down))
-            return;
-        args.Handled = true;
-        ViewModel?.SearchCommand.Execute(null);
-    }
 }

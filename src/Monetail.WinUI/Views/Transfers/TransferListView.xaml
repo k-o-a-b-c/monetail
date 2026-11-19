@@ -4,19 +4,28 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:presentation="using:Monetail.Windows.Presentation.Transfers"
     IsTabStop="False" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-    <Grid RowSpacing="8">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+    <Grid RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="1" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
         <Grid ColumnSpacing="8">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <TextBlock Text="振替" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Bottom" AutomationProperties.HeadingLevel="Level2"/>
-            <TextBox x:Name="TransferNameSearch" Grid.Column="1" Header="振替名" PlaceholderText="部分一致で検索" Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" KeyDown="TransferTextKeyDown" AutomationProperties.AutomationId="TransferNameSearch"/>
-            <Button x:Name="TransferSearchButton" Grid.Column="2" Content="検索" Command="{x:Bind ViewModel.SearchCommand, Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.Name="振替名で検索" AutomationProperties.AutomationId="TransferSearchButton"/>
-            <Button x:Name="TransferReturnToStart" Grid.Column="3" Content="先頭に戻る" Command="{x:Bind ViewModel.ReturnToStartCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.IsFocused), Mode=OneWay}" VerticalAlignment="Bottom" AutomationProperties.AutomationId="TransferReturnToStart"/>
-            <Button x:Name="TransferRegisterPlaceholder" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}" Grid.Column="4" Content="＋ 登録" VerticalAlignment="Bottom" AutomationProperties.Name="振替の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="振替" Style="{ThemeResource SubtitleTextBlockStyle}" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level2"/>
+            <Button x:Name="TransferReturnToStart" Grid.Column="1" Content="先頭に戻る" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Command="{x:Bind ViewModel.ReturnToStartCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.IsFocused), Mode=OneWay}"
+                    AutomationProperties.AutomationId="TransferReturnToStart"/>
+            <Button x:Name="TransferRegisterPlaceholder" Grid.Column="2" Content="＋ 登録" Command="{x:Bind ViewModel.RegisterCommand, Mode=OneWay}"
+                    AutomationProperties.Name="振替の登録" AutomationProperties.AutomationId="TransferRegisterPlaceholder"/>
         </Grid>
-        <ContentControl Grid.Row="1" Content="{x:Bind OpeningContent, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
+        <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
         <Grid Grid.Row="2">
-            <ListView x:Name="TransferList" DoubleTapped="TransferDoubleTapped" SelectionMode="Single" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}" HorizontalContentAlignment="Stretch"
+            <ListView x:Name="TransferList" SelectionMode="Single" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}" HorizontalContentAlignment="Stretch"
                       ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto" AutomationProperties.Name="振替一覧" AutomationProperties.AutomationId="TransferList">
                 <ListView.Header>
                     <Grid MinWidth="1000" Padding="12,8" ColumnSpacing="12">
@@ -59,6 +68,10 @@
                 <TextBlock x:Name="TransferInitialError" Text="{x:Bind ViewModel.ErrorText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                 <Button x:Name="TransferInitialRetry" Content="再試行" Command="{x:Bind ViewModel.RetryCommand, Mode=OneWay}" AutomationProperties.AutomationId="TransferInitialRetry"/>
             </StackPanel>
-        </Grid>
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Padding="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="400"
+                        Visibility="{x:Bind OpeningContent.Visibility, Mode=OneWay}">
+                    <ContentControl Content="{x:Bind OpeningContent, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
+                </Border>
+            </Grid>
     </Grid>
 </UserControl>
