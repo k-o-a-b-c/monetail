@@ -4,7 +4,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Monetail.WinUI.Views;
 using Monetail.Windows.Presentation.Lists;
 using Windows.Graphics;
@@ -58,8 +57,16 @@ public partial class App
         var continuations = 0;
         var canRegister = false;
         var register = new AsyncRelayCommand(() => Task.CompletedTask, () => canRegister);
-        state.RetryCommand = new AsyncRelayCommand(() => { retries++; return Task.CompletedTask; });
-        state.ContinueCommand = new AsyncRelayCommand(() => { continuations++; return Task.CompletedTask; });
+        state.RetryCommand = new AsyncRelayCommand(() =>
+        {
+            retries++;
+            return Task.CompletedTask;
+        });
+        state.ContinueCommand = new AsyncRelayCommand(() =>
+        {
+            continuations++;
+            return Task.CompletedTask;
+        });
         var opening = new TextBlock { Text = "組込確認：編集開始", Visibility = Visibility.Collapsed };
         var footer = new RecordListFooter { AutomationPrefix = "Balance", State = state, ErrorText = "組込確認：追加取得失敗" };
         var list = new ListView { Footer = footer };
