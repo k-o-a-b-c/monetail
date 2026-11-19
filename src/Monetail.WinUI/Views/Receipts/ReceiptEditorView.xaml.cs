@@ -155,8 +155,8 @@ public sealed partial class ReceiptEditorView : UserControl
                     text.Select(start, length);
             }
             foreach (var (viewer, x, y) in scrolls)
-            if (viewer.IsLoaded)
-                viewer.ChangeView(x, y, null, true);
+                if (viewer.IsLoaded)
+                    viewer.ChangeView(x, y, null, true);
             SuppressCompletion(false);
         });
     }
