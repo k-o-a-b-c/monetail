@@ -26,6 +26,14 @@ WinUIでは親情報コントロールの検索を新Viewの名前スコープ�
 
 初回ソース`075b912`の[Tests 44485583848](https://github.com/k-o-a-b-c/monetail/actions/runs/44485583848)は成功。[Clientジョブ135428211417](https://github.com/k-o-a-b-c/monetail/actions/runs/44485583848/job/135428211417)でClient全1,194件・Presentation全143件、[Windowsジョブ135428212248](https://github.com/k-o-a-b-c/monetail/actions/runs/44485583848/job/135428212248)で製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/765確認、個別3シナリオ・選択一覧/不正指定/計測/スクリーンショットが成功した。科目/明細の実装済み機能、親情報操作19・基本編集7・明細33・メモ26・計算18/税取得5、レシート401復帰30と振替/管理画面も含む。保存ボタンは無効のままで、実POST/PUT/DELETEを画面から確認した意味ではない。
 
+最終ソース`5936c83`の[Tests 44486741689・attempt 1](https://github.com/k-o-a-b-c/monetail/actions/runs/44486741689/attempts/1)ではClient全1,194件・Presentation全143件が成功。Windowsは専用9シナリオが成功した後、既存全画面側が120秒上限に達した。アーティファクトの記録済み26シナリオは全成功で、receipt-tax-loading中までUI Invokeが復帰し、app/runtimeエラー記録は空だった。原因は未特定で、上限・期待値・製品コードを変えずWindowsジョブだけを同じソースで再実行した。単に再実行成功を根本解決とは扱わない。
+
+[同runのattempt 2](https://github.com/k-o-a-b-c/monetail/actions/runs/44486741689/attempts/2)は既存`input-controls`（InputScenario.cs:57）で日付正規化が未完了のため失敗した（フォーカスは保存ボタン、保存0回、foreground=True）。レシートViewを使わない独立したWindow/DateInputBox/FormKeyboardの試験で、当該コードと共通入力には変更がない。専用9シナリオは再び成功。原因を確定・修正したとは扱わず、判定を変えずに同じWindowsジョブを再検証した。
+
+同じ最終ソースの[attempt 3](https://github.com/k-o-a-b-c/monetail/actions/runs/44486741689/attempts/3)と[Windowsジョブ135438192776](https://github.com/k-o-a-b-c/monetail/actions/runs/44486741689/job/135438192776)で両x64 Releaseビルド（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/765確認、個別3シナリオ・不正指定/計測/スクリーンショットが成功した。最終ソースのClient/Presentation成功も含めTests全体が成功。新規警告なし、文書ローカルリンク218件・移管32要素の静的属性/AutomationId不変、対象書式検査・git diff --checkも確認した。
+
+実Windowsでの手動操作、物理IME/タッチ/高DPI/スクリーンリーダーと実API接続は未検証。今回の変更にAPI/DB/Client/旧Windows・外部ライブラリ・テスト基盤の変更はなく、影響外はCI選択/fingerprintの成功記録を再利用する。
+
 ## 振替編集の書込状態の単一所有 第2段階（PR #212）
 
 [TransferEditorWriteStateTests](Monetail.Windows.Presentation.Tests/TransferEditorWriteStateTests.cs)へ11ケースを追加。保留要求/スナップショットの同一参照、requestId/旧revision、送信中/結果不明/確定401・連続401/明示再試行、確定エラー後の別要求、request_conflictの書込停止、409 latest非自動採用、成功後の一覧調整用値、削除要求、二重破棄、Windowコンテキストによる抑止と状態通知/Command実行可否を確認する。入力値やEditor/Draftをコピーせず、通知/認証復帰だけでは操作要求やAPI読取/送信を発生させない。
