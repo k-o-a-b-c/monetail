@@ -48,7 +48,7 @@ public partial class App
         var balanceCard = cards.Single(b => Grid.GetRow(b) == 2 && Grid.GetColumn(b) == 1);
         Check(Grid.GetColumnSpan(receiptCard) == 2 && Math.Abs(receiptCard.ActualHeight / transferCard.ActualHeight - 1.5) < 0.02 && Math.Abs(transferCard.ActualWidth / balanceCard.ActualWidth - 2) < 0.02,
             $"記録ホームは全幅上段60%・下段40%、振替2/3と残高1/3: receipt={receiptCard.ActualWidth}x{receiptCard.ActualHeight}, transfer={transferCard.ActualWidth}x{transferCard.ActualHeight}, balance={balanceCard.ActualWidth}x{balanceCard.ActualHeight}");
-        await Settle(); Check(filter.ScrollableWidth < 1 && filter.ComputedHorizontalScrollBarVisibility == Visibility.Collapsed, "通常幅の共通フィルターは不要な横スクロールバーを表示しない");
+        await Settle(); Check(filter.ScrollableWidth > 0 && Find<StackPanel>(root, "RecordFilterRow").Orientation == Orientation.Horizontal, "キーワード追加後も全共通フィルターを1行に配置し、幅不足は横スクロールで操作する");
         window!.AppWindow.ResizeClient(new SizeInt32(760, 620)); await Settle();
         Check(filter.ScrollableWidth > 0 && Find<StackPanel>(root, "RecordFilterRow").Orientation == Orientation.Horizontal && owner.Visibility == Visibility.Visible && payment.Visibility == Visibility.Visible,
             "狭幅でも全項目を1行のまま維持しフィルター内だけ横スクロール");
