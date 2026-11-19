@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Windowing;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Ledgers;
@@ -158,7 +159,27 @@ public partial class App
         var saved = server.Rows.Values.Single(); Check(saved.Amount == 1000 && saved.Memo == " " && saved.Name == " ATM " && server.Writes.Count == 1, "振替POSTは入力通知を処理してからTrimせず現在の6項目を送り201空本文とLocationから保存行へ戻る");
         Check(((Monetail.Windows.Presentation.Transfers.TransferListItem)Find<ListView>(root, "TransferList").SelectedItem).Transfer.TransferId == saved.TransferId, "登録成功後は保存行を選択する");
         Find<ListView>(root, "TransferList").SelectedIndex = 0; await Settle(); Check(server.Details == 0, "振替の単一選択は詳細GETしない");
-        await DoubleClickTransfer(root); await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded);
+        var listBeforeDoubleClick = Find<ListView>(root, "TransferList");
+        var containerBeforeDoubleClick = listBeforeDoubleClick.ContainerFromItem(listBeforeDoubleClick.SelectedItem);
+        var priorMap = containerBeforeDoubleClick is not null ? listBeforeDoubleClick.ItemFromContainer(containerBeforeDoubleClick) : null;
+        var doubleTapTrace = "no event";
+        listBeforeDoubleClick.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler((_, args) =>
+        {
+            var steps = new List<string>();
+            for (var element = args.OriginalSource as DependencyObject; element is not null && !ReferenceEquals(element, listBeforeDoubleClick); element = VisualTreeHelper.GetParent(element))
+            {
+                var framework = element as FrameworkElement;
+                steps.Add(element.GetType().Name + "(data=" + framework?.DataContext?.GetType().Name + ",content=" + (element as ListViewItem)?.Content?.GetType().Name +
+                    ",item=" + (element is ListViewItem item ? listBeforeDoubleClick.ItemFromContainer(item)?.GetType().Name : "n/a") + ")");
+            }
+            doubleTapTrace = string.Join(" > ", steps);
+        }), true);
+        await DoubleClickTransfer(root);
+        try { await Wait(() => TransferEditing is not null && Find<Button>(root, "TransferSave").IsLoaded); }
+        catch (TaskCanceledException error)
+        {
+            throw new InvalidOperationException($"振替ダブルクリックが編集画面へ接続されない: mapped={ReferenceEquals(priorMap, listBeforeDoubleClick.SelectedItem)}; trace={doubleTapTrace}; details={server.Details}; currentModel={Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel is not null}; editor={TransferEditing is not null}", error);
+        }
         Check(server.Details == 1, "振替行の実ダブルクリックは詳細GETを1回だけ実行する");
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Revision == saved.Revision && Equals(Find<Button>(root, "TransferSave").Content, "更新"), "既存編集はID・版・保存値と更新操作を復元");
         Check(Find<Button>(root, "TransferSave").IsEnabled, "業務値が未変更でも更新の確認・無変更PUTを利用可能");
