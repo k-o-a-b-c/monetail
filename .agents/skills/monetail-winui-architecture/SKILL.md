@@ -1,6 +1,6 @@
 ---
 name: monetail-winui-architecture
-description: "monetailのWinUI 3画面追加・遷移・オンデマンド生成・MainWindow分離・構造レビュー用。API・DBのみの変更には適用しない。"
+description: "monetailのWinUI 3画面追加・遷移・オンデマンド生成・MVVM責務分離・MainWindow分離・構造レビュー用。API・DBのみの変更には適用しない。"
 ---
 
 # monetail WinUIの画面構成と責務分離
@@ -12,10 +12,18 @@ description: "monetailのWinUI 3画面追加・遷移・オンデマンド生成
 | 所有者 | 担当すること |
 | --- | --- |
 | `MainWindow` | 共通ナビゲーション、家計簿・アカウント切替、画面間の未保存離脱確認、Windowの寿命 |
-| 画面の`UserControl`/`Page` | その画面のXAML、表示、選択、入力・フォーカス/IMEと操作イベント |
-| `Monetail.Windows.Client` | 既存の業務モデル、API通信、認証・権限、保存、競合と復旧の契約 |
+| 画面の`UserControl`/`Page`（View） | XAML、データバインド、コントロール固有の入力・選択・フォーカス/IME・イベント接続 |
+| `Monetail.Windows.Presentation`等のViewModel | 表示用の状態投影、入力可否・検証結果の表示、Command、画面内の非同期表示状態。既存Clientの状態を正本として利用 |
+| `Monetail.Windows.Client` | 既存の業務モデル・編集下書き、API通信、認証・権限、保存、競合と復旧の契約 |
 
 境界は**分離先の目標**であり、既存コードがこの構成になっているという意味ではない。既存Clientの下書き・更新版・401復帰などの状態をWinUIへコピーしない。画面固有の生入力・表示状態だけは必要に応じてViewが保持する。
+
+## MVVMの適用基準
+
+- **MVVMを基本とする**：一覧・入力フォームなど表示状態や操作が複雑な画面は、既存の`Monetail.Windows.Presentation`と`CommunityToolkit.Mvvm`を優先してViewModelに表示状態・Commandを集約する。単純な表示・ダイアログ・UIイベントのためだけにViewModelを新設しない。既存画面は対象境界の移行時に適用する。
+- **Viewに残す処理**：`Page`/`UserControl`のコードビハインドはコントロール初期化、フォーカス・IME・文字選択・スクロール、WinUIイベントやダイアログ表示の調停などUI固有処理を担当してよい。業務判断・保存処理や一覧データの独自再計算をViewへ置かない。
+- **ViewModelの独立性**：表示用の投影・入力可否・検証結果・Commandを扱い、`Window`/`Page`/`TextBox`等のWinUIコントロールや他画面を参照しない。API・認証・編集下書き・更新版・競合状態の正本は既存Clientに残し、ViewModelへ複製しない。既存ViewModelを優先し、同じ状態をViewとViewModelの両方で管理しない。
+- **バインディングと複雑化の抑制**：既知の型は原則`{x:Bind}`を使い、動的表示は適切な`Mode`と変更通知を指定する。UI固有の入力動作までCommand化・バインド化することを目的にしない。新規ViewModel、Service、DI、変換層が必要なら、既存実装で代替できない理由を説明する。
 
 ## 画面構成・生成・寿命の原則
 
@@ -30,9 +38,9 @@ description: "monetailのWinUI 3画面追加・遷移・オンデマンド生成
 
 1. 対象の`MainWindow.xaml`領域、partial、Clientモデル、対応スモークテストから、画面の生成時点・遷移経路・内部`x:Name`参照・状態・イベント購読の所有者を確認する。
 2. 分離する責務とWindow側に残す責務を決める。`partial`ファイルの移動だけでは分離ではない。Viewから`MainWindow`や他画面の内部コントロールを参照しない。
-3. Viewの公開面を**必要な表示データと操作通知**に限定する（`Views/LedgerChoiceView`を一例とする）。Window/Client全体を渡さない。ViewModel、Service、DI、新イベント層は必要性を説明できる場合に限る。MVVM化そのものを目的にしない。
+3. Viewの公開面を**必要な表示データと操作通知**に限定する（`Views/LedgerChoiceView`を一例とする）。Window/Client全体を渡さない。複雑な画面では既存ViewModelの再利用を優先し、Viewの業務処理・ViewModelのWinUIコントロール依存・編集状態の二重管理がないか点検する。単純なUI処理を機械的にMVVM化しない。
 4. **1 PRで1画面境界を基本**とし、共通Shell/`Frame`導入は独立した工程にする。構造変更に無関係な画面仕様変更を混ぜず、未保存保護、401復帰、競合、選択・キー操作・フォーカス等の既存契約を維持する。
 5. PRでは生成前の未訪問画面が存在しないこと、通常の離脱・再訪、未保存確認の取消、401復帰中の一時保持と終了、古い非同期応答の混入防止、イベント解放を対象に応じて検証する。既存スモークを含む実施可能なテストは`tests/README.md`に従い、未実施のUI/寿命検証を明示する。
-6. PRでは削減した直接依存、増減したフィールド・フラグ・イベント・抽象化、状態重複とコード総量を比較する。行数の減少だけで成功としない。自動構造検査が導入されるまではレビューで新規違反を止め、**CIが未検出の項目を合格済みと報告しない**。
+6. PRではMVVMの役割分担、削減した直接依存、増減したフィールド・フラグ・イベント・抽象化、状態重複とコード総量を比較する。行数の減少だけで成功としない。自動構造検査が導入されるまではレビューで新規違反を止め、**CIが未検出の項目を合格済みと報告しない**。
 
 分離の検討順序は[`docs/architecture-winui.md`](../../../docs/architecture-winui.md#winuiの責務棚卸しと段階的分離検討順序未実装)に置き、このSkillに複製しない。
