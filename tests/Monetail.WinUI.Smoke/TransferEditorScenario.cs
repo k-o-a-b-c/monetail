@@ -8,6 +8,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Windowing;
 using Monetail.WinUI.Input;
+using Monetail.WinUI.Views.Transfers;
+using Monetail.Windows.Presentation.Transfers;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transfers;
 using Windows.Graphics;
@@ -17,6 +19,8 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
+    private TransferEditorView TransferView => ((FrameworkElement)window!.Content).FindName("TransferEntry") as TransferEditorView
+        ?? throw new InvalidOperationException("振替入力Viewがありません。");
     private TransferEditorState? TransferEditing => (TransferEditorState?)typeof(MainWindow).GetField("transferEditor", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
     private static async Task FocusTransferControl(Control target)
     {
@@ -60,8 +64,8 @@ public partial class App
     {
         Find<TimeInputBox>(root, "TransferTime").Text = "12:34:56"; await TypeTransferName(root, name);
         var from = Find<ComboBox>(root, "TransferFrom"); var to = Find<ComboBox>(root, "TransferTo");
-        from.SelectedItem = from.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.ActiveId);
-        to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.OtherActiveId);
+        from.SelectedItem = from.Items.Cast<Monetail.Windows.Presentation.Transfers.TransferPaymentChoice>().Single(c => c.Id == masters.ActiveId);
+        to.SelectedItem = to.Items.Cast<Monetail.Windows.Presentation.Transfers.TransferPaymentChoice>().Single(c => c.Id == masters.OtherActiveId);
         Find<TextBox>(root, "TransferAmount").Text = "1000"; await Wait(() => Find<Button>(root, "TransferSave").IsEnabled);
         await FocusTransferControl(Find<TextBox>(root, "TransferAmount"));
     }
@@ -108,7 +112,7 @@ public partial class App
         await editorWindow.OpenTransferEditorAsync(null); await FillTransfer(root, masters);
         var editor = TransferEditing ?? throw new InvalidOperationException("振替の編集状態がありません。");
         var to = Find<ComboBox>(root, "TransferTo");
-        to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.ActiveId);
+        to.SelectedItem = to.Items.Cast<Monetail.Windows.Presentation.Transfers.TransferPaymentChoice>().Single(c => c.Id == masters.ActiveId);
         var error = Find<TextBlock>(root, "TransferToError"); var amount = Find<TextBox>(root, "TransferAmount");
         await Wait(() => error.Visibility == Visibility.Visible && error.ActualHeight > 0);
         Check(editor.Draft.From.PaymentMethodId == masters.ActiveId && editor.Draft.To.PaymentMethodId == masters.ActiveId &&
@@ -117,7 +121,7 @@ public partial class App
         Check(errorTop >= to.TransformToVisual(root).TransformPoint(new(0, to.ActualHeight)).Y && errorTop < amount.TransformToVisual(root).TransformPoint(new(0, 0)).Y, "同一支払方法のエラーを振替先の直下・金額より前に配置");
         await FocusTransferControl(amount); await PressReceiptKey(0x0D, 0x11); await Settle();
         Check(!Find<Button>(root, "TransferSave").IsEnabled && server.Writes.Count == 0 && !Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded, "同一支払方法は保存ボタンとCtrl+Enterから送信できない");
-        to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == masters.OtherActiveId);
+        to.SelectedItem = to.Items.Cast<Monetail.Windows.Presentation.Transfers.TransferPaymentChoice>().Single(c => c.Id == masters.OtherActiveId);
         await Wait(() => error.Visibility == Visibility.Collapsed && Find<Button>(root, "TransferSave").IsEnabled);
         Check(editor.Draft.From.PaymentMethodId == masters.ActiveId && editor.Draft.To.PaymentMethodId == masters.OtherActiveId && error.Text == "", "振替先の修正で専用エラーを消し、両選択と保存可否を反映");
         var memo = Find<TextBox>(root, "TransferMemo");
@@ -148,6 +152,15 @@ public partial class App
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); var editorWindow = window ?? throw new InvalidOperationException("振替入力のWindowがありません。"); await InvokeAsync(() => Find<Button>(root, "TransferRegisterPlaceholder"));
         await Wait(() => TransferEditing is not null && Find<AutoSuggestBox>(root, "TransferName").IsLoaded);
+        var editorView = Find<TransferEditorView>(root, "TransferEntry");
+        var presentation = editorView.ViewModel ?? throw new InvalidOperationException("振替編集VMがありません。");
+        Check(root.FindName("TransferDate") is null && ReferenceEquals(editorView.FindName("TransferDate"), Find<DateInputBox>(root, "TransferDate")) &&
+            ReferenceEquals(presentation.Editor, TransferEditing) && ReferenceEquals(presentation.Editor.Draft, TransferEditing!.Draft) && !editorView.IsTabStop,
+            "振替入力はViewの名前スコープへ分離し、同じ編集モデルと下書きを使う");
+        Check(ReferenceEquals(Find<Button>(root, "TransferSave").Command, presentation.SaveCommand) &&
+            ReferenceEquals(Find<Button>(root, "TransferReuse").Command, presentation.ReuseCommand) &&
+            ReferenceEquals(Find<Button>(root, "TransferDelete").Command, presentation.DeleteCommand),
+            "保存・流用・削除は同じVMの型付きCommandでWindowへ通知する");
         Check(!TransferEditing!.HasUnsavedChanges && TransferEditing.Draft.Amount is null && TransferEditing.Draft.From.PaymentMethodId is null && TransferEditing.IsMidnight == true, "振替新規は当日0時・支払方法と金額未入力で未変更");
         Check(Find<Grid>(root, "RecordContent").Visibility == Visibility.Collapsed && Find<Grid>(root, "TransferEditorPage").Visibility == Visibility.Visible && Find<Button>(root, "TransferDelete").Visibility == Visibility.Collapsed, "振替専用画面は3一覧を置き換え共通ヘッダーと左上戻るを保持");
         await FillTransfer(root, masters, " ATM "); var input = TransferEditing;
@@ -156,7 +169,7 @@ public partial class App
         Check(!Find<Button>(root, "TransferSave").IsEnabled && TransferEditing == input && input.Draft.UnresolvedAmountText == "2147483648", "Int32超過の生入力を保持し保存不可");
         Find<TextBox>(root, "TransferAmount").Text = "1000"; Find<TextBox>(root, "TransferMemo").Text = " ";
         await Wait(() => TransferEditing!.Draft.Amount == 1000 && TransferEditing.Draft.Memo == " " && Find<Button>(root, "TransferSave").IsEnabled);
-        var keyboard = (FormKeyboard)typeof(MainWindow).GetField("transferKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+        var keyboard = (FormKeyboard)typeof(Monetail.WinUI.Views.Transfers.TransferEditorView).GetField("transferKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(TransferView)!;
         await FocusTransferControl(Find<TextBox>(root, "TransferMemo")); await keyboard.HandleEnter(false, false)!;
         try { await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<Button>(root, "TransferSave"))); }
         catch (TaskCanceledException error) { throw new InvalidOperationException($"メモEnter後: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; saveEnabled={Find<Button>(root, "TransferSave").IsEnabled}; composing={keyboard.IsComposing}", error); }

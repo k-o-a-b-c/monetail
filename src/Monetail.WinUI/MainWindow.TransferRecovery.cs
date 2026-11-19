@@ -1,8 +1,6 @@
 using System.Net;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transfers;
@@ -12,11 +10,10 @@ namespace Monetail.WinUI;
 
 public sealed partial class MainWindow
 {
-    // 入力値は元のモデル/コントロールに残す。ここには復帰先と表示位置だけを保持する。
-    private sealed record TransferAuthentication(Guid AccountId, Guid LedgerId, string ApiOrigin,
-        Control? Focus, int SelectionStart, int SelectionLength, double ScrollOffset);
+    // 入力値は元のモデル/コントロールに残す。ここには復帰先だけを保持し、フォーカスと表示位置はViewへ任せる。
+    private sealed record TransferAuthentication(Guid AccountId, Guid LedgerId, string ApiOrigin);
     private TransferAuthentication? transferAuthentication;
-    private bool transferAwaitingLogin, transferMastersLoading, transferMastersFailed, transferRetryAfterLogin, transferRecoveryLedgerReady, transferRestoringRecoveryView;
+    private bool transferAwaitingLogin, transferMastersLoading, transferMastersFailed, transferRetryAfterLogin, transferRecoveryLedgerReady;
 
     // 表示切替と分けて退避を決める。入力/要求は既存オブジェクトに保持する。
     private bool SuspendTransferForAuthentication()
@@ -35,30 +32,19 @@ public sealed partial class MainWindow
         if (transferAuthentication is not { } context || context.AccountId != account.AuthUserId ||
             context.LedgerId != currentLedger.LedgerId || context.ApiOrigin != connection.Endpoint.Value)
         {
-            var focus = FocusManager.GetFocusedElement(WorkspaceRoot.XamlRoot) as Control;
-            transferAuthentication = new(account.AuthUserId, currentLedger.LedgerId, connection.Endpoint.Value,
-                focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0, TransferInputScroller.VerticalOffset);
+            TransferEntry.RememberPosition();
+            transferAuthentication = new(account.AuthUserId, currentLedger.LedgerId, connection.Endpoint.Value);
         }
         transferAwaitingLogin = true; transferRecoveryLedgerReady = false; transferMastersFailed = false;
         transferRetryAfterLogin |= transferPending is not null;
-        TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = true;
-        CancelTransferSuggestions(); RestoreTransferTypedName(); transferSuggestions.Clear(); TransferName.ItemsSource = null;
-        transferAutofillCancellation?.Cancel(); transferAutofillKey = null;
+        TransferEntry.Suspend();
         ReceiptListModel?.Suspend();
         TransferListModel?.Suspend();
         connection.Masters.Clear();
         RenderTransferEditor();
     }
 
-    private void DiscardTransferAuthentication()
-    {
-        ResetTransferEditor();
-        transferRendering = true;
-        TransferDate.Text = TransferTime.Text = TransferAmount.Text = TransferMemo.Text = TransferName.Text = TransferNameReadOnly.Text = "";
-        TransferFrom.ItemsSource = TransferTo.ItemsSource = null; TransferFromReadOnly.Text = TransferToReadOnly.Text = "";
-        transferRendering = false;
-        TransferInputScroller.ChangeView(null, 0, null, true);
-    }
+    private void DiscardTransferAuthentication() => ResetTransferEditor();
 
     private async Task<bool> ResumeTransferEditAsync(CancellationToken token)
     {
@@ -74,7 +60,7 @@ public sealed partial class MainWindow
         return true;
     }
 
-    private async void RetryTransferMasters(object sender, RoutedEventArgs args)
+    private async Task RetryTransferMastersAsync()
     {
         if (transferMastersFailed && !transferMastersLoading && transferAuthentication is { } context)
             await LoadTransferRecoveryMastersAsync(context, lifetime.Token);
@@ -136,21 +122,9 @@ public sealed partial class MainWindow
     private void RestoreTransferRecoveryView(TransferAuthentication context)
     {
         var editor = transferEditor;
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
-        {
-            if (closed || transferAwaitingLogin || editor is null || !ReferenceEquals(editor, transferEditor) || HomePage.Visibility != Visibility.Visible || account?.AuthUserId != context.AccountId || connection.Endpoint?.Value != context.ApiOrigin || currentLedger?.LedgerId != context.LedgerId) return;
-            TransferInputScroller.UpdateLayout();
-            transferRestoringRecoveryView = true;
-            try
-            {
-                if (context.Focus is { IsLoaded: true, IsEnabled: true, Visibility: Visibility.Visible } focus)
-                {
-                    focus.Focus(FocusState.Programmatic);
-                    if (focus is TextBox text) text.Select(context.SelectionStart, context.SelectionLength);
-                }
-                TransferInputScroller.ChangeView(null, context.ScrollOffset, null, true);
-            }
-            finally { transferRestoringRecoveryView = false; TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false; }
-        });
+        TransferEntry.RestorePosition(() => !closed && !transferAwaitingLogin && editor is not null &&
+            ReferenceEquals(editor, transferEditor) && HomePage.Visibility == Visibility.Visible &&
+            account?.AuthUserId == context.AccountId && connection.Endpoint?.Value == context.ApiOrigin &&
+            currentLedger?.LedgerId == context.LedgerId);
     }
 }

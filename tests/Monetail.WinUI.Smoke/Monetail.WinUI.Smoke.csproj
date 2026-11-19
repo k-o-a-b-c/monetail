@@ -32,6 +32,8 @@
     <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml" Link="Views/Transfers/TransferListView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs" Link="Views/Transfers/TransferListView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Transfers.cs" Link="MainWindow.Transfers.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml" Link="Views/Transfers/TransferEditorView.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml.cs" Link="Views/Transfers/TransferEditorView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferEditor.cs" Link="MainWindow.TransferEditor.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSave.cs" Link="MainWindow.TransferSave.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferRecovery.cs" Link="MainWindow.TransferRecovery.cs" />

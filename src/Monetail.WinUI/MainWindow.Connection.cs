@@ -363,7 +363,9 @@ public sealed partial class MainWindow
         closed = true;
         transferAuthentication = null; transferEditor = null; transferPending = null; transferPendingSnapshot = null;
         ReceiptListModel?.Dispose();
-        CancelTransferOpening(); CancelTransferSuggestions(); transferAutofillCancellation?.Cancel();
+        CancelTransferOpening();
+        TransferEntry.ViewModel = null;
+        TransferEntry.CancelRequests();
         TransferListModel?.Dispose(); recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose();
         ResetReceiptEditor();
         connection.Masters.Changed -= ReceiptMasterChanged;

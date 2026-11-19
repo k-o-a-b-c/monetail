@@ -330,15 +330,43 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 ## 振替の専用入力・保存（第3工程）
 
-`MainWindow.TransferEditor.cs`で`TransferEditorState`／`TransferDraft`を表示し、共通の日付・時刻と`FormKeyboard`を利用する。`MainWindow.TransferSuggestions.cs`は標準`AutoSuggestBox`の入力・プレビュー・確定を分け、画面内候補キャッシュ、デバウンス、IME保護、旧応答破棄、モデルの入力由来に従った補完を行う。既存内部TextBoxにも共通IME監視を登録する。
+`Views/Transfers/TransferEditorView`が`TransferEditorState`／`TransferDraft`を表示し、共通の日付・時刻と`FormKeyboard`を利用する。標準`AutoSuggestBox`の入力・プレビュー・確定、画面内候補キャッシュ、デバウンス、IME保護、旧応答破棄、モデルの入力由来に従った補完をViewが扱う。既存内部TextBoxにも共通IME監視を登録する。API実行と家計簿/本人の照合は`MainWindow.TransferSuggestions.cs`の読取delegateへ残す。
 
 `MainWindow.TransferSave.cs`は`TransferWriteRequest`を一操作で一度だけ作成し、結果不明時は同じオブジェクトを保持する。保存後の共通条件調整は`RecordSearchState.ApplySavedTransfer`、最大300件の探索とフォーカス開始／404の1回復旧は`TransferListViewModel`で管理する。API保存と一覧再取得は区別し、保存後の一覧取得失敗で再度保存しない。新規と既存に応じた確認・保存不可時の離脱保護を共通ナビゲーションに接続する。
 
-第4-Aでは`MainWindow.TransferSave.cs`が409 `revision_conflict`の2択を表示し、破棄確認後の`TransferEditorState.AdoptLatest(true)`で通常編集へ戻す。`RenderTransferEditor`は競合中のコピー可能な読み取り専用表示と［最新を読み込む］を維持する。応答latestを使い、採用時の詳細GET・自動再保存は行わない。`request_conflict`やアクセス喪失・結果不明を採用対象にしない。
+第4-Aでは`MainWindow.TransferSave.cs`が409 `revision_conflict`の2択を表示し、破棄確認後の`TransferEditorState.AdoptLatest(true)`で通常編集へ戻す。`RenderTransferEditor`はViewModelへ表示更新を通知し、Viewが競合中のコピー可能な読み取り専用表示と［最新を読み込む］を維持する。応答latestを使い、採用時の詳細GET・自動再保存は行わない。`request_conflict`やアクセス喪失・結果不明を採用対象にしない。
 
-第4-Bの`MainWindow.TransferRecovery.cs`は入力値のスナップショットを作らず、元のWindow/コントロール/編集モデル/不変要求をそのまま保持する。`NavigateToLogin`で編集破棄を行わない再認証経路と、識別子・フォーカス/表示位置だけの復帰情報を使う。同じ本人/接続先で元家計簿へ復帰し、人物/支払方法を再取得する。マスタ失敗の一時読み取り専用はモデルの恒久的な権限拒否と分け、再試行後に保存済み両側のID（既存baselineの読み取り専用参照）も使って権限を再評価する。別本人/接続先・終了時は保持状態を破棄し、ディスク保存しない。
+第4-Bの`MainWindow.TransferRecovery.cs`は入力値のスナップショットを作らず、元のWindow/コントロール/編集モデル/不変要求をそのまま保持する。`NavigateToLogin`で編集破棄を行わない再認証経路と、Windowの識別子とViewのフォーカス/表示位置だけの復帰情報を使う。同じ本人/接続先で元家計簿へ復帰し、人物/支払方法を再取得する。マスタ失敗の一時読み取り専用はモデルの恒久的な権限拒否と分け、再試行後に保存済み両側のID（既存baselineの読み取り専用参照）も使って権限を再評価する。別本人/接続先・終了時は保持状態を破棄し、ディスク保存しない。
 
 業務・復旧の正本と、残高連動で未完成の範囲は[第3工程の実装境界](ledger-transfer-ui.md#第3工程の実装境界)。API／DB契約、既存レシートの保存機能は変更していない。
+
+## 振替編集画面のMVVM分離（第1段階）
+
+| 所有者 | 責務 |
+| --- | --- |
+| `Views/Transfers/TransferEditorView.xaml/.cs` | 専用入力のXAML、実コントロール・未確定の生文字列・IME/Enter、候補プレビュー/確定・表示キャッシュ/デバウンス/世代、選択肢の反映、フォーカス・文字選択・スクロール位置 |
+| `Presentation/Transfers/TransferEditorViewModel` | 同じEditor/Draftを読む表示・検証、支払方法候補/名称の投影、7 CommandとWindowへの操作要求、通知/エラー文。WinUI型やHTTP実装に依存しない |
+| `Windows.Client/Transfers/TransferEditorState`・`TransferDraft` | 入力値・未確定値・入力由来・ID/revision・変更判定・保存準備・競合latestの正本。複製しない |
+| `MainWindow.Transfer*.cs`・終了処理 | 画面遷移・コンテキスト・API実行、Window所有ダイアログ、未完了の不変要求とrequestId、保存/削除/再送・409/401の調整 |
+
+既存の`TransferEditorPage` Grid境界を残し、内部だけを同じWindow内のUserControlへ移す。x:Bind/INotifyPropertyChangedとCommunityToolkit.MvvmのCommandを使い、MainWindowは内部の24コントロールへ直接触れない。Viewの公開面はViewModelと外側ナビゲーションの補完取消判定の2プロパティ、Populate/入力同期・確定/候補反映/ダイアログ中の補完抑止/要求中断/認証退避/破棄/位置記憶・復元/項目フォーカスの11操作（DP登録・コンストラクター除外）。UI型の実コントロールは公開しない。Windowに残すワークフローのためのUI寿命操作であり、今後の分離では呼出元ごと見直す。
+
+EditorはWindowが生成/破棄を調整し、ViewModelも**同じEditor/Draft参照**を使う。生入力は元のコントロールと既存Draftの未確定値へ保持し、全入力の再構築用スナップショットを追加しない。通信/認証/ダイアログ状態はWindowの既存13フラグが正本。`TransferEditorAvailability`の9 boolはdelegate経由で読む一時値であり、VMへ保存/同期する別の状態にはしない。通知/検証文や読み取り専用の名称はUI投影だけをObservablePropertyに持つ。
+
+401では同じView/VM/Editor/コントロールを非表示のまま維持する。本人・家計簿・接続先の照合はWindow、最初のフォーカス/文字選択/スクロール位置はViewが所有し、連続401で上書きしない。マスタ再取得では名称/候補だけを更新し、入力・入力由来・旧revisionを書き換えない。追加の詳細GET・自動保存/再送はない。別本人/接続先・終了時はVM参照を解除する。409の応答latest採用と確認ダイアログ、結果不明の同一要求再試行は既存のWindow/Client処理を維持する。
+
+| 計測（空行込み・生成物除外） | 基点main `541a236` | 分離後 |
+| --- | ---: | ---: |
+| MainWindow XAML / 全partial C# | 844 / 4,530行 | 808 / 4,232行 |
+| WinUI / Presentation / Client C#/XAML | 6,534 / 599 / 3,739行 | 6,776 / 791 / 3,739行 |
+| MainWindowから移管対象内部への直接参照（種類/出現数） | 24 / 139 | 0 / 0 |
+| 振替用明示フィールド MainWindow / View | 35 / 0 | 19 / 17 |
+| 同上の一時bool MainWindow / View | 22 / 0 | 13 / 9 |
+| 入力/ID/revision/変更判定の正本 | Editor/Draft各1 | 同じく各1 |
+
+総行数は434行増（View XAML51＋C#525、Presentation192を追加し、Window XAML/C#334行減）。MainWindowはViewの13公開メンバーへ24箇所で接続する。フィールドは振替の4 partial内のprivateインスタンス宣言を変数単位で数え、計算プロパティ・注入依存・イベント・生成Command/UIフィールド・DPは除外する。UIの9 boolを移管し、認証の識別子と表示位置の分離で保持参照が1つ増える。VMには表示投影7フィールドと取得済みマスタの同一DTO参照2つを持ち、入力値のコピーはない。VMのEditor参照/4 delegate、2通知と7生成Command、ViewのDP/外側判定delegateは別途増える依存であり、行数/全格納箇所の削減を成果とはしない。
+
+**後続に残すもの**：保存・削除・競合/認証・未保存離脱のワークフローとWindowの一時フラグ、APIコンテキストの照合、Window所有ダイアログ。候補取得の表示タイミング/キャッシュ/世代は実UI操作とともにViewに置き、Presentationへのさらなる分離は今回完了したとは扱わない。全面MVVM、汎用Service/DI/ナビゲーション基盤、API/DB変更は導入しない。旧WinFormsの入力順・保存/更新/流用/削除を照合し、単一Window・未選択/0時・候補/権限/401/409は新版の既存確定仕様を維持する。検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
 
 ## 画面表示・認証退避・編集破棄の責務（第1段階）
 

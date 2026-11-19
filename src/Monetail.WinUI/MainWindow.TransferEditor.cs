@@ -1,15 +1,11 @@
-using System.Globalization;
 using System.Net;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Authentication;
-using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transfers;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Presentation.Transfers;
 
 namespace Monetail.WinUI;
 
@@ -18,12 +14,11 @@ public sealed partial class MainWindow
     private TransferEditorState? transferEditor;
     private CancellationTokenSource? transferOpening;
     private Guid? transferOpenRetry;
-    private bool transferRendering, transferDialogOpen, transferLeaving, transferCloseApproved,
+    private bool transferDialogOpen, transferLeaving, transferCloseApproved,
         transferStopped, transferSending, transferUnknown,
         transferRestorePending, transferPreparingSave;
     private TransferWriteRequest? transferPending;
     private TransferSnapshot? transferPendingSnapshot;
-    private FormKeyboard transferKeyboard = null!;
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
@@ -37,32 +32,7 @@ public sealed partial class MainWindow
     private void InitializeTransferEditor()
     {
         WorkspaceRoot.Children.Remove(TransferConfirmationDialog);
-        transferKeyboard = new FormKeyboard(TransferEditorPage, TransferSave, () => SaveTransferAsync(false), TransferDate, TransferTime, TransferAmount, TransferMemo);
-        TransferName.Loaded += (_, _) =>
-        {
-            if (transferNameInputObserved || Descendant<TextBox>(TransferName) is not { } input)
-                return;
-            transferNameInputObserved = true;
-            transferKeyboard.ObserveInput(input);
-            input.TextCompositionStarted += (_, _) => transferNameCompositionPending = true;
-            input.TextCompositionEnded += (_, _) => DispatcherQueue.TryEnqueue(() =>
-            {
-                if (!transferKeyboard.IsComposing && transferNameCompositionPending)
-                {
-                    transferNameCompositionPending = false;
-                    _ = SearchTransferNamesAsync(true);
-                }
-            });
-        };
-        TransferName.RegisterPropertyChangedCallback(AutoSuggestBox.IsSuggestionListOpenProperty, (_, _) =>
-        {
-            if (TransferName.IsSuggestionListOpen || transferClosingSuggestions || transferRendering || transferEditor is null)
-                return;
-            RestoreTransferTypedName();
-            transferSuggestionsSuppressed = true;
-            CancelTransferSuggestions();
-        });
-        TransferDate.IsCancellationTarget = TransferTime.IsCancellationTarget = IsTransferLeaveTarget;
+        TransferEntry.IsCancellationTarget = IsTransferLeaveTarget;
         AppWindow.Closing += async (_, args) =>
         {
             if (transferAwaitingLogin)
@@ -80,14 +50,8 @@ public sealed partial class MainWindow
             }
         };
     }
-    private bool IsTransferLeaveTarget(DependencyObject? element)
-    {
-        for (; element is not null; element = VisualTreeHelper.GetParent(element))
-            if (ReferenceEquals(element, TransferBack) || ReferenceEquals(element, SettingsButton) ||
-                ReferenceEquals(element, RecordButton) || ReferenceEquals(element, LedgerSelector))
-                return true;
-        return false;
-    }
+    private bool IsTransferLeaveTarget(DependencyObject? element) => ReferenceEquals(element, SettingsButton) ||
+        ReferenceEquals(element, RecordButton) || ReferenceEquals(element, LedgerSelector);
     private async Task<bool> LeaveRecordEditorAsync() => await LeaveTransferEditorAsync() && await LeaveReceiptEditorAsync();
     internal async Task OpenTransferEditorAsync(Guid? id)
     {
@@ -124,6 +88,13 @@ public sealed partial class MainWindow
             transferEditor = saved is null ? TransferEditorState.Create(DateOnly.FromDateTime(DateTime.Now)) : TransferEditorState.Edit(saved);
             if (saved is not null && (!TransferEditorRules.CanUse(methods, saved.FromPaymentMethodId) || !TransferEditorRules.CanUse(methods, saved.ToPaymentMethodId)))
                 transferEditor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
+            var model = new TransferEditorViewModel(transferEditor, () => new(TransferFrozen, transferStopped,
+                transferSending, transferUnknown, TransferCanRetryWrite, transferMastersFailed, transferMastersLoading,
+                TransferCanAdoptLatest, transferDialogOpen),
+                paymentId => connection.Masters.PaymentName(ledger, paymentId), LoadTransferSuggestionsAsync, LoadTransferAutofillAsync);
+            model.ActionRequested += ExecuteTransferActionAsync;
+            model.AuthenticationRequired += StopTransferAuthentication;
+            TransferEntry.ViewModel = model;
             TransfersView.RememberPosition();
             ReceiptsView.RememberPosition();
             TransferListModel?.Suspend();
@@ -133,9 +104,8 @@ public sealed partial class MainWindow
             transferStopped = transferUnknown = false;
             transferPending = null;
             transferPendingSnapshot = null;
-            ResetTransferSuggestions();
             PopulateTransferEditor();
-            TransferDate.Focus(FocusState.Programmatic);
+            TransferEntry.FocusField("transactionAt");
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested)
         {
@@ -182,12 +152,9 @@ public sealed partial class MainWindow
     {
         transferAuthentication = null;
         transferAwaitingLogin = transferMastersLoading = transferMastersFailed = transferRetryAfterLogin = transferRecoveryLedgerReady = false;
-        TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = false;
         CancelTransferOpening();
-        ResetTransferSuggestions();
-        transferAutofillCancellation?.Cancel();
-        transferAutofillCancellation?.Dispose();
-        transferAutofillCancellation = null;
+        TransferEntry.ViewModel = null;
+        TransferEntry.Discard();
         transferEditor = null;
         transferPending = null;
         transferPendingSnapshot = null;
@@ -197,178 +164,37 @@ public sealed partial class MainWindow
     }
     private void PopulateTransferEditor()
     {
-        if (transferEditor is not { } state)
-            return;
-        transferRendering = true;
-        TransferEditorTitle.Text = state.IsExisting ? "振替の編集" : "振替の登録";
-        TransferDate.Text = DateTimeInput.FormatDate(state.Draft.TransactionDate);
-        TransferTime.Text = DateTimeInput.FormatTime(state.Draft.TransactionTime);
-        TransferName.Text = state.Draft.Name;
-        TransferAmount.Text = state.Draft.Amount?.ToString(CultureInfo.InvariantCulture) ?? "";
-        TransferMemo.Text = state.Draft.Memo ?? "";
-        TransferSave.Content = state.IsExisting ? "更新" : "登録";
-        TransferDelete.Visibility = TransferReuse.Visibility = state.IsExisting ? Visibility.Visible : Visibility.Collapsed;
-        TransferEditorNotice.IsOpen = false;
-        transferRendering = false;
-        RefreshTransferEditorChoices();
-        RenderTransferEditor();
+        TransferEntry.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
+        TransferEntry.Populate();
     }
-    private void SyncTransferInput()
-    {
-        if (transferRendering || TransferFrozen || transferEditor is not { } state)
-            return;
-        var date = DateTime.TryParseExact(TransferDate.Text, "yyyy/MM/dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
-            ? DateOnly.FromDateTime(day) : (DateOnly?)null;
-        var time = TimeOnly.TryParseExact(TransferTime.Text, "HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var clock)
-            ? clock : (TimeOnly?)null;
-        state.Draft.SetDate(date, date is null ? TransferDate.Text : null);
-        state.Draft.SetTime(time, time is null ? TransferTime.Text : null);
-        state.Draft.SetAmount(int.TryParse(TransferAmount.Text, NumberStyles.None, CultureInfo.InvariantCulture, out var amount) && amount > 0 ? amount : null,
-            TransferAmount.Text.Length == 0 || amount > 0 ? null : TransferAmount.Text);
-        state.Draft.Memo = TransferMemo.Text is "" ? null : TransferMemo.Text;
-    }
-    private void TransferTextChanged(object sender, TextChangedEventArgs args)
-    {
-        if (transferRendering)
-            return;
-        SyncTransferInput();
-        if (ReferenceEquals(sender, TransferDate))
-        {
-            transferAutofillCancellation?.Cancel();
-            transferAutofillKey = null;
-            RefreshTransferEditorChoices();
-        }
-        RenderTransferEditor();
-    }
-    private void TransferPaymentChanged(object sender, SelectionChangedEventArgs args)
-    {
-        if (transferRendering || TransferFrozen || transferEditor is not { } state || (sender as ComboBox)?.SelectedItem is not ReceiptFilterChoice { Id: Guid id })
-            return;
-        if (ReferenceEquals(sender, TransferFrom))
-            state.SelectFrom(id);
-        else
-            state.SelectTo(id);
-        RenderTransferEditor();
-        if (ReferenceEquals(sender, TransferFrom))
-            _ = AutofillTransferAsync();
-    }
+    private void SyncTransferInput() => TransferEntry.SynchronizeInput();
     private void RefreshTransferEditorChoices()
     {
-        if (transferEditor is not { } state || TransferMethods is not { } methods || TransferPeople is not { } people || currentLedger is null)
-            return;
-        transferRendering = true;
-        var day = state.Draft.UnresolvedDateText is null ? state.Draft.TransactionDate : null;
-        var order = people.People.OrderByDescending(p => p.PersonId == methods.MyPersonId)
-            .ThenBy(p => p.DisplayOrder)
-            .Select((p, i) => (p.PersonId, i))
-            .ToDictionary(p => p.PersonId, p => p.i);
-        var available = methods.PaymentMethods.Where(p => TransferEditorRules.CanUse(methods, p.PaymentMethodId) &&
-            day is DateOnly date && TransferEditorRules.IsActive(date, p.ValidFrom, p.ValidTo) &&
-            people.People.Any(person => person.PersonId == p.OwnerPersonId &&
-                TransferEditorRules.IsActive(date, person.ValidFrom, person.ValidTo)))
-            .OrderBy(p => order.GetValueOrDefault(p.OwnerPersonId, int.MaxValue))
-            .ThenBy(p => p.DisplayOrder)
-            .ToArray();
-        // 共通候補は一度だけ生成し、候補外の選択済み支払方法はその側だけに追加する。
-        var choices = available.Select(p => new ReceiptFilterChoice(p.PaymentMethodId,
-            connection.Masters.PaymentName(currentLedger.LedgerId, p.PaymentMethodId))).ToArray();
-        void Fill(ComboBox combo, Guid? selected)
-        {
-            ReceiptFilterChoice[] items = selected is Guid id && choices.All(c => c.Id != id)
-                ? [.. choices, new(id, connection.Masters.PaymentName(currentLedger.LedgerId, id))] : choices;
-            combo.ItemsSource = items;
-            combo.SelectedItem = items.FirstOrDefault(p => p.Id == selected);
-        }
-        Fill(TransferFrom, state.Draft.From.PaymentMethodId);
-        Fill(TransferTo, state.Draft.To.PaymentMethodId);
-        transferRendering = false;
+        TransferEntry.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
+        TransferEntry.RefreshChoices();
     }
-    private TransferSavePreparation PrepareTransfer(bool reuse)
+    private TransferSavePreparation PrepareTransfer(bool reuse) => TransferEntry.ViewModel?.PrepareSave(reuse)
+        ?? throw new TransferInputException("master", "マスタ情報を取得してください。");
+    private void RenderTransferEditor() => TransferEntry.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
+    private void TransferNotice(string message, InfoBarSeverity severity = InfoBarSeverity.Error) =>
+        TransferEntry.ViewModel?.ShowNotice(message, severity switch
+        {
+            InfoBarSeverity.Informational => TransferNoticeLevel.Information,
+            InfoBarSeverity.Warning => TransferNoticeLevel.Warning,
+            _ => TransferNoticeLevel.Error
+        });
+    private Task ExecuteTransferActionAsync(TransferEditorAction action) => action switch
     {
-        if (transferEditor is not { } state || TransferMethods is not { } methods || TransferPeople is not { } people)
-            throw new TransferInputException("master", "マスタ情報を取得してください。");
-        var prepared = state.PrepareSave(reuse ? TransferSaveKind.ReuseRegistration : state.IsExisting ? TransferSaveKind.Update : TransferSaveKind.Register);
-        TransferEditorRules.Validate(prepared.Snapshot, people, methods);
-        return prepared;
-    }
-    private void RenderTransferEditor()
-    {
-        if (transferEditor is not { } state)
-            return;
-        var frozen = TransferFrozen;
-        TransferDate.IsReadOnly = TransferTime.IsReadOnly = TransferAmount.IsReadOnly = TransferMemo.IsReadOnly = frozen;
-        TransferNameReadOnly.Text = state.Draft.Name;
-        if (currentLedger is { } ledger && TransferPeople is not null && TransferMethods is not null)
-        {
-            TransferFromReadOnly.Text = state.Draft.From.PaymentMethodId is Guid from ? connection.Masters.PaymentName(ledger.LedgerId, from) : "";
-            TransferToReadOnly.Text = state.Draft.To.PaymentMethodId is Guid to ? connection.Masters.PaymentName(ledger.LedgerId, to) : "";
-        }
-        TransferName.Visibility = frozen ? Visibility.Collapsed : Visibility.Visible;
-        TransferNameReadOnly.Visibility = frozen ? Visibility.Visible : Visibility.Collapsed;
-        TransferFrom.Visibility = TransferTo.Visibility = frozen ? Visibility.Collapsed : Visibility.Visible;
-        TransferFromReadOnly.Visibility = TransferToReadOnly.Visibility = frozen ? Visibility.Visible : Visibility.Collapsed;
-        TransferSave.IsEnabled = TransferReuse.IsEnabled = false;
-        if (!frozen)
-        {
-            try
-            {
-                PrepareTransfer(false);
-                TransferSave.IsEnabled = true;
-                TransferReuse.IsEnabled = state.IsExisting;
-            }
-            catch (TransferInputException)
-            {
-            }
-        }
-        var readOnlyActions = state.IsReadOnly || transferStopped;
-        TransferSave.Visibility = readOnlyActions && !transferUnknown ? Visibility.Collapsed : Visibility.Visible;
-        TransferReuse.Visibility = TransferDelete.Visibility = state.IsExisting && !readOnlyActions ? Visibility.Visible : Visibility.Collapsed;
-        TransferDelete.IsEnabled = state.IsExisting && !frozen;
-        TransferWriteProgress.IsActive = transferSending;
-        TransferWriteProgress.Visibility = transferSending ? Visibility.Visible : Visibility.Collapsed;
-        TransferWriteRetry.Visibility = TransferCanRetryWrite ? Visibility.Visible : Visibility.Collapsed;
-        TransferWriteRetry.IsEnabled = TransferCanRetryWrite && !transferSending && !transferDialogOpen;
-        TransferMasterRetry.Visibility = transferMastersFailed ? Visibility.Visible : Visibility.Collapsed;
-        TransferMasterRetry.IsEnabled = transferMastersFailed && !transferMastersLoading && !transferDialogOpen;
-        TransferLoadLatest.Visibility = TransferCanAdoptLatest ? Visibility.Visible : Visibility.Collapsed;
-        TransferLoadLatest.IsEnabled = TransferCanAdoptLatest && !transferSending && !transferDialogOpen;
-        if (state.IsReadOnly && !TransferEditorNotice.IsOpen)
-            TransferNotice("この振替は読み取り専用です。", InfoBarSeverity.Informational);
-        TransferToError.Text = !state.IsReadOnly && state.Draft.From.PaymentMethodId is Guid fromId && state.Draft.To.PaymentMethodId == fromId
-            ? "振替元と振替先は異なる支払方法を選択してください。" : "";
-        TransferToError.Visibility = TransferToError.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        TransferValidity.Text = "";
-        if (!state.IsReadOnly && state.Draft.TransactionAt is DateTime && state.Draft.From.PaymentMethodId is Guid &&
-            state.Draft.To.PaymentMethodId is Guid && TransferPeople is not null && TransferMethods is not null)
-            try
-            {
-                var snapshot = new TransferSnapshot(state.Draft.TransactionAt.Value, state.Draft.Name,
-                    state.Draft.From.PaymentMethodId.Value, state.Draft.To.PaymentMethodId.Value,
-                    state.Draft.Amount ?? 1, state.Draft.Memo);
-                TransferEditorRules.Validate(snapshot, TransferPeople, TransferMethods);
-            }
-            catch (TransferInputException error)
-            {
-                TransferValidity.Text = error.Message;
-            }
-        if (!frozen && TransferValidity.Text.Length == 0)
-        {
-            if (state.Draft.Name.Length > 100 || state.Draft.Name.Length > 0 && string.IsNullOrWhiteSpace(state.Draft.Name))
-                TransferValidity.Text = "振替名は空白のみを避け、100文字以内で入力してください。";
-            else if (TransferAmount.Text.Length > 0 && (state.Draft.Amount is null || state.Draft.UnresolvedAmountText is not null))
-                TransferValidity.Text = "金額は1〜2,147,483,647の整数で入力してください。";
-            else if (TransferMemo.Text.Length > 100 || TransferMemo.Text.IndexOfAny(['\r', '\n', '\v', '\f', '\u0085', '\u2028', '\u2029']) >= 0)
-                TransferValidity.Text = "メモは改行なし・100文字以内で入力してください。";
-        }
-        TransferValidity.Visibility = TransferValidity.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-    }
-    private void TransferNotice(string message, InfoBarSeverity severity = InfoBarSeverity.Error)
-    {
-        TransferEditorNotice.Message = message;
-        TransferEditorNotice.Severity = severity;
-        TransferEditorNotice.IsOpen = true;
-    }
-    private async void TransferBackClicked(object sender, RoutedEventArgs args)
+        TransferEditorAction.Back => BackTransferAsync(),
+        TransferEditorAction.Save => SaveTransferAsync(false),
+        TransferEditorAction.Reuse => SaveTransferAsync(true),
+        TransferEditorAction.Delete => DeleteTransferAsync(),
+        TransferEditorAction.RetryWrite => RetryTransferWriteAsync(),
+        TransferEditorAction.RetryMasters => RetryTransferMastersAsync(),
+        TransferEditorAction.LoadLatest => LoadLatestTransferAsync(),
+        _ => Task.CompletedTask
+    };
+    private async Task BackTransferAsync()
     {
         if (await LeaveTransferEditorAsync())
         {

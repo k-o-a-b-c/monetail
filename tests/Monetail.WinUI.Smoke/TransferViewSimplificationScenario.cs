@@ -167,9 +167,18 @@ public partial class App
             var before = reads.Count;
             var id = Guid.Parse(target.ToString("x32"));
             await model.ShowSavedAsync(new("all"), id);
-            await Wait(() => list.SelectedItem is not null && list.ContainerFromItem(list.SelectedItem) is FrameworkElement { IsLoaded: true, ActualHeight: > 0 } item &&
-                item.TransformToVisual(scroll).TransformPoint(new Point()).Y >= 0 &&
-                item.TransformToVisual(scroll).TransformPoint(new Point()).Y < scroll.ViewportHeight);
+            try
+            {
+                await Wait(() => list.SelectedItem is not null && list.ContainerFromItem(list.SelectedItem) is FrameworkElement { IsLoaded: true, ActualHeight: > 0 } item &&
+                    item.TransformToVisual(scroll).TransformPoint(new Point()).Y >= 0 &&
+                    item.TransformToVisual(scroll).TransformPoint(new Point()).Y < scroll.ViewportHeight);
+            }
+            catch (OperationCanceledException error)
+            {
+                var item = list.SelectedItem is null ? null : list.ContainerFromItem(list.SelectedItem) as FrameworkElement;
+                var y = item?.TransformToVisual(scroll).TransformPoint(new Point()).Y;
+                throw new InvalidOperationException($"保存行表示待機: target={target}; selectedMatches={model.SelectedTransferId == id}; selectedInList={ReferenceEquals(model.SelectedItem, list.SelectedItem)}; rows={model.Rows.Count}; loading={model.IsLoading}; finding={model.IsFindingSaved}; offset={scroll.VerticalOffset}/{scroll.ScrollableHeight}; viewport={scroll.ViewportHeight}; itemLoaded={item?.IsLoaded}; height={item?.ActualHeight}; y={y}; reads={reads.Count}", error);
+            }
             await Settle();
             Check(model.SelectedTransferId == id && reads.Skip(before).SequenceEqual(target == 250 ? new[] { 0, 100, 200 } : new[] { 0, 100, 200, 449 }),
                 "保存行の選択通知だけで行を可視範囲へ表示し、余分なページを取得しない: " + target);

@@ -32,7 +32,7 @@ public partial class App
             Find<TextBox>(root, "ServerUrl").Text = SyntheticConnection.Endpoint.Value;
             await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
             await Wait(() => Visible(root, "LoginPage"));
-            Check(fixture.Requests.SequenceEqual(["/.well-known/openid-configuration"]) &&
+            Check(fixture.Requests.SequenceEqual((string[])["/.well-known/openid-configuration"]) &&
                 fixture.Settings.Load()!.Equals(SyntheticConnection.Endpoint), "メタデータ1回で接続を確認して設定を保存");
             if (capture) await Capture(root, output, "06-login");
 
@@ -157,7 +157,7 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "SettingsConnectButton"));
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Tokens.Current is null && fixture.Settings.Load()!.Value == "https://other.example.test/" &&
-                fixture.OtherServerRequests.SequenceEqual(["/.well-known/openid-configuration"]),
+                fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration"]),
                 "接続先変更はメタデータ確認後に保存し、元の認証を変更先へ送らない");
         }
 

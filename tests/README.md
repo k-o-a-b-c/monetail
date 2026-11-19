@@ -10,11 +10,23 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
-| Windows Presentation（レシート/振替一覧VM・投影・Command・共通ページング・復帰） | 112 |
+| Windows Presentation（レシート/振替一覧VM・振替編集VM・投影・Command・共通ページング・復帰） | 122 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3773 |
+| 合計 | 3783 |
+
+## 振替編集画面のView・Presentation分離 第1段階（PR #211）
+
+[TransferEditorViewModelTests](Monetail.Windows.Presentation.Tests/TransferEditorViewModelTests.cs)の新規10件で、同一Editor/Draft・初期未変更、未確定文字列/旧ID・版、保存可否/同一支払方法エラー、期間/権限付き候補と選択保持、マスタ不在時の入力保護、読み取り専用/競合latest非自動採用、7操作の通知、Window状態のライブ参照を確認する。新規ライブラリ/汎用基盤、Client/API/DBの変更はない。
+
+WinUIは既存期待値を維持し、移管したコントロールの取得を新Viewの名前スコープへ、UI専用のprivate診断と支払方法候補型を新所有者へ変更する。transfer-editorへ名前スコープ/同一正本とCommandの接続の2確認を追加。連続401では同じViewModelも保持すること、終了時には閉じる前に保持した同じViewのVM参照が解除されることを追加検証する。入力・保存・流用・削除・結果不明・409・401・フォーカス/表示位置・IME/Enterの既存シナリオは全件対象のまま。責務・状態・依存/行数と後続範囲は[構成正本](../docs/architecture-winui.md#振替編集画面のmvvm分離第1段階)を参照する。
+
+ローカルReleaseは新規VM10件→Presentation全122件が成功。新規C#の対象書式検査、XAML/XML解析、文書ローカルリンク、`git diff --check`も確認した。Client全1,194件・Presentation全122件は[成功ジョブ135311795904](https://github.com/k-o-a-b-c/monetail/actions/runs/44450117251/job/135311795904)で確認し、以後のWinUI専用変更では同じfingerprintの成功を再利用した（親run全体はWinUIのコンパイル失敗）。非変更のAPI/DB/Docker/旧Windows等もCI選択に従って既存成功を再利用する。
+
+最終ソース`90009df`の[Tests 44470519863](https://github.com/k-o-a-b-c/monetail/actions/runs/44470519863)が成功。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/763確認（振替401復帰70・競合23・入力18・レシート一覧50・振替一覧52）、個別3シナリオ、不正指定拒否/計測、スクリーンショット取得が成功した。追加警告は残っていない。
+
+途中で列挙型の名前衝突/終了時の旧参照、x:Bind補助関数のFallbackValue、閉鎖済みWindowを検索する追加テストの取得方法を修正した。基点mainの[Tests 44444662278](https://github.com/k-o-a-b-c/monetail/actions/runs/44444662278)は既存スモークが0xC000027Bで異常終了しており、変更前の成功は統合前の[Tests 44442894444](https://github.com/k-o-a-b-c/monetail/actions/runs/44442894444)を参照する。途中の[Tests 44452623688](https://github.com/k-o-a-b-c/monetail/actions/runs/44452623688)では既存の保存行表示待機が一度失敗し、失敗時だけ状態を出す診断を追加した。次の[Tests 44453532291](https://github.com/k-o-a-b-c/monetail/actions/runs/44453532291)では同試験を含む記録済み25シナリオは成功したが、既存の全体120秒上限で終了した。最終実行では両方通過したが、これらの一時失敗の原因は未特定であり、根本解決とは扱わない。検証条件・待機/全体タイムアウトは変更していない。実Windows手動操作、物理IME・タッチ・高DPI・スクリーンリーダーと実API接続は未検証。
 
 ## 一覧の破棄統一・旧個別検索の削除（PR #210）
 

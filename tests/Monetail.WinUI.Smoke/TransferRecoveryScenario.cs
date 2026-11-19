@@ -122,6 +122,8 @@ public partial class App
         scroller.ChangeView(null, 20, null, true); await Wait(() => Math.Abs(scroller.VerticalOffset - 20) < 1);
         var offset = scroller.VerticalOffset; server.SuggestionGate.SetResult(true);
         await Wait(() => Visible(root, "LoginPage"));
+        var retainedEditorView = TransferView;
+        var retainedPresentation = retainedEditorView.ViewModel;
         var capturedView = TransferRuntime("transferAuthentication") ?? throw new InvalidOperationException("復帰情報がありません。");
         Check(ReferenceEquals(editor, TransferEditing) && editor.Draft.UnresolvedDateText == "2026/" && editor.Draft.UnresolvedTimeText == "時刻未確定" && editor.Draft.UnresolvedAmountText == "1x" && editor.Draft.From == from && editor.Draft.To == to,
             "候補取得の401でも未確定日時・金額・自動補完由来を元モデルに保持する");
@@ -147,12 +149,15 @@ public partial class App
         try { await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input) && input.SelectionStart == 1 && input.SelectionLength == 2 && Math.Abs(scroller.VerticalOffset - offset) < 1); }
         catch (TaskCanceledException error)
         {
-            var viewType = capturedView.GetType();
-            throw new InvalidOperationException($"復帰位置: focusMatches={ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input)}; selection={input.SelectionStart},{input.SelectionLength}; offset={scroller.VerticalOffset}/{offset}; capturedFocusMatches={ReferenceEquals(viewType.GetProperty("Focus")!.GetValue(capturedView), input)}; capturedSelection={viewType.GetProperty("SelectionStart")!.GetValue(capturedView)},{viewType.GetProperty("SelectionLength")!.GetValue(capturedView)}; capturedOffset={viewType.GetProperty("ScrollOffset")!.GetValue(capturedView)}; inputLoaded={input.IsLoaded}", error);
+            var savedPosition = typeof(Monetail.WinUI.Views.Transfers.TransferEditorView)
+                .GetField("position", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(TransferView)
+                ?? throw new InvalidOperationException("Viewの復帰位置がありません。");
+            var viewType = savedPosition.GetType();
+            throw new InvalidOperationException($"復帰位置: focusMatches={ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), input)}; selection={input.SelectionStart},{input.SelectionLength}; offset={scroller.VerticalOffset}/{offset}; capturedFocusMatches={ReferenceEquals(viewType.GetProperty("Focus")!.GetValue(savedPosition), input)}; capturedSelection={viewType.GetProperty("SelectionStart")!.GetValue(savedPosition)},{viewType.GetProperty("SelectionLength")!.GetValue(savedPosition)}; capturedOffset={viewType.GetProperty("ScrollOffset")!.GetValue(savedPosition)}; inputLoaded={input.IsLoaded}", error);
         }
         Check(ReferenceEquals(editor, TransferEditing) && ReferenceEquals(names, Find<AutoSuggestBox>(root, "TransferName")) && editor.Draft.From == from && editor.Draft.To == to &&
             Find<DateInputBox>(root, "TransferDate").Text == "2026/" && Find<TimeInputBox>(root, "TransferTime").Text == "時刻未確定" && Find<TextBox>(root, "TransferAmount").Text == "1x" &&
-            ((ReceiptFilterChoice)Find<ComboBox>(root, "TransferFrom").SelectedItem).Name.Contains("最新名") && editor.HasUnsavedChanges,
+            ((Monetail.Windows.Presentation.Transfers.TransferPaymentChoice)Find<ComboBox>(root, "TransferFrom").SelectedItem).Name.Contains("最新名") && editor.HasUnsavedChanges,
             "マスタ再試行は名称・候補だけ更新し、未確定入力・選択由来・文字選択・スクロールと元コントロールを維持する");
         Check(server.Details == 0 && server.Writes.Count == 0 && !Find<Button>(root, "TransferSave").IsEnabled, "未確定入力の復帰で詳細GET・自動補正・保存を行わない");
         await InvokeAsync(() => Find<Button>(root, "LedgerSelector")); await WaitTransferDialog(root, "未保存の内容があります");
@@ -183,7 +188,7 @@ public partial class App
                 await FocusTransferControl(change); await PressReceiptKey(0x0D); await Wait(() => Visible(root, "ConnectionPage"));
                 fixture.RejectAuthentication = false; Find<TextBox>(root, "ServerUrl").Text = "https://other.example.test/";
                 await InvokeAsync(() => Find<Button>(root, "ConnectButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
-                Check(TransferEditing is null && TransferRuntime("transferPending") is null && fixture.OtherServerRequests.SequenceEqual(["/.well-known/openid-configuration"]),
+                Check(TransferEditing is null && TransferRuntime("transferPending") is null && fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration"]),
                     "接続先変更は接続確認後に元の編集を破棄し、元トークンや未完了要求を別サーバーへ送らない");
             }
             else fixture.AccountId = Guid.NewGuid();
@@ -206,7 +211,7 @@ public partial class App
             await FocusTransferControl(Find<TextBox>(root, "TransferAmount")); Find<TextBox>(root, "TransferAmount").Text = "2000"; await Wait(() => TransferEditing?.Draft.Amount == 2000);
             if (role == "Editor")
             {
-                var to = Find<ComboBox>(root, "TransferTo"); to.SelectedItem = to.Items.Cast<ReceiptFilterChoice>().Single(c => c.Id == bank);
+                var to = Find<ComboBox>(root, "TransferTo"); to.SelectedItem = to.Items.Cast<Monetail.Windows.Presentation.Transfers.TransferPaymentChoice>().Single(c => c.Id == bank);
             }
             var editor = TransferEditing ?? throw new InvalidOperationException("編集状態がありません。");
             await SubmitTransferToExpiredLogin(fixture, server, root, "update");
@@ -257,10 +262,11 @@ public partial class App
             "再認証への退避は進行中の候補を中断し、遅延応答で隠れた画面や入力を更新しない");
         await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
         // 最後のWindowを閉じると検証プロセス自体が正常終了する。既存ヘルパーで次のWindowを先に開き、対象だけ閉じる。
+        var closingView = TransferView;
         using var nextFixture = new SyntheticConnection();
         await OpenSyntheticWindow(nextFixture);
         object? ClosedState(string field) => typeof(MainWindow).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(originalWindow);
-        Check(ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && ClosedState("transferPending") is null && Equals(ClosedState("closed"), true),
+        Check(closingView.ViewModel is null && ClosedState("transferEditor") is null && ClosedState("transferAuthentication") is null && ClosedState("transferPending") is null && Equals(ClosedState("closed"), true),
             "再認証中のアプリ終了ではメモリの編集・復帰情報・要求を破棄する");
     }
 }
