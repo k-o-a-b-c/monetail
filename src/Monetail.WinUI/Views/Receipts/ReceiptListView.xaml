@@ -25,7 +25,7 @@
         </Grid>
         <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
         <Grid Grid.Row="2">
-            <ListView x:Name="ReceiptList" DoubleTapped="ReceiptDoubleTapped" SelectionMode="Single" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
+            <ListView x:Name="ReceiptList" SelectionMode="Single" ItemsSource="{x:Bind ViewModel.Rows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedItem, Mode=TwoWay}"
                          HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollMode="Enabled" ScrollViewer.HorizontalScrollBarVisibility="Auto"
                           AutomationProperties.Name="レシート一覧" AutomationProperties.AutomationId="ReceiptList">
                     <ListView.Header>
