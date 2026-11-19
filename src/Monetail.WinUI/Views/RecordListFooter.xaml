@@ -4,14 +4,14 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     IsTabStop="False" HorizontalAlignment="Left">
     <StackPanel Spacing="8" Margin="12">
-        <StackPanel x:Name="NextNotice" Visibility="{x:Bind Show(State.IsContinuationLoading), Mode=OneWay}" Orientation="Horizontal" Spacing="8" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'NextNotice'), Mode=OneWay}">
-            <ProgressRing x:Name="NextProgress" IsActive="{x:Bind State.IsContinuationLoading, Mode=OneWay}" Width="20" Height="20" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'NextProgress'), Mode=OneWay}"/>
+        <StackPanel x:Name="NextNotice" Visibility="{x:Bind Show(State.IsContinuationLoading), Mode=OneWay, FallbackValue=Collapsed}" Orientation="Horizontal" Spacing="8" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'NextNotice'), Mode=OneWay}">
+            <ProgressRing x:Name="NextProgress" IsActive="{x:Bind State.IsContinuationLoading, Mode=OneWay, FallbackValue=False}" Width="20" Height="20" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'NextProgress'), Mode=OneWay}"/>
             <TextBlock Text="読み込み中…" VerticalAlignment="Center"/>
         </StackPanel>
-        <StackPanel x:Name="NextFailure" Visibility="{x:Bind Show(State.IsContinuationFailure), Mode=OneWay}" Spacing="8" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'NextFailure'), Mode=OneWay}">
+        <StackPanel x:Name="NextFailure" Visibility="{x:Bind Show(State.IsContinuationFailure), Mode=OneWay, FallbackValue=Collapsed}" Spacing="8" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'NextFailure'), Mode=OneWay}">
             <TextBlock Text="{x:Bind ErrorText, Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
             <Button x:Name="NextRetry" Content="再試行" Command="{x:Bind State.RetryCommand, Mode=OneWay}" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'NextRetry'), Mode=OneWay}"/>
         </StackPanel>
-        <Button x:Name="Continue" Content="続きを読み込む" Visibility="{x:Bind Show(State.CanContinue), Mode=OneWay}" Command="{x:Bind State.ContinueCommand, Mode=OneWay}" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'Continue'), Mode=OneWay}"/>
+        <Button x:Name="Continue" Content="続きを読み込む" Visibility="{x:Bind Show(State.CanContinue), Mode=OneWay, FallbackValue=Collapsed}" Command="{x:Bind State.ContinueCommand, Mode=OneWay}" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'Continue'), Mode=OneWay}"/>
     </StackPanel>
 </UserControl>
