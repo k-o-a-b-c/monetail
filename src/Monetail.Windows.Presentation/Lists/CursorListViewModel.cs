@@ -291,7 +291,12 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IRe
         RetryCommand.NotifyCanExecuteChanged();
         ContinueCommand.NotifyCanExecuteChanged();
     }
-    public virtual void Dispose() => Stop(false, false);
+    public void Dispose()
+    {
+        Stop(false, false);
+        // 退避はSuspend、破棄はDispose。nullのバインド更新だけでは古い表示行が残り得る。
+        ClearRows();
+    }
 }
 
 /// <summary>通信DTOではなく、表示行と不透明な次カーソルだけを受け取る。</summary>

@@ -14,7 +14,7 @@ public sealed class TransferPagingTests
     {
         var common = new RecordSearchState(new(2026, 11, 10)); var state = common.Receipts;
         state.MonthText = month; state.ShopText = "確定"; common.TransferText = "振替確定";
-        Assert.True(state.ApplyText()); Assert.True(common.ApplyTransferText()); state.MonthText = "編集中"; state.ShopText = "未確定"; common.TransferText = "振替未確定";
+        Assert.True(common.ApplySharedText(common.TransferText)); state.MonthText = "編集中"; state.ShopText = "未確定"; common.TransferText = "振替未確定";
         Assert.True(state.MoveMonth(delta)); Assert.Equal(result, state.Query().Month); Assert.Equal(result, common.TransferQuery().Month);
         Assert.Equal("編集中", state.MonthText); Assert.Equal("未確定", state.ShopText); Assert.Equal("振替未確定", common.TransferText); Assert.Equal("振替確定", common.TransferQuery().Q);
         state.AllPeriods = true; Assert.Equal("all", common.TransferQuery().Month); Assert.False(state.CanMove(delta));

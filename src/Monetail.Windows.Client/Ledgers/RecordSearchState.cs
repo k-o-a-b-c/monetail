@@ -17,11 +17,6 @@ public sealed class RecordSearchState(DateOnly today)
         TransferText = AppliedTransferName = text;
         return true;
     }
-    public bool ApplyTransferText()
-    {
-        if (!Receipts.ApplyMonthText()) return false;
-        AppliedTransferName = TransferText; return true;
-    }
     public void ApplySavedTransfer(TransferSnapshot saved, PaymentMethodsInfo methods)
     {
         Receipts.SelectMonth(DateOnly.FromDateTime(saved.TransactionAt));

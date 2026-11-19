@@ -63,9 +63,9 @@ public partial class App
         Check(reads.SequenceEqual(new[] { 0, 100, 200 }) && model.AutomaticFillCount == 2 && scroll.ScrollableHeight == 0,
             "SizeChangedと行追加でレイアウト確定後に2回補充し、300件で自動取得を停止する");
         await Wait(() => !(bool)ViewportValue(view, "viewportQueued")!);
-        model.SearchText = "未確定の下書き";
+        Find<TextBox>(root, "RecordKeyword").Text = "未確定の下書き";
         model.CanRegister = false;
-        Check(!(bool)ViewportValue(view, "viewportQueued")!, "SearchText/CanRegisterの変更だけでは表示範囲の測定を予約しない");
+        Check(!(bool)ViewportValue(view, "viewportQueued")!, "共通キーワード下書き/CanRegisterの変更だけでは表示範囲の測定を予約しない");
         await Wait(() => !Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled);
         model.CanRegister = true;
         await Wait(() => Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled);

@@ -71,7 +71,7 @@ public partial class App
         Check(reads.SequenceEqual(new[] { 0, 100, 200 }) && model.AutomaticFillCount == 2 && scroll.ScrollableHeight == 0,
             "レシートViewの行/サイズ変更は確定レイアウトで最大300件まで補充する");
         await Wait(() => !(bool)ViewportValue(view, "viewportQueued")!);
-        model.SearchText = "未確定店舗";
+        Find<TextBox>(root, "RecordKeyword").Text = "未確定店舗";
         model.CanRegister = false;
         Check(!(bool)ViewportValue(view, "viewportQueued")!, "レシートの店名下書き/登録可否の通知は可視範囲測定を予約しない");
         await Wait(() => !Find<Button>(root, "NewReceiptButton").IsEnabled);

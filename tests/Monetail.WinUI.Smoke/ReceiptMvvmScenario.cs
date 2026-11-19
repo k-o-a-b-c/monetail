@@ -46,11 +46,13 @@ public partial class App
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var masters = new PaymentServer();
         var reads = 0;
+        string? searchedText = null;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
         fixture.PaymentsHandler = masters.HandleAsync;
-        fixture.ReceiptsHandler = (_, _) =>
+        fixture.ReceiptsHandler = (request, _) =>
         {
             reads++;
+            searchedText = TransferQueryValues(request.RequestUri!)["q"];
             return Task.FromResult(PaymentServer.Json(new ReceiptListInfo(Enumerable.Range(1, 2).Select(i => new ReceiptSummaryInfo(
                 Guid.Parse(i.ToString("x32")), new(2026, 11, 10), "店舗" + i, null, masters.ActiveId, i, null)).ToArray(), null)));
         };
@@ -71,7 +73,7 @@ public partial class App
         text.Text = " 未確定店舗 ";
         await PressReceiptKey(0x0D);
         await Wait(() => window!.ReceiptHomeReady && reads == 2);
-        Check(model.SearchText == " 未確定店舗 " && ReceiptEditing is null, "ViewのEnter検索は未確定の原文を共通検索へ渡し、編集を開かない");
+        Check(searchedText == " 未確定店舗 " && ReceiptEditing is null, "ViewのEnter検索は未確定の原文を共通検索へ渡し、編集を開かない");
         var keyboard = typeof(MainWindow).GetField("recordKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window) as FormKeyboard
             ?? throw new InvalidOperationException("一覧のIME制御がありません。");
         var composing = typeof(FormKeyboard).GetField("composing", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(keyboard) as HashSet<TextBox>
@@ -98,5 +100,11 @@ public partial class App
         await Settle();
         Check(ReferenceEquals(model.SelectedItem, list.SelectedItem) && reads == 2 && ReceiptEditing is null,
             "レシート一覧の実上下キーはVMの同じ行を選択し、Enterや選択だけで編集/詳細GETを行わない");
+        var rows = model.Rows;
+        model.Dispose();
+        model.Dispose();
+        await Wait(() => list.Items.Count == 0 && list.SelectedItem is null);
+        Check(ReferenceEquals(list.ItemsSource, rows) && model.SelectedItem is null && reads == 2,
+            "一覧の破棄は同じ行コレクションと実ListViewの表示・選択を解除し、二重破棄でも取得しない");
     }
 }

@@ -11,7 +11,7 @@ namespace Monetail.Windows.Presentation.Tests;
 public sealed class ReceiptViewModelTests
 {
     [Fact]
-    public async Task OneCollectionSelectionAndOriginalSearchTextHaveOneOwner()
+    public async Task OneCollectionSelectionAndSharedSearchHaveOneOwner()
     {
         var search = new RecordSearchState(new(2026, 11, 18));
         var info = new ReceiptSummaryInfo(Guid.NewGuid(), new(2026, 11, 18, 12, 34, 56), " 店舗 ", null, Guid.NewGuid(), -1234, null);
@@ -28,17 +28,19 @@ public sealed class ReceiptViewModelTests
         Assert.Equal("", item.Memo);
         model.SelectedItem = item;
         Assert.Equal(info.ReceiptId, model.SelectedReceiptId);
-        model.SearchText = " ＡＢＣ  ";
-        Assert.Equal(model.SearchText, search.Receipts.ShopText);
+        var draft = " ＡＢＣ  ";
         Assert.Equal("", search.Receipts.Query().Q);
-        await model.StartAsync(new("2026-11"));
+        Assert.True(search.ApplySharedText(draft));
+        Assert.Equal(draft, search.Receipts.Query().Q);
+        Assert.Equal(draft, search.TransferQuery().Q);
+        await model.StartAsync(search.Receipts.Query());
         Assert.Null(model.SelectedItem);
         Assert.Null(model.SelectedReceiptId);
         Assert.Equal(new[] { NotifyCollectionChangedAction.Reset, NotifyCollectionChangedAction.Add, NotifyCollectionChangedAction.Reset, NotifyCollectionChangedAction.Add }, actions);
     }
 
     [Fact]
-    public async Task CommandsNotifyAndForwardSearchAndOpenWithoutOwningNavigation()
+    public async Task CommandsNotifyAndForwardOpenWithoutOwningNavigation()
     {
         using var model = new ReceiptListViewModel((_, _) => Task.FromResult(new ReceiptListInfo([], null)), new(new(2026, 11, 18)), _ => "現金");
         var notifications = 0;
@@ -48,18 +50,14 @@ public sealed class ReceiptViewModelTests
         Assert.True(model.RegisterCommand.CanExecute(null));
         Assert.Equal(1, notifications);
         var opened = new List<Guid?>();
-        var searches = 0;
         model.OpenRequested += id => { opened.Add(id); return Task.CompletedTask; };
-        model.SearchRequested += () => { searches++; return Task.CompletedTask; };
-        await model.SearchCommand.ExecuteAsync(null);
         await model.RegisterCommand.ExecuteAsync(null);
         var id = Guid.NewGuid();
         await model.EditCommand.ExecuteAsync(id);
-        Assert.Equal(1, searches);
         Assert.Equal(new Guid?[] { null, id }, opened);
     }
     [Fact]
-    public async Task PendingSearchCanBeReplacedThroughTheCommandAndOldReplyIsRejected()
+    public async Task SharedSearchCanReplaceAPendingReadAndRejectTheOldReply()
     {
         var search = new RecordSearchState(new(2026, 11, 18));
         var old = new TaskCompletionSource<ReceiptListInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -75,23 +73,19 @@ public sealed class ReceiptViewModelTests
             }
             return Task.FromResult(new ReceiptListInfo(ReceiptListViewModelTests.Rows(500, 1), null));
         }, search, _ => "現金");
-        model.SearchRequested += () =>
-        {
-            Assert.True(search.Receipts.ApplyText());
-            return model.StartAsync(search.Receipts.Query());
-        };
-        model.SearchText = "old";
-        var pending = model.SearchCommand.ExecuteAsync(null);
-        Assert.True(model.SearchCommand.CanExecute(null));
-        model.SearchText = "new";
-        await model.SearchCommand.ExecuteAsync(null);
+        Assert.True(search.ApplySharedText("old"));
+        var pending = model.StartAsync(search.Receipts.Query());
+        Assert.True(model.IsInitialLoading);
+        Assert.True(search.ApplySharedText("new"));
+        await model.StartAsync(search.Receipts.Query());
         Assert.True(cancelled);
         old.SetResult(new(ReceiptListViewModelTests.Rows(0, 100), "old-cursor"));
         await pending;
         Assert.Equal(new[] { "old", "new" }, queries.Select(query => query.Q));
         Assert.Equal(ReceiptListViewModelTests.Rows(500, 1)[0].ReceiptId, Assert.Single(model.Rows).ReceiptId);
         Assert.Null(model.NextCursor);
-        Assert.Equal("new", model.SearchText);
+        Assert.Equal("new", search.Receipts.Query().Q);
+        Assert.Equal("new", search.TransferQuery().Q);
     }
 
     [Fact]
@@ -143,7 +137,7 @@ public sealed class ReceiptViewModelTests
     }
 
     [Fact]
-    public async Task RefreshNamesAndExternalDraftNotificationPreserveRowsSelectionAndStoredValues()
+    public async Task RefreshNamesPreservesRowsSelectionAndStoredValues()
     {
         var search = new RecordSearchState(new(2026, 11, 18));
         var name = "旧名称";
@@ -165,13 +159,6 @@ public sealed class ReceiptViewModelTests
         Assert.Equal(name, item.PaymentName);
         Assert.Same(source, item.Receipt);
         Assert.Same(item, model.SelectedItem);
-        search.Receipts.ShopText = " 外部の下書き ";
-        var notifications = new List<string?>();
-        model.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
-        model.RefreshSearchText();
-        Assert.Equal(" 外部の下書き ", model.SearchText);
-        Assert.Equal("", search.Receipts.Query().Q);
-        Assert.Contains(nameof(model.SearchText), notifications);
         Assert.Equal(1, calls);
     }
 
