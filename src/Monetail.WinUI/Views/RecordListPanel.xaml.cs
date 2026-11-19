@@ -86,5 +86,4 @@ public sealed partial class RecordListPanel : UserControl
     private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
     private string Id(string prefix, string suffix) => prefix + suffix;
     private string RegistrationName(string heading) => heading + "の登録";
-    private Visibility OpeningVisibility(UIElement? content, Visibility visibility) => content is null ? Visibility.Collapsed : visibility;
 }

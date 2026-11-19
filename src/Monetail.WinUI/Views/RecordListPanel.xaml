@@ -30,7 +30,7 @@
                 <Button x:Name="InitialRetry" Content="再試行" Command="{x:Bind State.RetryCommand, Mode=OneWay}" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'InitialRetry'), Mode=OneWay}"/>
             </StackPanel>
             <Border x:Name="OpeningNotice" AutomationProperties.AutomationId="{x:Bind Id(AutomationPrefix, 'OpeningNotice'), Mode=OneWay}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12" Padding="12" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="400"
-                    Visibility="{x:Bind OpeningVisibility(OpeningContent, OpeningContent.Visibility), Mode=OneWay, FallbackValue=Collapsed}">
+                    Visibility="{x:Bind OpeningContent.Visibility, Mode=OneWay, FallbackValue=Collapsed}">
                 <ContentControl Content="{x:Bind OpeningContent, Mode=OneWay}" HorizontalContentAlignment="Stretch" IsTabStop="False"/>
             </Border>
         </Grid>
