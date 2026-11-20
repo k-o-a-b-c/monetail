@@ -154,7 +154,7 @@ public partial class App
             {
                 fixture.RejectSession = fixture.RejectAuthentication = false;
                 var connect = typeof(MainWindow).GetMethod("ConnectAsync", BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new InvalidOperationException();
-                await (Task)(connect.Invoke(window, [ApiEndpoint.Parse("https://other.invalid")]) ?? throw new InvalidOperationException());
+                await (Task)(connect.Invoke(window, [ApiEndpoint.Parse("https://other.invalid"), CancellationToken.None]) ?? throw new InvalidOperationException());
             }
             else { fixture.AccountId = Guid.NewGuid(); await CompleteReceiptLogin(fixture, root); }
             Check(ReceiptEditing is null && TransferRuntime("receiptAuthentication") is null && Find<TextBox>(root, "ReceiptMemo").Text == "" && server.Writes == 0,
