@@ -1,0 +1,22 @@
+<UserControl
+    x:Class="Monetail.WinUI.Views.Connection.ConnectionSettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    IsTabStop="False">
+    <StackPanel Spacing="24" MaxWidth="520" HorizontalAlignment="Stretch">
+        <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1"/>
+        <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <StackPanel Spacing="8">
+            <TextBox x:Name="ServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url"
+                     Text="{x:Bind ViewModel.ServerUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     IsEnabled="{x:Bind Not(ViewModel.IsConnecting), Mode=OneWay}" AutomationProperties.AutomationId="ServerUrl"/>
+            <TextBlock Text="{x:Bind ViewModel.UrlError, Mode=OneWay}" TextWrapping="Wrap"
+                       Visibility="{x:Bind ShowError(ViewModel.UrlError), Mode=OneWay}" AutomationProperties.LiveSetting="Polite"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button x:Name="ConnectButton" Content="接続" Command="{x:Bind ViewModel.ConnectCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="ConnectButton"/>
+            <Button x:Name="ConnectionCancel" Content="キャンセル" Command="{x:Bind ViewModel.CancelCommand}"
+                    Visibility="{x:Bind Show(ViewModel.CanCancel), Mode=OneWay}" AutomationProperties.AutomationId="ConnectionCancel"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

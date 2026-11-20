@@ -13,20 +13,27 @@ public partial class App
     private async Task CheckConnectionFlow(string output, bool capture)
     {
         await CheckLedgerChoiceControl();
+        await CheckConnectionSettingsLifecycle();
         using (var fixture = new SyntheticConnection())
         {
-            var root = await OpenSyntheticWindow(fixture);
+            var root = await OpenSyntheticWindow(fixture, (_, initial) =>
+            {
+                Check(Find<ContentControl>(initial, "ConnectionSetupHost").Content is Frame { Content: Monetail.WinUI.Views.Connection.ConnectionSetupPage } &&
+                    Find<Grid>(initial, "StartupPage").Visibility == Visibility.Collapsed && fixture.Requests.Count == 0 &&
+                    Find<ContentControl>(initial, "ConnectionSettingsContent").Content is null,
+                    "未設定はActivate前に初回Pageだけを生成し、Startup/通信/管理用Viewを開始しない");
+            });
             await StartSyntheticAsync();
-            Check(Visible(root, "ConnectionPage"), "未設定なら同じWindowで接続先を入力");
+            Check(Visible(root, "ConnectionSetupHost"), "未設定なら同じWindowで接続先を入力");
             await Task.Delay(TimeSpan.FromMilliseconds(1100));
             Check(Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed &&
-                !Find<ProgressRing>(root, "StartupProgress").IsActive && Visible(root, "ConnectionPage"),
+                !Find<ProgressRing>(root, "StartupProgress").IsActive && Visible(root, "ConnectionSetupHost"),
                 "速い起動は待機表示を出さず、完了後に遅れて表示しない");
             if (capture) await Capture(root, output, "05-connection");
             Find<TextBox>(root, "ServerUrl").Text = "http://invalid.example.test/";
             await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
             await Settle();
-            Check(fixture.Requests.Count == 0 && Find<InfoBar>(root, "ErrorNotice").IsOpen &&
+            Check(fixture.Requests.Count == 0 && ConnectionView(root).ViewModel.UrlError is not null &&
                 Find<TextBox>(root, "ServerUrl").Text == "http://invalid.example.test/", "不正URLは送信せず入力を保持");
 
             Find<TextBox>(root, "ServerUrl").Text = SyntheticConnection.Endpoint.Value;
@@ -88,7 +95,7 @@ public partial class App
             var navigation = Find<NavigationView>(root, "ManagementNavigation");
             navigation.SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
             await Settle();
-            Check(Find<StackPanel>(root, "ConnectionSettingsContent").Visibility == Visibility.Visible &&
+            Check(Find<ContentControl>(root, "ConnectionSettingsContent").Visibility == Visibility.Visible &&
                 navigation.IsPaneOpen, "接続先の設定でも左メニューを保持");
             navigation.SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
             await Settle();
@@ -153,8 +160,8 @@ public partial class App
             await Wait(() => Find<ListView>(root, "PeopleList").Items.Count == 1);
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
             await Settle();
-            Find<TextBox>(root, "SettingsServerUrl").Text = "https://other.example.test/";
-            await InvokeAsync(() => Find<Button>(root, "SettingsConnectButton"));
+            Find<TextBox>(root, "ServerUrl").Text = "https://other.example.test/";
+            await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Tokens.Current is null && fixture.Settings.Load()!.Value == "https://other.example.test/" &&
                 fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration"]),
@@ -206,25 +213,36 @@ public partial class App
         }
     }
 
-    private async Task StartSyntheticAsync()
+    private async Task StartSyntheticAsync(bool reloadSettings = false)
     {
-        await window!.StartAsync();
-        if (Visible((FrameworkElement)window.Content, "HomePage")) await Wait(() => window.ReceiptHomeReady);
+        var current = window ?? throw new InvalidOperationException("起動対象のWindowがありません。");
+        if (reloadSettings)
+        {
+            // 別プロセスでの設定変更を模擬する再起動は、表示前の設定読込段階も通す。
+            var restart = typeof(MainWindow).GetMethod("RetryStartupAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("再起動の入口がありません。");
+            await (Task)(restart.Invoke(current, []) ?? throw new InvalidOperationException());
+        }
+        else
+            await current.StartAsync();
+        if (Visible((FrameworkElement)current.Content, "HomePage"))
+            await Wait(() => current.ReceiptHomeReady);
     }
 
-    private async Task<FrameworkElement> OpenSyntheticWindow(SyntheticConnection fixture)
+    private async Task<FrameworkElement> OpenSyntheticWindow(SyntheticConnection fixture, Action<MainWindow, FrameworkElement>? beforeActivate = null)
     {
         var previous = window;
         window = new MainWindow(fixture.CreateConnection());
         var root = (FrameworkElement)window.Content;
         ObserveDialogs(root);
+        beforeActivate?.Invoke(window, root);
         window.Activate();
         await Wait(() => root.IsLoaded);
         previous?.Close();
         return root;
     }
 
-    private static bool Visible(FrameworkElement root, string name) => Find<FrameworkElement>(root, name).Visibility == Visibility.Visible;
+    private static bool Visible(FrameworkElement root, string name) => VisibleAncestors(Find<FrameworkElement>(root, name));
 
     private sealed class MemoryTokens : ITokenStore
     {
@@ -263,6 +281,7 @@ public partial class App
         internal bool ConnectionCancelled, RateLimitOpening, RejectSession, CannotOpenLedger;
         internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
         internal int ChoiceCount, BrowserOpens;
+        internal bool OtherServerAuthenticated;
 
         internal SyntheticConnection(bool saved = false)
         {
@@ -304,7 +323,11 @@ public partial class App
             var path = request.RequestUri!.AbsolutePath;
             Requests.Add(path);
             var origin = ApiEndpoint.Parse(request.RequestUri.GetLeftPart(UriPartial.Authority));
-            if (!origin.Equals(Endpoint)) OtherServerRequests.Add(path);
+            if (!origin.Equals(Endpoint))
+            {
+                OtherServerRequests.Add(path);
+                OtherServerAuthenticated |= request.Headers.Authorization is not null;
+            }
             if (path == "/.well-known/openid-configuration" && ConnectionGate is not null)
             {
                 try { await ConnectionGate.Task.WaitAsync(token); }

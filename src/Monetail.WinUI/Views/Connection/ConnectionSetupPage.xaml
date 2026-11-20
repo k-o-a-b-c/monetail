@@ -1,0 +1,10 @@
+<Page
+    x:Class="Monetail.WinUI.Views.Connection.ConnectionSetupPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Disabled" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <ScrollViewer Padding="32" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ContentControl x:Name="SettingsHost" MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                        HorizontalContentAlignment="Stretch" IsTabStop="False"/>
+    </ScrollViewer>
+</Page>

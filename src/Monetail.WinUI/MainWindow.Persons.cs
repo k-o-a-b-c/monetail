@@ -53,8 +53,6 @@ public sealed partial class MainWindow
             focused => focused is Button button && Equals(button.Content, PersonDialog.CloseButtonText);
         personKeyboard = FormKeyboard.ForDialog(PersonDialog, SavePersonAsync, PersonName, PersonValidFrom, PersonValidTo);
         _ = new FormKeyboard(PersonOrderContent, SavePersonOrderButton, SavePersonOrderAsync);
-        _ = new FormKeyboard(ConnectionPage, null, null, ServerUrl);
-        _ = new FormKeyboard(ConnectionSettingsContent, null, null, SettingsServerUrl);
         _ = new FormKeyboard(LedgerCreatePage, CreateLedgerButton, CreateLedgerAsync, NewLedgerName);
     }
 

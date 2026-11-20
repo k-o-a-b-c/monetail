@@ -10,11 +10,23 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
-| Windows Presentation（レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 154 |
+| Windows Presentation（接続先設定VM・レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 164 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3823 |
+| 合計 | 3833 |
+
+## 接続先設定の共有Page・UserControl・MVVM（PR #218）
+
+[ConnectionSettingsViewModelTests](Monetail.Windows.Presentation.Tests/ConnectionSettingsViewModelTests.cs)の10ケースで、通信しない初期化、既存ApiEndpointと同じ不正URL5種の拒否/原文保持、URL修正、処理状態/Command可否、解析済み候補、明示再試行、キャンセル通知、画面解放/二重破棄/進行中確認の中断を確認する。最小10件→Presentation全164件がローカルReleaseで成功。
+
+既存connection-flowと振替401の参照先を新しい共有View/初回ホストへ変更し、表示判定は祖先の可視状態も確認する。期待値・タイムアウトを緩和せず、Activate前の初回対象/通信なし、管理Viewの必要時生成、双方向URLバインド、通常離脱・再訪、Enter、接続失敗時の設定/認証保持、同じ候補による再試行、変更先へ旧Bearerを送らないこと、キャンセル、Window終了による確認中断を追加する。新旧URLフォームの併存はなく、Window内部参照/寿命は[構成正本](../docs/architecture-winui.md#接続先設定のpageusercontrolmvvm)を参照する。
+
+基点main ef4f043の[Tests 44656381917](https://github.com/k-o-a-b-c/monetail/actions/runs/44656381917)ではClient等が成功、WinUIは未変更transfer-listの保存行表示待機（TransferViewSimplificationScenario.cs:172）で失敗していた。選択・ロード済みの行が可視領域外で、原因未特定。今回の変更前からの問題として区別し、直前main 85fc7ffの[Tests 44647726436](https://github.com/k-o-a-b-c/monetail/actions/runs/44647726436)成功と影響外のCI成功記録を利用する。
+
+初回ソース89d234eの[Tests 44669237119](https://github.com/k-o-a-b-c/monetail/actions/runs/44669237119)でClient/Presentationが成功。Windowsはx:Bindの変換関数を型修飾なしのstaticで宣言したためCS0176となり、インスタンス関数へ修正した。説明/キャンセル表示もMode=OneWayを明示。構造検査・XML4ファイル・対象C#書式検査・git diff --checkはローカル成功。続くe1220aeの[Tests 44669603110](https://github.com/k-o-a-b-c/monetail/actions/runs/44669603110)で両Releaseビルドが成功（各29件の既存警告/0エラー）。スモークはレシート401のprivate接続メソッド呼出しにCancellationToken引数が不足していたため失敗し、呼出し引数だけを更新した。e204872の[Tests 44670014361](https://github.com/k-o-a-b-c/monetail/actions/runs/44670014361)では新規フローのリンク取得をx:Nameとして検索していたため失敗し、既存AutomationIdでの取得へ修正。手動レビューで共有進捗が新Pageの背後に隠れない配置へ直し、確認中の進捗/Command状態も検証する。0fee342の[Tests 44670553348](https://github.com/k-o-a-b-c/monetail/actions/runs/44670553348)では接続フローが成功した後、人物順序の別接続先再起動の確認が失敗。設定ファイル変更を模擬する既存2試験は通信段階だけでなく設定読込段階も通すよう更新し、認証失敗後の製品再試行も同じ再起動経路へ統一した。別接続先へ未保存入力を引き継がない期待値は維持する。6f94da9の[Tests 44671272233](https://github.com/k-o-a-b-c/monetail/actions/runs/44671272233)と[Windowsジョブ136072620802](https://github.com/k-o-a-b-c/monetail/actions/runs/44671272233/job/136072620802)で製品/検証用x64 Release・製品起動・全36シナリオ/780確認（接続フロー54、15確認追加）・個別3シナリオ/不正指定/計測/スクリーンショットが成功。人物/順序・参加者・科目・支払方法・レシート/振替の401復帰も成功した。製品は既存29警告、スモークは29既存警告に加え新しい起動ヘルパーのnullable警告が出たため、Windowをnull検証したローカル参照で保持するよう修正した。最終CI結果はPRに記録する。Client全1,194件・Presentation全164件は最初の成功と既存fingerprintを再利用する。XML/構造/対象書式/文書ローカルリンク217件・git diff --checkも確認した。
+
+実Windows手動操作、物理IME/タッチ/高DPI/High Contrast/スクリーンリーダー、実API接続は未検証。API/DB・Client契約・外部ライブラリ・他機能の全面Page移行は変更対象外。WinApp CLIは未導入で、公式WinUI 3資料/対象プロジェクトのビルドと既存FormKeyboardを用いる。
 
 ## WinUI構造検査（新規違反のみ）
 

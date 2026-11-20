@@ -74,7 +74,7 @@ public partial class App
             {
                 fixture.Settings.Save(ApiEndpoint.Parse("https://other.example.test/"));
                 fixture.Tokens.Current = new("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
-                await StartSyntheticAsync();
+                await StartSyntheticAsync(reloadSettings: true);
             }
             else
             {

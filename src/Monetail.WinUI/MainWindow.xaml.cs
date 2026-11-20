@@ -23,7 +23,7 @@ public sealed partial class MainWindow : Window
         InitializeReceipts();
         InitializeReceiptEditor();
         InitializeTransferEditor();
-        ShowPage(StartupPage);
+        PrepareInitialDestination();
     }
 
     [DllImport("user32.dll", ExactSpelling = true)]

@@ -36,6 +36,7 @@ internal sealed class ClientConnection(ClientSettingsStore settings, ITokenStore
     {
         var candidateApi = new MonetailApiClient(candidate, http);
         await candidateApi.CheckConnectionAsync(token);
+        token.ThrowIfCancellationRequested();
         // 接続を確認するまでは設定・認証を変更しない。変更先へ元のトークンを送らない。
         settings.Save(candidate);
         if (!Equals(Endpoint, candidate)) tokens.Clear();

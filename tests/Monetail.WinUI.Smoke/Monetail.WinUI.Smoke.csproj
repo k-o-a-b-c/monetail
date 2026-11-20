@@ -19,6 +19,10 @@
     <Compile Include="../../src/Monetail.WinUI/ParticipantRow.cs" Link="ParticipantRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.PersonOrder.cs" Link="MainWindow.PersonOrder.cs" />
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
+    <Page Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSettingsView.xaml" Link="Views/Connection/ConnectionSettingsView.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSettingsView.xaml.cs" Link="Views/Connection/ConnectionSettingsView.xaml.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSetupPage.xaml" Link="Views/Connection/ConnectionSetupPage.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSetupPage.xaml.cs" Link="Views/Connection/ConnectionSetupPage.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/ReceiptFilterChoice.cs" Link="ReceiptFilterChoice.cs" />

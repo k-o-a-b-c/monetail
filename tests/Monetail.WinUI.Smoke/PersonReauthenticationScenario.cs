@@ -74,7 +74,7 @@ public partial class App
             fixture.Settings.Save(ApiEndpoint.Parse("https://other.example.test/"));
             // 別の起動が変更先でログイン済みの状態。IDが同じでも接続先を区別する。
             fixture.Tokens.Current = new("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
-            await StartSyntheticAsync();
+            await StartSyntheticAsync(reloadSettings: true);
             Check(Visible(root, "HomePage") && Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0 &&
                 !fixture.OtherServerRequests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
                 "同じアカウントIDでも別のAPI接続先へ入力を引き継がない");
