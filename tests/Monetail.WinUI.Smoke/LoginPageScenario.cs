@@ -46,11 +46,14 @@ public partial class App
             await ActivateReceiptInputWindowAsync();
             var loginButton = Find<Button>(root, "LoginButton");
             await FocusTransferControl(loginButton);
+            var changeConnection = Find<HyperlinkButton>(root, "LoginChangeConnection");
             await PressReceiptKey(0x09);
+            await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), changeConnection));
             Check(FocusManager.GetFocusedElement(root.XamlRoot) is HyperlinkButton link &&
                 AutomationProperties.GetAutomationId(link) == "LoginChangeConnection",
                 "ログインからTabで接続先変更へ移動し、認証を開始しない");
             await PressReceiptKey(0x09, 0x10);
+            await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), loginButton));
             Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), loginButton) && fixture.BrowserOpens == 0,
                 "Shift+Tabはログインへ戻り、標準のキーボード順を維持する");
             var show = typeof(MainWindow).GetMethod("ShowLogin", BindingFlags.NonPublic | BindingFlags.Instance)
