@@ -65,6 +65,26 @@ public partial class App
 
         using (var fixture = new SyntheticConnection(saved: true))
         {
+            fixture.Tokens.Current = new TokenSet("synthetic-access", null, DateTimeOffset.UtcNow.AddMinutes(10));
+            fixture.RejectAuthentication = true;
+            fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.IgnoreConnectionCancellation = true;
+            var root = await OpenSyntheticWindow(fixture);
+            var startup = window!.StartAsync();
+            await Wait(() => fixture.Requests.Contains("/auth/me"));
+            var openSetup = typeof(MainWindow).GetMethod("OpenConnectionSetup",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("接続設定への入口がありません。");
+            openSetup.Invoke(window, []);
+            fixture.Tokens.LoadFailure = new IOException("合成の保存先障害");
+            fixture.ConnectionGate.SetResult(true);
+            await startup;
+            Check(Visible(root, "ConnectionSetupHost") && Startup(root) is null && fixture.Tokens.Current is not null,
+                "離脱後の遅い401処理で保存先障害になっても、接続設定画面を失敗画面へ変更しない");
+        }
+
+        using (var fixture = new SyntheticConnection(saved: true))
+        {
             fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var root = await OpenSyntheticWindow(fixture);
             var startup = window!.StartAsync();

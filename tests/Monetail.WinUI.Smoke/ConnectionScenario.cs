@@ -246,7 +246,13 @@ public partial class App
     private sealed class MemoryTokens : ITokenStore
     {
         public TokenSet? Current { get; set; }
-        public TokenSet? Load(ApiEndpoint endpoint) => Current;
+        internal IOException? LoadFailure;
+        public TokenSet? Load(ApiEndpoint endpoint)
+        {
+            if (LoadFailure is not null)
+                throw LoadFailure;
+            return Current;
+        }
         public void Save(ApiEndpoint endpoint, TokenSet tokens) => Current = tokens;
         public void Clear() => Current = null;
     }
