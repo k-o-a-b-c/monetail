@@ -115,7 +115,7 @@ public sealed partial class MainWindow
                     UpdatePersonOrderActions();
                 }
             }
-        }, SavePersonOrderAsync);
+        });
     }
 
     private void CancelPersonOrder(object sender, RoutedEventArgs args)

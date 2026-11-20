@@ -22,7 +22,7 @@ public partial class App
         Func<Task> action = async () => { await new PeopleWorkspace(connection.Api, connection.Session, ((LedgerInfo)(TransferRuntime("currentLedger") ?? throw new InvalidOperationException("家計簿がありません。"))).LedgerId).ListAsync(); };
         var run = typeof(MainWindow).GetMethod("RunAsync", BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new InvalidOperationException("共通操作がありません。");
-        await (Task)(run.Invoke(window, [action, (Func<Task>)(() => Task.CompletedTask), false]) ?? throw new InvalidOperationException("操作がありません。"));
+        await (Task)(run.Invoke(window, [action, null]) ?? throw new InvalidOperationException("操作がありません。"));
     }
     private async Task CompleteReceiptLogin(SyntheticConnection fixture, FrameworkElement root, bool expiresAgain = false)
     {

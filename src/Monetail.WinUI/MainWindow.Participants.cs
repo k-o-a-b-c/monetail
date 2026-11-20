@@ -61,7 +61,7 @@ public sealed partial class MainWindow
     {
         try { DisplayMembers(await Participants.ListAsync(lifetime.Token)); }
         catch (ParticipantRequestException error) { ApplyParticipantFailure(error); ShowError(ParticipantMessage(error)); }
-    }, LoadParticipantsAsync);
+    });
 
     private async void EditParticipant(object sender, RoutedEventArgs args)
     {
@@ -70,7 +70,7 @@ public sealed partial class MainWindow
         {
             try { BeginParticipantDialog(await Participants.EditAsync(member.AccountId, lifetime.Token), false); }
             catch (ParticipantRequestException error) { ApplyParticipantFailure(error); ShowError(ParticipantMessage(error)); }
-        }, () => Task.CompletedTask);
+        });
     }
     private void ExcludeParticipant(object sender, RoutedEventArgs args)
     {
@@ -172,7 +172,7 @@ public sealed partial class MainWindow
                 }
                 UpdateParticipantActions();
             }
-        }, () => Task.CompletedTask);
+        });
         return saved;
     }
     private void ShowLatestParticipant(MemberEditInfo latest)
@@ -231,7 +231,7 @@ public sealed partial class MainWindow
     {
         try { DisplayInvitations(await Participants.InvitationsAsync(lifetime.Token)); }
         catch (ParticipantRequestException error) { ApplyParticipantFailure(error); ShowInvitationNotice(ParticipantMessage(error)); }
-    }, () => Task.CompletedTask);
+    });
     private void DisplayInvitations(LedgerInvitationsInfo info)
     {
         invitationsInfo = info;
@@ -265,7 +265,7 @@ public sealed partial class MainWindow
                 invitationDraft = null; DisplayInvitations(result); ShowInvitationNotice("招待リンクを発行しました。");
             }
             catch (ParticipantRequestException error) { ApplyParticipantFailure(error); ShowInvitationNotice(ParticipantMessage(error)); }
-        }, () => Task.CompletedTask);
+        });
         InvitationRetryNotice.Visibility = invitationDraft is null ? Visibility.Collapsed : Visibility.Visible;
     }
     private void CopyInvitation(object sender, RoutedEventArgs args)
@@ -315,7 +315,7 @@ public sealed partial class MainWindow
                 {
                     ApplyParticipantFailure(error); InvitationCancelError.Text = ParticipantMessage(error); InvitationCancelError.Visibility = Visibility.Visible;
                 }
-            }, () => Task.CompletedTask);
+            });
             args.Cancel = !saved;
         }
         finally { deferral.Complete(); }

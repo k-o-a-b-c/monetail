@@ -56,6 +56,30 @@ public sealed class LedgerWorkspaceTests
         Assert.Equal(Second, (await fixture.Workspace.StartAsync()).Opened);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task MembershipIsReloadedOnceWhenSingleAutomaticOpeningReturnsNotFound(int remaining)
+    {
+        var lists = 0;
+        var rows = new[] { First, Second }.Take(remaining).ToArray();
+        using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
+            "/ledgers" => Json(++lists == 1 ? new[] { First } : rows),
+            var path when path == $"/ledgers/{First.LedgerId:N}/open" => new(HttpStatusCode.NotFound),
+            _ => throw new InvalidOperationException("Unexpected request")
+        });
+        var destination = await fixture.Workspace.StartAsync();
+        Assert.Null(destination.Opened);
+        Assert.Equal(rows, destination.Choices);
+        Assert.Equal(2, lists);
+        Assert.Equal(new[] { "/ledgers/open-last", "/ledgers", $"/ledgers/{First.LedgerId:N}/open", "/ledgers" },
+            fixture.Requests.Select(row => row.Path));
+        Assert.NotNull(fixture.Store.Current);
+    }
+
     [Fact]
     public async Task LastOpenedCommunicationFailureDoesNotPretendThereIsNoHistory()
     {

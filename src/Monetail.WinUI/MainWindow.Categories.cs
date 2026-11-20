@@ -41,7 +41,7 @@ public sealed partial class MainWindow
     private Task LoadCategoriesAsync() => account is null || currentLedger is null ? Task.CompletedTask : RunAsync(async () =>
     {
         DisplayCategories(await Categories.ListAsync(lifetime.Token));
-    }, LoadCategoriesAsync);
+    });
     private void DisplayCategories(CategoriesInfo info)
     {
         if (currentLedger is { } ledger) connection.Masters.UpdateCategories(ledger.LedgerId, info);
@@ -141,7 +141,7 @@ public sealed partial class MainWindow
                 DisplayCategories(result); saved = true;
             }
             catch (CategoryRequestException error) { HandleCategoryFailure(error); }
-        }, SaveCategoryAsync);
+        });
         return saved;
     }
     private void HandleCategoryFailure(CategoryRequestException error)
