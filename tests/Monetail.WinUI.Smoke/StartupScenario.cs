@@ -16,6 +16,7 @@ public partial class App
         foreach (var receipt in new[] { false, true })
         {
             using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
+            fixture.CategoriesHandler = new CategoryServer().HandleAsync;
             var root = await OpenSyntheticWindow(fixture);
             await StartSyntheticAsync();
             if (receipt)
