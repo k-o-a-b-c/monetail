@@ -88,7 +88,7 @@ Windowの通常遷移ガードと同じく、認証退避以外では未承認�
 | Window生成フィールド（ログインGrid/ボタン） | 2 | 0 |
 | C#から旧ログインGridへの名前参照 | 3 | 0 |
 | ログインXAMLからWindowへのClick直結 | 2 | 0 |
-| Windowの明示状態フィールド / boolフィールド | 9 / 2 | 9 / 2 |
+| MainWindow.Connectionの明示フィールド / boolフィールド | 9 / 2 | 9 / 2 |
 | ログインPage固有の保持 | 常駐Grid/ボタン | 操作通知2つ・表示時だけ生成 |
 
 新PageはXAML15行+C#15行。Window側の31行増は、通知の接続/解除、Page全体の操作可否、終了ガード、旧画面の可視状態/読取中断の共通化による。総量54行増を隠さず、不要な状態・VM・Service・ルーターを増やさずに、生成と解放の境界・依存を明示する。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)とWindows App SDK 1.8のFrame.Navigateを参照し、WinApp CLIは環境にないため未実行。実ビルド・寿命/認証復帰の検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
