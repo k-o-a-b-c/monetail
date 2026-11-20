@@ -74,13 +74,13 @@ WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 F
 
 ## ログインPageと認証前画面の責務
 
-`Views/Authentication/LoginPage`は表示と`LoginRequested`・`ConnectionChangeRequested`の2通知だけを持つ、NavigationCacheMode=Disabledの標準Page。専用ViewModel・Client/HTTP/Window参照は持たない。ログインボタンと接続先変更のAutomationId・標準のTab順を維持する。旧VBはローカルDB起動とWindowsユーザー名による識別であり、このOAuth画面の対応物はない。新版の[ログイン契約](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)を維持する。
+`Views/Authentication/LoginPage`は表示と`LoginRequested`・`ConnectionChangeRequested`・`BrowserOpenRequested`・`CancelRequested`の4通知を持つ、NavigationCacheMode=Disabledの標準Page。専用ViewModel・Client/HTTP/Window参照は持たない。ログインボタンと接続先変更のAutomationId・標準のTab順を維持する。旧VBはローカルDB起動とWindowsユーザー名による識別であり、このOAuth画面の対応物はない。新版の[ログイン契約](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)を維持する。
 
-接続先設定・起動・ログインを置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが2イベントを購読する。離脱・終了では購読とホストのContentを解除する。再訪は新しいPageとし、WindowはPage型・2通知・Page全体のIsEnabledだけを扱い、内部x:Nameを参照しない。処理中の操作可否は既存のWindow.busyから反映し、Pageに状態を複製しない。
+接続先設定・起動・ログインを置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが4イベントを購読する。離脱・終了では購読とホストのContentを解除する。通常離脱後の再訪は新しいPageとし、WindowはPage型・4通知・UI切替メソッドだけを扱い、内部x:Nameを参照しない。操作可否は既存のWindowの認証/処理状態から渡し、Pageに業務状態を複製しない。
 
-Windowの通常遷移ガードと同じく、認証退避以外では未承認の編集中遷移を拒否する。認証前Pageへの遷移時にも旧画面の可視状態を閉じ、一覧の読取を中断する。共有InfoBarはFrame外に残してログイン中も利用する。通常離脱と401退避を区別する既存の`NavigateToLogin` / `DiscardLedgerContents`は維持し、元のレシート/振替モデル・入力コントロールを破棄しない。閉鎖済みWindowではログインPageを再生成しない。ブラウザー待ち画面、起動時の通信/表示タイミング、OAuth/Client/保存形式は変更しない。
+Windowの通常遷移ガードと同じく、認証退避以外では未承認の編集中遷移を拒否する。認証前Pageへの遷移時にも旧画面の可視状態を閉じ、一覧の読取を中断する。共有InfoBarはFrame外に残してログイン中も利用する。通常離脱と401退避を区別する既存の`NavigateToLogin` / `DiscardLedgerContents`は維持し、元のレシート/振替モデル・入力コントロールを破棄しない。閉鎖済みWindowではログインPageを再生成しない。起動時の通信/表示タイミング、OAuth/Client/保存形式は変更しない。
 
-| 比較（基点main 52db880、空行込み・生成物除外） | 前 | 後 |
+| Page分離時の比較（PR #221、基点main 52db880、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
 | MainWindow.xaml | 634行 | 627行 |
 | MainWindow.Connection.cs | 456行 | 487行 |
@@ -91,7 +91,26 @@ Windowの通常遷移ガードと同じく、認証退避以外では未承認�
 | MainWindow.Connectionの明示フィールド / boolフィールド | 9 / 2 | 9 / 2 |
 | ログインPage固有の保持 | 常駐Grid/ボタン | 操作通知2つ・表示時だけ生成 |
 
-新PageはXAML15行+C#15行。Window側の31行増は、通知の接続/解除、Page全体の操作可否、終了ガード、旧画面の可視状態/読取中断の共通化による。総量54行増を隠さず、不要な状態・VM・Service・ルーターを増やさずに、生成と解放の境界・依存を明示する。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)とWindows App SDK 1.8のFrame.Navigateを参照し、WinApp CLIは環境にないため未実行。実ビルド・寿命/認証復帰の検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
+Page分離時（PR #221）はXAML15行+C#15行。Window側の31行増は、通知の接続/解除、Page全体の操作可否、終了ガード、旧画面の可視状態/読取中断の共通化による。総量54行増を隠さず、不要な状態・VM・Service・ルーターを増やさずに、生成と解放の境界・依存を明示する。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)とWindows App SDK 1.8のFrame.Navigateを参照し、WinApp CLIは環境にないため未実行。実ビルド・寿命/認証復帰の検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
+
+### 同一LoginPage内のブラウザー認証待ち
+
+認証前/待機はPage内の`LoginContent` / `WaitingContent`を標準Visibilityで切り替える。Pageの`SetAuthenticationState(waiting, canInteract)`はUIだけを更新し、認証状態を保持するVM/独立フラグを追加しない。Windowは既存の`browserLogin`で待機表示、`browserCancellation`で取消可能な待機操作、`busy`で認証前の入力可否を決める。コード交換後は取消元のフィールド参照を外して操作を止めるが、ローカルの取消元はWindow寿命にリンクしたまま認証確認を続ける。
+
+開始/取消/拒否/メッセージ更新では既存Pageを維持する。通常離脱で4通知を解除してFrame参照を解放し、再訪は新規生成する。Window内の旧認証待ちGrid/ボタンは削除した。遅れて戻るブラウザー起動結果は、同じ認証要求がまだ取消可能な状態か確認してから通知する。ユーザー操作・OAuth・401編集保持は[画面正本](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)、検証証跡は[tests/README](../tests/README.md)を参照する。
+
+| 待機統合の比較（基点main 2c6cbf7、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.xaml | 627行 | 617行 |
+| MainWindow.Connection.cs | 487行 | 521行 |
+| LoginPage XAML / C# | 15 / 15行 | 26 / 29行 |
+| 製品srcのC#/XAML総量 | 18,929行 | 18,978行 |
+| Window生成フィールド（認証待ちGrid/操作列/ボタン） | 4 | 0 |
+| Window C#から待機画面/ボタンへの名前参照 | 7 | 0 |
+| Connection partialの明示フィールド / bool | 9 / 2 | 9 / 2 |
+| Pageの操作通知 / UIメソッド | 2 / 0 | 4 / 1 |
+
+49行増はUI切替・4通知接続/解除・既存状態からの操作可否・旧ブラウザー起動結果の破棄を明示した分である。重複した待機画面を削除し、Windowからの内部コントロール操作をなくす。待機中の再オープン/取消をbusyで止めるための新しい状態フラグ、ViewModel、ルーターは設けない。WinUI 3の[UIElement.Visibility](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.uielement.visibility?view=windows-app-sdk-1.8)と既存の標準ボタンを使用する。
 
 ## 家計簿選択画面の分離（第1段階）
 

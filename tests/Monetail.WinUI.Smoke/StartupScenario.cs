@@ -25,6 +25,7 @@ public partial class App
                 await window!.OpenTransferEditorAsync(null);
             var editor = receipt ? (object?)ReceiptEditing : TransferEditing;
             var date = Find<DateInputBox>(root, receipt ? "ReceiptDate" : "TransferDate");
+            await Wait(() => date.IsLoaded && date.XamlRoot is not null);
             date.Text = "2026/";
             var openAuthentication = typeof(MainWindow).GetMethod("OpenAuthenticationPage",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)

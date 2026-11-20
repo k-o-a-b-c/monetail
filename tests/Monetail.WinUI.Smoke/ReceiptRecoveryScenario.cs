@@ -70,7 +70,7 @@ public partial class App
             var context = TransferRuntime("receiptAuthentication");
             Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) && ReferenceEquals(editorModel, ReceiptView.ViewModel) && ReferenceEquals(parent, ReceiptView.ViewModel?.ParentInput) &&
                 ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput) && !VisibleAncestors(Find<Grid>(root, "ReceiptEditorPage")), "レシート401は元の編集/親入力/未反映下書き/コントロールを保持して非表示にする");
-            await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
+            await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => BrowserLoginWaiting(root));
             await InvokeAsync(() => Find<Button>(root, "CancelLoginButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
             Check(ReferenceEquals(context, TransferRuntime("receiptAuthentication")) && price.Text == "12x" && date.Text == "2026/", "ログイン取消は最初の復帰情報と未確定入力を保持してログイン画面に留まる");
             server.ExpireAt = "taxes";
