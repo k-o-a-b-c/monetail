@@ -49,7 +49,7 @@ foreach ($suite in $suites) {
     if ($Scenario) { $arguments += @('--scenario', $Scenario) }
     elseif ($suite -eq 'transfer-editor') { $arguments += '--transfer-editor-only' }
     else { $arguments += '--existing-only' }
-    if ($Capture -and $suite -ne 'transfer-editor') { $arguments += '--capture' }
+    if ($Capture) { $arguments += '--capture' }
     if ($RepeatParticipantRecovery -and $suite -ne 'transfer-editor') { $arguments += '--repeat-participant-recovery' }
     $resultPath = Join-Path $suiteOutput 'smoke-result.json'
     Remove-Item $resultPath, "$suiteOutput/smoke-error.txt" -ErrorAction SilentlyContinue
