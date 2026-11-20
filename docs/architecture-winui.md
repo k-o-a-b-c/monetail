@@ -42,8 +42,8 @@ StartupPageはNavigationCacheMode=Disabledの標準Pageで、表示時からProg
 | 起動変更の比較（基点main 5e5f20a、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
 | MainWindow.xaml | 641行 | 634行 |
-| MainWindow.Connection.cs | 444行 | 448行 |
-| 製品srcのC#/XAML総量 | 18,845行 | 18,867行 |
+| MainWindow.Connection.cs | 444行 | 449行 |
+| 製品srcのC#/XAML総量 | 18,845行 | 18,868行 |
 | Windowから起動Page内部への名前参照 | 4箇所/2要素 | 0 |
 | 起動表示用のboolフラグ | 0 | 0 |
 | 起動用CancellationTokenSourceの明示フィールド | 0 | 1 |

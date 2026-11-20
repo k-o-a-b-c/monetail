@@ -72,7 +72,8 @@ public sealed partial class MainWindow
             }
             catch (Exception error) when ((closed || !ReferenceEquals(ConnectionSetupHost.Content, frame)) &&
                 error is OperationCanceledException or ApiConnectionException or HttpRequestException or
-                    AuthenticationRejectedException or AuthenticationContextChangedException or LedgerRequestException)
+                    AuthenticationRejectedException or AuthenticationContextChangedException or LedgerRequestException or
+                    IOException or UnauthorizedAccessException or CryptographicException or SocketException)
             {
                 // 退避先へ遷移した後の遅延応答・失敗で画面を横取りしない。
             }
