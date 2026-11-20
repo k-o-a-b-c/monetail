@@ -16,6 +16,16 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3841 |
 
+## ログイン画面のPage化（PR #221）
+
+[LoginPageScenario](Monetail.WinUI.Smoke/LoginPageScenario.cs)を既存connection-flowへ追加し、未訪問Page/旧Gridの未生成、Activate前の認証なし/通信0、標準Tab/Shift+Tab、通常再訪、共有InfoBar、2通知の購読/解放、認証取消とWindow終了を検証する。[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)の振替/レシート両方へ未承認のPage遷移を拒否する確認を追加した。既存の36シナリオ、ブラウザー成功/失効/ログアウト/接続先変更、同一モデル/コントロールを保つ401復帰と全件照合は維持する。責務・生成/解放・状態/コード量の比較は[構成正本](../docs/architecture-winui.md#ログインpageと認証前画面の責務)を参照する。
+
+ローカルReleaseはClientの認証/保存43件と接続先設定VM10件が成功。Windowsの最終ソース`07ea78f`の[Tests 44741503496](https://github.com/k-o-a-b-c/monetail/actions/runs/44741503496)も成功した。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/807確認（connection-flow81）、個別3シナリオ、全件照合・撮影・不正指定拒否・計測が成功。新しい警告・期待値/タイムアウト緩和・テスト削減はない。
+
+途中の失敗は、共通ホストの可視状態だけを待つ旧条件、Pageのビジュアルツリー接続前のリンク検索、新規Tab試験のキー送信直後の即時判定だった。対象Page型とNameScopeで取得し、既存ヘルパーによるLoaded/フォーカス移動の条件待機へそろえた。製品の認証ロジックやキー処理は変更していない。変更前main `52db880`の[push Tests 44735027843](https://github.com/k-o-a-b-c/monetail/actions/runs/44735027843)成功を基準に、Client全1,202件・Presentation全164件・Windows実保存とAPI/DB等の非変更部分はCIのfingerprintによる成功記録を再利用する。
+
+WinUI構造検査・XAML/XML・文書リンク・git diff --checkを確認した。WinApp CLIは環境にないため未実行で、Microsoft LearnのWinUI 3 Frame/Page・SDK 1.8資料と実製品ビルドで確認。実API接続、実Windows手動操作、物理IME/タッチ、高DPI・スクリーンリーダーは未検証。最終実行で0xC0000005は記録されていないが、過去の原因解決とは扱わない。
+
 ## 起動Page・保存認証による初回表示（PR #220）
 
 [SessionTests](Monetail.Windows.Client.Tests/SessionTests.cs)へ存在判定の通信なし/有効性と存在の区別/期限切れ/キャッシュなし/外部変更/保存先障害を5ケース、[StorageTests](Monetail.Windows.Client.Tests/StorageTests.cs)へ破損・復号不能・別接続先の保持を3ケース追加した。既存のトークン更新・拒否・失効・通信失敗時の保持は変更しない。ローカルReleaseは関連43件→Client全1,202件・Presentation全164件が成功。通常サンドボックスではMSBuildのIPCが拒否されたため、ローカルテストを追加権限で実行した。ローカルのNuGet脆弱性情報取得は接続不能によるNU1900が残り、Windows CIの復元/ビルド結果と区別する。

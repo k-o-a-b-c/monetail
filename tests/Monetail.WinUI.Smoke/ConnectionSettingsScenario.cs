@@ -23,7 +23,7 @@ public partial class App
             var first = ConnectionView(root);
             var model = first.ViewModel;
             Check(Find<ContentControl>(root, "ConnectionSettingsContent").Content is ConnectionSettingsView &&
-                !model.CanCancel && Find<ContentControl>(root, "ConnectionSetupHost").Content is null,
+                !model.CanCancel && Find<ContentControl>(root, "AuthenticationHost").Content is null,
                 "管理画面も共通UserControlだけを必要時に生成し初回Pageを併存させない");
             var input = Find<TextBox>(root, "ServerUrl");
             input.Text = "http://invalid.example.test/";
@@ -66,11 +66,10 @@ public partial class App
             Check(fixture.Settings.Load()!.Value == "https://other.example.test/" && fixture.Tokens.Current is null &&
                 !fixture.OtherServerAuthenticated && fixture.OtherServerRequests.Count == 2,
                 "明示再試行は同じ候補で確認後だけ保存し、元トークンを変更先へ送らない");
-            var change = All(root).OfType<HyperlinkButton>().Single(link =>
-                Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(link) == "LoginChangeConnection");
+            var change = Find<HyperlinkButton>(root, "LoginChangeConnection");
             await FocusTransferControl(change);
             await PressReceiptKey(0x0D);
-            await Wait(() => Visible(root, "ConnectionSetupHost"));
+            await Wait(() => ConnectionSetupVisible(root));
             var setup = ConnectionView(root);
             Check(setup.GetType() == first.GetType() && setup.ViewModel.CanCancel,
                 "初回Pageと管理は同じUserControl型を使い、保存済み接続先からの変更にはキャンセルを示す");
@@ -78,7 +77,7 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "ConnectionCancel"));
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Settings.Load()!.Value == "https://other.example.test/" &&
-                Find<ContentControl>(root, "ConnectionSetupHost").Content is null && !setup.ViewModel.ConnectCommand.CanExecute(null),
+                LoginScreen(root) is not null && !setup.ViewModel.ConnectCommand.CanExecute(null),
                 "キャンセルは未保存URLを反映せず保存先へ戻り、初回Page/VMを解放する");
         }
         using (var fixture = new SyntheticConnection())
@@ -96,7 +95,7 @@ public partial class App
                 !Find<Button>(root, "ConnectButton").IsEnabled && fixture.Settings.Load() is null &&
                 Find<ProgressRing>(root, "BusyProgress").IsActive && Find<ProgressRing>(root, "BusyProgress").IsEnabled &&
                 ((Grid)root).Children.IndexOf(Find<ProgressRing>(root, "BusyProgress")) >
-                    ((Grid)root).Children.IndexOf(Find<ContentControl>(root, "ConnectionSetupHost")),
+                    ((Grid)root).Children.IndexOf(Find<ContentControl>(root, "AuthenticationHost")),
                 "接続中の処理状態とCommand可否を通知し、確認前に設定を保存しない");
             using var next = new SyntheticConnection();
             await OpenSyntheticWindow(next);

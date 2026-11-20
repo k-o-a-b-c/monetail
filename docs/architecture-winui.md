@@ -33,7 +33,7 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `MainWindow.Connection` | 初回表示の選択、現在の家計簿/本人/接続先、既存未保存保護・認証復帰・共有失敗画面と進捗の調停。View内部のTextBox/ボタンを参照しない |
 | 既存`ClientConnection`・Client | メタデータ確認→設定保存→接続先変更時だけトークン消去、認証復元。確認取消後に設定を保存しない |
 
-Window構築時のPrepareInitialDestinationで接続先と保存認証の有無をローカルで調べ、Activate前に初回表示先を決定する。未設定はConnectionSetupPage、認証なしはログインを直接表示し、StartAsyncで通信や起動Pageを開始しない。認証ありの場合だけ、同じConnectionSetupHostのFrameへ表示専用のStartupPageを生成する。保存/認証読込エラーは共有失敗画面と明示再試行へ接続する。起動時の状態別契約は[58](ledger-windows.md#windows版の起動表示接続失敗時の操作)を正本とする。
+Window構築時のPrepareInitialDestinationで接続先と保存認証の有無をローカルで調べ、Activate前に初回表示先を決定する。未設定はConnectionSetupPage、認証なしはログインを直接表示し、StartAsyncで通信や起動Pageを開始しない。認証ありの場合だけ、同じAuthenticationHostのFrameへ表示専用のStartupPageを生成する。保存/認証読込エラーは共有失敗画面と明示再試行へ接続する。起動時の状態別契約は[58](ledger-windows.md#windows版の起動表示接続失敗時の操作)を正本とする。
 
 StartupPageはNavigationCacheMode=Disabledの標準Pageで、表示時からProgressRingが動く。ViewModelやWindowへの通知は持たない。Windowはページ型とホストだけを扱い、内部コントロールを参照しない。認証情報の存在判定はClientSession.HasSavedAuthenticationから既存ITokenStore.Loadを利用し、トークンをWindowへ公開・キャッシュせず、RestoreAsyncで改めて読込・検証する。起動でのメタデータ取得は省略するが、接続先確定時の検証と既存認証更新は維持する。
 
@@ -71,6 +71,27 @@ VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解
 総行数は221行増える（共有View72＋Page35＋VM77、Window全体36行増＋既存ClientConnectionの取消確認1行）。元のフォーム2か所の常駐と内部操作をなくす一方、初回表示確定・画面寿命・処理可否/通知を明示する。VMの明示保持はURL/検証文字列2、読み取り専用の説明1、画面寿命1、注入delegate2。生成Command/DP/ネイティブ入力・フレームワーク内部状態は別とし、全状態数が減ったとは主張しない。Windowの共有busy/認証/再試行をVMへコピーせず、UI内部状態は新しいVM1つに集約する。旧ServerUrl/SettingsServerUrlの2系統とConnect/ConnectSettings/CancelConnectionハンドラー、WindowからのFormKeyboard登録を削除した。AutomationIdは共通ServerUrl/ConnectButton/ConnectionCancelへ統一する。
 
 WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
+
+## ログインPageと認証前画面の責務
+
+`Views/Authentication/LoginPage`は表示と`LoginRequested`・`ConnectionChangeRequested`の2通知だけを持つ、NavigationCacheMode=Disabledの標準Page。専用ViewModel・Client/HTTP/Window参照は持たない。ログインボタンと接続先変更のAutomationId・標準のTab順を維持する。旧VBはローカルDB起動とWindowsユーザー名による識別であり、このOAuth画面の対応物はない。新版の[ログイン契約](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)を維持する。
+
+接続先設定・起動・ログインを置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが2イベントを購読する。離脱・終了では購読とホストのContentを解除する。再訪は新しいPageとし、WindowはPage型・2通知・Page全体のIsEnabledだけを扱い、内部x:Nameを参照しない。処理中の操作可否は既存のWindow.busyから反映し、Pageに状態を複製しない。
+
+Windowの通常遷移ガードと同じく、認証退避以外では未承認の編集中遷移を拒否する。認証前Pageへの遷移時にも旧画面の可視状態を閉じ、一覧の読取を中断する。共有InfoBarはFrame外に残してログイン中も利用する。通常離脱と401退避を区別する既存の`NavigateToLogin` / `DiscardLedgerContents`は維持し、元のレシート/振替モデル・入力コントロールを破棄しない。閉鎖済みWindowではログインPageを再生成しない。ブラウザー待ち画面、起動時の通信/表示タイミング、OAuth/Client/保存形式は変更しない。
+
+| 比較（基点main 52db880、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.xaml | 634行 | 627行 |
+| MainWindow.Connection.cs | 456行 | 487行 |
+| 製品srcのC#/XAML総量 | 18,875行 | 18,929行 |
+| Window生成フィールド（ログインGrid/ボタン） | 2 | 0 |
+| C#から旧ログインGridへの名前参照 | 3 | 0 |
+| ログインXAMLからWindowへのClick直結 | 2 | 0 |
+| MainWindow.Connectionの明示フィールド / boolフィールド | 9 / 2 | 9 / 2 |
+| ログインPage固有の保持 | 常駐Grid/ボタン | 操作通知2つ・表示時だけ生成 |
+
+新PageはXAML15行+C#15行。Window側の31行増は、通知の接続/解除、Page全体の操作可否、終了ガード、旧画面の可視状態/読取中断の共通化による。総量54行増を隠さず、不要な状態・VM・Service・ルーターを増やさずに、生成と解放の境界・依存を明示する。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)とWindows App SDK 1.8のFrame.Navigateを参照し、WinApp CLIは環境にないため未実行。実ビルド・寿命/認証復帰の検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
 
 ## 家計簿選択画面の分離（第1段階）
 

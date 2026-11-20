@@ -14,19 +14,20 @@ public partial class App
     {
         await CheckLedgerChoiceControl();
         await CheckConnectionSettingsLifecycle();
+        await CheckLoginPageLifecycle();
         await CheckStartupSelection();
         using (var fixture = new SyntheticConnection())
         {
             var root = await OpenSyntheticWindow(fixture, (_, initial) =>
             {
-                Check(Find<ContentControl>(initial, "ConnectionSetupHost").Content is Frame { Content: Monetail.WinUI.Views.Connection.ConnectionSetupPage } &&
+                Check(Find<ContentControl>(initial, "AuthenticationHost").Content is Frame { Content: Monetail.WinUI.Views.Connection.ConnectionSetupPage } &&
                     initial.FindName("StartupPage") is null && fixture.Requests.Count == 0 &&
                     Find<ContentControl>(initial, "ConnectionSettingsContent").Content is null,
                     "未設定はActivate前に初回Pageだけを生成し、Startup/通信/管理用Viewを開始しない");
             });
             await StartSyntheticAsync();
-            Check(Visible(root, "ConnectionSetupHost"), "未設定なら同じWindowで接続先を入力");
-            Check(Startup(root) is null && Visible(root, "ConnectionSetupHost"),
+            Check(ConnectionSetupVisible(root), "未設定なら同じWindowで接続先を入力");
+            Check(Startup(root) is null && ConnectionSetupVisible(root),
                 "未設定は起動画面を生成せず、初回設定を維持する");
             if (capture) await Capture(root, output, "05-connection");
             Find<TextBox>(root, "ServerUrl").Text = "http://invalid.example.test/";
@@ -183,7 +184,7 @@ public partial class App
             fixture.ConnectionGate.SetResult(true);
             await startup;
             Check(Visible(root, "HomePage") && Startup(root) is null &&
-                Find<ContentControl>(root, "ConnectionSetupHost").Content is null,
+                Find<ContentControl>(root, "AuthenticationHost").Content is null,
                 "接続完了後は起動PageとFrameの参照を解放して同じWindowのホームへ進む");
         }
 
@@ -241,7 +242,9 @@ public partial class App
         return root;
     }
 
-    private static bool Visible(FrameworkElement root, string name) => VisibleAncestors(Find<FrameworkElement>(root, name));
+    private static bool Visible(FrameworkElement root, string name) => name == "LoginPage"
+        ? ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Authentication.LoginPage login && VisibleAncestors(login)
+        : VisibleAncestors(Find<FrameworkElement>(root, name));
 
     private sealed class MemoryTokens : ITokenStore
     {
