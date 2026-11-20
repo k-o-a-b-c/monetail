@@ -32,7 +32,26 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `MainWindow.Connection` | 初回表示の選択、現在の家計簿/本人/接続先、既存未保存保護・認証復帰・共有失敗画面と進捗の調停。View内部のTextBox/ボタンを参照しない |
 | 既存`ClientConnection`・Client | メタデータ確認→設定保存→接続先変更時だけトークン消去、認証復元。確認取消後に設定を保存しない |
 
-Window構築時のPrepareInitialDestinationで保存済み接続先を読み、設定済みなら従来の起動表示を初回対象にする。未設定なら、その時だけFrameを作ってFrame.Navigateで初回Pageを配置する。AppのActivate後にStartAsyncを呼ぶが、未設定ではRunAsync/HTTP/1秒の遅延通知へ入らず完了する。設定読込エラーは従来の共有失敗画面と明示再試行へ接続する。
+Window構築時のPrepareInitialDestinationで接続先と保存認証の有無をローカルで調べ、Activate前に初回表示先を決定する。未設定はConnectionSetupPage、認証なしはログインを直接表示し、StartAsyncで通信や起動Pageを開始しない。認証ありの場合だけ、同じConnectionSetupHostのFrameへ表示専用のStartupPageを生成する。保存/認証読込エラーは共有失敗画面と明示再試行へ接続する。起動時の状態別契約は[58](ledger-windows.md#windows版の起動表示接続失敗時の操作)を正本とする。
+
+StartupPageはNavigationCacheMode=Disabledの標準Pageで、表示時からProgressRingが動く。ViewModelやWindowへの通知は持たない。Windowはページ型とホストだけを扱い、内部コントロールを参照しない。認証情報の存在判定はClientSession.HasSavedAuthenticationから既存ITokenStore.Loadを利用し、トークンをWindowへ公開・キャッシュせず、RestoreAsyncで改めて読込・検証する。起動でのメタデータ取得は省略するが、接続先確定時の検証と既存認証更新は維持する。
+
+起動読取の取消元をWindowに1つ保持し、共有ホスト解放時に取消する。認証/家計簿取得後にも取消を確認し、Page離脱後の既知の遅延失敗も画面へ適用しない。新しい状態bool・Service・ルーター・認証スナップショットは追加しない。従来の遅延表示Task/タイマー・Window内の起動Gridを削除する。
+
+| 起動変更の比較（基点main 5e5f20a、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.xaml | 641行 | 634行 |
+| MainWindow.Connection.cs | 444行 | 448行 |
+| 製品srcのC#/XAML総量 | 18,845行 | 18,867行 |
+| Windowから起動Page内部への名前参照 | 4箇所/2要素 | 0 |
+| 起動表示用のboolフラグ | 0 | 0 |
+| 起動用CancellationTokenSourceの明示フィールド | 0 | 1 |
+| 未設定時の通信 | 0 | 0 |
+| 設定済み・認証なしの起動通信 | 1（メタデータ） | 0 |
+| 有効保存認証→前回家計簿までの通信 | 3 | 2 |
+| 更新が必要な保存認証→前回家計簿までの通信 | 4 | 3 |
+
+通信数は本人確認・必要な更新・open-lastまで（各画面のマスタ/一覧取得は別）で、合成HTTPにより検証する。起動表示のUI状態はPageの有無から導出する。新しい表示専用PageはXAML12行+C#8行、Client追加は4行。総行数の削減ではなく、不要な通信・遅延と内部参照をなくし、離脱時の読取寿命を明示する変更である。
 
 管理画面では既存右ペインの空ContentControlへ同じUserControlを必要時に配置する。通常の画面遷移・管理項目変更・終了ではVMを停止してホストのContentを消し、初回側はナビゲーション引数を持つFrameもホストごと解放する。新たな画面キャッシュ、画面レジストリ、独自ルーター、Service/DIは追加しない。再訪は保存済みURLから生成し、2つの設定Viewは併存しない。ほかの機能画面・共通Shellは旧構成を残す段階移行で、全画面のPage化が完了したとは扱わない。
 

@@ -68,10 +68,11 @@ public partial class App
             fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var root = await OpenSyntheticWindow(fixture);
             var startup = window!.StartAsync();
+            var host = Find<ContentControl>(root, "ConnectionSetupHost");
             using var next = new SyntheticConnection();
             await OpenSyntheticWindow(next);
             await startup;
-            Check(fixture.ConnectionCancelled && Find<ContentControl>(root, "ConnectionSetupHost").Content is null &&
+            Check(fixture.ConnectionCancelled && host.Content is null &&
                 fixture.Tokens.Current is not null && !fixture.Requests.Contains("/ledgers/open-last"),
                 "Window終了は起動検証を中断し、Page参照を解放して保存認証を維持する");
         }

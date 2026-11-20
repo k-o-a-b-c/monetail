@@ -9,12 +9,20 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1194 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1202 |
 | Windows Presentation（接続先設定VM・レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 164 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3833 |
+| 合計 | 3841 |
+
+## 起動Page・保存認証による初回表示（PR #220）
+
+[SessionTests](Monetail.Windows.Client.Tests/SessionTests.cs)へ存在判定の通信なし/有効性と存在の区別/期限切れ/キャッシュなし/外部変更/保存先障害を5ケース、[StorageTests](Monetail.Windows.Client.Tests/StorageTests.cs)へ破損・復号不能・別接続先の保持を3ケース追加した。既存のトークン更新・拒否・失効・通信失敗時の保持は変更しない。ローカルReleaseは関連43件→Client全1,202件・Presentation全164件が成功。通常サンドボックスではMSBuildのIPCが拒否されたため、ローカルテストを追加権限で実行した。ローカルのNuGet脆弱性情報取得は接続不能によるNU1900が残り、Windows CIの復元/ビルド結果と区別する。
+
+[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)を既存connection-flowへ接続し、Activate前の認証なし/通信0/起動Pageなし、期限切れ更新→本人確認→家計簿取得の要求順、初回判定後の認証削除、離脱時のPage解放と遅延応答拒否、Window終了の取消を追加する。既存の未設定/初回接続/有効・無効認証/通信失敗/明示再試行/接続先変更/10秒タイムアウト/ブラウザー認証を維持し、承認済みの起動仕様に合わせて1秒遅延の期待値を即時ProgressRingへ置き換えた。Frame/Pageの所有者と通信数・コード/状態比較は[構成正本](../docs/architecture-winui.md#接続先設定のpageusercontrolmvvm)を参照する。
+
+変更前main `5e5f20a`の[push Tests 44684505764](https://github.com/k-o-a-b-c/monetail/actions/runs/44684505764)成功を基準とする。影響外のAPI/DB/Docker/旧Windows等はCI選択と成功fingerprintに従って再利用する。WinApp CLIは実行環境にないため、Microsoft LearnのWinUI 3 Frame/PageとWindows App SDK 1.8のAPI資料で確認し、Windows製品/スモークビルドで検証する。実Windowsでの手動操作・実API接続・物理IME/タッチ・高DPI・スクリーンリーダーの確認は未実施。
 
 ## 接続先設定の共有Page・UserControl・MVVM（PR #218）
 
