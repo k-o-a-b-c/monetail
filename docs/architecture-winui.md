@@ -80,7 +80,7 @@ WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 F
 
 Windowの通常遷移ガードと同じく、認証退避以外では未承認の編集中遷移を拒否する。認証前Pageへの遷移時にも旧画面の可視状態を閉じ、一覧の読取を中断する。共有InfoBarはFrame外に残してログイン中も利用する。通常離脱と401退避を区別する既存の`NavigateToLogin` / `DiscardLedgerContents`は維持し、元のレシート/振替モデル・入力コントロールを破棄しない。閉鎖済みWindowではログインPageを再生成しない。起動時の通信/表示タイミング、OAuth/Client/保存形式は変更しない。
 
-| 比較（基点main 52db880、空行込み・生成物除外） | 前 | 後 |
+| Page分離時の比較（PR #221、基点main 52db880、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
 | MainWindow.xaml | 634行 | 627行 |
 | MainWindow.Connection.cs | 456行 | 487行 |

@@ -16,6 +16,16 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3841 |
 
+## LoginPage内へのブラウザー認証待ち統合（PR #222）
+
+[LoginPageScenario](Monetail.WinUI.Smoke/LoginPageScenario.cs)と既存connection-flowで、同一Pageの認証前/待機切替、表示対象と待機Tab/Enter、busy中の再オープン/取消、同じ要求URL、二重ログイン防止、取消/OAuth拒否からの再試行、確定中の操作禁止、待機/確定中のWindow終了・取得済み認証保持を確認する。通常離脱では4通知とPage参照を解放し、同じPage内の状態切替では解放しない。旧待機画面/操作列の製品・テスト参照は残っていない。既存36シナリオと401の編集モデル/実コントロール保持を維持する。責務・コード量・状態/依存の比較は[構成正本](../docs/architecture-winui.md#同一loginpage内のブラウザー認証待ち)を参照する。
+
+ローカルReleaseはOAuth/セッション/保存の関連Client56件が成功。最終ソース`742faa2`の[Tests 44799874018](https://github.com/k-o-a-b-c/monetail/actions/runs/44799874018)が成功した。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/815確認（connection-flow89）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功。変更前main `2c6cbf7`の[push Tests 44796338522](https://github.com/k-o-a-b-c/monetail/actions/runs/44796338522)成功を基準に、非変更のClient全1,202件・Presentation全164件・Windows保存/API/DB等はCIのfingerprintによる成功記録を再利用する。
+
+最初のWindowsビルドはStackPanel.IsEnabledがWinUI 3にないことを検出し、Page所有の標準Control.IsEnabledへ修正した。後続のDateInputBox型解決診断は一次コンパイル失敗に伴うもので、日付部品は変更していない。次の実行は既存の強制401試験で、未接続の編集View.XamlRootをFocusManagerへ渡すArgumentExceptionを検出した。コントロールのLoaded/XamlRoot接続を確認してから同じ401を発生させるよう試験前提を整えた。期待値/タイムアウトの緩和や製品の認証復帰処理への変更はない。最終実行で0xC0000005は記録されていないが、過去の原因解決とは扱わない。
+
+構造検査・XML・文書リンク・git diff --checkも成功。WinApp CLIは環境にないため未実行で、Microsoft LearnのSDK 1.8 Visibility/Control.IsEnabledと実製品ビルドで確認した。実API接続、実Windows手動操作、物理IME/タッチ、高DPI・スクリーンリーダーは未検証。
+
 ## ログイン画面のPage化（PR #221）
 
 [LoginPageScenario](Monetail.WinUI.Smoke/LoginPageScenario.cs)を既存connection-flowへ追加し、未訪問Page/旧Gridの未生成、Activate前の認証なし/通信0、標準Tab/Shift+Tab、通常再訪、共有InfoBar、2通知の購読/解放、認証取消とWindow終了を検証する。[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)の振替/レシート両方へ未承認のPage遷移を拒否する確認を追加した。既存の36シナリオ、ブラウザー成功/失効/ログアウト/接続先変更、同一モデル/コントロールを保つ401復帰と全件照合は維持する。責務・生成/解放・状態/コード量の比較は[構成正本](../docs/architecture-winui.md#ログインpageと認証前画面の責務)を参照する。
