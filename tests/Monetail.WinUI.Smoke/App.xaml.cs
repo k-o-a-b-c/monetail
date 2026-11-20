@@ -84,6 +84,10 @@ public partial class App : Application
         ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Authentication.LoginPage login
             ? login.FindName(name) : null;
 
+    private static bool ConnectionSetupVisible(FrameworkElement root) =>
+        ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Connection.ConnectionSetupPage setup &&
+            VisibleAncestors(setup);
+
     private static Monetail.WinUI.Views.Connection.ConnectionSettingsView ConnectionView(FrameworkElement root)
     {
         if (((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Connection.ConnectionSetupPage setup)

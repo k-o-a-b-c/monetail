@@ -100,7 +100,7 @@ public partial class App
                 "起動検証中の離脱は起動Pageを解放して接続先設定Pageへ切り替える");
             fixture.ConnectionGate.SetResult(true);
             await startup;
-            Check(Visible(root, "AuthenticationHost") && Startup(root) is null &&
+            Check(ConnectionSetupVisible(root) && Startup(root) is null &&
                 !fixture.Requests.Contains("/ledgers/open-last") && fixture.Tokens.Current is not null,
                 "取消に遅れた認証応答でも接続設定画面を横取りせず、家計簿取得へ進まない");
         }
@@ -121,7 +121,7 @@ public partial class App
             fixture.Tokens.LoadFailure = new IOException("合成の保存先障害");
             fixture.ConnectionGate.SetResult(true);
             await startup;
-            Check(Visible(root, "AuthenticationHost") && Startup(root) is null && fixture.Tokens.Current is not null,
+            Check(ConnectionSetupVisible(root) && Startup(root) is null && fixture.Tokens.Current is not null,
                 "離脱後の遅い401処理で保存先障害になっても、接続設定画面を失敗画面へ変更しない");
         }
 

@@ -26,8 +26,8 @@ public partial class App
                     "未設定はActivate前に初回Pageだけを生成し、Startup/通信/管理用Viewを開始しない");
             });
             await StartSyntheticAsync();
-            Check(Visible(root, "AuthenticationHost"), "未設定なら同じWindowで接続先を入力");
-            Check(Startup(root) is null && Visible(root, "AuthenticationHost"),
+            Check(ConnectionSetupVisible(root), "未設定なら同じWindowで接続先を入力");
+            Check(Startup(root) is null && ConnectionSetupVisible(root),
                 "未設定は起動画面を生成せず、初回設定を維持する");
             if (capture) await Capture(root, output, "05-connection");
             Find<TextBox>(root, "ServerUrl").Text = "http://invalid.example.test/";

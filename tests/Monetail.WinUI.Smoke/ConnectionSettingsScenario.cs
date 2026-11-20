@@ -70,7 +70,7 @@ public partial class App
                 Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(link) == "LoginChangeConnection");
             await FocusTransferControl(change);
             await PressReceiptKey(0x0D);
-            await Wait(() => Visible(root, "AuthenticationHost"));
+            await Wait(() => ConnectionSetupVisible(root));
             var setup = ConnectionView(root);
             Check(setup.GetType() == first.GetType() && setup.ViewModel.CanCancel,
                 "初回Pageと管理は同じUserControl型を使い、保存済み接続先からの変更にはキャンセルを示す");
