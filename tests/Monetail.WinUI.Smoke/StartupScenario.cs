@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client;
+using Monetail.WinUI.Input;
 using Monetail.WinUI.Views.Connection;
 
 namespace Monetail.WinUI.Smoke;
@@ -10,8 +11,41 @@ public partial class App
     private static StartupPage? Startup(FrameworkElement root) =>
         (Find<ContentControl>(root, "ConnectionSetupHost").Content as Frame)?.Content as StartupPage;
 
+    private async Task CheckStartupEditorRecovery()
+    {
+        foreach (var receipt in new[] { false, true })
+        {
+            using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
+            if (receipt)
+                await window!.OpenReceiptEditorAsync(null);
+            else
+                await window!.OpenTransferEditorAsync(null);
+            var editor = receipt ? (object?)ReceiptEditing : TransferEditing;
+            var date = Find<DateInputBox>(root, receipt ? "ReceiptDate" : "TransferDate");
+            date.Text = "2026/";
+            await ExpireReceiptLogin(fixture);
+            await Wait(() => Visible(root, "LoginPage"));
+            fixture.RejectSession = fixture.RejectAuthentication = false;
+            // 認証取得後の通信失敗で保存情報が残り、接続エラーの再試行へ進む経路を模擬する。
+            fixture.Tokens.Current = new TokenSet("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
+            var reads = fixture.Requests.Count;
+            await StartSyntheticAsync(reloadSettings: true);
+            Check(Visible(root, "HomePage") && Startup(root) is null && date.Text == "2026/" &&
+                ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing) &&
+                (receipt ? ReceiptView.ViewModel?.IsReadOnly == false : Equals(TransferRuntime("transferMastersFailed"), false)) &&
+                fixture.Requests.Skip(reads).Any(path => path.EndsWith("/payment-methods", StringComparison.Ordinal)),
+                (receipt ? "レシート" : "振替") + "の保持中編集へ起動再試行から戻る場合も、Page解放でマスタ取得を中断しない");
+            Check(!fixture.Requests.Skip(reads).Any(path => path.Contains("/receipts", StringComparison.Ordinal) ||
+                path.Contains("/transfers", StringComparison.Ordinal)),
+                "起動再試行による編集復帰でも詳細GET・自動保存を行わない");
+        }
+    }
+
     private async Task CheckStartupSelection()
     {
+        await CheckStartupEditorRecovery();
         using (var fixture = new SyntheticConnection(saved: true))
         {
             fixture.Tokens.Current = null;

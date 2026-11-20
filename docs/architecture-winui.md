@@ -37,13 +37,13 @@ Window構築時のPrepareInitialDestinationで接続先と保存認証の有無�
 
 StartupPageはNavigationCacheMode=Disabledの標準Pageで、表示時からProgressRingが動く。ViewModelやWindowへの通知は持たない。Windowはページ型とホストだけを扱い、内部コントロールを参照しない。認証情報の存在判定はClientSession.HasSavedAuthenticationから既存ITokenStore.Loadを利用し、トークンをWindowへ公開・キャッシュせず、RestoreAsyncで改めて読込・検証する。起動でのメタデータ取得は省略するが、接続先確定時の検証と既存認証更新は維持する。
 
-起動読取の取消元をWindowに1つ保持し、共有ホスト解放時に取消する。認証/家計簿取得後にも取消を確認し、Page離脱後の既知の遅延失敗も画面へ適用しない。新しい状態bool・Service・ルーター・認証スナップショットは追加しない。従来の遅延表示Task/タイマー・Window内の起動Gridを削除する。
+起動読取の取消元をWindowに1つ保持し、共有ホスト解放時に取消する。認証が確認でき、保持中の振替/レシート編集へ正式に復帰する場合は、Page解放から切り離して既存のWindow所有マスタ再取得へ引き継ぐ（同じ10秒期限・Window寿命は維持する）。認証/家計簿取得後にも取消を確認し、Page離脱後の既知の遅延失敗も画面へ適用しない。新しい状態bool・Service・ルーター・認証スナップショットは追加しない。従来の遅延表示Task/タイマー・Window内の起動Gridを削除する。
 
 | 起動変更の比較（基点main 5e5f20a、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
 | MainWindow.xaml | 641行 | 634行 |
-| MainWindow.Connection.cs | 444行 | 449行 |
-| 製品srcのC#/XAML総量 | 18,845行 | 18,868行 |
+| MainWindow.Connection.cs | 444行 | 456行 |
+| 製品srcのC#/XAML総量 | 18,845行 | 18,875行 |
 | Windowから起動Page内部への名前参照 | 4箇所/2要素 | 0 |
 | 起動表示用のboolフラグ | 0 | 0 |
 | 起動用CancellationTokenSourceの明示フィールド | 0 | 1 |

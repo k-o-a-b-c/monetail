@@ -98,7 +98,14 @@ public sealed partial class MainWindow
         token.ThrowIfCancellationRequested();
         account = restored;
         if (account is null) NavigateToLogin();
-        else await OpenDestinationAsync(token);
+        else
+        {
+            // 401復帰では編集画面を先に表示し、Window所有のマスタ再取得を続ける。
+            // 起動Pageの解放では中断せず、元の10秒期限・Window終了には従う。
+            if (EditorAwaitingLogin)
+                startupCancellation = null;
+            await OpenDestinationAsync(token);
+        }
     }
 
     private async void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
