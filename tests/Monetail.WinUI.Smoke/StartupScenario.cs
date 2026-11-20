@@ -31,7 +31,8 @@ public partial class App
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?? throw new InvalidOperationException("認証前Pageへの入口がありません。");
             openAuthentication.Invoke(window, [typeof(Monetail.WinUI.Views.Authentication.LoginPage), null]);
-            Check(Visible(root, "HomePage") && LoginScreen(root) is null && date.Text == "2026/" &&
+            openAuthentication.Invoke(window, [typeof(FailurePage), "合成の接続失敗"]);
+            Check(Visible(root, "HomePage") && LoginScreen(root) is null && FailureScreen(root) is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing),
                 "認証退避以外の未承認Page移動は元の編集・未確定入力を隠さない");
             await ExpireReceiptLogin(fixture);
@@ -40,7 +41,16 @@ public partial class App
             // 認証取得後の通信失敗で保存情報が残り、接続エラーの再試行へ進む経路を模擬する。
             fixture.Tokens.Current = new TokenSet("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
             var reads = fixture.Requests.Count;
+            var tokens = fixture.Tokens.Current;
+            fixture.FailConnection = true;
             await StartSyntheticAsync(reloadSettings: true);
+            Check(Visible(root, "FailurePage") && ReferenceEquals(fixture.Tokens.Current, tokens) && date.Text == "2026/" &&
+                ReferenceEquals(date, Find<DateInputBox>(root, receipt ? "ReceiptDate" : "TransferDate")) &&
+                ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing),
+                "401退避中の通信失敗では元の編集モデル・実コントロール・未確定入力・保存認証を保持する");
+            fixture.FailConnection = false;
+            await InvokeAsync(() => Find<Button>(root, "RetryButton"));
+            await Wait(() => Visible(root, "HomePage") && Equals(TransferRuntime("busy"), false));
             Check(Visible(root, "HomePage") && Startup(root) is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing) &&
                 (receipt ? ReceiptView.ViewModel?.IsReadOnly == false : Equals(TransferRuntime("transferMastersFailed"), false)) &&

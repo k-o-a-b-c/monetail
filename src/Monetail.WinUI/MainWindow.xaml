@@ -38,17 +38,6 @@
         <Grid x:Name="LegacyContent" Grid.Row="1">
         <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
         <Grid>
-        <Grid x:Name="FailurePage" Visibility="Collapsed" Padding="32">
-            <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-                <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
-                <TextBlock x:Name="FailureMessage" Style="{StaticResource Description}" AutomationProperties.LiveSetting="Polite" />
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="RetryButton" Content="再試行" Click="RetryConnection" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="RetryButton"/>
-                    <Button Content="接続先の変更" Click="ShowConnection"  AutomationProperties.AutomationId="FailureChangeConnection"/>
-                    <Button Content="終了" Click="Exit"  AutomationProperties.AutomationId="FailureExit"/>
-                </StackPanel>
-            </StackPanel>
-        </Grid>
         <views:LedgerChoiceView x:Name="LedgerChoicePage" Visibility="Collapsed" OpenRequested="OpenSelectedLedger"/>
         <Grid x:Name="LedgerCreatePage" Visibility="Collapsed" Padding="32">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
