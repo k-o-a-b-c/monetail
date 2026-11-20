@@ -78,7 +78,19 @@ public partial class App : Application
             return All(dialog).OfType<T>().Where(element => element is Button button && Equals(button.Content, text)).OrderByDescending(element => element.IsLoaded).FirstOrDefault()
                 ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
         }
-        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? (root.FindName("TransferEntry") as Monetail.WinUI.Views.Transfers.TransferEditorView)?.FindName(name) ?? (root.FindName("ReceiptEntry") as Monetail.WinUI.Views.Receipts.ReceiptEditorView)?.FindName(name) ?? FindSharedRecordElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? (root.FindName("TransferEntry") as Monetail.WinUI.Views.Transfers.TransferEditorView)?.FindName(name) ?? (root.FindName("ReceiptEntry") as Monetail.WinUI.Views.Receipts.ReceiptEditorView)?.FindName(name) ?? FindSharedRecordElement(root, name) ?? FindConnectionElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+    }
+    private static Monetail.WinUI.Views.Connection.ConnectionSettingsView ConnectionView(FrameworkElement root)
+    {
+        if (((root.FindName("ConnectionSetupHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Connection.ConnectionSetupPage setup)
+            return (Monetail.WinUI.Views.Connection.ConnectionSettingsView)((ContentControl)setup.FindName("SettingsHost")).Content;
+        return (Monetail.WinUI.Views.Connection.ConnectionSettingsView)((ContentControl)root.FindName("ConnectionSettingsContent")).Content;
+    }
+    private static object? FindConnectionElement(FrameworkElement root, string name)
+    {
+        if (name is not ("ServerUrl" or "ConnectButton" or "ConnectionCancel"))
+            return null;
+        return ConnectionView(root).FindName(name);
     }
     private static object? FindSharedRecordElement(FrameworkElement root, string automationId)
     {

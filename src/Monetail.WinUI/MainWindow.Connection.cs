@@ -6,6 +6,8 @@ using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client;
 using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Presentation.Connection;
+using Monetail.WinUI.Views.Connection;
 
 namespace Monetail.WinUI;
 
@@ -20,9 +22,35 @@ public sealed partial class MainWindow
     private bool busy;
     private bool closed;
 
+    // 初回表示の選択はActivateより前に完了する。未設定では通信も遅延通知も開始しない。
+    private void PrepareInitialDestination()
+    {
+        LoadInitialDestination();
+    }
+
+    private bool LoadInitialDestination()
+    {
+        try
+        {
+            if (connection.LoadSettings())
+            {
+                StartupPage.Visibility = Visibility.Visible;
+                return true;
+            }
+            OpenConnectionSetup();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or CryptographicException)
+        {
+            ReportFailure("設定・認証情報を読み書きできませんでした。保存先へのアクセスを確認してください。", RetryStartupAsync, true);
+        }
+        return false;
+    }
+
+    private Task RetryStartupAsync() => LoadInitialDestination() ? StartAsync() : Task.CompletedTask;
+
     internal Task StartAsync()
     {
-        if (busy || closed) return Task.CompletedTask;
+        if (busy || closed || connection.Endpoint is null) return Task.CompletedTask;
         ShowPage(StartupPage);
         return RunAsync(async () =>
         {
@@ -30,7 +58,6 @@ public sealed partial class MainWindow
             var notice = ShowStartupNoticeAsync(waiting.Token);
             try
             {
-                if (!connection.LoadSettings()) { ShowConnection(); return; }
                 using var timeout = ConnectionTimeout();
                 await connection.Api.CheckConnectionAsync(timeout.Token);
                 await RestoreAndOpenAsync(timeout.Token);
@@ -46,7 +73,7 @@ public sealed partial class MainWindow
                     StartupProgress.IsActive = false;
                 }
             }
-        }, StartAsync, true);
+        }, RetryStartupAsync, true);
     }
 
     private async Task ShowStartupNoticeAsync(CancellationToken token)
@@ -87,37 +114,71 @@ public sealed partial class MainWindow
         {
             ShowPage(ManagementPage);
             PeopleContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
-            ConnectionSettingsContent.Visibility = Visibility.Visible;
-            SettingsServerUrl.Text = connection.Endpoint?.Value ?? "";
+            var selected = ReferenceEquals(ManagementNavigation.SelectedItem, ConnectionNavigation);
             ManagementNavigation.SelectedItem = ConnectionNavigation;
+            if (selected)
+                OpenConnectionSettings();
             return;
         }
-        ShowPage(ConnectionPage);
-        ServerUrl.Text = connection.Endpoint?.Value ?? "";
-        ConnectionCancel.Visibility = connection.Endpoint is null ? Visibility.Collapsed : Visibility.Visible;
-        ServerUrl.Focus(FocusState.Programmatic);
+        OpenConnectionSetup();
     }
 
-    private async void Connect(object sender, RoutedEventArgs args)
+    private ConnectionSettingsViewModel CreateConnectionSettings(bool setup) => new(connection.Endpoint, ConnectAsync,
+        setup && connection.Endpoint is not null ? RetryStartupAsync : null);
+
+    private void OpenConnectionSetup()
     {
-        ApiEndpoint candidate;
-        try { candidate = ApiEndpoint.Parse(ServerUrl.Text); }
-        catch (FormatException error) { ShowError(error.Message); ServerUrl.Focus(FocusState.Programmatic); return; }
-        await ConnectAsync(candidate);
+        ReleaseConnectionSetup();
+        ReleaseConnectionSettings();
+        LegacyContent.Visibility = Visibility.Collapsed;
+        ErrorNotice.IsOpen = false;
+        ErrorNotice.Visibility = Visibility.Collapsed;
+        var frame = new Frame { IsNavigationStackEnabled = false };
+        ConnectionSetupHost.Content = frame;
+        ConnectionSetupHost.Visibility = Visibility.Visible;
+        frame.Navigate(typeof(ConnectionSetupPage), CreateConnectionSettings(true));
     }
 
-    private async Task ConnectAsync(ApiEndpoint candidate)
+    private void OpenConnectionSettings()
+    {
+        ReleaseConnectionSettings();
+        ConnectionSettingsContent.Content = new ConnectionSettingsView(CreateConnectionSettings(false));
+        ConnectionSettingsContent.Visibility = Visibility.Visible;
+    }
+
+    private void ReleaseConnectionSetup()
+    {
+        if (ConnectionSetupHost.Content is Frame { Content: ConnectionSetupPage page })
+            page.Release();
+        // Frameの現在エントリに渡したVMも含め、ホストごと参照を解放する。
+        ConnectionSetupHost.Content = null;
+        ConnectionSetupHost.Visibility = Visibility.Collapsed;
+    }
+
+    private void ReleaseConnectionSettings()
+    {
+        (ConnectionSettingsContent.Content as ConnectionSettingsView)?.ViewModel.Dispose();
+        ConnectionSettingsContent.Content = null;
+    }
+
+    private async Task ConnectAsync(ApiEndpoint candidate, CancellationToken token)
     {
         if (!EditorAwaitingLogin && !await LeaveRecordEditorAsync()) return;
+        if (token.IsCancellationRequested)
+            return;
         await RunAsync(async () =>
-    {
-        using var timeout = ConnectionTimeout();
-        await connection.ConnectAsync(candidate, timeout.Token);
-        await RestoreAndOpenAsync(timeout.Token);
-    }, () => ConnectAsync(candidate), true);
+        {
+            using var timeout = ConnectionTimeout();
+            try
+            {
+                // 確認・保存までは画面寿命に従う。確定後の認証/復帰はWindowが所有する。
+                using var cancellation = token.Register(timeout.Cancel);
+                await connection.ConnectAsync(candidate, timeout.Token);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
+            await RestoreAndOpenAsync(timeout.Token);
+        }, () => ConnectAsync(candidate, lifetime.Token), true);
     }
-
-    private async void CancelConnection(object sender, RoutedEventArgs args) => await StartAsync();
 
     private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login;
 
@@ -291,9 +352,12 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, ConnectionPage) || ReferenceEquals(page, StartupPage) || ReferenceEquals(page, FailurePage);
+        var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, StartupPage) || ReferenceEquals(page, FailurePage);
         if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(EditorAwaitingLogin && authenticationPage)) return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
+        ReleaseConnectionSetup();
+        LegacyContent.Visibility = Visibility.Visible;
+        ReleaseConnectionSettings();
         if (!ReferenceEquals(page, HomePage))
         {
             CancelReceiptOpening();
@@ -301,7 +365,7 @@ public sealed partial class MainWindow
             ReceiptListModel?.Suspend();
             TransferListModel?.Suspend();
         }
-        foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, ConnectionPage, LoginPage,
+        foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, LoginPage,
             BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
         ErrorNotice.IsOpen = false;
@@ -361,6 +425,8 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
+        ReleaseConnectionSetup();
+        ReleaseConnectionSettings();
         transferAuthentication = null;
         transferEditor = null;
         ReceiptListModel?.Dispose();

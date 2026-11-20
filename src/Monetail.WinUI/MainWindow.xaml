@@ -35,22 +35,9 @@
         </Grid.RowDefinitions>
         <InfoBar x:Name="ErrorNotice" IsOpen="False" Visibility="Collapsed" Closed="CloseError" Severity="Error" IsClosable="True" Margin="24,16,24,0"
                  AutomationProperties.LiveSetting="Polite" />
-        <Grid Grid.Row="1">
+        <Grid x:Name="LegacyContent" Grid.Row="1">
         <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
         <Grid>
-        <Grid x:Name="ConnectionPage" Visibility="Collapsed" Padding="32">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
-                    <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" />
-                    <TextBlock Text="サーバーのURLを入力してください。" Style="{StaticResource Description}" />
-                    <TextBox x:Name="ServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url"  AutomationProperties.AutomationId="ServerUrl"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="ConnectButton" Content="接続" Click="Connect" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="ConnectButton"/>
-                        <Button x:Name="ConnectionCancel" Content="キャンセル" Click="CancelConnection" Visibility="Collapsed"  AutomationProperties.AutomationId="ConnectionCancel"/>
-                    </StackPanel>
-                </StackPanel>
-            </ScrollViewer>
-        </Grid>
         <Grid x:Name="LoginPage" Visibility="Collapsed" Padding="32">
             <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
                 <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
@@ -243,12 +230,7 @@
                 </NavigationView.MenuItems>
                 <Border Style="{StaticResource Card}" Margin="16,0,0,0">
                     <Grid>
-                    <StackPanel x:Name="ConnectionSettingsContent" Visibility="Collapsed" Spacing="24" MaxWidth="520" HorizontalAlignment="Left">
-                        <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <TextBlock Text="接続先を変更すると、変更先でのログインが必要です。" Style="{StaticResource Description}" />
-                        <TextBox x:Name="SettingsServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url" MinWidth="280"  AutomationProperties.AutomationId="SettingsServerUrl"/>
-                        <Button x:Name="SettingsConnectButton" Content="接続" Click="ConnectSettings" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="SettingsConnectButton"/>
-                    </StackPanel>
+                    <ContentControl x:Name="ConnectionSettingsContent" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top" IsTabStop="False"/>
                     <StackPanel x:Name="AccountContent" Visibility="Collapsed" Spacing="24">
                         <TextBlock Text="ログイン情報" Style="{ThemeResource TitleTextBlockStyle}" />
                         <StackPanel Spacing="8">
@@ -492,7 +474,7 @@
         </Grid>
         </Grid>
         </ContentControl>
-        <Grid x:Name="StartupPage">
+        <Grid x:Name="StartupPage" Visibility="Collapsed">
             <StackPanel x:Name="StartupNotice" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
                 <ProgressRing x:Name="StartupProgress" IsActive="False" Width="32" Height="32"
                               AutomationProperties.Name="接続中" />
@@ -654,5 +636,6 @@
                       Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top"
                       IsHitTestVisible="False" AutomationProperties.Name="処理中" />
         <ContentDialog x:Name="TransferConfirmationDialog" Title="確認" PrimaryButtonText="続行" CloseButtonText="キャンセル" DefaultButton="Close"/>
+        <ContentControl x:Name="ConnectionSetupHost" Grid.Row="1" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
     </Grid>
 </Window>

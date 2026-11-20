@@ -145,6 +145,7 @@ public sealed partial class MainWindow
     private async void SelectManagement(object sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item || busy || ManagementDialogOpen) return;
+        ReleaseConnectionSettings();
         DropPendingCategoryEdit(); DiscardCategoryEditor(); DiscardCategoryOrder();
         CategoriesContent.Visibility = Visibility.Collapsed;
         DropPendingPaymentEdit(); DiscardPaymentEditor(); DiscardPaymentOrder();
@@ -176,8 +177,7 @@ public sealed partial class MainWindow
         }
         else if (ReferenceEquals(item, ConnectionNavigation))
         {
-            SettingsServerUrl.Text = connection.Endpoint?.Value ?? "";
-            ConnectionSettingsContent.Visibility = Visibility.Visible;
+            OpenConnectionSettings();
         }
         else if (ReferenceEquals(item, AccountNavigation))
         {
@@ -196,11 +196,5 @@ public sealed partial class MainWindow
         }
     }
 
-    private async void ConnectSettings(object sender, RoutedEventArgs args)
-    {
-        ApiEndpoint candidate;
-        try { candidate = ApiEndpoint.Parse(SettingsServerUrl.Text); }
-        catch (FormatException error) { ShowError(error.Message); SettingsServerUrl.Focus(FocusState.Programmatic); return; }
-        await ConnectAsync(candidate);
-    }
+
 }
