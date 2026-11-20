@@ -13,6 +13,46 @@ public sealed class SessionTests
     private static readonly ApiEndpoint Endpoint = ApiEndpoint.Parse("https://api.example.test/");
     private static readonly Guid AccountId = Guid.Parse("a2c0bd76-85c0-4906-93e2-b4e42c990412");
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void SavedAuthenticationPresenceDoesNotValidateOrRefresh(bool exists, bool expired)
+    {
+        var saved = exists ? Saved(expired ? -1 : 600) : null;
+        var store = new MemoryTokenStore(saved);
+        using var http = Http(_ => throw new InvalidOperationException("存在判定では通信しない"));
+
+        Assert.Equal(exists, Session(http, store).HasSavedAuthentication());
+        Assert.Same(saved, store.Current);
+        Assert.Equal(0, store.SaveCount);
+        Assert.Equal(0, store.ClearCount);
+    }
+
+    [Fact]
+    public async Task PresenceIsNotCachedAndRestoreReloadsExternalChanges()
+    {
+        var store = new MemoryTokenStore(Saved());
+        using var http = Http(_ => throw new InvalidOperationException("削除済み認証では通信しない"));
+        var session = Session(http, store);
+        Assert.True(session.HasSavedAuthentication());
+        store.Clear();
+        Assert.False(session.HasSavedAuthentication());
+        Assert.Null(await session.RestoreAsync());
+        store.Save(Endpoint, Saved(-1));
+        Assert.True(session.HasSavedAuthentication());
+    }
+
+    [Fact]
+    public void PresenceDoesNotTurnStorageFailuresIntoMissingAuthentication()
+    {
+        var store = new MemoryTokenStore(Saved()) { LoadFailure = new IOException("storage") };
+        using var http = Http(_ => throw new InvalidOperationException());
+        Assert.Throws<IOException>(() => Session(http, store).HasSavedAuthentication());
+        Assert.NotNull(store.Current);
+        Assert.Equal(0, store.ClearCount);
+    }
+
     [Fact]
     public async Task ValidSavedLoginRequiresServerConfirmationAndKeepsItsAbsoluteDeadline()
     {

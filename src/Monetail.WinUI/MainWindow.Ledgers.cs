@@ -22,6 +22,7 @@ public sealed partial class MainWindow
         if (await ResumeParticipantEditAsync(token)) return;
         if (await ResumePersonEditAsync(token)) return;
         var destination = await connection.Ledgers.StartAsync(token);
+        token.ThrowIfCancellationRequested();
         ledgerChoices = destination.Choices;
         if (destination.Opened is not null) DisplayLedger(destination.Opened);
         else if (ledgerChoices.Count == 0) ShowCreation();

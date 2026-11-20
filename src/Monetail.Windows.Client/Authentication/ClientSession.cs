@@ -20,7 +20,11 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         try
         {
             var current = tokens.Load(endpoint);
-            if (current is null) { TaxRates.Clear(); throw new AuthenticationRejectedException(); }
+            if (current is null)
+            {
+                TaxRates.Clear();
+                throw new AuthenticationRejectedException();
+            }
             EnsureSameContext(current);
             var refreshed = false;
             if (current.AccessTokenExpiresAtUtc <= time.GetUtcNow().AddSeconds(30))
@@ -28,7 +32,10 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
                 current = await RefreshAsync(current, cancellationToken);
                 refreshed = true;
             }
-            try { return await operation(current.AccessToken, cancellationToken); }
+            try
+            {
+                return await operation(current.AccessToken, cancellationToken);
+            }
             catch (AuthenticationRejectedException) when (!refreshed)
             {
                 current = await RefreshAsync(current, cancellationToken);
@@ -40,6 +47,10 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         finally { gate.Release(); }
     }
 
+    /// <summary>現在の接続先の保存情報の有無だけを調べる。有効性はRestoreAsyncで確認する。</summary>
+    /// <remarks>保存形式・破損時の破棄・接続先不一致はストアの既存契約に従い、結果をキャッシュしない。</remarks>
+    public bool HasSavedAuthentication() => tokens.Load(endpoint) is not null;
+
     public async Task<AuthenticatedAccount?> RestoreAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
@@ -47,7 +58,8 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         {
             TaxRates.Clear();
             var restored = tokens.Load(endpoint);
-            if (restored is null) return null;
+            if (restored is null)
+                return null;
             var validated = await ValidateAsync(restored, cancellationToken);
             observedTokens = validated?.Tokens;
             return validated?.Account;
@@ -77,11 +89,19 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         try
         {
             var restored = tokens.Load(endpoint);
-            if (restored is null) { TaxRates.Clear(); return; }
+            if (restored is null)
+            {
+                TaxRates.Clear();
+                return;
+            }
             EnsureSameContext(restored);
             var validated = await ValidateAsync(restored, cancellationToken);
-            if (validated is null) return;
-            try { await api.LogoutAsync(validated.Value.Tokens.AccessToken, cancellationToken); }
+            if (validated is null)
+                return;
+            try
+            {
+                await api.LogoutAsync(validated.Value.Tokens.AccessToken, cancellationToken);
+            }
             catch (AuthenticationRejectedException) { }
             // 通信障害ならここに到達しない。失効を確認できた時だけ端末側も消す。
             ClearObservedContext();
@@ -103,7 +123,10 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
                 refreshed = true;
             }
             AuthenticatedAccount account;
-            try { account = await api.GetCurrentUserAsync(current.AccessToken, cancellationToken); }
+            try
+            {
+                account = await api.GetCurrentUserAsync(current.AccessToken, cancellationToken);
+            }
             catch (AuthenticationRejectedException) when (!refreshed)
             {
                 current = await RefreshAsync(current, cancellationToken);
@@ -120,7 +143,8 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
 
     private async Task<TokenSet> RefreshAsync(TokenSet current, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(current.RefreshToken)) throw new AuthenticationRejectedException();
+        if (string.IsNullOrWhiteSpace(current.RefreshToken))
+            throw new AuthenticationRejectedException();
         var updated = await api.RefreshAsync(current.RefreshToken, cancellationToken);
         if (updated.RefreshToken is null)
             updated = new TokenSet(updated.AccessToken, current.RefreshToken, updated.AccessTokenExpiresAtUtc);
@@ -134,7 +158,11 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
     internal void EnsureCurrentContext()
     {
         var current = tokens.Load(endpoint);
-        if (current is null) { TaxRates.Clear(); throw new AuthenticationContextChangedException(); }
+        if (current is null)
+        {
+            TaxRates.Clear();
+            throw new AuthenticationContextChangedException();
+        }
         EnsureSameContext(current);
     }
 
@@ -154,7 +182,8 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
     {
         TaxRates.Clear();
         var current = tokens.Load(endpoint);
-        if (current is null) return;
+        if (current is null)
+            return;
         EnsureSameContext(current);
         tokens.Clear();
         observedTokens = null;

@@ -11,8 +11,8 @@ public partial class App
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
         {
             var root = await OpenSyntheticWindow(fixture, (_, initial) =>
-                Check(Find<ContentControl>(initial, "ConnectionSetupHost").Content is null && fixture.Requests.Count == 0 &&
-                    Find<Grid>(initial, "StartupPage").Visibility == Visibility.Visible,
+                Check(Startup(initial) is not null && fixture.Requests.Count == 0 &&
+                    Find<ContentControl>(initial, "ConnectionSettingsContent").Content is null,
                     "設定済み起動はActivate前に行き先を決め、初回設定Viewや通信を先行生成しない"));
             await StartSyntheticAsync();
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));

@@ -16,23 +16,34 @@ public sealed partial class MainWindow
     private readonly ClientConnection connection;
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? browserCancellation;
+    private CancellationTokenSource? startupCancellation;
     private BrowserOAuthLogin? browserLogin;
     private AuthenticatedAccount? account;
     private Func<Task>? retry;
     private bool busy;
     private bool closed;
 
-    // 初回表示の選択はActivateより前に完了する。未設定では通信も遅延通知も開始しない。
+    // 接続先と保存情報の有無だけをActivate前に調べる。有効性の判断には通信が必要。
     private bool PrepareInitialDestination()
     {
         try
         {
-            if (connection.LoadSettings())
+            if (!connection.LoadSettings())
             {
-                StartupPage.Visibility = Visibility.Visible;
-                return true;
+                OpenConnectionSetup();
+                return false;
             }
-            OpenConnectionSetup();
+            if (!connection.Session.HasSavedAuthentication())
+            {
+                NavigateToLogin();
+                return false;
+            }
+            OpenConnectionPage(typeof(StartupPage));
+            return true;
+        }
+        catch (AuthenticationContextChangedException error)
+        {
+            NavigateToLogin(error.Message);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or CryptographicException)
         {
@@ -43,46 +54,34 @@ public sealed partial class MainWindow
 
     private Task RetryStartupAsync() => PrepareInitialDestination() ? StartAsync() : Task.CompletedTask;
 
+    private bool IsStartupVisible => ConnectionSetupHost.Content is Frame { Content: StartupPage };
+
     internal Task StartAsync()
     {
-        if (busy || closed || connection.Endpoint is null) return Task.CompletedTask;
-        ShowPage(StartupPage);
+        if (busy || closed || !IsStartupVisible)
+            return Task.CompletedTask;
+        var frame = ConnectionSetupHost.Content;
         return RunAsync(async () =>
         {
-            using var waiting = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-            var notice = ShowStartupNoticeAsync(waiting.Token);
+            using var timeout = ConnectionTimeout();
+            startupCancellation = timeout;
             try
             {
-                using var timeout = ConnectionTimeout();
-                await connection.Api.CheckConnectionAsync(timeout.Token);
+                // 接続先確定時のメタデータ確認は繰り返さず、既存の認証検証で疎通も確認する。
                 await RestoreAndOpenAsync(timeout.Token);
+            }
+            catch (Exception error) when ((closed || !ReferenceEquals(ConnectionSetupHost.Content, frame)) &&
+                error is OperationCanceledException or ApiConnectionException or HttpRequestException or
+                    AuthenticationRejectedException or AuthenticationContextChangedException or LedgerRequestException)
+            {
+                // 退避先へ遷移した後の遅延応答・失敗で画面を横取りしない。
             }
             finally
             {
-                // 完了・失敗・終了の後に、遅れて待機表示を出さない。
-                waiting.Cancel();
-                await notice;
-                if (!closed)
-                {
-                    StartupNotice.Visibility = Visibility.Collapsed;
-                    StartupProgress.IsActive = false;
-                }
+                if (ReferenceEquals(startupCancellation, timeout))
+                    startupCancellation = null;
             }
         }, RetryStartupAsync, true);
-    }
-
-    private async Task ShowStartupNoticeAsync(CancellationToken token)
-    {
-        try
-        {
-            await Task.Delay(TimeSpan.FromSeconds(1), token);
-            if (!closed && StartupPage.Visibility == Visibility.Visible)
-            {
-                StartupNotice.Visibility = Visibility.Visible;
-                StartupProgress.IsActive = true;
-            }
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
 
     private CancellationTokenSource ConnectionTimeout()
@@ -94,7 +93,9 @@ public sealed partial class MainWindow
 
     private async Task RestoreAndOpenAsync(CancellationToken token)
     {
-        account = await connection.Session.RestoreAsync(token);
+        var restored = await connection.Session.RestoreAsync(token);
+        token.ThrowIfCancellationRequested();
+        account = restored;
         if (account is null) NavigateToLogin();
         else await OpenDestinationAsync(token);
     }
@@ -121,7 +122,9 @@ public sealed partial class MainWindow
     private ConnectionSettingsViewModel CreateConnectionSettings(bool setup) => new(connection.Endpoint, ConnectAsync,
         setup && connection.Endpoint is not null ? RetryStartupAsync : null);
 
-    private void OpenConnectionSetup()
+    private void OpenConnectionSetup() => OpenConnectionPage(typeof(ConnectionSetupPage), CreateConnectionSettings(true));
+
+    private void OpenConnectionPage(Type pageType, object? parameter = null)
     {
         ReleaseConnectionSetup();
         ReleaseConnectionSettings();
@@ -131,7 +134,7 @@ public sealed partial class MainWindow
         var frame = new Frame { IsNavigationStackEnabled = false };
         ConnectionSetupHost.Content = frame;
         ConnectionSetupHost.Visibility = Visibility.Visible;
-        frame.Navigate(typeof(ConnectionSetupPage), CreateConnectionSettings(true));
+        frame.Navigate(pageType, parameter);
     }
 
     private void OpenConnectionSettings()
@@ -143,6 +146,7 @@ public sealed partial class MainWindow
 
     private void ReleaseConnectionSetup()
     {
+        startupCancellation?.Cancel();
         if (ConnectionSetupHost.Content is Frame { Content: ConnectionSetupPage page })
             page.Release();
         // Frameの現在エントリに渡したVMも含め、ホストごと参照を解放する。
@@ -339,7 +343,7 @@ public sealed partial class MainWindow
         PaymentDialog.IsEnabled = enabled;
         PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
         UpdatePeopleActions();
-        var showProgress = !enabled && StartupPage.Visibility != Visibility.Visible;
+        var showProgress = !enabled && !IsStartupVisible;
         BusyProgress.IsActive = showProgress;
         BusyProgress.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -347,7 +351,7 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, StartupPage) || ReferenceEquals(page, FailurePage);
+        var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, FailurePage);
         if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(EditorAwaitingLogin && authenticationPage)) return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
         ReleaseConnectionSetup();
@@ -361,7 +365,7 @@ public sealed partial class MainWindow
             TransferListModel?.Suspend();
         }
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, LoginPage,
-            BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage, StartupPage })
+            BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
