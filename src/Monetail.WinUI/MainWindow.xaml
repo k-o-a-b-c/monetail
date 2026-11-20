@@ -632,10 +632,10 @@
             </StackPanel>
         </ContentDialog>
         <ContentDialog x:Name="ReceiptConfirmationDialog" DefaultButton="Close"/>
+        <ContentControl x:Name="ConnectionSetupHost" Grid.Row="1" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
         <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False"
                       Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top"
                       IsHitTestVisible="False" AutomationProperties.Name="処理中" />
         <ContentDialog x:Name="TransferConfirmationDialog" Title="確認" PrimaryButtonText="続行" CloseButtonText="キャンセル" DefaultButton="Close"/>
-        <ContentControl x:Name="ConnectionSetupHost" Grid.Row="1" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
     </Grid>
 </Window>

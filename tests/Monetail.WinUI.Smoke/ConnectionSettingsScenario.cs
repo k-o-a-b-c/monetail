@@ -63,7 +63,9 @@ public partial class App
             Check(fixture.Settings.Load()!.Value == "https://other.example.test/" && fixture.Tokens.Current is null &&
                 !fixture.OtherServerAuthenticated && fixture.OtherServerRequests.Count == 2,
                 "明示再試行は同じ候補で確認後だけ保存し、元トークンを変更先へ送らない");
-            await FocusTransferControl(Find<HyperlinkButton>(root, "LoginChangeConnection"));
+            var change = All(root).OfType<HyperlinkButton>().Single(link =>
+                Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(link) == "LoginChangeConnection");
+            await FocusTransferControl(change);
             await PressReceiptKey(0x0D);
             await Wait(() => Visible(root, "ConnectionSetupHost"));
             var setup = ConnectionView(root);
@@ -88,7 +90,10 @@ public partial class App
             await Wait(() => fixture.Requests.Count == 1);
             var pending = view.ViewModel.ConnectCommand.ExecutionTask ?? throw new InvalidOperationException("接続要求がありません。");
             Check(view.ViewModel.IsConnecting && !Find<TextBox>(root, "ServerUrl").IsEnabled &&
-                !Find<Button>(root, "ConnectButton").IsEnabled && fixture.Settings.Load() is null,
+                !Find<Button>(root, "ConnectButton").IsEnabled && fixture.Settings.Load() is null &&
+                Find<ProgressRing>(root, "BusyProgress").IsActive && Find<ProgressRing>(root, "BusyProgress").IsEnabled &&
+                ((Grid)root).Children.IndexOf(Find<ProgressRing>(root, "BusyProgress")) >
+                    ((Grid)root).Children.IndexOf(Find<ContentControl>(root, "ConnectionSetupHost")),
                 "接続中の処理状態とCommand可否を通知し、確認前に設定を保存しない");
             using var next = new SyntheticConnection();
             await OpenSyntheticWindow(next);
