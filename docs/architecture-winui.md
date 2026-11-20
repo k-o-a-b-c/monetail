@@ -135,6 +135,28 @@ Windowが`retry`を正本として保持し、既存の設定/保存認証再読
 製品総量は48行増。増分はPage境界と3通知の接続/解除・操作可否・重複再試行ガードであり、Windowから失敗画面の内部依存を除いた。新しいVM/Service/ルーターや認証情報の複製はない。旧VBにOAuth接続失敗画面の対応物はなく、新版の[画面契約](ledger-windows.md#windows版の起動表示接続失敗時の操作)を維持する。検証結果・未検証事項は[tests/README](../tests/README.md)を参照する。
 
 
+### 起動・認証復帰の調停と通常業務の失敗通知
+
+WindowはActivate前に接続先・保存認証の有無を通信なしで判定し、表示先とWindow寿命を管理する。既存`ClientConnection`は設定とClient構成、`ClientSession`は認証の検証/更新/保持、`LedgerWorkspace.StartAsync`は最後の家計簿・所属一覧・1件自動選択、各Pageは表示と操作通知を担当する。これらのClient実装・認証契約・Pageは変更しない。起動仕様は[画面正本](ledger-windows.md#windows版の起動表示接続失敗時の操作)、家計簿の選定は[新規利用の正本](ledger-onboarding.md)を維持する。
+
+`OpenDestinationAsync`は振替→レシート→科目→支払方法→参加者→人物の既存復帰順を調停する。復帰がない場合だけ`OpenInitialLedgerAsync`でWorkspaceの結果を表示する。通常の家計簿表示から6画面の復帰判定を分離したが、復帰順を持つWindowの横断依存は必要なため残す。401でのモデル/実コントロール保持、起動Pageを解放してから続けるマスタ再取得、10秒期限・Window終了・遅延応答の拒否は既存処理を維持する。
+
+`RunAsync(action, retryConnection: ...)`へ再試行先を渡すのは起動・OAuth・接続先変更だけとし、通常業務は`RunAsync(action)`で既存の共有通知を使う。`ReportFailure`は再試行先がある場合だけWindowのretryを設定してFailurePageへ進む。旧`connectionFailure`と再試行先の組合せを廃止し、通常業務から実際には使われない20個のコールバックを除いた。通常業務の処理本体、権限反映、例外種別/メッセージ、認証退避・busy/finallyは変えない。例外分類は共有の一か所を維持し、起動専用の例外処理を複製しない。通常業務画面の変更はこの未使用引数の除去だけとする。
+
+| 境界整理の比較（基点main 5afcee1、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.Connection.cs / Ledgers.cs | 536 / 201行 | 541 / 207行 |
+| 上記2 partialのメソッド数 | 33 / 12 | 33 / 13 |
+| 上記2 partialの明示フィールド / boolフィールド | 13 / 2 | 13 / 2 |
+| 製品srcのC#/XAML総量 | 19,026行 | 19,037行 |
+| 通常業務から未使用の再試行先への参照 | 20 | 0 |
+| RunAsync呼出箇所（接続/認証・通常業務） | 3・20 | 3・20 |
+| RunAsync / ReportFailureの引数数 | 3 / 3 | 2 / 2 |
+| connectionFailure引数の宣言 | 2 | 0 |
+| 新規Service / VM / ルーター | 0 / 0 / 0 | 0 / 0 / 0 |
+
+製品総量11行増は通常の家計簿表示の境界1メソッドと可読性のための分岐展開・コメントによる。フィールドや状態フラグは増えていない。単なる移管に留めず、20個の不要な操作間参照と、同じ失敗ポリシーを重複指定するboolを削除した。再試行要求の保持や例外処理を別クラスへ隠す抽象化は加えない。検証結果・既存の断続的な失敗・未検証事項は[tests/README](../tests/README.md)を参照する。
+
 ## 家計簿選択画面の分離（第1段階）
 
 `Views/LedgerChoiceView`が既存の家計簿選択XAML・単一選択状態・［開く］の有効化/クリックを所有する。公開面は一覧を受け取る`Ledgers`と選択IDを通知する`OpenRequested`の各1つ。選択はListViewに保持し、独立した選択モデルやMainWindowへの参照を持たない。MainWindowはClientからの取得、通知されたIDの`OpenLedgerAsync`、認証/未保存保護、画面遷移を担当する。UserControlはHTTP・認証・Windowを知らず、他画面にも依存しない。
