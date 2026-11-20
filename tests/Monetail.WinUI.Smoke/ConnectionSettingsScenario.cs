@@ -29,8 +29,11 @@ public partial class App
             input.Text = "http://invalid.example.test/";
             Check(model.ServerUrl == input.Text, "URL入力はPropertyChangedの双方向バインドでVMへ一元反映する");
             var reads = fixture.Requests.Count;
+            await FocusTransferControl(Find<Button>(root, "ConnectButton"));
             await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
-            Check(model.UrlError is not null && fixture.Requests.Count == reads && fixture.Tokens.Current is not null &&
+            Check(model.UrlError is not null && All(first).OfType<TextBlock>().Any(block => block.Text == model.UrlError && VisibleAncestors(block)) &&
+                ReferenceEquals(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(root.XamlRoot), input) &&
+                fixture.Requests.Count == reads && fixture.Tokens.Current is not null &&
                 fixture.Settings.Load()!.Equals(SyntheticConnection.Endpoint) && input.Text == model.ServerUrl,
                 "管理の不正URLは近傍検証で入力/設定/認証を保持しネットワークへ送らない");
             navigation.SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");

@@ -213,9 +213,16 @@ public partial class App
         }
     }
 
-    private async Task StartSyntheticAsync()
+    private async Task StartSyntheticAsync(bool reloadSettings = false)
     {
-        await window!.StartAsync();
+        if (reloadSettings)
+        {
+            // 別プロセスでの設定変更を模擬する再起動は、表示前の設定読込段階も通す。
+            var restart = typeof(MainWindow).GetMethod("RetryStartupAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("再起動の入口がありません。");
+            await (Task)(restart.Invoke(window, []) ?? throw new InvalidOperationException());
+        }
+        else await window!.StartAsync();
         if (Visible((FrameworkElement)window.Content, "HomePage")) await Wait(() => window.ReceiptHomeReady);
     }
 
