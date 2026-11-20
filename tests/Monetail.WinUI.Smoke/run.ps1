@@ -40,7 +40,7 @@ try {
     }
 }
 
-# 新規入力の検証と既存全画面の検証を分離し、各プロセスの上限と全確認を維持する。
+# 入力/認証/接続と残る全画面の検証を配分し、各プロセスの上限と全確認を維持する。
 $suites = if ($Scenario) { @('selected') } else { @('transfer-editor', 'existing') }
 foreach ($suite in $suites) {
     $suiteOutput = if ($suite -eq 'existing') { $OutputPath } else { Join-Path $OutputPath $suite }

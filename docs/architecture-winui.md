@@ -27,6 +27,7 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | 所有者 | 責務 |
 | --- | --- |
 | `Views/Connection/ConnectionSetupPage` | 初回/ログイン前の設定Page。NavigationCacheModeはDisabled。共通Viewを配置し、離脱で解放する |
+| `Views/Connection/StartupPage` | 保存認証の検証中だけ生成する表示専用Page。即時進捗表示、NavigationCacheModeはDisabled |
 | `Views/Connection/ConnectionSettingsView` | 共通XAML、x:Bindの双方向URL入力、近傍検証表示、既存FormKeyboardによるEnter/IME、初期/検証失敗時のフォーカス。公開面はViewModel DPのみ（ctor/DP登録を除く） |
 | `Presentation/Connection/ConnectionSettingsViewModel` | URL生入力1つ、ApiEndpoint.Parseによる検証、接続/キャンセルCommand、Commandから導出する処理中状態。WinUI/HTTP/トークン/Windowを参照しない |
 | `MainWindow.Connection` | 初回表示の選択、現在の家計簿/本人/接続先、既存未保存保護・認証復帰・共有失敗画面と進捗の調停。View内部のTextBox/ボタンを参照しない |

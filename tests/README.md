@@ -22,6 +22,8 @@
 
 [StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)を既存connection-flowへ接続し、Activate前の認証なし/通信0/起動Pageなし、期限切れ更新→本人確認→家計簿取得の要求順、初回判定後の認証削除、離脱時のPage解放と遅延応答拒否、Window終了の取消を追加する。既存の未設定/初回接続/有効・無効認証/通信失敗/明示再試行/接続先変更/10秒タイムアウト/ブラウザー認証を維持し、承認済みの起動仕様に合わせて1秒遅延の期待値を即時ProgressRingへ置き換えた。Frame/Pageの所有者と通信数・コード/状態比較は[構成正本](../docs/architecture-winui.md#接続先設定のpageusercontrolmvvm)を参照する。
 
+最初のWindows実行は追加した終了テストで、閉じたWindowから名前検索したことによる取得エラーを検出した。終了前に保持したホスト参照で同じ解放条件を確認するよう修正した。次の実行は既存画面スイートの120秒上限に達した。診断JSONではconnection-flow全62確認を含む26シナリオ/580確認が成功し、合計118,863 msで最後のreceipt-tax-loadingが未実行だった。独立したconnection-flowを先行プロセスへ配分し、2プロセス/36シナリオ・各120秒・全期待値は維持する。カタログ全件照合も引き続きCIで行う。停止/アクセス違反の根本解決と解釈せず、記録された時間超過への検証配分として扱う。
+
 変更前main `5e5f20a`の[push Tests 44684505764](https://github.com/k-o-a-b-c/monetail/actions/runs/44684505764)成功を基準とする。影響外のAPI/DB/Docker/旧Windows等はCI選択と成功fingerprintに従って再利用する。WinApp CLIは実行環境にないため、Microsoft LearnのWinUI 3 Frame/PageとWindows App SDK 1.8のAPI資料で確認し、Windows製品/スモークビルドで検証する。実Windowsでの手動操作・実API接続・物理IME/タッチ・高DPI・スクリーンリーダーの確認は未実施。
 
 ## 接続先設定の共有Page・UserControl・MVVM（PR #218）
