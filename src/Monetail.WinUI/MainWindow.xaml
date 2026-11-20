@@ -38,13 +38,6 @@
         <Grid x:Name="LegacyContent" Grid.Row="1">
         <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
         <Grid>
-        <Grid x:Name="LoginPage" Visibility="Collapsed" Padding="32">
-            <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
-                <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
-                <Button x:Name="LoginButton" Content="ログイン" Click="Login" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="LoginButton"/>
-                <HyperlinkButton Content="接続先の変更" Click="ShowConnection"  AutomationProperties.AutomationId="LoginChangeConnection"/>
-            </StackPanel>
-        </Grid>
         <Grid x:Name="FailurePage" Visibility="Collapsed" Padding="32">
             <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
                 <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}" />
@@ -625,7 +618,7 @@
             </StackPanel>
         </ContentDialog>
         <ContentDialog x:Name="ReceiptConfirmationDialog" DefaultButton="Close"/>
-        <ContentControl x:Name="ConnectionSetupHost" Grid.Row="1" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
+        <ContentControl x:Name="AuthenticationHost" Grid.Row="1" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
         <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False"
                       Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top"
                       IsHitTestVisible="False" AutomationProperties.Name="処理中" />

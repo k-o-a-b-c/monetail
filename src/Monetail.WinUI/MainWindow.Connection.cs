@@ -8,6 +8,7 @@ using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Presentation.Connection;
 using Monetail.WinUI.Views.Connection;
+using Monetail.WinUI.Views.Authentication;
 
 namespace Monetail.WinUI;
 
@@ -38,7 +39,7 @@ public sealed partial class MainWindow
                 NavigateToLogin();
                 return false;
             }
-            OpenConnectionPage(typeof(StartupPage));
+            OpenAuthenticationPage(typeof(StartupPage));
             return true;
         }
         catch (AuthenticationContextChangedException error)
@@ -54,13 +55,13 @@ public sealed partial class MainWindow
 
     private Task RetryStartupAsync() => PrepareInitialDestination() ? StartAsync() : Task.CompletedTask;
 
-    private bool IsStartupVisible => ConnectionSetupHost.Content is Frame { Content: StartupPage };
+    private bool IsStartupVisible => AuthenticationHost.Content is Frame { Content: StartupPage };
 
     internal Task StartAsync()
     {
         if (busy || closed || !IsStartupVisible)
             return Task.CompletedTask;
-        var frame = ConnectionSetupHost.Content;
+        var frame = AuthenticationHost.Content;
         return RunAsync(async () =>
         {
             using var timeout = ConnectionTimeout();
@@ -70,7 +71,7 @@ public sealed partial class MainWindow
                 // 接続先確定時のメタデータ確認は繰り返さず、既存の認証検証で疎通も確認する。
                 await RestoreAndOpenAsync(timeout.Token);
             }
-            catch (Exception error) when ((closed || !ReferenceEquals(ConnectionSetupHost.Content, frame)) &&
+            catch (Exception error) when ((closed || !ReferenceEquals(AuthenticationHost.Content, frame)) &&
                 error is OperationCanceledException or ApiConnectionException or HttpRequestException or
                     AuthenticationRejectedException or AuthenticationContextChangedException or LedgerRequestException or
                     IOException or UnauthorizedAccessException or CryptographicException or SocketException)
@@ -130,19 +131,30 @@ public sealed partial class MainWindow
     private ConnectionSettingsViewModel CreateConnectionSettings(bool setup) => new(connection.Endpoint, ConnectAsync,
         setup && connection.Endpoint is not null ? RetryStartupAsync : null);
 
-    private void OpenConnectionSetup() => OpenConnectionPage(typeof(ConnectionSetupPage), CreateConnectionSettings(true));
+    private void OpenConnectionSetup() => OpenAuthenticationPage(typeof(ConnectionSetupPage), CreateConnectionSettings(true));
 
-    private void OpenConnectionPage(Type pageType, object? parameter = null)
+    private void OpenAuthenticationPage(Type pageType, object? parameter = null)
     {
-        ReleaseConnectionSetup();
+        // 認証退避以外の未承認遷移では、編集中データを隠したり破棄したりしない。
+        if (closed || RecordEditorActive && !EditorAwaitingLogin)
+            return;
+        ReleaseAuthenticationPage();
+        SuspendRecordReads();
+        SetLegacyPage(null);
         ReleaseConnectionSettings();
         LegacyContent.Visibility = Visibility.Collapsed;
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
         var frame = new Frame { IsNavigationStackEnabled = false };
-        ConnectionSetupHost.Content = frame;
-        ConnectionSetupHost.Visibility = Visibility.Visible;
+        AuthenticationHost.Content = frame;
+        AuthenticationHost.Visibility = Visibility.Visible;
         frame.Navigate(pageType, parameter);
+        if (frame.Content is LoginPage login)
+        {
+            login.IsEnabled = !busy;
+            login.LoginRequested += Login;
+            login.ConnectionChangeRequested += ShowConnection;
+        }
     }
 
     private void OpenConnectionSettings()
@@ -152,14 +164,19 @@ public sealed partial class MainWindow
         ConnectionSettingsContent.Visibility = Visibility.Visible;
     }
 
-    private void ReleaseConnectionSetup()
+    private void ReleaseAuthenticationPage()
     {
         startupCancellation?.Cancel();
-        if (ConnectionSetupHost.Content is Frame { Content: ConnectionSetupPage page })
+        if (AuthenticationHost.Content is Frame { Content: ConnectionSetupPage page })
             page.Release();
+        if (AuthenticationHost.Content is Frame { Content: LoginPage login })
+        {
+            login.LoginRequested -= Login;
+            login.ConnectionChangeRequested -= ShowConnection;
+        }
         // Frameの現在エントリに渡したVMも含め、ホストごと参照を解放する。
-        ConnectionSetupHost.Content = null;
-        ConnectionSetupHost.Visibility = Visibility.Collapsed;
+        AuthenticationHost.Content = null;
+        AuthenticationHost.Visibility = Visibility.Collapsed;
     }
 
     private void ReleaseConnectionSettings()
@@ -192,6 +209,8 @@ public sealed partial class MainWindow
     // ログインへの移動準備。画面表示だけでは編集状態を破棄しない。
     private void NavigateToLogin(string? message = null)
     {
+        if (closed)
+            return;
         var suspended = SuspendTransferForAuthentication() || SuspendReceiptForAuthentication();
         account = null;
         if (!suspended)
@@ -204,8 +223,10 @@ public sealed partial class MainWindow
 
     private void ShowLogin(string? message = null)
     {
+        if (closed)
+            return;
         AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = false;
-        ShowPage(LoginPage);
+        OpenAuthenticationPage(typeof(LoginPage));
         if (message is not null) ShowError(message);
     }
 
@@ -347,6 +368,8 @@ public sealed partial class MainWindow
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
+        if (AuthenticationHost.Content is Frame { Content: LoginPage login })
+            login.IsEnabled = enabled;
         CategoryDialog.IsEnabled = enabled;
         PaymentDialog.IsEnabled = enabled;
         PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
@@ -359,22 +382,15 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        var authenticationPage = ReferenceEquals(page, LoginPage) || ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, FailurePage);
+        var authenticationPage = ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, FailurePage);
         if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(EditorAwaitingLogin && authenticationPage)) return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
-        ReleaseConnectionSetup();
+        ReleaseAuthenticationPage();
         LegacyContent.Visibility = Visibility.Visible;
         ReleaseConnectionSettings();
         if (!ReferenceEquals(page, HomePage))
-        {
-            CancelReceiptOpening();
-            CancelTransferOpening();
-            ReceiptListModel?.Suspend();
-            TransferListModel?.Suspend();
-        }
-        foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage, LoginPage,
-            BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage })
-            candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
+            SuspendRecordReads();
+        SetLegacyPage(page);
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
         if (ReferenceEquals(page, HomePage)) DispatcherQueue.TryEnqueue(async () =>
@@ -390,6 +406,21 @@ public sealed partial class MainWindow
             if (transferRestorePending) { transferRestorePending = false; RestoreTransferPosition(); }
             if (receiptRestorePending) { receiptRestorePending = false; RestoreReceiptListPosition(); }
         });
+    }
+
+    private void SetLegacyPage(FrameworkElement? page)
+    {
+        foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage,
+            BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage })
+            candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void SuspendRecordReads()
+    {
+        CancelReceiptOpening();
+        CancelTransferOpening();
+        ReceiptListModel?.Suspend();
+        TransferListModel?.Suspend();
     }
 
     private void ShowError(string message)
@@ -432,7 +463,7 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
-        ReleaseConnectionSetup();
+        ReleaseAuthenticationPage();
         ReleaseConnectionSettings();
         transferAuthentication = null;
         transferEditor = null;

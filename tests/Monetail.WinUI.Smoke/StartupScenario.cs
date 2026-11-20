@@ -9,7 +9,7 @@ namespace Monetail.WinUI.Smoke;
 public partial class App
 {
     private static StartupPage? Startup(FrameworkElement root) =>
-        (Find<ContentControl>(root, "ConnectionSetupHost").Content as Frame)?.Content as StartupPage;
+        (Find<ContentControl>(root, "AuthenticationHost").Content as Frame)?.Content as StartupPage;
 
     private async Task CheckStartupEditorRecovery()
     {
@@ -26,6 +26,13 @@ public partial class App
             var editor = receipt ? (object?)ReceiptEditing : TransferEditing;
             var date = Find<DateInputBox>(root, receipt ? "ReceiptDate" : "TransferDate");
             date.Text = "2026/";
+            var openAuthentication = typeof(MainWindow).GetMethod("OpenAuthenticationPage",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("認証前Pageへの入口がありません。");
+            openAuthentication.Invoke(window, [typeof(Monetail.WinUI.Views.Authentication.LoginPage), null]);
+            Check(Visible(root, "HomePage") && LoginScreen(root) is null && date.Text == "2026/" &&
+                ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing),
+                "認証退避以外の未承認Page移動は元の編集・未確定入力を隠さない");
             await ExpireReceiptLogin(fixture);
             await Wait(() => Visible(root, "LoginPage"));
             fixture.RejectSession = fixture.RejectAuthentication = false;
@@ -93,7 +100,7 @@ public partial class App
                 "起動検証中の離脱は起動Pageを解放して接続先設定Pageへ切り替える");
             fixture.ConnectionGate.SetResult(true);
             await startup;
-            Check(Visible(root, "ConnectionSetupHost") && Startup(root) is null &&
+            Check(Visible(root, "AuthenticationHost") && Startup(root) is null &&
                 !fixture.Requests.Contains("/ledgers/open-last") && fixture.Tokens.Current is not null,
                 "取消に遅れた認証応答でも接続設定画面を横取りせず、家計簿取得へ進まない");
         }
@@ -114,7 +121,7 @@ public partial class App
             fixture.Tokens.LoadFailure = new IOException("合成の保存先障害");
             fixture.ConnectionGate.SetResult(true);
             await startup;
-            Check(Visible(root, "ConnectionSetupHost") && Startup(root) is null && fixture.Tokens.Current is not null,
+            Check(Visible(root, "AuthenticationHost") && Startup(root) is null && fixture.Tokens.Current is not null,
                 "離脱後の遅い401処理で保存先障害になっても、接続設定画面を失敗画面へ変更しない");
         }
 
@@ -123,7 +130,7 @@ public partial class App
             fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var root = await OpenSyntheticWindow(fixture);
             var startup = window!.StartAsync();
-            var host = Find<ContentControl>(root, "ConnectionSetupHost");
+            var host = Find<ContentControl>(root, "AuthenticationHost");
             using var next = new SyntheticConnection();
             await OpenSyntheticWindow(next);
             await startup;
