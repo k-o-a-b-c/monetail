@@ -24,6 +24,8 @@
 
 最初のWindows実行は追加した終了テストで、閉じたWindowから名前検索したことによる取得エラーを検出した。終了前に保持したホスト参照で同じ解放条件を確認するよう修正した。次の実行は既存画面スイートの120秒上限に達した。診断JSONではconnection-flow全62確認を含む26シナリオ/580確認が成功し、合計118,863 msで最後のreceipt-tax-loadingが未実行だった。独立したconnection-flowを先行プロセスへ配分し、2プロセス/36シナリオ・各120秒・全期待値は維持する。カタログ全件照合も引き続きCIで行う。明示Captureでは両プロセスへ撮影指定を渡し、接続画面の画像は先行プロセスの出力先`transfer-editor/`へ保存する。停止/アクセス違反の根本解決と解釈せず、記録された時間超過への検証配分として扱う。
 
+ソース`89e05a9`の[Tests 44721891911](https://github.com/k-o-a-b-c/monetail/actions/runs/44721891911)が成功。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/793確認（connection-flow67）、個別3シナリオ、全件照合・撮影・不正指定拒否・計測が成功した。追加した復帰試験のレシート科目マスタ合成応答の設定漏れを修正し、最終実行では両方の編集復帰も通過した。最終実行で0xC0000005は記録されていないが、過去の原因解決とは扱わない。Client全1,202件・Presentation全164件は[成功ジョブ136226362679](https://github.com/k-o-a-b-c/monetail/actions/runs/44718009170/job/136226362679)、Windows実DPAPI/保存3件は[成功ジョブ136226362573](https://github.com/k-o-a-b-c/monetail/actions/runs/44718009170/job/136226362573)の同一fingerprintを再利用した。
+
 変更前main `5e5f20a`の[push Tests 44684505764](https://github.com/k-o-a-b-c/monetail/actions/runs/44684505764)成功を基準とする。影響外のAPI/DB/Docker/旧Windows等はCI選択と成功fingerprintに従って再利用する。WinApp CLIは実行環境にないため、Microsoft LearnのWinUI 3 Frame/PageとWindows App SDK 1.8のAPI資料で確認し、Windows製品/スモークビルドで検証する。実Windowsでの手動操作・実API接続・物理IME/タッチ・高DPI・スクリーンリーダーの確認は未実施。
 
 ## 接続先設定の共有Page・UserControl・MVVM（PR #218）
