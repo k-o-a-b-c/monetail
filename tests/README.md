@@ -20,7 +20,13 @@
 
 [FailurePageScenario](Monetail.WinUI.Smoke/FailurePageScenario.cs)を既存connection-flowへ追加し、未訪問Page/旧Gridの未生成、表示と3操作/AutomationId、Tab/Shift+Tab、連続失敗と再試行成功、二重再試行防止、接続先変更・取消後の再訪・終了時のイベント/Frame解放、通信失敗時の保存認証保持を検証する。[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)は振替/レシート双方の401退避中に接続失敗を挟み、同一モデル・実コントロール・未確定入力を保って再試行し、マスタ取得後に復帰することと詳細GET/自動保存がないことを確認する。未承認の編集中Page遷移は引き続き拒否する。既存36シナリオ・10秒期限・認証失効/通信障害の区別・401復帰・選択/スクロール・IMEの確認を維持する。責務・状態/直接参照/コード量の比較は[構成正本](../docs/architecture-winui.md#接続失敗pageの生成解放)を参照する。
 
-ローカルReleaseのOAuth/セッション/保存の関連Client56件、構造検査・XML・git diff --checkは成功。基点main `6a6c0c8`の[push Tests 44804115524](https://github.com/k-o-a-b-c/monetail/actions/runs/44804115524)成功を基準とし、非変更のClient全1,202件・Presentation全164件・Windows保存/API/DB等はCIのfingerprintによる成功記録を再利用する。
+ローカルReleaseのOAuth/セッション/保存の関連Client56件、構造検査・XML・git diff --checkは成功。最終ソース`46f05e1`の[Tests 44807453835・再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/44807453835/attempts/2)が成功。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/827確認（connection-flow101）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。基点main `6a6c0c8`の[push Tests 44804115524](https://github.com/k-o-a-b-c/monetail/actions/runs/44804115524)成功を基準とし、非変更のClient全1,202件・Presentation全164件・Windows保存/API/DB等はCIのfingerprintによる成功記録を再利用する。
+
+最終ソースの[初回CI](https://github.com/k-o-a-b-c/monetail/actions/runs/44807453835/attempts/1)は、既存receipt-memosのReceiptMemoで「IME変換確定Enterはフォーカス移動しない」の確認が失敗した（focus=ReceiptCategoryChoice、composing=False、保存済みメモは不変）。同じ実行のFailurePage・401復帰の追加確認は成功している。メモ/IMEの製品・試験コードは変更しておらず、期待値・タイムアウトを緩めない。原因は未特定であり、同一コミットの失敗Windowsジョブ再実行が成功しても原因解決とは扱わない。
+
+最初のソース`94f9735`の[Tests 44806455024](https://github.com/k-o-a-b-c/monetail/actions/runs/44806455024)も全36シナリオ/827確認まで成功した。その後の表示属性（メッセージの16pt・補助文字色）の修正を含む最終ソースでは上記IME失敗が1回発生し、コードを変更せず失敗Windowsジョブだけを1回再実行した。最終成功実行では0xC0000005の記録はないが、過去の原因解決とは扱わない。
+
+WinApp CLIは環境にないため未実行。Microsoft LearnのFrame/PageとSDK 1.8 Control.IsEnabled・実製品ビルドで代替確認した。実API接続、実Windows手動操作、物理IME/タッチ、高DPI・High Contrast・スクリーンリーダーは未検証。
 
 ## LoginPage内へのブラウザー認証待ち統合（PR #222）
 
