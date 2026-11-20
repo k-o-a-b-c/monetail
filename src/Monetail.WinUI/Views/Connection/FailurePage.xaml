@@ -6,7 +6,7 @@
     <Grid Padding="32">
         <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
             <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}"/>
-            <TextBlock x:Name="FailureMessage" Style="{ThemeResource BodyTextBlockStyle}" TextWrapping="Wrap"
+            <TextBlock x:Name="FailureMessage" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
                        AutomationProperties.LiveSetting="Polite"/>
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button x:Name="RetryButton" Content="再試行" Click="RequestRetry" Style="{ThemeResource AccentButtonStyle}"

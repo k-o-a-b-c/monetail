@@ -16,6 +16,12 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3841 |
 
+## 接続失敗画面のPage化（PR #223）
+
+[FailurePageScenario](Monetail.WinUI.Smoke/FailurePageScenario.cs)を既存connection-flowへ追加し、未訪問Page/旧Gridの未生成、表示と3操作/AutomationId、Tab/Shift+Tab、連続失敗と再試行成功、二重再試行防止、接続先変更・取消後の再訪・終了時のイベント/Frame解放、通信失敗時の保存認証保持を検証する。[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)は振替/レシート双方の401退避中に接続失敗を挟み、同一モデル・実コントロール・未確定入力を保って再試行し、マスタ取得後に復帰することと詳細GET/自動保存がないことを確認する。未承認の編集中Page遷移は引き続き拒否する。既存36シナリオ・10秒期限・認証失効/通信障害の区別・401復帰・選択/スクロール・IMEの確認を維持する。責務・状態/直接参照/コード量の比較は[構成正本](../docs/architecture-winui.md#接続失敗pageの生成解放)を参照する。
+
+ローカルReleaseのOAuth/セッション/保存の関連Client56件、構造検査・XML・git diff --checkは成功。基点main `6a6c0c8`の[push Tests 44804115524](https://github.com/k-o-a-b-c/monetail/actions/runs/44804115524)成功を基準とし、非変更のClient全1,202件・Presentation全164件・Windows保存/API/DB等はCIのfingerprintによる成功記録を再利用する。
+
 ## LoginPage内へのブラウザー認証待ち統合（PR #222）
 
 [LoginPageScenario](Monetail.WinUI.Smoke/LoginPageScenario.cs)と既存connection-flowで、同一Pageの認証前/待機切替、表示対象と待機Tab/Enter、busy中の再オープン/取消、同じ要求URL、二重ログイン防止、取消/OAuth拒否からの再試行、確定中の操作禁止、待機/確定中のWindow終了・取得済み認証保持を確認する。通常離脱では4通知とPage参照を解放し、同じPage内の状態切替では解放しない。旧待機画面/操作列の製品・テスト参照は残っていない。既存36シナリオと401の編集モデル/実コントロール保持を維持する。責務・コード量・状態/依存の比較は[構成正本](../docs/architecture-winui.md#同一loginpage内のブラウザー認証待ち)を参照する。

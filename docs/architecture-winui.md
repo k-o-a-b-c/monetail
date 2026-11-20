@@ -76,7 +76,7 @@ WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 F
 
 `Views/Authentication/LoginPage`は表示と`LoginRequested`・`ConnectionChangeRequested`・`BrowserOpenRequested`・`CancelRequested`の4通知を持つ、NavigationCacheMode=Disabledの標準Page。専用ViewModel・Client/HTTP/Window参照は持たない。ログインボタンと接続先変更のAutomationId・標準のTab順を維持する。旧VBはローカルDB起動とWindowsユーザー名による識別であり、このOAuth画面の対応物はない。新版の[ログイン契約](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)を維持する。
 
-接続先設定・起動・ログインを置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが4イベントを購読する。離脱・終了では購読とホストのContentを解除する。通常離脱後の再訪は新しいPageとし、WindowはPage型・4通知・UI切替メソッドだけを扱い、内部x:Nameを参照しない。操作可否は既存のWindowの認証/処理状態から渡し、Pageに業務状態を複製しない。
+接続先設定・起動・ログイン・接続失敗を置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが4イベントを購読する。離脱・終了では購読とホストのContentを解除する。通常離脱後の再訪は新しいPageとし、WindowはPage型・4通知・UI切替メソッドだけを扱い、内部x:Nameを参照しない。操作可否は既存のWindowの認証/処理状態から渡し、Pageに業務状態を複製しない。
 
 Windowの通常遷移ガードと同じく、認証退避以外では未承認の編集中遷移を拒否する。認証前Pageへの遷移時にも旧画面の可視状態を閉じ、一覧の読取を中断する。共有InfoBarはFrame外に残してログイン中も利用する。通常離脱と401退避を区別する既存の`NavigateToLogin` / `DiscardLedgerContents`は維持し、元のレシート/振替モデル・入力コントロールを破棄しない。閉鎖済みWindowではログインPageを再生成しない。起動時の通信/表示タイミング、OAuth/Client/保存形式は変更しない。
 
@@ -111,6 +111,29 @@ Page分離時（PR #221）はXAML15行+C#15行。Window側の31行増は、通�
 | Pageの操作通知 / UIメソッド | 2 / 0 | 4 / 1 |
 
 49行増はUI切替・4通知接続/解除・既存状態からの操作可否・旧ブラウザー起動結果の破棄を明示した分である。重複した待機画面を削除し、Windowからの内部コントロール操作をなくす。待機中の再オープン/取消をbusyで止めるための新しい状態フラグ、ViewModel、ルーターは設けない。WinUI 3の[UIElement.Visibility](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.uielement.visibility?view=windows-app-sdk-1.8)と既存の標準ボタンを使用する。
+
+### 接続失敗Pageの生成・解放
+
+`Views/Connection/FailurePage`はエラー文の表示と`RetryRequested`・`ConnectionChangeRequested`・`ExitRequested`の3通知だけを担当する標準Page（NavigationCacheMode=Disabled）。表示文字列はFrame.Navigateの引数で受け、Windowは内部x:Nameを参照しない。専用VM・Client参照・保持フラグは追加しない。
+
+Windowが`retry`を正本として保持し、既存の設定/保存認証再読込・10秒期限・認証と通信障害の区別を維持する。処理中はPage全体の標準IsEnabledを無効にし、再試行入口も既存のbusy/closedで二重実行を拒否する。通常離脱・終了時は3イベントを解除してFrameを解放し、再訪は新Pageとする。
+
+旧ShowPage(FailurePage)の401退避特例は`OpenAuthenticationPage`の既存ガードへ統合した。認証退避中だけ接続失敗Pageへ進め、通常の未承認遷移は引き続き拒否する。非表示と編集状態の破棄を区別し、元のレシート/振替モデル・コントロールは再試行後も再利用する。古い起動応答の拒否は既存のFrame同一性/取消処理で行い、新しい状態を追加しない。
+
+| 接続失敗Page分離の比較（基点main 6a6c0c8、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.xaml | 617行 | 606行 |
+| MainWindow.Connection.cs | 521行 | 536行 |
+| FailurePage XAML / C# | 0 / 0行 | 20 / 24行 |
+| 製品srcのC#/XAML総量 | 18,978行 | 19,026行 |
+| Window生成フィールド（失敗Grid/メッセージ/再試行） | 3 | 0 |
+| Window C#から旧失敗Grid/メッセージへの名前参照 | 4 | 0 |
+| 失敗XAMLからWindowへのClick直結 | 3 | 0 |
+| Connection partialの明示フィールド / bool | 9 / 2 | 9 / 2 |
+| Pageの操作通知 / 公開UIメソッド / 専用状態フィールド | 0 / 0 / 0 | 3 / 0 / 0 |
+
+製品総量は48行増。増分はPage境界と3通知の接続/解除・操作可否・重複再試行ガードであり、Windowから失敗画面の内部依存を除いた。新しいVM/Service/ルーターや認証情報の複製はない。旧VBにOAuth接続失敗画面の対応物はなく、新版の[画面契約](ledger-windows.md#windows版の起動表示接続失敗時の操作)を維持する。検証結果・未検証事項は[tests/README](../tests/README.md)を参照する。
+
 
 ## 家計簿選択画面の分離（第1段階）
 
