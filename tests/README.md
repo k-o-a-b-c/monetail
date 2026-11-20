@@ -13,8 +13,12 @@
 | Windows Presentation（レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 154 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
-| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証（Python） | 81 |
-| 合計 | 3815 |
+| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
+| 合計 | 3823 |
+
+## WinUI構造検査（新規違反のみ）
+
+`tests.yml` の全PR・main pushで`.github/scripts/check_winui_structure.py`を実行し、差分内の新しい旧画面切替呼出し・WPF/UWP UI参照と、`MainWindow.xaml`への新規画面/`ContentDialog`先行配置を拒否する。既存構造は移行完了まで許容し、8件のPython単体テストで差分行番号・既存許容・正常な`Frame`追加を確認する。MVVM責務・画面寿命・UI動作はこの静的検査では保証せず、レビューとWinUIスモークで確認する。
 
 ## レシート科目・明細のMVVM分離 第2段階（PR #214）
 
