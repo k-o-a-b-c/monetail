@@ -151,9 +151,11 @@ public sealed partial class MainWindow
         frame.Navigate(pageType, parameter);
         if (frame.Content is LoginPage login)
         {
-            login.IsEnabled = !busy;
+            login.SetAuthenticationState(false, !busy);
             login.LoginRequested += Login;
             login.ConnectionChangeRequested += ShowConnection;
+            login.BrowserOpenRequested += ReopenBrowser;
+            login.CancelRequested += CancelLogin;
         }
     }
 
@@ -173,6 +175,8 @@ public sealed partial class MainWindow
         {
             login.LoginRequested -= Login;
             login.ConnectionChangeRequested -= ShowConnection;
+            login.BrowserOpenRequested -= ReopenBrowser;
+            login.CancelRequested -= CancelLogin;
         }
         // Frameの現在エントリに渡したVMも含め、ホストごと参照を解放する。
         AuthenticationHost.Content = null;
@@ -221,12 +225,24 @@ public sealed partial class MainWindow
         ShowLogin(message);
     }
 
+    private LoginPage? LoginView => (AuthenticationHost.Content as Frame)?.Content as LoginPage;
+
+    private void RenderLogin() => LoginView?.SetAuthenticationState(browserLogin is not null,
+        browserLogin is null ? !busy : browserCancellation is { IsCancellationRequested: false });
+
     private void ShowLogin(string? message = null)
     {
-        if (closed)
+        if (closed || RecordEditorActive && !EditorAwaitingLogin)
             return;
         AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = false;
-        OpenAuthenticationPage(typeof(LoginPage));
+        if (LoginView is null)
+            OpenAuthenticationPage(typeof(LoginPage));
+        else
+        {
+            ErrorNotice.IsOpen = false;
+            ErrorNotice.Visibility = Visibility.Collapsed;
+        }
+        LoginView?.SetAuthenticationState(false, !busy);
         if (message is not null) ShowError(message);
     }
 
@@ -240,12 +256,14 @@ public sealed partial class MainWindow
         {
             await using var login = new BrowserOAuthLogin(connection.Api, connection.Endpoint!);
             browserLogin = login;
-            ShowPage(BrowserPage);
+            RenderLogin();
             await OpenBrowserAsync();
             // 利用者の認証待ちには接続確認用の10秒制限をかけない。
             var acquired = await login.CompleteAsync(cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = false;
+            // コード取得後は再オープン/取消を止める。確定処理はWindow寿命のローカルtokenで続ける。
+            browserCancellation = null;
+            RenderLogin();
             account = await connection.Session.AcceptLoginAsync(acquired, cancellation.Token);
             if (account is null) NavigateToLogin("ログインを続けられませんでした。もう一度ログインしてください。");
             else await OpenDestinationAsync(cancellation.Token);
@@ -253,15 +271,26 @@ public sealed partial class MainWindow
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !closed) { NavigateToLogin(); }
         catch (AuthenticationRejectedException) { NavigateToLogin("ログインできませんでした。もう一度ログインしてください。"); }
-        finally { browserLogin = null; browserCancellation = null; if (!closed) ReopenBrowserButton.IsEnabled = CancelLoginButton.IsEnabled = true; }
+        finally
+        {
+            browserLogin = null;
+            browserCancellation = null;
+            if (!closed)
+                RenderLogin();
+        }
     }, RetryStartupAsync, true);
 
     private async Task OpenBrowserAsync()
     {
-        if (browserLogin is null) return;
+        var login = browserLogin;
+        if (login is null || browserCancellation is not { IsCancellationRequested: false })
+            return;
         try
         {
-            if (await connection.OpenBrowser(browserLogin.AuthorizationUri))
+            var opened = await connection.OpenBrowser(login.AuthorizationUri);
+            if (closed || !ReferenceEquals(browserLogin, login) || browserCancellation is not { IsCancellationRequested: false })
+                return;
+            if (opened)
             {
                 ErrorNotice.IsOpen = false;
                 ErrorNotice.Visibility = Visibility.Collapsed;
@@ -270,11 +299,16 @@ public sealed partial class MainWindow
         }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException
             or System.Runtime.InteropServices.COMException) { }
-        if (!closed) ShowError("ブラウザーを開けませんでした。「ブラウザーを開く」から再試行してください。");
+        if (!closed && ReferenceEquals(browserLogin, login) && browserCancellation is { IsCancellationRequested: false })
+            ShowError("ブラウザーを開けませんでした。「ブラウザーを開く」から再試行してください。");
     }
 
     private async void ReopenBrowser(object sender, RoutedEventArgs args) => await OpenBrowserAsync();
-    private void CancelLogin(object sender, RoutedEventArgs args) => browserCancellation?.Cancel();
+    private void CancelLogin(object sender, RoutedEventArgs args)
+    {
+        browserCancellation?.Cancel();
+        RenderLogin();
+    }
 
     private async Task LogoutAsync()
     {
@@ -368,8 +402,7 @@ public sealed partial class MainWindow
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
-        if (AuthenticationHost.Content is Frame { Content: LoginPage login })
-            login.IsEnabled = enabled;
+        RenderLogin();
         CategoryDialog.IsEnabled = enabled;
         PaymentDialog.IsEnabled = enabled;
         PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
@@ -382,8 +415,9 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        var authenticationPage = ReferenceEquals(page, BrowserPage) || ReferenceEquals(page, FailurePage);
-        if (RecordEditorActive && !ReferenceEquals(page, HomePage) && !(EditorAwaitingLogin && authenticationPage)) return;
+        if (RecordEditorActive && !ReferenceEquals(page, HomePage) &&
+            !(EditorAwaitingLogin && ReferenceEquals(page, FailurePage)))
+            return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
         ReleaseAuthenticationPage();
         LegacyContent.Visibility = Visibility.Visible;
@@ -411,7 +445,7 @@ public sealed partial class MainWindow
     private void SetLegacyPage(FrameworkElement? page)
     {
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage,
-            BrowserPage, FailurePage, LedgerChoicePage, LedgerCreatePage })
+            FailurePage, LedgerChoicePage, LedgerCreatePage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
     }
 

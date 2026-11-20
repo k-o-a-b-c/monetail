@@ -45,7 +45,7 @@ public partial class App
 
             fixture.FailBrowser = true;
             await InvokeAsync(() => Find<Button>(root, "LoginButton"));
-            await Wait(() => Visible(root, "BrowserPage") && Find<InfoBar>(root, "ErrorNotice").IsOpen);
+            await Wait(() => BrowserLoginWaiting(root) && Find<InfoBar>(root, "ErrorNotice").IsOpen);
             var waitingUri = fixture.AuthorizationUri;
             fixture.FailBrowser = false;
             await InvokeAsync(() => Find<Button>(root, "ReopenBrowserButton"));
@@ -243,7 +243,7 @@ public partial class App
     }
 
     private static bool Visible(FrameworkElement root, string name) => name == "LoginPage"
-        ? ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Authentication.LoginPage login && VisibleAncestors(login)
+        ? ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Authentication.LoginPage login && VisibleAncestors((FrameworkElement)login.FindName("LoginContent"))
         : VisibleAncestors(Find<FrameworkElement>(root, name));
 
     private sealed class MemoryTokens : ITokenStore

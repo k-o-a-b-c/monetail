@@ -66,18 +66,20 @@ public partial class App
             Check(fixture.Settings.Load()!.Value == "https://other.example.test/" && fixture.Tokens.Current is null &&
                 !fixture.OtherServerAuthenticated && fixture.OtherServerRequests.Count == 2,
                 "明示再試行は同じ候補で確認後だけ保存し、元トークンを変更先へ送らない");
+            var previousLogin = LoginScreen(root) ?? throw new InvalidOperationException("ログインPageがありません。");
             var change = Find<HyperlinkButton>(root, "LoginChangeConnection");
             await FocusTransferControl(change);
             await PressReceiptKey(0x0D);
             await Wait(() => ConnectionSetupVisible(root));
             var setup = ConnectionView(root);
-            Check(setup.GetType() == first.GetType() && setup.ViewModel.CanCancel,
+            Check(setup.GetType() == first.GetType() && setup.ViewModel.CanCancel && LoginDetached(previousLogin),
                 "初回Pageと管理は同じUserControl型を使い、保存済み接続先からの変更にはキャンセルを示す");
             Find<TextBox>(root, "ServerUrl").Text = "https://discard.example.test/";
             await InvokeAsync(() => Find<Button>(root, "ConnectionCancel"));
             await Wait(() => Visible(root, "LoginPage"));
             Check(fixture.Settings.Load()!.Value == "https://other.example.test/" &&
-                LoginScreen(root) is not null && !setup.ViewModel.ConnectCommand.CanExecute(null),
+                LoginScreen(root) is { } returnedLogin && !ReferenceEquals(returnedLogin, previousLogin) &&
+                !setup.ViewModel.ConnectCommand.CanExecute(null),
                 "キャンセルは未保存URLを反映せず保存先へ戻り、初回Page/VMを解放する");
         }
         using (var fixture = new SyntheticConnection())

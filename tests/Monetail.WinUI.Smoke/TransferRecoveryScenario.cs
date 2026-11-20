@@ -63,7 +63,7 @@ public partial class App
                 "確定401を結果不明にせず入力・選択由来・旧revisionと要求を保持する");
             if (operation == "new")
             {
-                await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
+                await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => BrowserLoginWaiting(root));
                 await InvokeAsync(() => Find<Button>(root, "CancelLoginButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
                 Check(ReferenceEquals(editor, TransferEditing) && ReferenceEquals(pending, TransferView.ViewModel?.PendingRequest) && !VisibleAncestors(controls[0]), "ログイン取消後もログイン画面に留まり編集と元要求を保持する");
             }
@@ -262,7 +262,7 @@ public partial class App
         await Wait(() => Visible(root, "LoginPage")); server.SuggestionGate.SetResult(true); await Settle();
         Check(ReferenceEquals(editor, TransferEditing) && Find<AutoSuggestBox>(root, "TransferName").ItemsSource is null && TransferEditing?.Draft.Name == "保持する入力",
             "再認証への退避は進行中の候補を中断し、遅延応答で隠れた画面や入力を更新しない");
-        await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => Visible(root, "BrowserPage"));
+        await InvokeAsync(() => Find<Button>(root, "LoginButton")); await Wait(() => BrowserLoginWaiting(root));
         // 最後のWindowを閉じると検証プロセス自体が正常終了する。既存ヘルパーで次のWindowを先に開き、対象だけ閉じる。
         var closingView = TransferView;
         var closingModel = closingView.ViewModel ?? throw new InvalidOperationException("終了前の振替ViewModelがありません。");
