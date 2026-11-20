@@ -14,21 +14,20 @@ public partial class App
     {
         await CheckLedgerChoiceControl();
         await CheckConnectionSettingsLifecycle();
+        await CheckStartupSelection();
         using (var fixture = new SyntheticConnection())
         {
             var root = await OpenSyntheticWindow(fixture, (_, initial) =>
             {
                 Check(Find<ContentControl>(initial, "ConnectionSetupHost").Content is Frame { Content: Monetail.WinUI.Views.Connection.ConnectionSetupPage } &&
-                    Find<Grid>(initial, "StartupPage").Visibility == Visibility.Collapsed && fixture.Requests.Count == 0 &&
+                    initial.FindName("StartupPage") is null && fixture.Requests.Count == 0 &&
                     Find<ContentControl>(initial, "ConnectionSettingsContent").Content is null,
                     "未設定はActivate前に初回Pageだけを生成し、Startup/通信/管理用Viewを開始しない");
             });
             await StartSyntheticAsync();
             Check(Visible(root, "ConnectionSetupHost"), "未設定なら同じWindowで接続先を入力");
-            await Task.Delay(TimeSpan.FromMilliseconds(1100));
-            Check(Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed &&
-                !Find<ProgressRing>(root, "StartupProgress").IsActive && Visible(root, "ConnectionSetupHost"),
-                "速い起動は待機表示を出さず、完了後に遅れて表示しない");
+            Check(Startup(root) is null && Visible(root, "ConnectionSetupHost"),
+                "未設定は起動画面を生成せず、初回設定を維持する");
             if (capture) await Capture(root, output, "05-connection");
             Find<TextBox>(root, "ServerUrl").Text = "http://invalid.example.test/";
             await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
@@ -174,18 +173,18 @@ public partial class App
             fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var root = await OpenSyntheticWindow(fixture);
             var startup = window!.StartAsync();
-            Check(Visible(root, "StartupPage") && Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed &&
-                !Find<ProgressRing>(root, "StartupProgress").IsActive, "接続待ちの最初の1秒は待機表示を出さない");
-            await Wait(() => Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Visible);
-            Check(Find<ProgressRing>(root, "StartupProgress").IsActive &&
-                Find<ProgressRing>(root, "StartupProgress").IsEnabled && ReferenceEquals(window.Content, root),
-                "1秒以上かかったら同じWindowでProgressRingと接続中を表示");
+            var page = Startup(root) ?? throw new InvalidOperationException("起動Pageがありません。");
+            var progress = (ProgressRing)page.FindName("StartupProgress");
+            Check(progress.IsActive && progress.IsEnabled && ReferenceEquals(window!.Content, root),
+                "検証が必要な起動は同じWindowのPageで最初からProgressRingを動かす");
+            Check(fixture.Requests.SequenceEqual((string[])["/auth/me"]),
+                "保存済みログインの検証はメタデータ取得を重複させない");
             if (capture) await Capture(root, output, "09-startup-wait");
             fixture.ConnectionGate.SetResult(true);
             await startup;
-            Check(Visible(root, "HomePage") && !Find<ProgressRing>(root, "StartupProgress").IsActive &&
-                Find<StackPanel>(root, "StartupNotice").Visibility == Visibility.Collapsed,
-                "接続完了後は待機表示を止めて同じWindowのホームへ進む");
+            Check(Visible(root, "HomePage") && Startup(root) is null &&
+                Find<ContentControl>(root, "ConnectionSetupHost").Content is null,
+                "接続完了後は起動PageとFrameの参照を解放して同じWindowのホームへ進む");
         }
 
         using (var fixture = new SyntheticConnection(saved: true))
@@ -194,7 +193,7 @@ public partial class App
             var root = await OpenSyntheticWindow(fixture);
             await StartSyntheticAsync();
             Check(fixture.ConnectionCancelled && Visible(root, "FailurePage") && fixture.Tokens.Current is not null &&
-                !Find<ProgressRing>(root, "StartupProgress").IsActive,
+                Startup(root) is null,
                 "起動接続が10秒でタイムアウトしたら認証を残してエラー表示へ進む");
         }
 
@@ -247,7 +246,13 @@ public partial class App
     private sealed class MemoryTokens : ITokenStore
     {
         public TokenSet? Current { get; set; }
-        public TokenSet? Load(ApiEndpoint endpoint) => Current;
+        internal IOException? LoadFailure;
+        public TokenSet? Load(ApiEndpoint endpoint)
+        {
+            if (LoadFailure is not null)
+                throw LoadFailure;
+            return Current;
+        }
         public void Save(ApiEndpoint endpoint, TokenSet tokens) => Current = tokens;
         public void Clear() => Current = null;
     }
@@ -282,6 +287,7 @@ public partial class App
         internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
         internal int ChoiceCount, BrowserOpens;
         internal bool OtherServerAuthenticated;
+        internal bool IgnoreConnectionCancellation;
 
         internal SyntheticConnection(bool saved = false)
         {
@@ -328,9 +334,15 @@ public partial class App
                 OtherServerRequests.Add(path);
                 OtherServerAuthenticated |= request.Headers.Authorization is not null;
             }
-            if (path == "/.well-known/openid-configuration" && ConnectionGate is not null)
+            if (path is "/.well-known/openid-configuration" or "/auth/me" && ConnectionGate is not null)
             {
-                try { await ConnectionGate.Task.WaitAsync(token); }
+                try
+                {
+                    if (IgnoreConnectionCancellation)
+                        await ConnectionGate.Task;
+                    else
+                        await ConnectionGate.Task.WaitAsync(token);
+                }
                 catch (OperationCanceledException) { ConnectionCancelled = true; throw; }
             }
             if (path == "/.well-known/openid-configuration") return FailConnection ? new(HttpStatusCode.ServiceUnavailable) : Json(new
@@ -353,6 +365,7 @@ public partial class App
                     RejectedManagementBodies.Add(await request.Content.ReadAsStringAsync(token));
                 return new(HttpStatusCode.Unauthorized);
             }
+            if (path == "/auth/me" && FailConnection) return new(HttpStatusCode.ServiceUnavailable);
             if (path == "/auth/me") return RejectAuthentication ? new(HttpStatusCode.Unauthorized) : Json(new
             {
                 authUserId = AccountId, displayName = "テスト利用者",

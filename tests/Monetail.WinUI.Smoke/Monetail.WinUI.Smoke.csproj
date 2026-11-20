@@ -21,6 +21,8 @@
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
     <Page Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSettingsView.xaml" Link="Views/Connection/ConnectionSettingsView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSettingsView.xaml.cs" Link="Views/Connection/ConnectionSettingsView.xaml.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Connection/StartupPage.xaml" Link="Views/Connection/StartupPage.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Connection/StartupPage.xaml.cs" Link="Views/Connection/StartupPage.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSetupPage.xaml" Link="Views/Connection/ConnectionSetupPage.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSetupPage.xaml.cs" Link="Views/Connection/ConnectionSetupPage.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />

@@ -40,6 +40,10 @@ public sealed class ClientSession(MonetailApiClient api, ApiEndpoint endpoint, I
         finally { gate.Release(); }
     }
 
+    /// <summary>現在の接続先の保存情報の有無だけを調べる。有効性はRestoreAsyncで確認する。</summary>
+    /// <remarks>保存形式・破損時の破棄・接続先不一致はストアの既存契約に従い、結果をキャッシュしない。</remarks>
+    public bool HasSavedAuthentication() => tokens.Load(endpoint) is not null;
+
     public async Task<AuthenticatedAccount?> RestoreAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);

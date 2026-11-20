@@ -40,7 +40,7 @@ try {
     }
 }
 
-# 新規入力の検証と既存全画面の検証を分離し、各プロセスの上限と全確認を維持する。
+# 入力/認証/接続と残る全画面の検証を配分し、各プロセスの上限と全確認を維持する。
 $suites = if ($Scenario) { @('selected') } else { @('transfer-editor', 'existing') }
 foreach ($suite in $suites) {
     $suiteOutput = if ($suite -eq 'existing') { $OutputPath } else { Join-Path $OutputPath $suite }
@@ -49,7 +49,7 @@ foreach ($suite in $suites) {
     if ($Scenario) { $arguments += @('--scenario', $Scenario) }
     elseif ($suite -eq 'transfer-editor') { $arguments += '--transfer-editor-only' }
     else { $arguments += '--existing-only' }
-    if ($Capture -and $suite -ne 'transfer-editor') { $arguments += '--capture' }
+    if ($Capture) { $arguments += '--capture' }
     if ($RepeatParticipantRecovery -and $suite -ne 'transfer-editor') { $arguments += '--repeat-participant-recovery' }
     $resultPath = Join-Path $suiteOutput 'smoke-result.json'
     Remove-Item $resultPath, "$suiteOutput/smoke-error.txt" -ErrorAction SilentlyContinue

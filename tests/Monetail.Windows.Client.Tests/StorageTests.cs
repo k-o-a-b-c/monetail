@@ -137,6 +137,43 @@ public sealed class StorageTests : IDisposable
         Assert.Equal(endpoint, new ClientSettingsStore(directory).Load());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PresenceReusesCorruptAndUndecryptableStorageHandling(bool undecryptable)
+    {
+        using var original = new TestProtector();
+        using var other = new TestProtector();
+        new ClientSettingsStore(directory).Save(endpoint);
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(TokenPath, original.Protect(Encoding.UTF8.GetBytes("{bad-json}")));
+        using var http = new HttpClient();
+        var store = new FileTokenStore(directory, undecryptable ? other : original);
+        var session = new Monetail.Windows.Client.Authentication.ClientSession(
+            new Monetail.Windows.Client.Transport.MonetailApiClient(endpoint, http), endpoint, store);
+
+        Assert.False(session.HasSavedAuthentication());
+        Assert.False(File.Exists(TokenPath));
+        Assert.Equal(endpoint, new ClientSettingsStore(directory).Load());
+    }
+
+    [Fact]
+    public void PresencePreservesOtherEndpointsTokens()
+    {
+        using var protector = new TestProtector();
+        var store = new FileTokenStore(directory, protector);
+        store.Save(endpoint, tokens);
+        var before = File.ReadAllBytes(TokenPath);
+        using var http = new HttpClient();
+        var other = ApiEndpoint.Parse("https://other.example");
+        var session = new Monetail.Windows.Client.Authentication.ClientSession(
+            new Monetail.Windows.Client.Transport.MonetailApiClient(other, http), other, store);
+
+        Assert.Throws<Monetail.Windows.Client.Authentication.AuthenticationContextChangedException>(
+            () => session.HasSavedAuthentication());
+        Assert.Equal(before, File.ReadAllBytes(TokenPath));
+    }
+
     private string TokenPath => Path.Combine(directory, "authentication.dat");
 
     public void Dispose()

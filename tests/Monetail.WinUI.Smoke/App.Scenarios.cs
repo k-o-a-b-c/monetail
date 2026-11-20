@@ -19,6 +19,8 @@ public partial class App
         new("transfer-suggestions", "transfer-editor", CheckTransferSuggestions),
         new("transfer-focus", "transfer-editor", CheckTransferFocus),
         new("transfer-opening", "transfer-editor", CheckTransferOpening),
+        // 起動/接続の独立試験は先行プロセスへ配分し、全件と各120秒上限を維持する。
+        new("connection-flow", "transfer-editor", () => CheckConnectionFlow(output, capture)),
         new("shell", "existing", () => CheckShell(output, capture)),
         new("participant-authentication-recovery", "existing", async () =>
         {
@@ -32,7 +34,6 @@ public partial class App
         }),
         new("categories", "existing", CheckCategories),
         new("people-filter", "existing", CheckPeopleFilter),
-        new("connection-flow", "existing", () => CheckConnectionFlow(output, capture)),
         new("tax-rate-connection-cache", "existing", CheckTaxRateConnectionCache),
         new("people-flow", "existing", () => CheckPeopleFlow(output, capture)),
         new("person-deletion", "existing", CheckPersonDeletion),
