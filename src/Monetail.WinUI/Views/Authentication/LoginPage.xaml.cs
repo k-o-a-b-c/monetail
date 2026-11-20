@@ -16,8 +16,10 @@ public sealed partial class LoginPage : Page
     {
         LoginContent.Visibility = waiting ? Visibility.Collapsed : Visibility.Visible;
         WaitingContent.Visibility = waiting ? Visibility.Visible : Visibility.Collapsed;
-        LoginContent.IsEnabled = canInteract;
-        WaitingActions.IsEnabled = canInteract;
+        LoginButton.IsEnabled = canInteract;
+        LoginChangeConnection.IsEnabled = canInteract;
+        ReopenBrowserButton.IsEnabled = canInteract;
+        CancelLoginButton.IsEnabled = canInteract;
     }
 
     private void RequestLogin(object sender, RoutedEventArgs args) => LoginRequested?.Invoke(this, args);
