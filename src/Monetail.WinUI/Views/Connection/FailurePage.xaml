@@ -1,0 +1,20 @@
+<Page
+    x:Class="Monetail.WinUI.Views.Connection.FailurePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Disabled" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid Padding="32">
+        <StackPanel MaxWidth="520" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
+            <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}"/>
+            <TextBlock x:Name="FailureMessage" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"
+                       AutomationProperties.LiveSetting="Polite"/>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button x:Name="RetryButton" Content="再試行" Click="RequestRetry" Style="{ThemeResource AccentButtonStyle}"
+                        AutomationProperties.AutomationId="RetryButton"/>
+                <Button x:Name="FailureChangeConnection" Content="接続先の変更" Click="RequestConnectionChange"
+                        AutomationProperties.AutomationId="FailureChangeConnection"/>
+                <Button x:Name="FailureExit" Content="終了" Click="RequestExit" AutomationProperties.AutomationId="FailureExit"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Page>

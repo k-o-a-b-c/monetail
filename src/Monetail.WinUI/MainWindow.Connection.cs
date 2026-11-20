@@ -157,6 +157,13 @@ public sealed partial class MainWindow
             login.BrowserOpenRequested += ReopenBrowser;
             login.CancelRequested += CancelLogin;
         }
+        if (frame.Content is FailurePage failure)
+        {
+            failure.IsEnabled = !busy;
+            failure.RetryRequested += RetryConnection;
+            failure.ConnectionChangeRequested += ShowConnection;
+            failure.ExitRequested += Exit;
+        }
     }
 
     private void OpenConnectionSettings()
@@ -177,6 +184,12 @@ public sealed partial class MainWindow
             login.ConnectionChangeRequested -= ShowConnection;
             login.BrowserOpenRequested -= ReopenBrowser;
             login.CancelRequested -= CancelLogin;
+        }
+        if (AuthenticationHost.Content is Frame { Content: FailurePage failure })
+        {
+            failure.RetryRequested -= RetryConnection;
+            failure.ConnectionChangeRequested -= ShowConnection;
+            failure.ExitRequested -= Exit;
         }
         // Frameの現在エントリに渡したVMも含め、ホストごと参照を解放する。
         AuthenticationHost.Content = null;
@@ -394,15 +407,16 @@ public sealed partial class MainWindow
     private void ReportFailure(string message, Func<Task> repeat, bool connectionFailure)
     {
         if (!connectionFailure) { ShowError(message); return; }
-        ShowPage(FailurePage);
-        FailureMessage.Text = message;
         retry = repeat;
+        OpenAuthenticationPage(typeof(FailurePage), message);
     }
 
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
         RenderLogin();
+        if (AuthenticationHost.Content is Frame { Content: FailurePage failure })
+            failure.IsEnabled = enabled;
         CategoryDialog.IsEnabled = enabled;
         PaymentDialog.IsEnabled = enabled;
         PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
@@ -415,8 +429,7 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        if (RecordEditorActive && !ReferenceEquals(page, HomePage) &&
-            !(EditorAwaitingLogin && ReferenceEquals(page, FailurePage)))
+        if (RecordEditorActive && !ReferenceEquals(page, HomePage))
             return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
         ReleaseAuthenticationPage();
@@ -445,7 +458,7 @@ public sealed partial class MainWindow
     private void SetLegacyPage(FrameworkElement? page)
     {
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage,
-            FailurePage, LedgerChoicePage, LedgerCreatePage })
+            LedgerChoicePage, LedgerCreatePage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -489,7 +502,9 @@ public sealed partial class MainWindow
 
     private async void RetryConnection(object sender, RoutedEventArgs args)
     {
-        if (retry is not null) await retry();
+        if (busy || closed || retry is not { } repeat)
+            return;
+        await repeat();
     }
 
     private void Exit(object sender, RoutedEventArgs args) => Close();

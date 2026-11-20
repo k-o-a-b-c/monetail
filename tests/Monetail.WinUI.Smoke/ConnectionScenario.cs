@@ -16,6 +16,7 @@ public partial class App
         await CheckConnectionSettingsLifecycle();
         await CheckLoginPageLifecycle();
         await CheckStartupSelection();
+        await CheckFailurePageLifecycle();
         using (var fixture = new SyntheticConnection())
         {
             var root = await OpenSyntheticWindow(fixture, (_, initial) =>
@@ -242,9 +243,12 @@ public partial class App
         return root;
     }
 
-    private static bool Visible(FrameworkElement root, string name) => name == "LoginPage"
-        ? ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Authentication.LoginPage login && VisibleAncestors((FrameworkElement)login.FindName("LoginContent"))
-        : VisibleAncestors(Find<FrameworkElement>(root, name));
+    private static bool Visible(FrameworkElement root, string name) => name switch
+    {
+        "LoginPage" => LoginScreen(root) is { } login && VisibleAncestors((FrameworkElement)login.FindName("LoginContent")),
+        "FailurePage" => FailureScreen(root) is { } failure && VisibleAncestors(failure),
+        _ => VisibleAncestors(Find<FrameworkElement>(root, name))
+    };
 
     private sealed class MemoryTokens : ITokenStore
     {

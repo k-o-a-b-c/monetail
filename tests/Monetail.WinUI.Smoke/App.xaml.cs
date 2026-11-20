@@ -81,8 +81,8 @@ public partial class App : Application
         return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? (root.FindName("TransferEntry") as Monetail.WinUI.Views.Transfers.TransferEditorView)?.FindName(name) ?? (root.FindName("ReceiptEntry") as Monetail.WinUI.Views.Receipts.ReceiptEditorView)?.FindName(name) ?? FindSharedRecordElement(root, name) ?? FindAuthenticationElement(root, name) ?? FindConnectionElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
     }
     private static object? FindAuthenticationElement(FrameworkElement root, string name) =>
-        ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Authentication.LoginPage login
-            ? login.FindName(name) : null;
+        ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is FrameworkElement page
+            ? page.FindName(name) : null;
 
     private static bool ConnectionSetupVisible(FrameworkElement root) =>
         ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Connection.ConnectionSetupPage setup &&
