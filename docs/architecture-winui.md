@@ -20,6 +20,38 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 
 新版の変数・プロパティ・メソッド・クラス名は、意味と責務に合わせてC#の命名慣習で一から考える。既存フォーム・独自コントロールは操作・配置・計算条件を確認する資料として使い、必要な機能から実現する。機械的なVBからの変換を前提にせず、API対応と.NETの互換性を機能単位で確認する。業務モデルとDBの再設計方針は[58](ledger-foundation-core.md#新版の業務モデルdb設計方針未実装)を参照する。グラフ部品の選定とインストーラーの作成方式は実装前に具体化する。
 
+## 接続先設定のPage・UserControl・MVVM
+
+初回と「管理・設定 → 接続先の設定」の重複フォームを置き換えた。表示・切替・保存/認証の契約は[Windows接続](ledger-windows.md#windows版の接続先設定)を正本とする。
+
+| 所有者 | 責務 |
+| --- | --- |
+| `Views/Connection/ConnectionSetupPage` | 初回/ログイン前の設定Page。NavigationCacheModeはDisabled。共通Viewを配置し、離脱で解放する |
+| `Views/Connection/ConnectionSettingsView` | 共通XAML、x:Bindの双方向URL入力、近傍検証表示、既存FormKeyboardによるEnter/IME、初期/検証失敗時のフォーカス。公開面はViewModel DPのみ（ctor/DP登録を除く） |
+| `Presentation/Connection/ConnectionSettingsViewModel` | URL生入力1つ、ApiEndpoint.Parseによる検証、接続/キャンセルCommand、Commandから導出する処理中状態。WinUI/HTTP/トークン/Windowを参照しない |
+| `MainWindow.Connection` | 初回表示の選択、現在の家計簿/本人/接続先、既存未保存保護・認証復帰・共有失敗画面と進捗の調停。View内部のTextBox/ボタンを参照しない |
+| 既存`ClientConnection`・Client | メタデータ確認→設定保存→接続先変更時だけトークン消去、認証復元。確認取消後に設定を保存しない |
+
+Window構築時のPrepareInitialDestinationで保存済み接続先を読み、設定済みなら従来の起動表示を初回対象にする。未設定なら、その時だけFrameを作ってFrame.Navigateで初回Pageを配置する。AppのActivate後にStartAsyncを呼ぶが、未設定ではRunAsync/HTTP/1秒の遅延通知へ入らず完了する。設定読込エラーは従来の共有失敗画面と明示再試行へ接続する。
+
+管理画面では既存右ペインの空ContentControlへ同じUserControlを必要時に配置する。通常の画面遷移・管理項目変更・終了ではVMを停止してホストのContentを消し、初回側はナビゲーション引数を持つFrameもホストごと解放する。新たな画面キャッシュ、画面レジストリ、独自ルーター、Service/DIは追加しない。再訪は保存済みURLから生成し、2つの設定Viewは併存しない。ほかの機能画面・共通Shellは旧構成を残す段階移行で、全画面のPage化が完了したとは扱わない。
+
+VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解析する。不正URLは送信せず原文を保持して欄の近くに表示し、接続/保存/認証の失敗は従来の共有エラー処理へ委ねる。ネットワーク失敗だけで認証を削除せず、再試行はWindowが保持する同じ解析済み候補を使う。処理状態はAsyncRelayCommandから読み、独立したprocessing/cancelled/initialized boolは追加しない。画面寿命のCancellationTokenSourceは確認・保存までに使い、確定後の認証/401復帰はWindowの元の10秒の期限と寿命で継続する。Page解放で復帰先のマスタ取得を中断しない。
+
+| 比較（基点main ef4f043、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow XAML / 全partial C# | 658 / 3,760行 | 641 / 3,813行 |
+| WinUI / Presentation / Client C#/XAML | 6,853 / 1,398 / 3,739行 | 6,997 / 1,475 / 3,739行 |
+| 3製品プロジェクト合計 | 11,990行 | 12,211行 |
+| URL欄/キャンセルのWindow直接参照（種類/箇所、C#） | 3 / 11 | 0 / 0 |
+| URL解析の実装呼出元 | Windowに2か所 | VMに1か所 |
+| 未訪問設定フォームの起動時生成 | 2フォーム | 設定済み0、未設定1 |
+| Window Connectionの明示フィールド / bool | 8 / 2 | 8 / 2 |
+
+総行数は221行増える（共有View72＋Page35＋VM77、Window全体36行増＋既存ClientConnectionの取消確認1行）。元のフォーム2か所の常駐と内部操作をなくす一方、初回表示確定・画面寿命・処理可否/通知を明示する。VMの明示保持はURL/検証文字列2、読み取り専用の説明1、画面寿命1、注入delegate2。生成Command/DP/ネイティブ入力・フレームワーク内部状態は別とし、全状態数が減ったとは主張しない。Windowの共有busy/認証/再試行をVMへコピーせず、UI内部状態は新しいVM1つに集約する。旧ServerUrl/SettingsServerUrlの2系統とConnect/ConnectSettings/CancelConnectionハンドラー、WindowからのFormKeyboard登録を削除した。AutomationIdは共通ServerUrl/ConnectButton/ConnectionCancelへ統一する。
+
+WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
+
 ## 家計簿選択画面の分離（第1段階）
 
 `Views/LedgerChoiceView`が既存の家計簿選択XAML・単一選択状態・［開く］の有効化/クリックを所有する。公開面は一覧を受け取る`Ledgers`と選択IDを通知する`OpenRequested`の各1つ。選択はListViewに保持し、独立した選択モデルやMainWindowへの参照を持たない。MainWindowはClientからの取得、通知されたIDの`OpenLedgerAsync`、認証/未保存保護、画面遷移を担当する。UserControlはHTTP・認証・Windowを知らず、他画面にも依存しない。
