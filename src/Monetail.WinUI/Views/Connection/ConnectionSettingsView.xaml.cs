@@ -44,7 +44,7 @@ public sealed partial class ConnectionSettingsView : UserControl
         if (args.PropertyName == nameof(ViewModel.UrlError) && ViewModel.UrlError is not null)
             ServerUrl.Focus(FocusState.Programmatic);
     }
-    private static bool Not(bool value) => !value;
-    private static Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
-    private static Visibility ShowError(string? value) => Show(value is not null);
+    private bool Not(bool value) => !value;
+    private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
+    private Visibility ShowError(string? value) => Show(value is not null);
 }

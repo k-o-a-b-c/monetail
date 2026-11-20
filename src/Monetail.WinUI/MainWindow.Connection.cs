@@ -23,12 +23,7 @@ public sealed partial class MainWindow
     private bool closed;
 
     // 初回表示の選択はActivateより前に完了する。未設定では通信も遅延通知も開始しない。
-    private void PrepareInitialDestination()
-    {
-        LoadInitialDestination();
-    }
-
-    private bool LoadInitialDestination()
+    private bool PrepareInitialDestination()
     {
         try
         {
@@ -46,7 +41,7 @@ public sealed partial class MainWindow
         return false;
     }
 
-    private Task RetryStartupAsync() => LoadInitialDestination() ? StartAsync() : Task.CompletedTask;
+    private Task RetryStartupAsync() => PrepareInitialDestination() ? StartAsync() : Task.CompletedTask;
 
     internal Task StartAsync()
     {

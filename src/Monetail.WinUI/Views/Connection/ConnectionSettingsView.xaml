@@ -5,7 +5,7 @@
     IsTabStop="False">
     <StackPanel Spacing="24" MaxWidth="520" HorizontalAlignment="Stretch">
         <TextBlock Text="接続先の設定" Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1"/>
-        <TextBlock Text="{x:Bind ViewModel.Description}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        <TextBlock Text="{x:Bind ViewModel.Description, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         <StackPanel Spacing="8">
             <TextBox x:Name="ServerUrl" Header="サーバーURL" PlaceholderText="https://…" InputScope="Url"
                      Text="{x:Bind ViewModel.ServerUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -16,7 +16,7 @@
         <StackPanel Orientation="Horizontal" Spacing="12">
             <Button x:Name="ConnectButton" Content="接続" Command="{x:Bind ViewModel.ConnectCommand}" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="ConnectButton"/>
             <Button x:Name="ConnectionCancel" Content="キャンセル" Command="{x:Bind ViewModel.CancelCommand}"
-                    Visibility="{x:Bind Show(ViewModel.CanCancel)}" AutomationProperties.AutomationId="ConnectionCancel"/>
+                    Visibility="{x:Bind Show(ViewModel.CanCancel), Mode=OneWay}" AutomationProperties.AutomationId="ConnectionCancel"/>
         </StackPanel>
     </StackPanel>
 </UserControl>
