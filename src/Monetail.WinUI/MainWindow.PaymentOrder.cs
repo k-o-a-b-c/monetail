@@ -87,7 +87,7 @@ public sealed partial class MainWindow
                 }
                 UpdatePaymentOrderActions();
             }
-        }, SavePaymentOrderAsync);
+        });
     }
     private void CancelPaymentOrder(object sender, RoutedEventArgs args)
     {

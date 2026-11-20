@@ -17,6 +17,7 @@ public partial class App
         await CheckLoginPageLifecycle();
         await CheckStartupSelection();
         await CheckFailurePageLifecycle();
+        await CheckStartupBoundaries();
         using (var fixture = new SyntheticConnection())
         {
             var root = await OpenSyntheticWindow(fixture, (_, initial) =>

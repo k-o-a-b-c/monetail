@@ -215,7 +215,7 @@ public sealed partial class MainWindow
                 saved = true;
             }
             catch (PeopleRequestException error) { HandlePersonFailure(error); }
-        }, SavePersonAsync);
+        });
         return saved;
     }
 
@@ -232,7 +232,7 @@ public sealed partial class MainWindow
                 deleted = true;
             }
             catch (PeopleRequestException error) { HandlePersonFailure(error); }
-        }, () => Task.CompletedTask);
+        });
         return deleted;
     }
 

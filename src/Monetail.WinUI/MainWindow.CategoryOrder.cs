@@ -80,7 +80,7 @@ public sealed partial class MainWindow
                 }
                 UpdateCategoryOrderActions();
             }
-        }, SaveCategoryOrderAsync);
+        });
     }
     private void CancelCategoryOrder(object sender, RoutedEventArgs args)
     {

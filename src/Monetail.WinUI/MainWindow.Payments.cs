@@ -58,7 +58,7 @@ public sealed partial class MainWindow
             // 所有者名取得の拒否でも、支払方法の古い権限表示を残さない。
             throw new PaymentMethodRequestException(error.StatusCode, error.Code, error.Field, permissions: error.Permissions);
         }
-    }, LoadPaymentsAsync);
+    });
     private void DisplayPayments(PaymentMethodsInfo info)
     {
         if (currentLedger is { } ledger) connection.Masters.UpdatePayments(ledger.LedgerId, info);
@@ -174,7 +174,7 @@ public sealed partial class MainWindow
                 DisplayPayments(result); saved = true;
             }
             catch (PaymentMethodRequestException error) { HandlePaymentFailure(error); }
-        }, SavePaymentAsync);
+        });
         return saved;
     }
     private void HandlePaymentFailure(PaymentMethodRequestException error)

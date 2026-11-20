@@ -48,7 +48,7 @@ public sealed partial class MainWindow
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            ReportFailure("設定・認証情報を読み書きできませんでした。保存先へのアクセスを確認してください。", RetryStartupAsync, true);
+            ReportFailure("設定・認証情報を読み書きできませんでした。保存先へのアクセスを確認してください。", retryConnection: RetryStartupAsync);
         }
         return false;
     }
@@ -83,7 +83,7 @@ public sealed partial class MainWindow
                 if (ReferenceEquals(startupCancellation, timeout))
                     startupCancellation = null;
             }
-        }, RetryStartupAsync, true);
+        }, retryConnection: RetryStartupAsync);
     }
 
     private CancellationTokenSource ConnectionTimeout()
@@ -218,7 +218,7 @@ public sealed partial class MainWindow
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
             await RestoreAndOpenAsync(timeout.Token);
-        }, () => ConnectAsync(candidate, lifetime.Token), true);
+        }, retryConnection: () => ConnectAsync(candidate, lifetime.Token));
     }
 
     private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login;
@@ -291,7 +291,7 @@ public sealed partial class MainWindow
             if (!closed)
                 RenderLogin();
         }
-    }, RetryStartupAsync, true);
+    }, retryConnection: RetryStartupAsync);
 
     private async Task OpenBrowserAsync()
     {
@@ -337,10 +337,11 @@ public sealed partial class MainWindow
         DiscardLedgerContents();
         ClearLedger();
         ShowLogin();
-    }, LogoutAsync);
+    });
     }
 
-    private async Task RunAsync(Func<Task> action, Func<Task> repeat, bool connectionFailure = false)
+    // 例外分類と認証退避は共通。接続/認証経路だけが失敗画面の再試行先を渡す。
+    private async Task RunAsync(Func<Task> action, Func<Task>? retryConnection = null)
     {
         if (busy || closed) return;
         var receiptView = RememberReceiptAuthenticationView();
@@ -369,24 +370,24 @@ public sealed partial class MainWindow
                 HttpStatusCode.TooManyRequests => "操作回数の上限に達しました。しばらく待って再試行してください。",
                 _ => "家計簿の操作を完了できませんでした。内容を確認して再試行してください。"
             };
-            ReportFailure(message, repeat, connectionFailure);
+            ReportFailure(message, retryConnection);
         }
         catch (CategoryRequestException error)
         {
             ApplyCategoryFailureContext(error);
-            ReportFailure("科目一覧を取得できませんでした。参加状態と権限を確認してください。", repeat, connectionFailure);
+            ReportFailure("科目一覧を取得できませんでした。参加状態と権限を確認してください。", retryConnection);
         }
         catch (PaymentMethodRequestException error)
         {
             ApplyPaymentFailureContext(error);
-            ReportFailure("支払方法一覧を取得できませんでした。参加状態と権限を確認してください。", repeat, connectionFailure);
+            ReportFailure("支払方法一覧を取得できませんでした。参加状態と権限を確認してください。", retryConnection);
         }
         catch (PeopleRequestException error)
         {
             ApplyPeopleFailureContext(error);
             ReportFailure(error.StatusCode == HttpStatusCode.TooManyRequests
                 ? "操作回数の上限に達しました。しばらく待って再試行してください。"
-                : "人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。", repeat, connectionFailure);
+                : "人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。", retryConnection);
         }
         catch (Exception error) when (error is ApiConnectionException or HttpRequestException or OperationCanceledException
             or IOException or UnauthorizedAccessException or CryptographicException or SocketException)
@@ -394,7 +395,7 @@ public sealed partial class MainWindow
             var message = error is IOException or UnauthorizedAccessException or CryptographicException
                 ? "設定・認証情報を読み書きできませんでした。保存先へのアクセスを確認してください。"
                 : "サーバーに接続できませんでした。接続先と通信状態を確認してください。";
-            ReportFailure(message, repeat, connectionFailure);
+            ReportFailure(message, retryConnection);
         }
         finally
         {
@@ -404,10 +405,14 @@ public sealed partial class MainWindow
         }
     }
 
-    private void ReportFailure(string message, Func<Task> repeat, bool connectionFailure)
+    private void ReportFailure(string message, Func<Task>? retryConnection)
     {
-        if (!connectionFailure) { ShowError(message); return; }
-        retry = repeat;
+        if (retryConnection is null)
+        {
+            ShowError(message);
+            return;
+        }
+        retry = retryConnection;
         OpenAuthenticationPage(typeof(FailurePage), message);
     }
 

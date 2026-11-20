@@ -9,12 +9,24 @@
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
-| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1202 |
+| Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1205 |
 | Windows Presentation（接続先設定VM・レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 164 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3841 |
+| 合計 | 3844 |
+
+## 起動・認証復帰と通常業務の境界整理（PR #224）
+
+[StartupBoundaryScenario](Monetail.WinUI.Smoke/StartupBoundaryScenario.cs)を既存connection-flowへ追加し、履歴なし・所属0/1/複数の行き先と要求順、通常業務の家計簿404/403/429/入力不備・科目/支払方法/人物業務エラー・通信/保存障害が共有通知へ進むこと、認証/家計簿/retryを保持して再送やFailurePage表示を行わないことを確認する。[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)の401レシート/振替復帰では、通常のopen-last/所属一覧より編集復帰が優先される条件も追加した。未保存入力・旧revision・同じモデル/実コントロールの保持、連続401・マスタ再取得・不要な詳細GET/自動保存なしの既存確認は維持する。
+
+[LedgerWorkspaceTests](Monetail.Windows.Client.Tests/LedgerWorkspaceTests.cs)に、1件自動選択が404になった直後に所属を1回再取得し、0/1/複数へ変化した最新一覧を返す3ケースを追加した。既存の選定ロジックは変更せず、再開先の推測や追加の自動選択をしないことを検証する。
+
+ローカルReleaseの関連Client77件（家計簿・セッション・OAuth・保存）、構造検査・文書リンク・git diff --checkは成功。ソース`6258d73`の[Tests 44829690209](https://github.com/k-o-a-b-c/monetail/actions/runs/44829690209)は初回で成功した。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/840確認（connection-flow114）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功。ソース`6258d73`の[Client/Presentationジョブ136611302672](https://github.com/k-o-a-b-c/monetail/actions/runs/44829690209/job/136611302672)でClient全1,205件・Presentation全164件が成功（失敗/skipなし）。基点main `5afcee1`の[push Tests 44820225020](https://github.com/k-o-a-b-c/monetail/actions/runs/44820225020)を変更前成功記録として採用し、API/DB/Docker/旧Windows/Windows実保存等の非変更部分はCI選択・同一fingerprintの成功結果を再利用する。責務・依存/メソッド/フィールド/コード量の比較は[構成正本](../docs/architecture-winui.md#起動認証復帰の調停と通常業務の失敗通知)を参照する。
+
+今回のCIは再実行なし。既存receipt-memosを含むIME確認も成功し、0xC0000005の記録はない。過去の断続的なIME/アクセス違反の原因解決とは扱わず、それらの対策・期待値/タイムアウト変更は混ぜていない。WinUIレビューでは通常業務7 partialの差分が未使用引数の除去のみで処理本体が不変であること、認証/権限のcatch順・通知文・busy/finally・取消/Frame同一性・復帰順と編集保持処理が不変であることを確認した。
+
+WinApp CLIはこの環境にないため未実行。XAML・新しいUI APIは変更/導入していない。実API接続、実Windows手動操作、物理IME/タッチ、高DPI・スクリーンリーダーは未検証。
 
 ## 接続失敗画面のPage化（PR #223）
 

@@ -21,6 +21,12 @@ public sealed partial class MainWindow
         if (await ResumePaymentEditAsync(token)) return;
         if (await ResumeParticipantEditAsync(token)) return;
         if (await ResumePersonEditAsync(token)) return;
+        await OpenInitialLedgerAsync(token);
+    }
+
+    // 最後の家計簿・所属一覧・自動選択の判断は既存Workspaceに任せ、ここでは表示だけを決める。
+    private async Task OpenInitialLedgerAsync(CancellationToken token)
+    {
         var destination = await connection.Ledgers.StartAsync(token);
         token.ThrowIfCancellationRequested();
         ledgerChoices = destination.Choices;
@@ -86,7 +92,7 @@ public sealed partial class MainWindow
             var opened = await connection.Ledgers.CreateAsync(draft!, lifetime.Token);
             creationDraft = null;
             DisplayLedger(opened);
-        }, () => Task.CompletedTask);
+        });
     }
 
     private void CancelCreation(object sender, RoutedEventArgs args)
@@ -107,7 +113,7 @@ public sealed partial class MainWindow
         EmptyPeople.Text = "人物一覧を読み込んでいます。";
         EmptyPeople.Visibility = Visibility.Visible;
         DisplayLedger(opened);
-    }, () => OpenLedgerAsync(ledgerId));
+    });
     }
 
     private async void ShowLedgerMenu(object sender, RoutedEventArgs args)
@@ -129,7 +135,7 @@ public sealed partial class MainWindow
             create.Click += (_, _) => ShowCreation();
             menu.Items.Add(create);
             ledgerMenu = menu;
-        }, () => Task.CompletedTask);
+        });
         if (!closed && HomePage.Visibility == Visibility.Visible) ledgerMenu?.ShowAt(LedgerSelector);
     }
 
@@ -140,7 +146,7 @@ public sealed partial class MainWindow
         {
             var workspace = new PeopleWorkspace(connection.Api, connection.Session, currentLedger.LedgerId);
             DisplayPeople(await workspace.ListAsync(lifetime.Token));
-        }, LoadPeopleAsync);
+        });
     }
 
     private async void SelectManagement(object sender, NavigationViewSelectionChangedEventArgs args)
