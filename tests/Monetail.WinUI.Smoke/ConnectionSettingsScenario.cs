@@ -66,8 +66,7 @@ public partial class App
             Check(fixture.Settings.Load()!.Value == "https://other.example.test/" && fixture.Tokens.Current is null &&
                 !fixture.OtherServerAuthenticated && fixture.OtherServerRequests.Count == 2,
                 "明示再試行は同じ候補で確認後だけ保存し、元トークンを変更先へ送らない");
-            var change = All(root).OfType<HyperlinkButton>().Single(link =>
-                Microsoft.UI.Xaml.Automation.AutomationProperties.GetAutomationId(link) == "LoginChangeConnection");
+            var change = Find<HyperlinkButton>(root, "LoginChangeConnection");
             await FocusTransferControl(change);
             await PressReceiptKey(0x0D);
             await Wait(() => ConnectionSetupVisible(root));

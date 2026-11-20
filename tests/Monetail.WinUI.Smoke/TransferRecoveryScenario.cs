@@ -184,7 +184,7 @@ public partial class App
             await SubmitTransferToExpiredLogin(fixture, server, root, "update");
             if (otherEndpoint)
             {
-                var change = All(root).OfType<HyperlinkButton>().Single(c => Equals(c.GetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.AutomationIdProperty), "LoginChangeConnection"));
+                var change = Find<HyperlinkButton>(root, "LoginChangeConnection");
                 await FocusTransferControl(change); await PressReceiptKey(0x0D); await Wait(() => ConnectionSetupVisible(root));
                 fixture.RejectAuthentication = false; Find<TextBox>(root, "ServerUrl").Text = "https://other.example.test/";
                 await InvokeAsync(() => Find<Button>(root, "ConnectButton")); await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));

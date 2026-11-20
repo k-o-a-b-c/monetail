@@ -8,7 +8,7 @@
             <TextBlock Text="Monetail" Style="{ThemeResource TitleTextBlockStyle}"/>
             <Button x:Name="LoginButton" Content="ログイン" Click="RequestLogin"
                     Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="LoginButton"/>
-            <HyperlinkButton Content="接続先の変更" Click="RequestConnectionChange"
+            <HyperlinkButton x:Name="LoginChangeConnection" Content="接続先の変更" Click="RequestConnectionChange"
                              AutomationProperties.AutomationId="LoginChangeConnection"/>
         </StackPanel>
     </Grid>
