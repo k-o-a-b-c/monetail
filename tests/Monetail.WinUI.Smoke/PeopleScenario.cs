@@ -178,7 +178,7 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
             await Settle();
             Check(!EditorClosed(root) && Find<TextBox>(root, "PersonName").Text == "破棄する編集" &&
-                Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible && server.Reads == 2,
+                Find<FrameworkElement>(root, "ManagementPage").Visibility == Visibility.Visible && server.Reads == 2,
                 "人物ダイアログを開いている間は背後の移動で入力を破棄しない");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonButton"));
             await Wait(() => EditorClosed(root));

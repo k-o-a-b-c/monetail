@@ -34,7 +34,7 @@ public sealed partial class TransferListView : UserControl
     {
         InitializeComponent();
         TransferList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(TransferDoubleTapped), true);
-        viewport = new(this, TransferList, () => ViewModel is not null,
+        viewport = new(this, TransferList, () => ViewModel,
             (last, filled, user) => ViewModel?.ObserveViewportAsync(last, filled, user) ?? Task.CompletedTask);
     }
 

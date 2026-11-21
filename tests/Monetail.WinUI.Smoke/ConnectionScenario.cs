@@ -12,6 +12,7 @@ public partial class App
 {
     private async Task CheckConnectionFlow(string output, bool capture)
     {
+        await CheckWorkspacePageLifetime();
         await CheckAuthenticationFlowLifetime();
         await CheckAuthenticationFailureRetries();
         await CheckLedgerCreationPage();
@@ -254,6 +255,7 @@ public partial class App
         "LoginPage" => LoginScreen(root) is { } login && VisibleAncestors((FrameworkElement)login.FindName("LoginContent")),
         "FailurePage" => FailureScreen(root) is { } failure && VisibleAncestors(failure),
         "LedgerCreatePage" => CreationScreen(root) is { } creation && VisibleAncestors(creation),
+        "HomePage" or "ManagementPage" or "LedgerChoicePage" => FindWorkspaceElement(root, name) is FrameworkElement page && VisibleAncestors(page),
         _ => VisibleAncestors(Find<FrameworkElement>(root, name))
     };
 

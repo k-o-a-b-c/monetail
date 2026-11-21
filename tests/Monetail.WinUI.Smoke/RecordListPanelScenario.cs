@@ -15,6 +15,7 @@ public partial class App
     // 行やAPIを持たない表示状態でも、将来の残高一覧を組み込めることだけを確認する。
     private sealed class PanelProbeState : IRecordListState
     {
+        public Monetail.Windows.Presentation.Lists.ListViewportPosition ViewPosition { get; set; }
         public event PropertyChangedEventHandler? PropertyChanged;
         public bool IsInitialLoading
         {

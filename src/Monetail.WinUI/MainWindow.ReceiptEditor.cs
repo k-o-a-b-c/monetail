@@ -15,7 +15,7 @@ public sealed partial class MainWindow
     private ReceiptEditorState? receiptEditor;
     private Guid? receiptOpenRetryId;
     private CancellationTokenSource? receiptOpening;
-    private bool receiptDialogOpen, receiptLeaving, receiptCloseApproved, receiptRestorePending;
+    private bool receiptDialogOpen, receiptLeaving, receiptCloseApproved;
 
     private void InitializeReceiptEditor()
     {
@@ -36,22 +36,21 @@ public sealed partial class MainWindow
                 ReferenceEquals(element, RecordButton) || ReferenceEquals(element, LedgerSelector)) return true;
         return false;
     }
-    private async void RetryReceiptOpen(object sender, RoutedEventArgs args) => await OpenReceiptEditorAsync(receiptOpenRetryId);
     // 一要求だけを受理。取消後に通信が完了しても同一要求・本人・家計簿・画面を照合して適用しない。
     internal async Task OpenReceiptEditorAsync(Guid? receiptId)
     {
-        if (busy || closed || ManagementDialogOpen || receiptOpening is not null || transferOpening is not null || RecordEditorActive || account is null || currentLedger is null || HomePage.Visibility != Visibility.Visible) return;
+        if (busy || closed || ManagementDialogOpen || receiptOpening is not null || transferOpening is not null || RecordEditorActive || account is null || currentLedger is null || !IsRecordPageVisible) return;
         var ledger = currentLedger.LedgerId; var person = account.AuthUserId;
         var api = connection.Api; var session = connection.Session;
         var initial = new ReceiptHeaderDraft { TransactionAt = DateTime.Today, ShopLocation = "", Memo = null, TaxInclusionMode = 0, TaxRoundingMode = "floor" };
         using var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         receiptOpening = pending;
         receiptOpenRetryId = receiptId;
-        ReceiptOpenRetry.Visibility = Visibility.Collapsed;
+
         UpdateReceiptActions();
-        ReceiptOpenNotice.Visibility = Visibility.Visible; ReceiptOpenProgress.IsActive = true; ReceiptOpenMessage.Text = "レシートを読み込み中…";
+        if (recordHome is not null) recordHome.ReceiptOpening = new("レシートを読み込み中…", true, false);
         bool Current() => !closed && ReferenceEquals(receiptOpening, pending) && !pending.IsCancellationRequested &&
-            currentLedger?.LedgerId == ledger && account?.AuthUserId == person && HomePage.Visibility == Visibility.Visible;
+            currentLedger?.LedgerId == ledger && account?.AuthUserId == person && IsRecordPageVisible;
         try
         {
             var info = receiptId is Guid id ? await new ReceiptsWorkspace(api, session, ledger).GetAsync(id, pending.Token) : null;
@@ -81,11 +80,11 @@ public sealed partial class MainWindow
             };
             model.ConfirmationRequested += kind => ConfirmReceiptEditorAsync(model, kind);
             ReceiptEntry.ViewModel = model;
-            CancelRecordHomeResume();
-            ReceiptsView.RememberPosition();
+            RecordPage?.Suspend();
+            RecordPage?.RememberPositions();
             ReceiptListModel?.Suspend();
             TransferListModel?.Suspend();
-            RecordContent.Visibility = Visibility.Collapsed;
+            RecordPage?.ShowEditor(EditorContents);
             ReceiptEditorPage.Visibility = Visibility.Visible;
             PopulateReceiptEditor();
         }
@@ -96,10 +95,9 @@ public sealed partial class MainWindow
         {
             if (Current())
             {
-                ReceiptOpenRetry.Visibility = Visibility.Visible;
-                ReceiptOpenMessage.Text = error is ReceiptRequestException { StatusCode: HttpStatusCode.NotFound }
+                if (recordHome is not null) recordHome.ReceiptOpening = new(error is ReceiptRequestException { StatusCode: HttpStatusCode.NotFound }
                 ? "このレシートは開けません。参加状態と対象を確認してください。"
-                : "レシートまたは税率履歴を取得できませんでした。再試行してください。";
+                : "レシートまたは税率履歴を取得できませんでした。再試行してください。", false, true);
             }
         }
         finally
@@ -107,9 +105,7 @@ public sealed partial class MainWindow
             if (ReferenceEquals(receiptOpening, pending))
             {
                 receiptOpening = null;
-                ReceiptOpenProgress.IsActive = false;
-                if (receiptEditor is not null)
-                    ReceiptOpenNotice.Visibility = Visibility.Collapsed;
+                if (recordHome is not null && receiptEditor is not null) recordHome.ReceiptOpening = null;
                 UpdateReceiptActions();
             }
         }
@@ -117,7 +113,7 @@ public sealed partial class MainWindow
     private void CancelReceiptOpening()
     {
         var pending = receiptOpening; receiptOpening = null; pending?.Cancel();
-        ReceiptOpenProgress.IsActive = false; ReceiptOpenNotice.Visibility = Visibility.Collapsed; ReceiptOpenRetry.Visibility = Visibility.Collapsed;
+        if (recordHome is not null) recordHome.ReceiptOpening = null;
         UpdateReceiptActions();
     }
     private void ResetReceiptEditor()
@@ -127,7 +123,7 @@ public sealed partial class MainWindow
         var model = ReceiptEntry.ViewModel;
         ReceiptEntry.ViewModel = null;
         model?.Discard();
-        ReceiptEditorPage.Visibility = Visibility.Collapsed; RecordContent.Visibility = Visibility.Visible;
+        ReceiptEditorPage.Visibility = Visibility.Collapsed; RecordPage?.ShowEditor(null);
     }
     private void PopulateReceiptEditor() => ReceiptEntry.Populate();
     private void RefreshReceiptEditorChoices()
@@ -179,7 +175,7 @@ public sealed partial class MainWindow
     private async Task BackFromReceiptEditorAsync()
     {
         if (!await LeaveReceiptEditorAsync()) return;
-        ShowPage(HomePage); RestoreReceiptListPosition();
+        NavigateWorkspace(WorkspaceScreen.HomePage); RestoreReceiptListPosition();
     }
     private async Task<bool> LeaveReceiptEditorAsync()
     {
@@ -201,9 +197,9 @@ public sealed partial class MainWindow
                 try { if (await dialog.ShowAsync() != ContentDialogResult.Primary || receiptRecoveryPhase == ReceiptRecoveryPhase.Login) return false; }
                 finally { receiptDialogOpen = false; }
             }
-            ResetReceiptEditor(); receiptRestorePending = true; return true;
+            ResetReceiptEditor(); return true;
         }
         finally { ReceiptEntry.SuppressCompletion(false); receiptLeaving = false; }
     }
-    private void RestoreReceiptListPosition() => ReceiptsView.RestorePosition();
+    private void RestoreReceiptListPosition() => RecordPage?.RestorePositions();
 }

@@ -82,7 +82,7 @@ public sealed partial class MainWindow
         PersonDialog.IsPrimaryButtonEnabled = !busy && PersonEditorContent.Visibility == Visibility.Visible && !editorDenied && latestPerson is null && account is not null &&
             (isDeletingPerson ? editingPerson is not null && CanDeletePerson(editingPerson) :
                 editingPerson is null ? IsPeopleAdmin : CanEditPerson(editingPerson) && (!editingPeriod || IsPeopleAdmin));
-        if (PersonEditorContent.Visibility != Visibility.Visible) PeopleNavigation.IsEnabled = CanViewPeople;
+        if (management is not null && PersonEditorContent.Visibility != Visibility.Visible) management.PeopleEnabled = CanViewPeople;
     }
 
     private void SelectPerson(object sender, SelectionChangedEventArgs args) => UpdatePeopleActions();
@@ -153,7 +153,7 @@ public sealed partial class MainWindow
             if (!closed)
             {
                 ClearPersonEditor();
-                if (!forcePersonDialogClose && !CanViewPeople) ShowPage(HomePage);
+                if (!forcePersonDialogClose && !CanViewPeople) NavigateWorkspace(WorkspaceScreen.HomePage);
             }
         }
     }
@@ -372,8 +372,8 @@ public sealed partial class MainWindow
         DisplayLedger(ledger);
         DisplayPeople(people);
         IncludeInactivePeople.IsChecked = draft.IncludeInactive;
-        ShowPage(ManagementPage);
-        ManagementNavigation.SelectedItem = PeopleNavigation;
+        NavigateWorkspace(WorkspaceScreen.ManagementPage);
+        management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.People;
         if (permission is not null) peoplePermissions = permission;
         if (draft.Order is { } order) RestorePersonOrder(order, people, failure);
         else

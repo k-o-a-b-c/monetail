@@ -26,13 +26,13 @@ public partial class App
             Call("ShowLogin", (object?)null);
             Check(Visible(root, "LoginPage") && ReferenceEquals(ledger, TransferRuntime("currentLedger")) &&
                 ReferenceEquals(accountBefore, TransferRuntime("account")), "ログインの表示だけでは家計簿や認証コンテキストを破棄しない");
-            Call("ShowPage", Find<Grid>(root, "HomePage"));
+            ShowHomeTestPage(root, "HomePage");
             await window!.OpenTransferEditorAsync(saved.TransferId);
             var editor = TransferEditing ?? throw new InvalidOperationException("振替編集モデルがありません。");
             var draft = editor.Draft; var amount = Find<TextBox>(root, "TransferAmount"); amount.Text = "12x";
             var date = Find<DateInputBox>(root, "TransferDate"); date.Text = "2026/";
             var details = server.Details;
-            Call("ShowPage", Find<Grid>(root, "ManagementPage"));
+            ShowHomeTestPage(root, "ManagementPage");
             Check(Visible(root, "HomePage") && ReferenceEquals(editor, TransferEditing) && amount.Text == "12x",
                 "未承認の画面移動ガードは入力を保持して遷移を拒否する");
             Call("ResetRecordHome");

@@ -5,7 +5,7 @@ using Monetail.Windows.Client.Transport;
 namespace Monetail.WinUI.Views;
 
 /// <summary>一覧表示と選択だけを担当する。取得・認証・家計簿を開く処理は所有しない。</summary>
-public sealed partial class LedgerChoiceView : UserControl
+public sealed partial class LedgerChoiceView : Page
 {
     public LedgerChoiceView() => InitializeComponent();
 

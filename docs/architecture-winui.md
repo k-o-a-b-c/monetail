@@ -72,6 +72,24 @@ VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解
 
 WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
 
+## Shell・Page・MVVM統合の3PR計画（PR1）
+
+最終構成はMainWindowを共通Shell（ナビゲーション許可、家計簿/本人/接続先、認証フロー、横断未保存確認、全体操作状態/通知、Window寿命）とし、主画面は標準Frame/Page、複雑な表示/CommandはPresentation、業務下書き/通信/版/再送はClientを正本とする。全面MVVM化のための基盤や独自ルーターは作らない。
+
+| 工程 | 境界と所有者 | 今回の状態 |
+| --- | --- | --- |
+| PR1 | WorkspaceHostのFrame、記録RecordHomePage/RecordHomeViewModel、管理ManagementPage/ManagementViewModel。共通ヘッダーはShell、検索/選択と表示用投影はVM、IME/フォーカス/表示位置はView。既存の2一覧VM/RecordSearchStateを再利用 | 実装・検証対象 |
+| PR2 | 人物/科目/支払方法/参加者/招待と順序・ダイアログを機能View/VMへ移管。各取得寿命、権限投影、競合/401/再送と画面通知を維持し、Windowの管理詳細Grid・条件付きShowErrorを除去。ダイアログは必要時生成 | 未実装 |
+| PR3 | 既存レシート/振替EditorView/VMを各入力Pageへ統合。Windowの入力View所有とAPI調整を整理し、401の実コントロール保持・フォーカス/未確定入力/要求保持を維持して旧partial/ホストを撤去 | 未実装 |
+
+着手時はHomePageにヘッダー・共通検索・3一覧・両入力Viewが常駐し、ManagementPageにNavigationViewと全管理機能が常駐していた。記録検索と管理メニュー選択はWindowのpartialから内部x:Nameを直接操作し、通常離脱でもViewを保持していた。比較対象はmain e74c241、一覧/編集/Client契約と既存スモークを正本とする。
+
+PR1はRecordHomePageとManagementPageを必要時にFrame.Navigateで生成し、通常離脱では購読・内容・Frame参照を解放する。記録VMは家計簿単位に検索・既存2一覧VMを保持し、View再生成でも同じ行/選択を利用する。表示位置は一覧VMの値へ移し、ListViewportControllerはUI測定/適用を担当する。検索下書きはRecordSearchStateの既存値を使用し、別の文字列/フィルター正本を作らない。記録Pageの読取/表示復帰はそのPageで取消し、古い復帰が新Pageへ作用しない。
+
+401で編集中の記録PageはFrameから外さず非表示で一時保持する。AuthenticationFlowは別Frameを既存どおり所有し、同じ本人/家計簿/接続先での復帰だけ元のPage・入力View・モデルを再利用する。通常離脱/別本人/終了では保持を解除する。家計簿選択は既存の単純なViewをPageへ変更し、選択だけでは開かない契約を維持する。家計簿作成Pageと認証前Pageの契約は変更しない。
+
+管理詳細と入力Viewの業務移管はPR2/3であり、PR1ではWindowが既存の2つの内容領域（管理詳細/入力）を所有してPageへ内容単位で接続する。Page内部のコントロールをWindowへ公開する転送層は設けない。この未移管領域と既存ダイアログの先行生成・Windowの機能固有エラー分岐は残存事項で、全画面のMVVM/必要時生成が完了したとは扱わない。ページ境界を作るだけの案より検索・選択/操作の正本をVMへ移す案を採用し、入力業務を同時に移す大規模案は後続へ分割する。
+
 ## RunAsyncと認証失敗の責務（PR #230）
 
 | 区分 | 所有者と契約 |

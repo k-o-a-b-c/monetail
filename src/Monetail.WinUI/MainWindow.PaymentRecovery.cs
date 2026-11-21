@@ -46,7 +46,7 @@ public sealed partial class MainWindow
         { denied = e.Permissions ?? new(null, null); failure = "現在の権限では操作できません。未保存の入力は残しています。"; }
         DisplayLedger(ledger); connection.Masters.UpdatePeople(ledger.LedgerId, people); paymentPeople = people; DisplayPayments(payments);
         if (denied is not null) paymentPermissions = denied;
-        ShowPage(ManagementPage); ManagementNavigation.SelectedItem = PaymentsNavigation;
+        NavigateWorkspace(WorkspaceScreen.ManagementPage); management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Payments;
         CategoriesContent.Visibility = PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = AccountContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;
         PaymentsContent.Visibility = Visibility.Visible; IncludeInactivePayments.IsChecked = draft.IncludeInactive;
         if (draft.Order is { } order)

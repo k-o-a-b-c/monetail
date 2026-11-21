@@ -7,6 +7,8 @@ namespace Monetail.Windows.Presentation.Lists;
 /// <summary>行と選択、カーソル取得の寿命を所有する。検索条件と通信契約は派生VMに残す。</summary>
 public abstract partial class CursorListViewModel<TItem> : ObservableObject, IRecordListState, IDisposable where TItem : class
 {
+    public bool HasStarted => HasQuery;
+    public ListViewportPosition ViewPosition { get; set; }
     private readonly ObservableCollection<TItem> rows = [];
     private ReadOnlyObservableCollection<TItem>? readOnlyRows;
     public ReadOnlyObservableCollection<TItem> Rows => readOnlyRows ??= new(rows);
@@ -91,6 +93,7 @@ public abstract partial class CursorListViewModel<TItem> : ObservableObject, IRe
         Stop(false, false);
         suspended = false;
         ClearRows();
+        ViewPosition = default;
         NextCursor = null;
         HasLoaded = false;
         Failure = null;

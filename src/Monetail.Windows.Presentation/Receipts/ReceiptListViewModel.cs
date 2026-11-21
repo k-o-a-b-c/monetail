@@ -33,6 +33,7 @@ public sealed partial class ReceiptListViewModel(
     private Task RegisterAsync() => OpenRequested?.Invoke(null) ?? Task.CompletedTask;
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task EditAsync(Guid receiptId) => OpenRequested?.Invoke(receiptId) ?? Task.CompletedTask;
+    public string PaymentDisplayName(Guid id) => paymentName(id);
     public void RefreshNames()
     {
         foreach (var row in Rows)

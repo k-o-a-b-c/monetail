@@ -1,0 +1,37 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Monetail.WinUI.Views.Workspace;
+
+namespace Monetail.WinUI.Smoke;
+
+public partial class App
+{
+    private async Task CheckWorkspacePageLifetime()
+    {
+        using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
+        var root = await OpenSyntheticWindow(fixture, (_, initial) =>
+            Check(Find<Frame>(initial, "WorkspaceHost").Content is null,
+                "認証前に未訪問の記録・管理Pageを生成しない"));
+        await StartSyntheticAsync();
+        var host = Find<Frame>(root, "WorkspaceHost");
+        var first = host.Content as RecordHomePage ?? throw new InvalidOperationException("記録Pageがありません。");
+        var model = first.ViewModel ?? throw new InvalidOperationException("記録VMがありません。");
+        Find<TextBox>(root, "ReceiptMonth").Text = "2026/";
+        Find<TextBox>(root, "RecordKeyword").Text = "入力中の検索";
+        var reads = fixture.Requests.Count(path => path.EndsWith("/receipts", StringComparison.Ordinal));
+        await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+        await Wait(() => host.Content is ManagementPage && Equals(TransferRuntime("busy"), false));
+        var managementPage = (ManagementPage)host.Content;
+        Check(first.ViewModel is null && ((Monetail.WinUI.Views.Receipts.ReceiptListView)first.FindName("ReceiptsView")).ViewModel is null &&
+            !ReferenceEquals(first, host.Content),
+            "通常離脱は記録PageのVM購読・一覧接続を解除し、管理Pageへ標準遷移する");
+        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        await Wait(() => host.Content is RecordHomePage && TransferRuntime("homeResume") is null);
+        var second = (RecordHomePage)host.Content;
+        Check(!ReferenceEquals(first, second) && ReferenceEquals(model, second.ViewModel) &&
+            Find<TextBox>(root, "ReceiptMonth").Text == "2026/" && Find<TextBox>(root, "RecordKeyword").Text == "入力中の検索" &&
+            fixture.Requests.Count(path => path.EndsWith("/receipts", StringComparison.Ordinal)) == reads &&
+            ((ContentControl)managementPage.FindName("DetailsHost")).Content is null,
+            "再訪は新しいPageで同じ検索VMと未確定文字列を復元し、不要な再取得や管理内容参照を残さない");
+    }
+}

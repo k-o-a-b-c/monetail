@@ -73,7 +73,7 @@ public sealed partial class MainWindow
         { DiscardLedgerContents(); ClearLedger(); return false; }
         receiptRecoveryPhase = ReceiptRecoveryPhase.Loading;
         if (currentLedger is { } ledger) DisplayLedgerHeader(ledger);
-        ShowPage(HomePage); RenderReceiptRecovery();
+        NavigateWorkspace(WorkspaceScreen.HomePage); RenderReceiptRecovery();
         await LoadReceiptRecoveryMastersAsync(context, token);
         return true;
     }
@@ -156,7 +156,7 @@ public sealed partial class MainWindow
     {
         ReceiptEntry.RestorePosition(context.Focus, context.SelectionStart, context.SelectionLength, context.Scrolls,
             () => !closed && receiptRecoveryPhase != ReceiptRecoveryPhase.Login && ReferenceEquals(editor, receiptEditor) &&
-                HomePage.Visibility == Visibility.Visible && account?.AuthUserId == context.AccountId &&
+                IsRecordPageVisible && account?.AuthUserId == context.AccountId &&
                 connection.Endpoint?.Value == context.ApiOrigin && currentLedger?.LedgerId == context.LedgerId);
     }
 }

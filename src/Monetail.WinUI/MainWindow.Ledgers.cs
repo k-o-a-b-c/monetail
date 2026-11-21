@@ -41,8 +41,8 @@ public sealed partial class MainWindow
         else if (ledgerChoices.Count == 0) ShowCreation();
         else
         {
-            LedgerChoicePage.Ledgers = ledgerChoices;
-            ShowPage(LedgerChoicePage);
+            if (WorkspaceHost.Content is Monetail.WinUI.Views.LedgerChoiceView choices) choices.Ledgers = ledgerChoices;
+            NavigateWorkspace(WorkspaceScreen.LedgerChoicePage);
         }
     }
 
@@ -66,12 +66,12 @@ public sealed partial class MainWindow
         currentLedger = null;
         ledgerChoices = [];
         creationDraft = null;
-        LedgerChoicePage.Ledgers = ledgerChoices;
+        if (WorkspaceHost.Content is Monetail.WinUI.Views.LedgerChoiceView choices) choices.Ledgers = ledgerChoices;
         PeopleList.ItemsSource = null;
         ledgerMenu = null;
         LedgerSelector.IsEnabled = false;
         LedgerName.Text = "家計簿を選択";
-        LedgerContext.Text = "家計簿が開かれていません";
+        if (management is not null) management.LedgerName = "家計簿が開かれていません";
     }
 
     private LedgerCreatePage? CreationView => (LedgerPageHost.Content as Frame)?.Content as LedgerCreatePage;
@@ -85,8 +85,7 @@ public sealed partial class MainWindow
         ReleaseAuthentication();
         ReleaseConnectionSettings();
         SuspendRecordReads();
-        SetLegacyPage(null);
-        LegacyContent.Visibility = Visibility.Collapsed;
+        HideWorkspace();
         AuthenticationNotice(null);
         var frame = new Frame { IsNavigationStackEnabled = false };
         LedgerPageHost.Content = frame;
@@ -188,7 +187,7 @@ public sealed partial class MainWindow
     {
         if (busy || closed || !ReferenceEquals(sender, CreationView))
             return;
-        ShowPage(currentLedger is null ? LedgerChoicePage : HomePage);
+        NavigateWorkspace(currentLedger is null ? WorkspaceScreen.LedgerChoicePage : WorkspaceScreen.HomePage);
     }
 
     private async void OpenSelectedLedger(object? sender, Guid ledgerId) => await OpenLedgerAsync(ledgerId);
@@ -226,7 +225,7 @@ public sealed partial class MainWindow
             menu.Items.Add(create);
             ledgerMenu = menu;
         });
-        if (!closed && HomePage.Visibility == Visibility.Visible) ledgerMenu?.ShowAt(LedgerSelector);
+        if (!closed && IsRecordPageVisible) ledgerMenu?.ShowAt(LedgerSelector);
     }
 
     private Task LoadPeopleAsync()
@@ -239,9 +238,10 @@ public sealed partial class MainWindow
         });
     }
 
-    private async void SelectManagement(object sender, NavigationViewSelectionChangedEventArgs args)
+    private async Task SelectManagementAsync(Monetail.Windows.Presentation.Workspace.ManagementSection item)
     {
-        if (args.SelectedItem is not NavigationViewItem item || busy || ManagementDialogOpen) return;
+        if (busy || ManagementDialogOpen) return;
+        if (management is not null) management.SelectedSection = item;
         ReleaseConnectionSettings();
         DropPendingCategoryEdit(); DiscardCategoryEditor(); DiscardCategoryOrder();
         CategoriesContent.Visibility = Visibility.Collapsed;
@@ -251,41 +251,41 @@ public sealed partial class MainWindow
         DiscardPersonEditor();
         DiscardPersonOrder();
         PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
-        if (ReferenceEquals(item, ParticipantsNavigation))
+        if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Participants)
         {
             if (!CanManageParticipants) return;
             ParticipantsContent.Visibility = Visibility.Visible;
             await LoadParticipantsAsync();
         }
-        else if (ReferenceEquals(item, CategoriesNavigation))
+        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Categories)
         {
             CategoriesContent.Visibility = Visibility.Visible;
             await LoadCategoriesAsync();
         }
-        else if (ReferenceEquals(item, PaymentsNavigation))
+        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Payments)
         {
             PaymentsContent.Visibility = Visibility.Visible;
             await LoadPaymentsAsync();
         }
-        else if (ReferenceEquals(item, PeopleNavigation))
+        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.People)
         {
             PeopleContent.Visibility = Visibility.Visible;
             await LoadPeopleAsync();
         }
-        else if (ReferenceEquals(item, ConnectionNavigation))
+        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Connection)
         {
             OpenConnectionSettings();
         }
-        else if (ReferenceEquals(item, AccountNavigation))
+        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Account)
         {
             AccountName.Text = account?.DisplayName ?? "";
             AccountServer.Text = connection.Endpoint?.Value ?? "";
             AccountContent.Visibility = Visibility.Visible;
         }
-        else if (ReferenceEquals(item, LogoutNavigation))
+        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Logout)
         {
             // 失敗時も本人と開いている家計簿を保持する。
-            ManagementNavigation.SelectedItem = AccountNavigation;
+            management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Account;
             AccountContent.Visibility = Visibility.Visible;
             AccountName.Text = account?.DisplayName ?? "";
             AccountServer.Text = connection.Endpoint?.Value ?? "";

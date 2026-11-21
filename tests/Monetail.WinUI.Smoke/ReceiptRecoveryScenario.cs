@@ -16,6 +16,7 @@ public partial class App
 {
     private async Task ExpireReceiptLogin(SyntheticConnection fixture)
     {
+        var retainedPage = ((FrameworkElement)window!.Content).FindName("WorkspaceHost") is Frame host ? host.Content : null;
         fixture.RejectSession = fixture.RejectAuthentication = true;
         var connection = (ClientConnection)(TransferRuntime("connection") ?? throw new InvalidOperationException("接続がありません。"));
         // 保存APIは未接続。実HTTPの401を共通RunAsyncへ渡し、製品の認証退避入口から検証する。
@@ -23,6 +24,8 @@ public partial class App
         var run = typeof(MainWindow).GetMethod("RunAsync", BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new InvalidOperationException("共通操作がありません。");
         await (Task)(run.Invoke(window, [action, null]) ?? throw new InvalidOperationException("操作がありません。"));
+        if (ReceiptEditing is not null || TransferEditing is not null)
+            Check(ReferenceEquals(retainedPage, ((Frame)((FrameworkElement)window!.Content).FindName("WorkspaceHost")).Content), "401退避は入力中の記録Pageそのものを再生成せず保持する");
     }
     private async Task CompleteReceiptLogin(SyntheticConnection fixture, FrameworkElement root, bool expiresAgain = false)
     {

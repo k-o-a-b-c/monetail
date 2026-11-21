@@ -41,7 +41,7 @@ public sealed partial class MainWindow
 
     private void UpdateParticipantActions()
     {
-        ParticipantsNavigation.Visibility = CanManageParticipants ? Visibility.Visible : Visibility.Collapsed;
+        if (management is not null) management.ParticipantsVisible = CanManageParticipants;
         OpenInvitationsButton.IsEnabled = IssueInvitationButton.IsEnabled = !busy && CanManageParticipants;
         ParticipantDialog.IsPrimaryButtonEnabled = !busy && CanManageParticipants && !memberDenied && latestMemberEdit is null && memberEdit is not null;
         InvitationCancelDialog.IsPrimaryButtonEnabled = !busy && CanManageParticipants && cancellingInvitation is not null;
@@ -119,7 +119,7 @@ public sealed partial class MainWindow
             {
                 ParticipantEditorContent.Visibility = Visibility.Collapsed;
                 memberEdit = latestMemberEdit = null;
-                if (!forceParticipantClose && !CanManageParticipants) ShowPage(HomePage);
+                if (!forceParticipantClose && !CanManageParticipants) NavigateWorkspace(WorkspaceScreen.HomePage);
                 UpdateParticipantActions();
             }
         }
@@ -249,7 +249,7 @@ public sealed partial class MainWindow
     {
         if (busy || ManagementDialogOpen) return;
         InvitationsContent.Visibility = Visibility.Collapsed;
-        if (!CanManageParticipants) { ShowPage(HomePage); return; }
+        if (!CanManageParticipants) { NavigateWorkspace(WorkspaceScreen.HomePage); return; }
         ParticipantsContent.Visibility = Visibility.Visible;
         await LoadParticipantsAsync();
     }
@@ -294,7 +294,7 @@ public sealed partial class MainWindow
         {
             invitationDialogOpen = false; cancellingInvitation = null;
             InvitationCancelContent.Visibility = Visibility.Collapsed;
-            if (!closed && !forceParticipantClose && !CanManageParticipants) ShowPage(HomePage);
+            if (!closed && !forceParticipantClose && !CanManageParticipants) NavigateWorkspace(WorkspaceScreen.HomePage);
         }
     }
     private void InvitationDialogClosing(ContentDialog sender, ContentDialogClosingEventArgs args)
@@ -357,8 +357,8 @@ public sealed partial class MainWindow
         }
         catch (LedgerRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound) { denied = new(null, null); }
         catch (ParticipantRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound) { denied = error.Permissions ?? new(null, null); }
-        DisplayLedger(ledger); ShowPage(ManagementPage);
-        ManagementNavigation.SelectedItem = ParticipantsNavigation;
+        DisplayLedger(ledger); NavigateWorkspace(WorkspaceScreen.ManagementPage);
+        management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Participants;
         PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
         if (members is not null) DisplayMembers(members);
         if (draft.Edit is { } edit)

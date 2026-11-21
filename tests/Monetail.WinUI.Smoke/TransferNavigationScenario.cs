@@ -37,6 +37,7 @@ public partial class App
         Check(!Find<ProgressRing>(root, "TransferInitialProgress").IsActive && Find<StackPanel>(root, "TransferInitialNotice").Visibility == Visibility.Collapsed,
             "初回読込の画面離脱で要求を中断しリングと読み込み表示を停止");
         await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        list = Find<ListView>(root, "TransferList");
         await Wait(() => requests.Count == 2 && Find<ProgressRing>(root, "TransferInitialProgress").IsActive);
         Check(requests[0] == requests[1] && list.Items.Count == 0, "初回読込の復帰は同じ確定条件・cursorなしで一度だけ再開");
         initialResume.SetResult(true);
@@ -55,6 +56,8 @@ public partial class App
             "追加読込の画面離脱で要求・状態・末尾リングを同時に停止");
         Check(list.Items.Count == 100 && ReferenceEquals(list.Items[0], first) && ReferenceEquals(list.SelectedItem, selected), "追加読込の中断では取得済み行と選択を保持");
         await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        list = Find<ListView>(root, "TransferList");
+        scroll = All(list).OfType<ScrollViewer>().First();
         await Wait(() => requests.Count == 4 && state.IsContinuationLoading && Find<ProgressRing>(root, "TransferNextProgress").IsActive); await Settle();
         Check(requests[2] == requests[3] && requests[3].Contains("cursor=next", StringComparison.Ordinal), "記録画面への復帰で中断した追加ページの同じ条件・カーソルだけを再開");
         Check(ReferenceEquals(list.SelectedItem, selected) && Math.Abs(scroll.VerticalOffset - offset) < 0.1, "追加読込の再開中も選択とスクロール位置を保持");

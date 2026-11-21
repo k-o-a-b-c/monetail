@@ -85,7 +85,7 @@ public sealed partial class MainWindow
     private void CancelCategoryOrder(object sender, RoutedEventArgs args)
     {
         if (busy) return;
-        DiscardCategoryOrder(); if (!CanViewCategories) ShowPage(HomePage); else CategoriesContent.Visibility = Visibility.Visible;
+        DiscardCategoryOrder(); if (!CanViewCategories) NavigateWorkspace(WorkspaceScreen.HomePage); else CategoriesContent.Visibility = Visibility.Visible;
     }
     private void DiscardCategoryOrder()
     {

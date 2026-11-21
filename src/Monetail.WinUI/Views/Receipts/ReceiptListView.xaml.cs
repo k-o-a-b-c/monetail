@@ -34,7 +34,7 @@ public sealed partial class ReceiptListView : UserControl
     {
         InitializeComponent();
         ReceiptList.AddHandler(UIElement.DoubleTappedEvent, new DoubleTappedEventHandler(ReceiptDoubleTapped), true);
-        viewport = new(this, ReceiptList, () => ViewModel is not null,
+        viewport = new(this, ReceiptList, () => ViewModel,
             (last, filled, user) => ViewModel?.ObserveViewportAsync(last, filled, user) ?? Task.CompletedTask);
     }
 

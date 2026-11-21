@@ -20,6 +20,8 @@ public sealed partial class MainWindow : Window
         SizeInitialWindow();
         Closed += CloseConnection;
         InitializeInput();
+        WorkspaceRoot.Children.Remove(ManagementContents);
+        WorkspaceRoot.Children.Remove(EditorContents);
         InitializeReceipts();
         InitializeReceiptEditor();
         InitializeTransferEditor();
@@ -54,7 +56,7 @@ public sealed partial class MainWindow : Window
     {
         DiscardLedgerContents();
         DisplayLedgerHeader(ledger);
-        ShowPage(HomePage);
+        NavigateWorkspace(WorkspaceScreen.HomePage);
     }
 
     private void DisplayLedgerHeader(LedgerInfo ledger)
@@ -63,9 +65,9 @@ public sealed partial class MainWindow : Window
         LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);
         Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(LedgerSelector, ledger.Name);
-        LedgerContext.Text = ledger.Name;
+        if (management is not null) management.LedgerName = ledger.Name;
         LedgerSelector.IsEnabled = account is not null;
-        AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = account is not null;
+        if (management is not null) management.HasAccount = account is not null;
         UpdatePeopleActions();
     }
 
@@ -106,7 +108,7 @@ public sealed partial class MainWindow : Window
         DropPendingPersonEdit();
         DiscardPersonEditor();
         DiscardPersonOrder();
-        ShowPage(HomePage);
+        NavigateWorkspace(WorkspaceScreen.HomePage);
     }
 
     private async void ShowManagement(object sender, RoutedEventArgs e)
@@ -116,20 +118,8 @@ public sealed partial class MainWindow : Window
         DiscardPaymentOrder(); PaymentsContent.Visibility = Visibility.Collapsed;
         DiscardPersonOrder();
         ParticipantsContent.Visibility = InvitationsContent.Visibility = Visibility.Collapsed;
-        ShowPage(ManagementPage);
-        if (!CanViewPeople)
-        {
-            ManagementNavigation.SelectedItem = AccountNavigation;
-            AccountName.Text = account?.DisplayName ?? "";
-            AccountServer.Text = connection.Endpoint?.Value ?? "";
-            AccountContent.Visibility = Visibility.Visible;
-            PeopleContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;
-            return;
-        }
-        PeopleContent.Visibility = Visibility.Visible;
-        ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
-        var alreadySelected = ReferenceEquals(ManagementNavigation.SelectedItem, PeopleNavigation);
-        ManagementNavigation.SelectedItem = PeopleNavigation;
-        if (alreadySelected) await LoadPeopleAsync();
+        NavigateWorkspace(WorkspaceScreen.ManagementPage);
+        await SelectManagementAsync(CanViewPeople ? Monetail.Windows.Presentation.Workspace.ManagementSection.People
+            : Monetail.Windows.Presentation.Workspace.ManagementSection.Account);
     }
 }

@@ -21,7 +21,6 @@ public sealed partial class MainWindow
     private bool closed;
 
     private AuthenticationFlow? authentication;
-    private CancellationTokenSource? homeResume;
 
     private AuthenticationFlow GetAuthentication() => authentication ??= new AuthenticationFlow(
         connection, lifetime.Token, RunAuthenticationAsync, () => !busy && !closed,
@@ -34,8 +33,7 @@ public sealed partial class MainWindow
         SuspendRecordReads();
         ReleaseLedgerPage();
         ReleaseConnectionSettings();
-        SetLegacyPage(null);
-        LegacyContent.Visibility = Visibility.Collapsed;
+        HideWorkspace();
         var flow = GetAuthentication();
         AuthenticationHost.Content = flow.View;
         AuthenticationHost.Visibility = Visibility.Visible;
@@ -51,7 +49,7 @@ public sealed partial class MainWindow
         flow?.Dispose();
     }
 
-    private object? CurrentPage => authentication?.Page ?? (LedgerPageHost.Content as Frame)?.Content;
+    private object? CurrentPage => authentication?.Page ?? (LedgerPageHost.Content as Frame)?.Content ?? WorkspaceHost.Content;
 
     internal Task StartAsync() => authentication?.StartAsync() ?? Task.CompletedTask;
     private Task RunAuthenticationAsync(Func<Task> action, Action<string> failed) => RunAsync(action, message =>
@@ -90,12 +88,10 @@ public sealed partial class MainWindow
         DropPendingPersonEdit();
         if (account is not null && currentLedger is not null)
         {
-            ShowPage(ManagementPage);
+            NavigateWorkspace(WorkspaceScreen.ManagementPage);
             PeopleContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
-            var selected = ReferenceEquals(ManagementNavigation.SelectedItem, ConnectionNavigation);
-            ManagementNavigation.SelectedItem = ConnectionNavigation;
-            if (selected)
-                OpenConnectionSettings();
+            management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Connection;
+            OpenConnectionSettings();
             return;
         }
         OpenConnectionSetup();
@@ -144,7 +140,7 @@ public sealed partial class MainWindow
     {
         if (closed || RecordEditorActive && !EditorAwaitingLogin)
             return;
-        AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = false;
+        if (management is not null) management.HasAccount = false;
         ShowAuthentication()?.ShowLogin(message);
     }
 
@@ -246,96 +242,9 @@ public sealed partial class MainWindow
         BusyProgress.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private void ShowPage(FrameworkElement page)
-    {
-        // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        if (closed || RecordEditorActive && !ReferenceEquals(page, HomePage))
-            return;
-        if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
-        ReleaseAuthentication();
-        ReleaseLedgerPage();
-        LegacyContent.Visibility = Visibility.Visible;
-        ReleaseConnectionSettings();
-        if (!ReferenceEquals(page, HomePage))
-            SuspendRecordReads();
-        SetLegacyPage(page);
-        ErrorNotice.IsOpen = false;
-        ErrorNotice.Visibility = Visibility.Collapsed;
-        if (ReferenceEquals(page, HomePage) && homeResume is null)
-        {
-            var resume = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-            homeResume = resume;
-            _ = ResumeRecordHomeAsync(resume);
-        }
-    }
-
-    private bool CanResumeRecordHome(CancellationTokenSource resume) =>
-        !closed && !resume.IsCancellationRequested && !RecordEditorActive && HomePage.Visibility == Visibility.Visible;
-
-    private async Task ResumeRecordHomeAsync(CancellationTokenSource resume)
-    {
-        using (resume)
-        {
-            try
-            {
-                // 同期の画面切替を完了してから復帰する。通信の世代管理は一覧VMに任せる。
-                await Task.Yield();
-                if (!CanResumeRecordHome(resume))
-                    return;
-                if (ReceiptListModel is null)
-                    await StartReceiptHomeAsync();
-                else
-                    await Task.WhenAll(ReceiptListModel.ResumeAsync(lifetime.Token),
-                        TransferListModel?.ResumeAsync(lifetime.Token) ?? Task.CompletedTask);
-                if (!CanResumeRecordHome(resume))
-                    return;
-                ReceiptsView.ObserveViewport();
-                TransfersView.ObserveViewport();
-                if (transferRestorePending)
-                {
-                    transferRestorePending = false;
-                    RestoreTransferPosition();
-                }
-                if (receiptRestorePending)
-                {
-                    receiptRestorePending = false;
-                    RestoreReceiptListPosition();
-                }
-            }
-            catch (OperationCanceledException) when (resume.IsCancellationRequested)
-            {
-            }
-            catch (Exception error)
-            {
-                // 一覧の通常エラー/401はVMが処理する。予期しない復帰失敗も未観測にしない。
-                System.Diagnostics.Trace.TraceError("Record home resume failed: {0}", error.GetType().FullName);
-                if (CanResumeRecordHome(resume))
-                    ShowError("一覧を表示できませんでした。");
-            }
-            finally
-            {
-                if (ReferenceEquals(homeResume, resume))
-                    homeResume = null;
-            }
-        }
-    }
-
-    private void CancelRecordHomeResume()
-    {
-        homeResume?.Cancel();
-        homeResume = null;
-    }
-
-    private void SetLegacyPage(FrameworkElement? page)
-    {
-        foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage,
-            LedgerChoicePage })
-            candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
-    }
-
     private void SuspendRecordReads()
     {
-        CancelRecordHomeResume();
+        RecordPage?.Suspend();
         CancelReceiptOpening();
         CancelTransferOpening();
         ReceiptListModel?.Suspend();
@@ -375,19 +284,19 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
-        CancelRecordHomeResume();
+        RecordPage?.Suspend();
         ReleaseAuthentication();
         ReleaseLedgerPage();
         ReleaseConnectionSettings();
         transferAuthentication = null;
         transferEditor = null;
-        ReceiptListModel?.Dispose();
+        ResetRecordHome();
         CancelTransferOpening();
         var transferModel = TransferEntry.ViewModel;
         TransferEntry.ViewModel = null;
         transferModel?.DiscardWrite();
         TransferEntry.CancelRequests();
-        TransferListModel?.Dispose(); recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose();
+        ReleaseWorkspace();
         ResetReceiptEditor();
         connection.Masters.Changed -= ReceiptMasterChanged;
         DiscardCategoryEditor();

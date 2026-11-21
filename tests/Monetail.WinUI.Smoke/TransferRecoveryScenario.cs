@@ -13,7 +13,16 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
-    private object? TransferRuntime(string name) => typeof(MainWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
+    private object? TransferRuntime(string name)
+    {
+        if (name == "homeResume" || name == "recordKeyboard")
+        {
+            var page = typeof(MainWindow).GetProperty("RecordPage", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
+            return page is null ? null : page.GetType().GetField(name == "recordKeyboard" ? "keyboard" : name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(page);
+        }
+        return typeof(MainWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window)
+            ?? typeof(MainWindow).GetProperty(name, BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window);
+    }
     private async Task CompleteTransferLogin(SyntheticConnection fixture, FrameworkElement root, bool mastersExpireAgain = false)
     {
         fixture.RejectSession = fixture.RejectAuthentication = false; fixture.CompleteLogin = true;

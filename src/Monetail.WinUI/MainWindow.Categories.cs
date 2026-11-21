@@ -61,7 +61,7 @@ public sealed partial class MainWindow
         if (CategoryList is null || CategoryDialog is null || SaveCategoryOrderButton is null) return;
         CategoryList.SetActionsEnabled(!busy && CanManageCategories,
             !busy && CategoryList.SelectedCategory is { } selected && CanChangeCategory(selected));
-        CategoriesNavigation.IsEnabled = CanViewCategories;
+        if (management is not null) management.CategoriesEnabled = CanViewCategories;
         CategoryDialog.IsPrimaryButtonEnabled = !busy && !categoryEditorDenied && latestCategory is null &&
             (editingCategory is { } edit ? CanChangeCategory(edit) : CanManageCategories);
         UpdateCategoryOrderActions();
@@ -101,7 +101,7 @@ public sealed partial class MainWindow
         finally
         {
             categoryDialogOpen = categoryDialogClosing = false;
-            if (!closed) { ClearCategoryEditor(); if (!forceCategoryClose && !CanViewCategories) ShowPage(HomePage); }
+            if (!closed) { ClearCategoryEditor(); if (!forceCategoryClose && !CanViewCategories) NavigateWorkspace(WorkspaceScreen.HomePage); }
         }
     }
     private void CategoryDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
