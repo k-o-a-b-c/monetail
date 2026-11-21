@@ -1,8 +1,12 @@
+using System.Net.Sockets;
+using System.Security.Cryptography;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client;
+using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transport;
+using Monetail.WinUI.Views.Ledgers;
 
 namespace Monetail.WinUI;
 
@@ -24,11 +28,14 @@ public sealed partial class MainWindow
         await OpenInitialLedgerAsync(token);
     }
 
-    // 最後の家計簿・所属一覧・自動選択の判断は既存Workspaceに任せ、ここでは表示だけを決める。
+    // 最後の家計簿・所属一覧・表示先の判断は既存Workspaceに任せ、ここでは表示だけを決める。
     private async Task OpenInitialLedgerAsync(CancellationToken token)
     {
+        var frame = AuthenticationHost.Content;
         var destination = await connection.Ledgers.StartAsync(token);
         token.ThrowIfCancellationRequested();
+        if (closed || !ReferenceEquals(AuthenticationHost.Content, frame))
+            return;
         ledgerChoices = destination.Choices;
         if (destination.Opened is not null) DisplayLedger(destination.Opened);
         else if (ledgerChoices.Count == 0) ShowCreation();
@@ -67,25 +74,37 @@ public sealed partial class MainWindow
         LedgerContext.Text = "家計簿が開かれていません";
     }
 
+    private LedgerCreatePage? CreationView => (AuthenticationHost.Content as Frame)?.Content as LedgerCreatePage;
+
     private void ShowCreation()
     {
+        // 所属0件の再確認では、入力と同名の作成再送要求をそのまま保持する。
+        if (CreationView is not null)
+            return;
         creationDraft = null;
-        NewLedgerName.Text = "";
-        NoLedgersNotice.Visibility = currentLedger is null && ledgerChoices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        CancelLedgerCreation.Visibility = currentLedger is not null || ledgerChoices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        ShowPage(LedgerCreatePage);
+        OpenAuthenticationPage(typeof(LedgerCreatePage), currentLedger is null && ledgerChoices.Count == 0);
     }
 
-    private async void CreateLedger(object sender, RoutedEventArgs args) => await CreateLedgerAsync();
+    private async void CreateLedger(object? sender, string name)
+    {
+        if (!busy && !closed && ReferenceEquals(sender, CreationView))
+            await CreateLedgerAsync(name);
+    }
 
-    private Task CreateLedgerAsync()
+    private Task CreateLedgerAsync(string input)
     {
         try
         {
-            var name = NewLedgerName.Text.Trim();
-            if (creationDraft?.Name != name) creationDraft = new LedgerCreationDraft(name);
+            var name = input.Trim();
+            if (creationDraft?.Name != name)
+                creationDraft = new LedgerCreationDraft(name);
         }
-        catch (FormatException error) { ShowError(error.Message); NewLedgerName.Focus(FocusState.Programmatic); return Task.CompletedTask; }
+        catch (FormatException error)
+        {
+            ShowError(error.Message);
+            CreationView?.FocusName();
+            return Task.CompletedTask;
+        }
         var draft = creationDraft;
         return RunAsync(async () =>
         {
@@ -95,9 +114,46 @@ public sealed partial class MainWindow
         });
     }
 
+    private async void RefreshLedgerMembership(object sender, RoutedEventArgs args)
+    {
+        if (busy || closed || sender is not LedgerCreatePage page || !ReferenceEquals(page, CreationView))
+            return;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        RoutedEventHandler leave = (_, _) => cancellation.Cancel();
+        page.Unloaded += leave;
+        try
+        {
+            await RunAsync(async () =>
+            {
+                try
+                {
+                    await OpenInitialLedgerAsync(cancellation.Token);
+                }
+                catch (Exception error) when ((cancellation.IsCancellationRequested || !ReferenceEquals(CreationView, page)) &&
+                    error is OperationCanceledException or ApiConnectionException or HttpRequestException or
+                        AuthenticationRejectedException or AuthenticationContextChangedException or LedgerRequestException or
+                        IOException or UnauthorizedAccessException or CryptographicException or SocketException)
+                {
+                    // 離脱後の遅延応答/失敗は新画面へ出さない。表示中の失敗分類は共通RunAsyncへ委ねる。
+                }
+            });
+        }
+        finally
+        {
+            page.Unloaded -= leave;
+        }
+    }
+
+    private async void LogoutFromCreation(object sender, RoutedEventArgs args)
+    {
+        if (!busy && !closed && ReferenceEquals(sender, CreationView))
+            await LogoutAsync();
+    }
+
     private void CancelCreation(object sender, RoutedEventArgs args)
     {
-        creationDraft = null;
+        if (busy || closed || !ReferenceEquals(sender, CreationView))
+            return;
         ShowPage(currentLedger is null ? LedgerChoicePage : HomePage);
     }
 

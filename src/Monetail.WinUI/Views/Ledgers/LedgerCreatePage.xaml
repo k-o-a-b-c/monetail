@@ -1,0 +1,22 @@
+<Page
+    x:Class="Monetail.WinUI.Views.Ledgers.LedgerCreatePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Disabled" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid Padding="32">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
+                <TextBlock Text="家計簿の作成" Style="{ThemeResource TitleTextBlockStyle}" />
+                <TextBlock x:Name="NoLedgersNotice" Text="参加している家計簿はありません。&#x0a;参加する場合は、管理者から招待リンクを受け取ってください。"
+                           FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                <TextBox x:Name="NewLedgerName" Header="家計簿名" AutomationProperties.AutomationId="NewLedgerName" />
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="CreateLedgerButton" Content="作成" Click="RequestCreate" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="CreateLedgerButton" />
+                    <Button x:Name="RefreshLedgersButton" Content="更新" Click="RequestRefresh" AutomationProperties.AutomationId="RefreshLedgersButton" />
+                    <Button x:Name="CreatePageLogoutButton" Content="ログアウト" Click="RequestLogout" AutomationProperties.AutomationId="CreatePageLogoutButton" />
+                    <Button x:Name="CancelLedgerCreation" Content="キャンセル" Click="RequestCancel" AutomationProperties.AutomationId="CancelLedgerCreation" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

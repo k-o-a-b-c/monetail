@@ -12,6 +12,7 @@ public partial class App
 {
     private async Task CheckConnectionFlow(string output, bool capture)
     {
+        await CheckLedgerCreationPage();
         await CheckLedgerChoiceControl();
         await CheckConnectionSettingsLifecycle();
         await CheckLoginPageLifecycle();
@@ -248,6 +249,7 @@ public partial class App
     {
         "LoginPage" => LoginScreen(root) is { } login && VisibleAncestors((FrameworkElement)login.FindName("LoginContent")),
         "FailurePage" => FailureScreen(root) is { } failure && VisibleAncestors(failure),
+        "LedgerCreatePage" => CreationScreen(root) is { } creation && VisibleAncestors(creation),
         _ => VisibleAncestors(Find<FrameworkElement>(root, name))
     };
 
@@ -283,6 +285,7 @@ public partial class App
         internal Uri? AuthorizationUri;
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
+        internal TaskCompletionSource<bool>? LedgerReadGate;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ReceiptsHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? TransfersHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? TaxRatesHandler;
@@ -292,7 +295,7 @@ public partial class App
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? CategoriesHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ParticipantsHandler;
         internal bool ConnectionCancelled, RateLimitOpening, RejectSession, CannotOpenLedger;
-        internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, HasPreviousLedger, FailBrowser, RejectAuthentication;
+        internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, FailLedgerRead, HasPreviousLedger, FailBrowser, RejectAuthentication;
         internal int ChoiceCount, BrowserOpens;
         internal bool OtherServerAuthenticated;
         internal bool IgnoreConnectionCancellation;
@@ -380,6 +383,14 @@ public partial class App
                 expiresAtUtc = DateTimeOffset.UtcNow.AddDays(2), verifiedAtUtc = DateTimeOffset.UtcNow
             });
             if (path == "/auth/logout") return new(FailLogout ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.NoContent);
+            if (path == "/ledgers/open-last" && LedgerReadGate is { } readGate)
+            {
+                if (IgnoreConnectionCancellation)
+                    await readGate.Task;
+                else
+                    await readGate.Task.WaitAsync(token);
+            }
+            if (path == "/ledgers/open-last" && FailLedgerRead) return new(HttpStatusCode.ServiceUnavailable);
             if (path == "/ledgers/open-last") return RateLimitOpening ? new(HttpStatusCode.TooManyRequests) :
                 Json(new { ledger = HasPreviousLedger ? first : null });
             if (path == "/ledgers" && request.Method == HttpMethod.Get) return Json(new[] { first, second }.Take(ChoiceCount));

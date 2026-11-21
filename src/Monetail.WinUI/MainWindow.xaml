@@ -39,20 +39,6 @@
         <ContentControl x:Name="Operations" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
         <Grid>
         <views:LedgerChoiceView x:Name="LedgerChoicePage" Visibility="Collapsed" OpenRequested="OpenSelectedLedger"/>
-        <Grid x:Name="LedgerCreatePage" Visibility="Collapsed" Padding="32">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
-                    <TextBlock Text="家計簿の作成" Style="{ThemeResource TitleTextBlockStyle}" />
-                    <TextBlock x:Name="NoLedgersNotice" Text="参加している家計簿はありません。&#x0a;参加する場合は、管理者から招待リンクを受け取ってください。"
-                               Style="{StaticResource Description}" />
-                    <TextBox x:Name="NewLedgerName" Header="家計簿名"  AutomationProperties.AutomationId="NewLedgerName"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button x:Name="CreateLedgerButton" Content="作成" Click="CreateLedger" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="CreateLedgerButton"/>
-                        <Button x:Name="CancelLedgerCreation" Content="キャンセル" Click="CancelCreation"  AutomationProperties.AutomationId="CancelLedgerCreation"/>
-                    </StackPanel>
-                </StackPanel>
-            </ScrollViewer>
-        </Grid>
         <Grid x:Name="HomePage" Visibility="Collapsed" Padding="32" RowSpacing="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
