@@ -51,6 +51,10 @@ public partial class App
         var pending = state.ObserveViewportAsync(79, true, true);
         await Wait(() => requests.Count == 3 && Find<ProgressRing>(root, "TransferNextProgress").IsActive); await Settle();
         var offset = scroll.VerticalOffset; Check(offset > 0, "追加読込中のスクロール保持を先頭以外の表示位置で検証");
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
+        await Settle();
+        Check(Math.Abs(scroll.VerticalOffset - offset) < 0.1 && ReferenceEquals(list.SelectedItem, selected) && requests.Count == 3,
+            "同じ記録画面の再表示は現在の選択・表示位置を戻さず、読込要求も増やさない");
         var nextProgress = Find<ProgressRing>(root, "TransferNextProgress");
         var nextNotice = Find<StackPanel>(root, "TransferNextNotice");
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));

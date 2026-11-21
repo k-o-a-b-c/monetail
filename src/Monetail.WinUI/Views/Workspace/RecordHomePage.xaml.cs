@@ -20,7 +20,12 @@ public sealed partial class RecordHomePage : Page
     {
         InitializeComponent();
         keyboard = new FormKeyboard(RecordFilters, null, null, ReceiptMonth, RecordKeyword);
-        Loaded += (_, _) => Resume();
+        Loaded += (_, _) =>
+        {
+            // 新しいPageの表示位置は、保留中の追加読込の完了を待たず復元する。
+            RestorePositions();
+            Resume();
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs args)
@@ -97,8 +102,6 @@ public sealed partial class RecordHomePage : Page
                 await Task.Yield();
                 if (!Current(pending))
                     return;
-                // 再生成した一覧は、保留中の追加読込の完了を待たず表示位置を復元する。
-                RestorePositions();
                 await ViewModel!.ResumeAsync();
                 if (!Current(pending))
                     return;
@@ -158,18 +161,6 @@ public sealed partial class RecordHomePage : Page
 
         if (ViewModel?.MonthError is not null)
             ReceiptMonth.Focus(FocusState.Programmatic);
-    }
-
-    private void ReceiptDraftChanged(object sender, TextChangedEventArgs args)
-    {
-        if (ViewModel is { } m)
-            m.MonthText = ReceiptMonth.Text;
-    }
-
-    private void KeywordDraftChanged(object sender, TextChangedEventArgs args)
-    {
-        if (ViewModel is { } m)
-            m.Keyword = RecordKeyword.Text;
     }
 
     private async void ApplyRecordMonth(object sender, RoutedEventArgs args) => await Act(m => m.ApplyMonthCommand.ExecuteAsync(null));

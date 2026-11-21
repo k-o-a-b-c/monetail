@@ -28,10 +28,12 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
         await Wait(() => host.Content is RecordHomePage && TransferRuntime("homeResume") is null);
         var second = (RecordHomePage)host.Content;
-        Check(!ReferenceEquals(first, second) && ReferenceEquals(model, second.ViewModel) &&
+        var preserved = !ReferenceEquals(first, second) && ReferenceEquals(model, second.ViewModel) &&
             Find<TextBox>(root, "ReceiptMonth").Text == "2026/" && Find<TextBox>(root, "RecordKeyword").Text == "入力中の検索" &&
             fixture.Requests.Count(path => path.EndsWith("/receipts", StringComparison.Ordinal)) == reads &&
-            ((ContentControl)managementPage.FindName("DetailsHost")).Content is null,
-            "再訪は新しいPageで同じ検索VMと未確定文字列を復元し、不要な再取得や管理内容参照を残さない");
+            ((ContentControl)managementPage.FindName("DetailsHost")).Content is null;
+        Check(preserved,
+            "再訪は新しいPageで同じ検索VMと未確定文字列を復元し、不要な再取得や管理内容参照を残さない" +
+            (preserved ? "" : $"; samePage={ReferenceEquals(first, second)}, sameModel={ReferenceEquals(model, second.ViewModel)}, month={Find<TextBox>(root, "ReceiptMonth").Text}/{model.MonthText}, keyword={Find<TextBox>(root, "RecordKeyword").Text}/{model.Keyword}, reads={fixture.Requests.Count(path => path.EndsWith("/receipts", StringComparison.Ordinal))}/{reads}, detached={((ContentControl)managementPage.FindName("DetailsHost")).Content is null}"));
     }
 }
