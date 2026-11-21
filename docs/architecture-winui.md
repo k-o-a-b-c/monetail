@@ -30,10 +30,10 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 | `Views/Connection/StartupPage` | 保存認証の検証中だけ生成する表示専用Page。即時進捗表示、NavigationCacheModeはDisabled |
 | `Views/Connection/ConnectionSettingsView` | 共通XAML、x:Bindの双方向URL入力、近傍検証表示、既存FormKeyboardによるEnter/IME、初期/検証失敗時のフォーカス。公開面はViewModel DPのみ（ctor/DP登録を除く） |
 | `Presentation/Connection/ConnectionSettingsViewModel` | URL生入力1つ、ApiEndpoint.Parseによる検証、接続/キャンセルCommand、Commandから導出する処理中状態。WinUI/HTTP/トークン/Windowを参照しない |
-| `MainWindow.Connection` | 初回表示の選択、現在の家計簿/本人/接続先、既存未保存保護・認証復帰・共有失敗画面と進捗の調停。View内部のTextBox/ボタンを参照しない |
+| `MainWindow.Connection` | 認証フローの生成/終了、現在の家計簿/本人/接続先、既存未保存保護・認証復帰・共有通知と進捗の調停。View内部のTextBox/ボタンを参照しない |
 | 既存`ClientConnection`・Client | メタデータ確認→設定保存→接続先変更時だけトークン消去、認証復元。確認取消後に設定を保存しない |
 
-Window構築時のPrepareInitialDestinationで接続先と保存認証の有無をローカルで調べ、Activate前に初回表示先を決定する。未設定はConnectionSetupPage、認証なしはログインを直接表示し、StartAsyncで通信や起動Pageを開始しない。認証ありの場合だけ、同じAuthenticationHostのFrameへ表示専用のStartupPageを生成する。保存/認証読込エラーは共有失敗画面と明示再試行へ接続する。起動時の状態別契約は[58](ledger-windows.md#windows版の起動表示接続失敗時の操作)を正本とする。
+Window構築中に認証フローのPrepareInitialDestinationで接続先と保存認証の有無をローカルで調べ、Activate前に初回表示先を決定する。未設定はConnectionSetupPage、認証なしはログインを直接表示し、StartAsyncで通信や起動Pageを開始しない。認証ありの場合だけ、同じAuthenticationHostのFrameへ表示専用のStartupPageを生成する。保存/認証読込エラーは共有失敗画面と明示再試行へ接続する。起動時の状態別契約は[58](ledger-windows.md#windows版の起動表示接続失敗時の操作)を正本とする。
 
 StartupPageはNavigationCacheMode=Disabledの標準Pageで、表示時からProgressRingが動く。ViewModelやWindowへの通知は持たない。Windowはページ型とホストだけを扱い、内部コントロールを参照しない。認証情報の存在判定はClientSession.HasSavedAuthenticationから既存ITokenStore.Loadを利用し、トークンをWindowへ公開・キャッシュせず、RestoreAsyncで改めて読込・検証する。起動でのメタデータ取得は省略するが、接続先確定時の検証と既存認証更新は維持する。
 
@@ -72,11 +72,42 @@ VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解
 
 WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
 
+## 起動・認証フローの寿命分離（PR #228）
+
+内部の具象クラス`Authentication/AuthenticationFlow`一つに、初期表示のローカル判定、接続設定/保存認証確認、OAuthブラウザー待機/取消、認証前Page/Frame購読と再試行を集約する。ClientConnection/ClientSessionは借用し、トークン・アカウント・業務状態を複製しない。主領域の遷移は標準Frame.Navigate、各Pageは既存の表示/操作通知を維持する。StartupService、認証用ViewModel、DI、汎用ルーターを追加しない。
+
+WindowはWindow寿命、共通ナビゲーション、認証フローの生成/終了、OpenDestinationAsyncによる家計簿取得と既存の編集復帰順、401での同一モデル/実コントロール保持を所有する。通常業務のRunAsyncの例外分類・busy・権限反映は維持し、認証側も同じ操作実行を借用する。接続先設定が通常業務内で要求された場合も、API検証・保存・認証復元はフローへ委ね、Windowは離脱確認と画面引き渡しだけを行う。
+
+### 終了と再生成
+
+通常の家計簿/作成/業務画面表示でWindowの認証参照とAuthenticationHost.Contentを解除してDisposeする。フローは7つのPage購読を解除し、Frame/Page・ブラウザー・読取/ブラウザー取消元・再試行の保持を外す。OAuthの待受は既存BrowserOAuthLoginのusing寿命で終了し、認証検証完了後の引き渡しより前に解放する。取消元は操作のusing/finallyでDisposeし、終了時は先にCancelして旧結果を反映しない。操作完了までのローカルawait参照を強制GCで消そうとはせず、恒久参照と購読が残らないことを検証する。
+
+401/ログアウト後は必要時に新しいフローを生成する。401の編集データと実コントロールはWindowに残り、認証フローへコピーしない。先に編集画面を表示して続けるマスタ再取得では読取取消元の保持を解除し、Page解放では止めず既存の10秒期限/Window終了に従う。家計簿取得/復帰判定はフローへ移さない。LedgerCreatePageは認証後の別ホストと4通知をWindowが所有し、認証フローを残さない。
+
+起動・接続確認/復元はWindow寿命にリンクした既存10秒の読取スコープを共用し、Page変更時の取消とPage同一性で旧結果を拒否する。接続設定Viewの取消は検証/保存までに限定し、確定後は認証フローの寿命へ渡す。ブラウザーの利用者操作待ちには10秒制限を付けない。確認中のログインからの離脱でも取消元を保持して旧応答を拒否する。通信障害時のトークン保持と接続先検証→保存→必要時のトークン消去順は既存Clientの契約を維持する。
+
+### 比較と追加した境界
+
+| 比較（基点main 3c9da94、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.Connection.cs / Ledgers.cs | 560 / 266行 | 354 / 297行 |
+| 上記の明示フィールド | 9 / 4 | 6 / 4 |
+| 上記のメソッド | 33 / 15 | 25 / 16 |
+| Windowが直接扱う認証Page型 | 4 | 0 |
+| Windowの認証Pageイベント購読 | 7 | 0 |
+| Windowが扱う認証制御型 | 認証Page/ブラウザー/取消元/再試行 | AuthenticationFlow一つ |
+| 認証後作成Pageの専用ホスト | 0 | 1 |
+| 製品srcのC#/XAML総量 | 19,211行 | 19,374行 |
+
+フロー337行とWindow側の業務Page分離/引き渡しで総量163行増。Windowから読取/ブラウザー取消元、BrowserOAuthLogin、retryの4フィールドを除き、必要時だけ持つ認証参照1つへ置換する。フローの状態はFrameと既存の4状態参照で、新しい状態フラグを加えない。primary constructorで借用する接続/tokenと7つの協力操作は、共通RunAsync、現在の操作可否、認証完了、ログインへの退避、接続先変更、共有通知、Window終了の境界を明示するために必要。Window全体や編集モデルを渡さず、イベント中継クラス・汎用インターフェースを増やさない。戻り先・例外/認可ポリシーはWindowへ残す。
+
+旧構造維持、Window全体を渡す薄いラッパー、別の起動Service/例外分類の複製を比較し、具象フロー＋既存の共通実行を借用する構成を採用した。単なるpartial移動ではなく、所有寿命と終了時解放・業務Frameを分けた。検証結果/途中失敗/未検証事項は[tests/README](../tests/README.md)へまとめる。
+
 ## ログインPageと認証前画面の責務
 
 `Views/Authentication/LoginPage`は表示と`LoginRequested`・`ConnectionChangeRequested`・`BrowserOpenRequested`・`CancelRequested`の4通知を持つ、NavigationCacheMode=Disabledの標準Page。専用ViewModel・Client/HTTP/Window参照は持たない。ログインボタンと接続先変更のAutomationId・標準のTab順を維持する。旧VBはローカルDB起動とWindowsユーザー名による識別であり、このOAuth画面の対応物はない。新版の[ログイン契約](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)を維持する。
 
-接続先設定・起動・ログイン・接続失敗・家計簿作成を置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが4イベントを購読する。離脱・終了では購読とホストのContentを解除する。通常離脱後の再訪は新しいPageとし、WindowはPage型・4通知・UI切替メソッドだけを扱い、内部x:Nameを参照しない。操作可否は既存のWindowの認証/処理状態から渡し、Pageに業務状態を複製しない。
+認証専用のAuthenticationFlowが接続先設定・起動・ログイン・接続失敗のPageとAuthenticationHost内のFrameを所有する。ログイン表示中だけ4イベント、失敗表示中だけ3イベントを直接購読し、離脱/終了で解除する。認証フロー内では標準Frame.Navigateで切り替え、同じLoginPage内の認証前/ブラウザー待機は引き続きVisibilityで切り替える。通常業務への引き渡しではWindowの認証参照とホストContentを外し、フローをDisposeする。家計簿作成は認証後のLedgerPageHostへ分離する。
 
 Windowの通常遷移ガードと同じく、認証退避以外では未承認の編集中遷移を拒否する。認証前Pageへの遷移時にも旧画面の可視状態を閉じ、一覧の読取を中断する。共有InfoBarはFrame外に残してログイン中も利用する。通常離脱と401退避を区別する既存の`NavigateToLogin` / `DiscardLedgerContents`は維持し、元のレシート/振替モデル・入力コントロールを破棄しない。閉鎖済みWindowではログインPageを再生成しない。起動時の通信/表示タイミング、OAuth/Client/保存形式は変更しない。
 
@@ -95,7 +126,7 @@ Page分離時（PR #221）はXAML15行+C#15行。Window側の31行増は、通�
 
 ### 同一LoginPage内のブラウザー認証待ち
 
-認証前/待機はPage内の`LoginContent` / `WaitingContent`を標準Visibilityで切り替える。Pageの`SetAuthenticationState(waiting, canInteract)`はUIだけを更新し、認証状態を保持するVM/独立フラグを追加しない。Windowは既存の`browserLogin`で待機表示、`browserCancellation`で取消可能な待機操作、`busy`で認証前の入力可否を決める。コード交換後は取消元のフィールド参照を外して操作を止めるが、ローカルの取消元はWindow寿命にリンクしたまま認証確認を続ける。
+認証前/待機はPage内の`LoginContent` / `WaitingContent`を標準Visibilityで切り替える。Pageの`SetAuthenticationState(waiting, canInteract)`はUIだけを更新し、認証状態を保持するVM/独立フラグを追加しない。AuthenticationFlowはbrowserLoginとブラウザー取消元の寿命から待機表示/操作可否を決め、処理中制御はWindowの既存busyを参照する。コード交換後はURL参照を外して利用者の再表示/取消を止める一方、取消元は認証検証完了まで保持してPage離脱・Window終了に従う。検証後の家計簿引き渡しでは、ローカルのWindow寿命にリンクしたtokenを使用する。
 
 開始/取消/拒否/メッセージ更新では既存Pageを維持する。通常離脱で4通知を解除してFrame参照を解放し、再訪は新規生成する。Window内の旧認証待ちGrid/ボタンは削除した。遅れて戻るブラウザー起動結果は、同じ認証要求がまだ取消可能な状態か確認してから通知する。ユーザー操作・OAuth・401編集保持は[画面正本](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)、検証証跡は[tests/README](../tests/README.md)を参照する。
 
@@ -116,9 +147,9 @@ Page分離時（PR #221）はXAML15行+C#15行。Window側の31行増は、通�
 
 `Views/Connection/FailurePage`はエラー文の表示と`RetryRequested`・`ConnectionChangeRequested`・`ExitRequested`の3通知だけを担当する標準Page（NavigationCacheMode=Disabled）。表示文字列はFrame.Navigateの引数で受け、Windowは内部x:Nameを参照しない。専用VM・Client参照・保持フラグは追加しない。
 
-Windowが`retry`を正本として保持し、既存の設定/保存認証再読込・10秒期限・認証と通信障害の区別を維持する。処理中はPage全体の標準IsEnabledを無効にし、再試行入口も既存のbusy/closedで二重実行を拒否する。通常離脱・終了時は3イベントを解除してFrameを解放し、再訪は新Pageとする。
+AuthenticationFlowがretryを正本として保持し、既存の設定/保存認証再読込・10秒期限・認証と通信障害の区別を維持する。処理中はPage全体の標準IsEnabledを無効にし、再試行入口も既存のbusy/closedで二重実行を拒否する。通常離脱・終了時は3イベントを解除してFrameを解放し、再訪は新Pageとする。
 
-旧ShowPage(FailurePage)の401退避特例は`OpenAuthenticationPage`の既存ガードへ統合した。認証退避中だけ接続失敗Pageへ進め、通常の未承認遷移は引き続き拒否する。非表示と編集状態の破棄を区別し、元のレシート/振替モデル・コントロールは再試行後も再利用する。古い起動応答の拒否は既存のFrame同一性/取消処理で行い、新しい状態を追加しない。
+認証表示への入口はWindowのShowAuthenticationで未承認遷移ガードを維持する。認証退避中だけ接続失敗Pageへ進め、通常の未承認遷移は引き続き拒否する。非表示と編集状態の破棄を区別し、元のレシート/振替モデル・コントロールは再試行後も再利用する。古い起動応答の拒否は既存のFrame同一性/取消処理で行い、新しい状態を追加しない。
 
 | 接続失敗Page分離の比較（基点main 6a6c0c8、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
@@ -161,7 +192,7 @@ PR #225の[家計簿選定仕様](ledger-onboarding.md#所属1件以上で開く
 
 ### 家計簿作成Pageと所属更新
 
-`Views/Ledgers/LedgerCreatePage`を既存AuthenticationHostのFrameへ必要時だけ生成する。PageはUI用の所属0件/追加の表示引数、入力、4通知（作成・所属確認・ログアウト・キャンセル）と既存FormKeyboardを担当する。WindowにはPage内部のx:Name参照を残さず、入力は作成通知の文字列で渡し、欄下エラー/フォーカスと正常な所属0件の補足結果だけ公開UIメソッドで扱う。新しいViewModel/Service・独自ルーター・永続化/入力コピーを追加しない。画面仕様の正本は[所属0件の作成画面](ledger-onboarding.md#所属0件の家計簿作成画面)。
+`Views/Ledgers/LedgerCreatePage`を認証後専用LedgerPageHostのFrameへ必要時だけ生成する。PageはUI用の所属0件/追加の表示引数、入力、4通知（作成・所属確認・ログアウト・キャンセル）と既存FormKeyboardを担当する。WindowにはPage内部のx:Name参照を残さず、入力は作成通知の文字列で渡し、欄下エラー/フォーカスと正常な所属0件の補足結果だけ公開UIメソッドで扱う。新しいViewModel/Service・独自ルーター・永続化/入力コピーを追加しない。画面仕様の正本は[所属0件の作成画面](ledger-onboarding.md#所属0件の家計簿作成画面)。
 
 Windowは既存LedgerCreationDraft・RunAsync・LogoutAsync・LedgerWorkspace.StartAsyncを使用する。所属確認後0件の場合は既存Pageを再利用し、未確定の入力と同名の再送draftを保持する。通常離脱では4購読とFrame参照・作成draftを解放し、再訪は新しいPageとする。更新中は既存busy/IsEnabledで二重操作を拒否し、ローカルのWindow寿命にリンクした取消元とUnloaded購読で読取を中断する。応答反映前にFrame同一性を確認し、離脱後の遅延応答/既知の失敗で新画面を上書きしない。通常の失敗分類・401退避・既存の作成/認証契約は維持する。
 

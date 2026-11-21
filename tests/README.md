@@ -16,6 +16,16 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3849 |
 
+## 起動・認証フローの寿命分離（PR #228）
+
+[AuthenticationFlowScenario](Monetail.WinUI.Smoke/AuthenticationFlowScenario.cs)を既存connection-flowへ追加した。保存認証/OAuthから業務画面への引き渡しで認証フロー・Frame/Page・7購読・取消元/再試行を解除すること、ログアウト後の新規フローと再ログイン、終了済みフローの操作拒否、ブラウザー待機/認証確認中の離脱と遅延結果拒否、接続先保存後の遅い認証確認の取消、認証後の作成Pageが別ホストを使うことを確認する。強制GCによる回収証明ではなく、恒久参照と購読の解除・非同期処理の終了を検証する。既存[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)は未承認の接続設定/ログイン/失敗画面への遷移拒否を維持し、レシート/振替の401マスタ復帰後に認証フローが残らないことも確認する。その他のPage試験は新しい所有者/名前空間へ取得先だけを変更し、既存の表示・操作・認証・編集保持条件を維持する。
+
+ローカルReleaseの関連Client82件（家計簿・セッション・OAuth・保存、失敗/skipなし）、構造検査・git diff --checkは成功。最終ソース`a667711`の[Tests 44872802755](https://github.com/k-o-a-b-c/monetail/actions/runs/44872802755)は初回で成功し、製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/884確認（connection-flow158）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。初期ソース`97e71e7`の[Tests 44872241846](https://github.com/k-o-a-b-c/monetail/actions/runs/44872241846)も成功。その後、接続先保存後の認証確認をフローの読取寿命へ統一して回帰試験を追加し、最終ソースを確認した。今回のCIは失敗/再実行なし。
+
+変更前はmain `3c9da94`の[push Tests 44865122243](https://github.com/k-o-a-b-c/monetail/actions/runs/44865122243)成功を採用する。非変更のClient/Presentation/API/DB/Docker/旧Windows/Windows実保存等はCI選択・同じfingerprintの成功結果を再利用し、今回の新規実行件数へ加算しない。責務・状態/依存/コード量と増分の理由は[構成正本](../docs/architecture-winui.md#起動認証フローの寿命分離pr-228)を参照する。RunAsyncの通常業務エラー分類、OpenDestinationAsyncの家計簿/編集復帰順、Clientの認証/保存形式、API/DB/タイムアウトの契約を維持する。
+
+今回の成功実行では既存IME確認を含めて通過し、0xC0000005/0xC000027Bは記録されていない。過去の断続的なIME/ネイティブ停止の原因解決とは扱わない。WinApp CLIは環境にないため未実行。実API接続、実ブラウザーのパスキー、物理Windowsでの手動IME/タッチ・高DPI・スクリーンリーダーは未検証。既存レシート保存APIの画面接続は未実装のままで、401復帰も今回の画面・合成HTTP経路の確認と区別する。
+
 ## 家計簿作成Page・所属更新・ログアウト（PR #227）
 
 [LedgerCreatePageScenario](Monetail.WinUI.Smoke/LedgerCreatePageScenario.cs)を既存connection-flowへ追加し、未訪問Page/旧Grid/内部入力の未生成、所属0件/追加の表示差、名前Enterは作成せずフォーカス移動・Shift+Tab・Tab・Ctrl+Enter、所属確認0件の同一Page/入力/作成draft保持と補足結果、所属確認通信失敗時の認証/入力保持、更新中の二重操作拒否、ログアウト成功/失敗、同名再試行requestId保持と作成後の直接ホーム、更新後1件/複数/有効な最終家計簿への遷移、実メニューからの追加/キャンセル/再訪、更新中のPage離脱/Window終了と遅延応答拒否・4購読/Frame解放を検証する。既存connection-flowの作成入力検証/通信失敗/再試行と、既存36シナリオの401編集復帰・未保存保護・IME確認は維持する。
