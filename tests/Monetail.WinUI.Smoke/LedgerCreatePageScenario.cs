@@ -9,7 +9,7 @@ namespace Monetail.WinUI.Smoke;
 public partial class App
 {
     private static LedgerCreatePage? CreationScreen(FrameworkElement root) =>
-        ((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content as LedgerCreatePage;
+        ((root.FindName("LedgerPageHost") as ContentControl)?.Content as Frame)?.Content as LedgerCreatePage;
 
     private static bool CreationDetached(LedgerCreatePage page) =>
         new[] { nameof(LedgerCreatePage.CreateRequested), nameof(LedgerCreatePage.RefreshRequested),
@@ -182,7 +182,7 @@ public partial class App
             await StartSyntheticAsync();
             var current = window ?? throw new InvalidOperationException("Windowがありません。");
             var page = CreationScreen(root) ?? throw new InvalidOperationException("作成Pageがありません。");
-            var host = Find<ContentControl>(root, "AuthenticationHost");
+            var host = Find<ContentControl>(root, "LedgerPageHost");
             fixture.LedgerReadGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var reads = fixture.Requests.Count;
             await InvokeAsync(() => Find<Button>(root, "RefreshLedgersButton"));

@@ -584,6 +584,7 @@
         </ContentDialog>
         <ContentDialog x:Name="ReceiptConfirmationDialog" DefaultButton="Close"/>
         <ContentControl x:Name="AuthenticationHost" Grid.Row="1" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
+        <ContentControl x:Name="LedgerPageHost" Grid.Row="1" IsTabStop="False" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
         <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False"
                       Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top"
                       IsHitTestVisible="False" AutomationProperties.Name="処理中" />

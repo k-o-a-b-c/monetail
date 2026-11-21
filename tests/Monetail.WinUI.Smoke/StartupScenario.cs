@@ -27,11 +27,18 @@ public partial class App
             var date = Find<DateInputBox>(root, receipt ? "ReceiptDate" : "TransferDate");
             await Wait(() => date.IsLoaded && date.XamlRoot is not null);
             date.Text = "2026/";
-            var openAuthentication = typeof(MainWindow).GetMethod("OpenAuthenticationPage",
+            var openSetup = typeof(MainWindow).GetMethod("OpenConnectionSetup",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-                ?? throw new InvalidOperationException("認証前Pageへの入口がありません。");
-            openAuthentication.Invoke(window, [typeof(Monetail.WinUI.Views.Authentication.LoginPage), null]);
-            openAuthentication.Invoke(window, [typeof(FailurePage), "合成の接続失敗"]);
+                ?? throw new InvalidOperationException("認証フローへの入口がありません。");
+            openSetup.Invoke(window, []);
+            var showLogin = typeof(MainWindow).GetMethod("ShowLogin",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("ログインへの入口がありません。");
+            showLogin.Invoke(window, [null]);
+            var reportFailure = typeof(MainWindow).GetMethod("ReportFailure",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new InvalidOperationException("接続失敗への入口がありません。");
+            reportFailure.Invoke(window, ["合成の接続失敗", (Func<Task>)(() => Task.CompletedTask)]);
             Check(Visible(root, "HomePage") && LoginScreen(root) is null && FailureScreen(root) is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing),
                 "認証退避以外の未承認Page移動は元の編集・未確定入力を隠さない");
@@ -51,7 +58,7 @@ public partial class App
             fixture.FailConnection = false;
             await InvokeAsync(() => Find<Button>(root, "RetryButton"));
             await Wait(() => Visible(root, "HomePage") && Equals(TransferRuntime("busy"), false));
-            Check(Visible(root, "HomePage") && Startup(root) is null && date.Text == "2026/" &&
+            Check(Visible(root, "HomePage") && Startup(root) is null && CurrentAuthentication is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing) &&
                 (receipt ? ReceiptView.ViewModel?.IsReadOnly == false : Equals(TransferRuntime("transferMastersFailed"), false)) &&
                 fixture.Requests.Skip(reads).Any(path => path.EndsWith("/payment-methods", StringComparison.Ordinal)),

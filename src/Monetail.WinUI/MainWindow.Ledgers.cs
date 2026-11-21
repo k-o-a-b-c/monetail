@@ -31,10 +31,10 @@ public sealed partial class MainWindow
     // 最後の家計簿・所属一覧・表示先の判断は既存Workspaceに任せ、ここでは表示だけを決める。
     private async Task OpenInitialLedgerAsync(CancellationToken token)
     {
-        var frame = AuthenticationHost.Content;
+        var page = CurrentPage;
         var destination = await connection.Ledgers.StartAsync(token);
         token.ThrowIfCancellationRequested();
-        if (closed || !ReferenceEquals(AuthenticationHost.Content, frame))
+        if (closed || !ReferenceEquals(CurrentPage, page))
             return;
         ledgerChoices = destination.Choices;
         if (destination.Opened is not null) DisplayLedger(destination.Opened);
@@ -74,7 +74,7 @@ public sealed partial class MainWindow
         LedgerContext.Text = "家計簿が開かれていません";
     }
 
-    private LedgerCreatePage? CreationView => (AuthenticationHost.Content as Frame)?.Content as LedgerCreatePage;
+    private LedgerCreatePage? CreationView => (LedgerPageHost.Content as Frame)?.Content as LedgerCreatePage;
 
     private void ShowCreation()
     {
@@ -82,7 +82,38 @@ public sealed partial class MainWindow
         if (CreationView is not null)
             return;
         creationDraft = null;
-        OpenAuthenticationPage(typeof(LedgerCreatePage), currentLedger is null && ledgerChoices.Count == 0);
+        ReleaseAuthentication();
+        ReleaseConnectionSettings();
+        SuspendRecordReads();
+        SetLegacyPage(null);
+        LegacyContent.Visibility = Visibility.Collapsed;
+        AuthenticationNotice(null);
+        var frame = new Frame { IsNavigationStackEnabled = false };
+        LedgerPageHost.Content = frame;
+        LedgerPageHost.Visibility = Visibility.Visible;
+        frame.Navigate(typeof(LedgerCreatePage), currentLedger is null && ledgerChoices.Count == 0);
+        if (CreationView is { } creation)
+        {
+            creation.IsEnabled = !busy;
+            creation.CreateRequested += CreateLedger;
+            creation.RefreshRequested += RefreshLedgerMembership;
+            creation.LogoutRequested += LogoutFromCreation;
+            creation.CancelRequested += CancelCreation;
+        }
+    }
+
+    private void ReleaseLedgerPage()
+    {
+        if (CreationView is { } creation)
+        {
+            creation.CreateRequested -= CreateLedger;
+            creation.RefreshRequested -= RefreshLedgerMembership;
+            creation.LogoutRequested -= LogoutFromCreation;
+            creation.CancelRequested -= CancelCreation;
+            creationDraft = null;
+        }
+        LedgerPageHost.Content = null;
+        LedgerPageHost.Visibility = Visibility.Collapsed;
     }
 
     private async void CreateLedger(object? sender, string name)

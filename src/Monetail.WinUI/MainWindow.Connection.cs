@@ -8,8 +8,7 @@ using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Presentation.Connection;
 using Monetail.WinUI.Views.Connection;
-using Monetail.WinUI.Views.Authentication;
-using Monetail.WinUI.Views.Ledgers;
+using Monetail.WinUI.Authentication;
 
 namespace Monetail.WinUI;
 
@@ -17,100 +16,70 @@ public sealed partial class MainWindow
 {
     private readonly ClientConnection connection;
     private readonly CancellationTokenSource lifetime = new();
-    private CancellationTokenSource? browserCancellation;
-    private CancellationTokenSource? startupCancellation;
-    private BrowserOAuthLogin? browserLogin;
     private AuthenticatedAccount? account;
-    private Func<Task>? retry;
     private bool busy;
     private bool closed;
 
-    // 接続先と保存情報の有無だけをActivate前に調べる。有効性の判断には通信が必要。
-    private bool PrepareInitialDestination()
+    private AuthenticationFlow? authentication;
+
+    private AuthenticationFlow GetAuthentication() => authentication ??= new AuthenticationFlow(
+        connection, lifetime.Token, RunAuthenticationAsync, () => !busy && !closed,
+        AuthenticatedAsync, NavigateToLogin, ShowConnectionAsync, AuthenticationNotice, Close);
+
+    private AuthenticationFlow? ShowAuthentication()
     {
-        try
-        {
-            if (!connection.LoadSettings())
-            {
-                OpenConnectionSetup();
-                return false;
-            }
-            if (!connection.Session.HasSavedAuthentication())
-            {
-                NavigateToLogin();
-                return false;
-            }
-            OpenAuthenticationPage(typeof(StartupPage));
-            return true;
-        }
-        catch (AuthenticationContextChangedException error)
-        {
-            NavigateToLogin(error.Message);
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or CryptographicException)
-        {
-            ReportFailure("設定・認証情報を読み書きできませんでした。保存先へのアクセスを確認してください。", retryConnection: RetryStartupAsync);
-        }
-        return false;
+        if (closed || RecordEditorActive && !EditorAwaitingLogin)
+            return null;
+        SuspendRecordReads();
+        ReleaseLedgerPage();
+        ReleaseConnectionSettings();
+        SetLegacyPage(null);
+        LegacyContent.Visibility = Visibility.Collapsed;
+        var flow = GetAuthentication();
+        AuthenticationHost.Content = flow.View;
+        AuthenticationHost.Visibility = Visibility.Visible;
+        return flow;
     }
 
-    private Task RetryStartupAsync() => PrepareInitialDestination() ? StartAsync() : Task.CompletedTask;
-
-    private bool IsStartupVisible => AuthenticationHost.Content is Frame { Content: StartupPage };
-
-    internal Task StartAsync()
+    private void ReleaseAuthentication()
     {
-        if (busy || closed || !IsStartupVisible)
-            return Task.CompletedTask;
-        var frame = AuthenticationHost.Content;
-        return RunAsync(async () =>
-        {
-            using var timeout = ConnectionTimeout();
-            startupCancellation = timeout;
-            try
-            {
-                // 接続先確定時のメタデータ確認は繰り返さず、既存の認証検証で疎通も確認する。
-                await RestoreAndOpenAsync(timeout.Token);
-            }
-            catch (Exception error) when ((closed || !ReferenceEquals(AuthenticationHost.Content, frame)) &&
-                error is OperationCanceledException or ApiConnectionException or HttpRequestException or
-                    AuthenticationRejectedException or AuthenticationContextChangedException or LedgerRequestException or
-                    IOException or UnauthorizedAccessException or CryptographicException or SocketException)
-            {
-                // 退避先へ遷移した後の遅延応答・失敗で画面を横取りしない。
-            }
-            finally
-            {
-                if (ReferenceEquals(startupCancellation, timeout))
-                    startupCancellation = null;
-            }
-        }, retryConnection: RetryStartupAsync);
+        var flow = authentication;
+        authentication = null;
+        AuthenticationHost.Content = null;
+        AuthenticationHost.Visibility = Visibility.Collapsed;
+        flow?.Dispose();
     }
 
-    private CancellationTokenSource ConnectionTimeout()
-    {
-        var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        timeout.CancelAfter(MonetailApiClient.ConnectionTimeout);
-        return timeout;
-    }
+    private object? CurrentPage => authentication?.Page ?? (LedgerPageHost.Content as Frame)?.Content;
 
-    private async Task RestoreAndOpenAsync(CancellationToken token)
+    internal Task StartAsync() => authentication?.StartAsync() ?? Task.CompletedTask;
+    private Task RestartAuthenticationAsync() => ShowAuthentication()?.RestartAsync() ?? Task.CompletedTask;
+    private Task RunAuthenticationAsync(Func<Task> action, ApiEndpoint? candidate) => RunAsync(action,
+        candidate is null ? RestartAuthenticationAsync : () => ConnectAsync(candidate, lifetime.Token));
+
+    private async Task AuthenticatedAsync(AuthenticatedAccount authenticated, CancellationToken token, bool fromBrowser)
     {
-        var restored = await connection.Session.RestoreAsync(token);
         token.ThrowIfCancellationRequested();
-        account = restored;
-        if (account is null) NavigateToLogin();
+        account = authenticated;
+        if (EditorAwaitingLogin)
+            authentication?.KeepRecoveryReadAlive();
+        await OpenDestinationAsync(token);
+        if (fromBrowser && !closed)
+            BringToFront();
+    }
+
+    private void AuthenticationNotice(string? message)
+    {
+        if (message is not null)
+            ShowError(message);
         else
         {
-            // 401復帰では編集画面を先に表示し、Window所有のマスタ再取得を続ける。
-            // 起動Pageの解放では中断せず、元の10秒期限・Window終了には従う。
-            if (EditorAwaitingLogin)
-                startupCancellation = null;
-            await OpenDestinationAsync(token);
+            ErrorNotice.IsOpen = false;
+            ErrorNotice.Visibility = Visibility.Collapsed;
         }
     }
 
-    private async void ShowConnection(object? sender = null, RoutedEventArgs? args = null)
+    private async Task ShowConnectionAsync()
     {
         if (!EditorAwaitingLogin && !await LeaveRecordEditorAsync()) return;
         DropPendingCategoryEdit();
@@ -129,88 +98,13 @@ public sealed partial class MainWindow
         OpenConnectionSetup();
     }
 
-    private ConnectionSettingsViewModel CreateConnectionSettings(bool setup) => new(connection.Endpoint, ConnectAsync,
-        setup && connection.Endpoint is not null ? RetryStartupAsync : null);
-
-    private void OpenConnectionSetup() => OpenAuthenticationPage(typeof(ConnectionSetupPage), CreateConnectionSettings(true));
-
-    private void OpenAuthenticationPage(Type pageType, object? parameter = null)
-    {
-        // 認証退避以外の未承認遷移では、編集中データを隠したり破棄したりしない。
-        if (closed || RecordEditorActive && !EditorAwaitingLogin)
-            return;
-        ReleaseAuthenticationPage();
-        SuspendRecordReads();
-        SetLegacyPage(null);
-        ReleaseConnectionSettings();
-        LegacyContent.Visibility = Visibility.Collapsed;
-        ErrorNotice.IsOpen = false;
-        ErrorNotice.Visibility = Visibility.Collapsed;
-        var frame = new Frame { IsNavigationStackEnabled = false };
-        AuthenticationHost.Content = frame;
-        AuthenticationHost.Visibility = Visibility.Visible;
-        frame.Navigate(pageType, parameter);
-        if (frame.Content is LoginPage login)
-        {
-            login.SetAuthenticationState(false, !busy);
-            login.LoginRequested += Login;
-            login.ConnectionChangeRequested += ShowConnection;
-            login.BrowserOpenRequested += ReopenBrowser;
-            login.CancelRequested += CancelLogin;
-        }
-        if (frame.Content is LedgerCreatePage creation)
-        {
-            creation.IsEnabled = !busy;
-            creation.CreateRequested += CreateLedger;
-            creation.RefreshRequested += RefreshLedgerMembership;
-            creation.LogoutRequested += LogoutFromCreation;
-            creation.CancelRequested += CancelCreation;
-        }
-        if (frame.Content is FailurePage failure)
-        {
-            failure.IsEnabled = !busy;
-            failure.RetryRequested += RetryConnection;
-            failure.ConnectionChangeRequested += ShowConnection;
-            failure.ExitRequested += Exit;
-        }
-    }
+    private void OpenConnectionSetup() => ShowAuthentication()?.ShowConnectionSetup();
 
     private void OpenConnectionSettings()
     {
         ReleaseConnectionSettings();
-        ConnectionSettingsContent.Content = new ConnectionSettingsView(CreateConnectionSettings(false));
+        ConnectionSettingsContent.Content = new ConnectionSettingsView(new ConnectionSettingsViewModel(connection.Endpoint, ConnectAsync));
         ConnectionSettingsContent.Visibility = Visibility.Visible;
-    }
-
-    private void ReleaseAuthenticationPage()
-    {
-        startupCancellation?.Cancel();
-        if (AuthenticationHost.Content is Frame { Content: ConnectionSetupPage page })
-            page.Release();
-        if (AuthenticationHost.Content is Frame { Content: LoginPage login })
-        {
-            login.LoginRequested -= Login;
-            login.ConnectionChangeRequested -= ShowConnection;
-            login.BrowserOpenRequested -= ReopenBrowser;
-            login.CancelRequested -= CancelLogin;
-        }
-        if (AuthenticationHost.Content is Frame { Content: FailurePage failure })
-        {
-            failure.RetryRequested -= RetryConnection;
-            failure.ConnectionChangeRequested -= ShowConnection;
-            failure.ExitRequested -= Exit;
-        }
-        if (CreationView is { } creation)
-        {
-            creation.CreateRequested -= CreateLedger;
-            creation.RefreshRequested -= RefreshLedgerMembership;
-            creation.LogoutRequested -= LogoutFromCreation;
-            creation.CancelRequested -= CancelCreation;
-            creationDraft = null;
-        }
-        // Frameの現在エントリに渡したVMも含め、ホストごと参照を解放する。
-        AuthenticationHost.Content = null;
-        AuthenticationHost.Visibility = Visibility.Collapsed;
     }
 
     private void ReleaseConnectionSettings()
@@ -222,20 +116,8 @@ public sealed partial class MainWindow
     private async Task ConnectAsync(ApiEndpoint candidate, CancellationToken token)
     {
         if (!EditorAwaitingLogin && !await LeaveRecordEditorAsync()) return;
-        if (token.IsCancellationRequested)
-            return;
-        await RunAsync(async () =>
-        {
-            using var timeout = ConnectionTimeout();
-            try
-            {
-                // 確認・保存までは画面寿命に従う。確定後の認証/復帰はWindowが所有する。
-                using var cancellation = token.Register(timeout.Cancel);
-                await connection.ConnectAsync(candidate, timeout.Token);
-            }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { return; }
-            await RestoreAndOpenAsync(timeout.Token);
-        }, retryConnection: () => ConnectAsync(candidate, lifetime.Token));
+        if (!closed && !token.IsCancellationRequested)
+            await GetAuthentication().ConnectAsync(candidate, token);
     }
 
     private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login;
@@ -255,89 +137,12 @@ public sealed partial class MainWindow
         ShowLogin(message);
     }
 
-    private LoginPage? LoginView => (AuthenticationHost.Content as Frame)?.Content as LoginPage;
-
-    private void RenderLogin() => LoginView?.SetAuthenticationState(browserLogin is not null,
-        browserLogin is null ? !busy : browserCancellation is { IsCancellationRequested: false });
-
     private void ShowLogin(string? message = null)
     {
         if (closed || RecordEditorActive && !EditorAwaitingLogin)
             return;
         AccountNavigation.IsEnabled = LogoutNavigation.IsEnabled = false;
-        if (LoginView is null)
-            OpenAuthenticationPage(typeof(LoginPage));
-        else
-        {
-            ErrorNotice.IsOpen = false;
-            ErrorNotice.Visibility = Visibility.Collapsed;
-        }
-        LoginView?.SetAuthenticationState(false, !busy);
-        if (message is not null) ShowError(message);
-    }
-
-    private async void Login(object sender, RoutedEventArgs args) => await LoginAsync();
-
-    private Task LoginAsync() => RunAsync(async () =>
-    {
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
-        browserCancellation = cancellation;
-        try
-        {
-            await using var login = new BrowserOAuthLogin(connection.Api, connection.Endpoint!);
-            browserLogin = login;
-            RenderLogin();
-            await OpenBrowserAsync();
-            // 利用者の認証待ちには接続確認用の10秒制限をかけない。
-            var acquired = await login.CompleteAsync(cancellation.Token);
-            cancellation.Token.ThrowIfCancellationRequested();
-            // コード取得後は再オープン/取消を止める。確定処理はWindow寿命のローカルtokenで続ける。
-            browserCancellation = null;
-            RenderLogin();
-            account = await connection.Session.AcceptLoginAsync(acquired, cancellation.Token);
-            if (account is null) NavigateToLogin("ログインを続けられませんでした。もう一度ログインしてください。");
-            else await OpenDestinationAsync(cancellation.Token);
-            if (!closed) BringToFront();
-        }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !closed) { NavigateToLogin(); }
-        catch (AuthenticationRejectedException) { NavigateToLogin("ログインできませんでした。もう一度ログインしてください。"); }
-        finally
-        {
-            browserLogin = null;
-            browserCancellation = null;
-            if (!closed)
-                RenderLogin();
-        }
-    }, retryConnection: RetryStartupAsync);
-
-    private async Task OpenBrowserAsync()
-    {
-        var login = browserLogin;
-        if (login is null || browserCancellation is not { IsCancellationRequested: false })
-            return;
-        try
-        {
-            var opened = await connection.OpenBrowser(login.AuthorizationUri);
-            if (closed || !ReferenceEquals(browserLogin, login) || browserCancellation is not { IsCancellationRequested: false })
-                return;
-            if (opened)
-            {
-                ErrorNotice.IsOpen = false;
-                ErrorNotice.Visibility = Visibility.Collapsed;
-                return;
-            }
-        }
-        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException
-            or System.Runtime.InteropServices.COMException) { }
-        if (!closed && ReferenceEquals(browserLogin, login) && browserCancellation is { IsCancellationRequested: false })
-            ShowError("ブラウザーを開けませんでした。「ブラウザーを開く」から再試行してください。");
-    }
-
-    private async void ReopenBrowser(object sender, RoutedEventArgs args) => await OpenBrowserAsync();
-    private void CancelLogin(object sender, RoutedEventArgs args)
-    {
-        browserCancellation?.Cancel();
-        RenderLogin();
+        ShowAuthentication()?.ShowLogin(message);
     }
 
     private async Task LogoutAsync()
@@ -429,8 +234,7 @@ public sealed partial class MainWindow
             ShowError(message);
             return;
         }
-        retry = retryConnection;
-        OpenAuthenticationPage(typeof(FailurePage), message);
+        ShowAuthentication()?.ShowFailure(message, retryConnection);
     }
 
     private void SetOperationsEnabled(bool enabled)
@@ -438,14 +242,12 @@ public sealed partial class MainWindow
         Operations.IsEnabled = enabled;
         if (CreationView is { } creation)
             creation.IsEnabled = enabled;
-        RenderLogin();
-        if (AuthenticationHost.Content is Frame { Content: FailurePage failure })
-            failure.IsEnabled = enabled;
+        authentication?.SetOperationsEnabled();
         CategoryDialog.IsEnabled = enabled;
         PaymentDialog.IsEnabled = enabled;
         PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
         UpdatePeopleActions();
-        var showProgress = !enabled && !IsStartupVisible;
+        var showProgress = !enabled && authentication?.IsStarting != true;
         BusyProgress.IsActive = showProgress;
         BusyProgress.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -456,7 +258,8 @@ public sealed partial class MainWindow
         if (RecordEditorActive && !ReferenceEquals(page, HomePage))
             return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
-        ReleaseAuthenticationPage();
+        ReleaseAuthentication();
+        ReleaseLedgerPage();
         LegacyContent.Visibility = Visibility.Visible;
         ReleaseConnectionSettings();
         if (!ReferenceEquals(page, HomePage))
@@ -524,19 +327,11 @@ public sealed partial class MainWindow
         if (!sender.IsOpen) sender.Visibility = Visibility.Collapsed;
     }
 
-    private async void RetryConnection(object sender, RoutedEventArgs args)
-    {
-        if (busy || closed || retry is not { } repeat)
-            return;
-        await repeat();
-    }
-
-    private void Exit(object sender, RoutedEventArgs args) => Close();
-
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
-        ReleaseAuthenticationPage();
+        ReleaseAuthentication();
+        ReleaseLedgerPage();
         ReleaseConnectionSettings();
         transferAuthentication = null;
         transferEditor = null;
@@ -554,7 +349,6 @@ public sealed partial class MainWindow
         DiscardPersonEditor();
         ResetParticipants();
         lifetime.Cancel();
-        browserCancellation?.Cancel();
         connection.Dispose();
     }
 }

@@ -45,7 +45,7 @@ public partial class App
             await StartSyntheticAsync();
             var tokens = fixture.Tokens.Current;
             var ledger = TransferRuntime("currentLedger");
-            var retry = TransferRuntime("retry");
+            var retry = TransferRuntime("authentication");
             var requests = fixture.Requests.Count;
             var run = typeof(MainWindow).GetMethod("RunAsync", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("共通操作がありません。");
@@ -68,7 +68,7 @@ public partial class App
                 await (Task)(run.Invoke(window, [action, null]) ?? throw new InvalidOperationException("操作結果がありません。"));
                 var notice = Find<InfoBar>(root, "ErrorNotice");
                 Check(notice.IsOpen && notice.Message == message && Visible(root, "HomePage") && FailureScreen(root) is null &&
-                    Equals(TransferRuntime("busy"), false) && ReferenceEquals(TransferRuntime("retry"), retry) &&
+                    Equals(TransferRuntime("busy"), false) && ReferenceEquals(TransferRuntime("authentication"), retry) &&
                     ReferenceEquals(TransferRuntime("currentLedger"), ledger) && ReferenceEquals(fixture.Tokens.Current, tokens) &&
                     fixture.Requests.Count == requests,
                     $"通常業務の{error.GetType().Name}/{message}は共有通知だけで、失敗Page・再送・認証削除へ進まない");
