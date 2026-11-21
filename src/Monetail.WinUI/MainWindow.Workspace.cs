@@ -26,7 +26,12 @@ public sealed partial class MainWindow
         ReleaseLedgerPage();
         ReleaseConnectionSettings();
         WorkspaceHost.Visibility = Visibility.Visible;
-        WorkspaceHeader.Visibility = screen == WorkspaceScreen.HomePage ? Visibility.Visible : Visibility.Collapsed;
+        WorkspaceHeader.Visibility = screen == WorkspaceScreen.LedgerChoicePage || currentLedger is null ? Visibility.Collapsed : Visibility.Visible;
+        RecordSelectionIndicator.Visibility = screen == WorkspaceScreen.HomePage ? Visibility.Visible : Visibility.Collapsed;
+        RecordButton.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.ItemStatusProperty,
+            screen == WorkspaceScreen.HomePage ? "選択中" : "");
+        SettingsButton.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.ItemStatusProperty,
+            screen == WorkspaceScreen.ManagementPage ? "選択中" : "");
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
         if (screen == WorkspaceScreen.HomePage && RecordPage is { } current)
@@ -41,7 +46,6 @@ public sealed partial class MainWindow
         SuspendRecordReads();
         ReleaseWorkspace();
         WorkspaceHost.Visibility = Visibility.Visible;
-        WorkspaceHeader.Visibility = screen == WorkspaceScreen.HomePage ? Visibility.Visible : Visibility.Collapsed;
         switch (screen)
         {
             case WorkspaceScreen.HomePage:
@@ -61,7 +65,6 @@ public sealed partial class MainWindow
                 WorkspaceHost.Navigate(typeof(ManagementPage), management);
                 var page = (ManagementPage)WorkspaceHost.Content;
                 page.SetDetails(ManagementContents);
-                page.BackRequested += ShowRecord;
                 break;
             case WorkspaceScreen.LedgerChoicePage:
                 WorkspaceHost.Navigate(typeof(LedgerChoiceView));
