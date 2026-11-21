@@ -16,6 +16,20 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3849 |
 
+## 認証失敗・再試行の所有（PR #230）
+
+[AuthenticationFlowScenario](Monetail.WinUI.Smoke/AuthenticationFlowScenario.cs)へ、管理画面での接続先変更失敗から同じ候補への再試行（旧設定/認証情報保持、専用FailurePage、共通busy、重複拒否、検証後だけ保存/トークン消去、元トークンの非送信）と、OAuth成功後の家計簿取得503から保存認証を再検証して復帰する経路（ブラウザー再起動なし、家計簿再取得、成功後の購読/認証フロー解放）を追加する。既存ConnectionScenario/FailurePageScenario/StartupBoundaryScenarioの起動・通常業務10種類の失敗分類・再試行・取消・10秒期限・通信障害時の認証保持と、全画面の401復帰/未保存保護/遅延応答拒否は維持する。StartupScenarioの未承認失敗画面遷移試験は、削除したReportFailureの代わりに認証実行境界で既存ApiConnectionExceptionを発生させ、元モデル・入力・表示を保持することを確認する。再設定読込試験も認証フローの内部再開を使用する。
+
+ローカルReleaseの関連Client82件（家計簿・セッション・OAuth・保存、失敗/skipなし）、構造検査・git diff --checkは成功。変更前はmain `8fb832d`の[Tests 44903042526](https://github.com/k-o-a-b-c/monetail/actions/runs/44903042526)成功を採用する。非変更のClient/Presentation/API/DB/Docker/旧Windows/Windows実保存等はCI選択・同じfingerprintの成功結果を再利用する。
+
+初回ソース`2329d6f`の[CI 44903905984](https://github.com/k-o-a-b-c/monetail/actions/runs/44903905984)では製品/検証用Releaseビルド（各29件の既存WUI2011警告・0エラー）と接続先候補の追加3確認が成功した後、新規OAuth後の503期待メッセージが誤っていたため失敗した。既存MonetailApiClientはこの家計簿APIの503をApiConnectionExceptionとして扱うため、期待値を従来の接続失敗文言へ訂正した。製品の分類・通知文・認証保持・タイムアウトは変更していない。
+
+ソース`c895074`の[CI 44904312534・初回](https://github.com/k-o-a-b-c/monetail/actions/runs/44904312534/attempts/1)では、両Releaseビルド（各29件の既存WUI2011警告・0エラー）、connection-flow全163確認、先行プロセスの401/編集復帰が成功した。後続の既存レシート一覧試験で0xC000027B（-1073741189）により停止。直前のui-invokeはReceiptViewportScenario:155のReceiptBack（UIスレッド、Loaded/Root/Host/Enabled=True、Size=False、InvokeはReturnedまで記録）、runtime-errorは空だった。原因未特定のため無関係な修正・期待値/タイムアウト変更は行わず、失敗Windowsジョブだけを同一コミットで1回再実行した。新規試験の503文言誤認による失敗とは区別する。
+
+最終ソース`c895074`の[CI 44904312534・再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/44904312534/attempts/2)は成功。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/905確認（connection-flow163、追加5確認）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。成功実行では既存IME確認も通過し、0xC0000005/0xC000027Bは記録されていないが、過去の原因解決とは扱わない。ビルド後のWinUIレビューで、共通catch順・文言・認可反映/401退避とbusy/finally、フローの終了/取消・Page同一性を維持し、ShowError/SetOperationsEnabledの処理本体、API/DB/Client契約を変更していないことを確認した。
+
+責務・コールバック/公開面/状態/コード量と案の比較は[構成正本](../docs/architecture-winui.md#runasyncと認証失敗の責務pr-230)を参照する。XAML/新しいUI API・外部ライブラリは追加していない。WinApp CLIは環境にないため未実行。実API、実ブラウザーのパスキー、物理Windows手動IME/タッチ・高DPI・スクリーンリーダーは未検証。既存の断続的なIME/ネイティブ停止の原因を解決したとは扱わない。
+
 ## ShowPageのホーム復帰Task（PR #229）
 
 [HomeResumeScenario](Monetail.WinUI.Smoke/HomeResumeScenario.cs)を既存のreceipt-navigation/transfer-navigationへ追加した。同一ホームでの重複開始防止、表示前に中止した復帰、連続離脱/復帰、旧取得の遅延成功が最新の所有者・表示行・表示位置復元の保留を変更しないこと、初回/再開時の503と予期しない例外の表示先、即時認証失効後の一覧破棄、Window終了後の遅延失敗を確認する。中断不能な結果はVM取得デリゲートで再現し、認証HTTPの直列化とは分離する。実HTTPの中断/同一条件・カーソル再開、選択/非先頭スクロール維持と重複行なしの既存確認は変更しない。既存401/連続401・元の実コントロール保持・未保存保護・IMEの確認も維持する。

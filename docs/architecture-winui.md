@@ -72,6 +72,34 @@ VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解
 
 WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
 
+## RunAsyncと認証失敗の責務（PR #230）
+
+| 区分 | 所有者と契約 |
+| --- | --- |
+| 共通 | WindowのRunAsyncがbusy/closed、処理中UI、既存例外分類・安全なメッセージ、401/認証コンテキスト変更時の退避、権限情報反映、finallyでの復帰を所有する |
+| 通常業務 | 失敗の受渡先を指定せず、既存ShowErrorで現在の画面の通知先へ表示する。自動再送・FailurePage遷移を追加しない |
+| 起動・OAuth・接続設定 | AuthenticationFlowが分類済み失敗を受け取り、内部のShowFailureとretryで専用Page・再試行を所有する。起動/OAuth後の失敗は設定/保存認証から再開し、接続変更は失敗した候補を再検証する |
+| Window境界 | RunAuthenticationAsyncは共通実行を借用し、失敗時に既存ShowAuthenticationの遷移許可/ホスト接続を確認してフローの通知先を呼ぶ。再試行先の選定やFailurePageの型を扱わない |
+| 認証成功後 | AuthenticatedAsync/OpenDestinationAsync・家計簿取得・編集復帰の順序はWindowに残す。家計簿取得失敗も同じ認証操作の失敗として再試行できる |
+
+RunAsyncの第2引数は再試行Func<Task>ではなく省略可能なAction<string>。省略時はShowError、認証操作はフローの失敗通知先を使用する。旧WindowのRestartAuthenticationAsync/ReportFailureを削除し、RestartAsync/ShowFailureをフローのprivateメソッドへ限定した。7つの協力コールバックのうちexecuteの契約だけを変更し、接続先候補や再試行をWindowへ往復させない。executeの第2引数は候補データから失敗通知Actionへ置き換わるため、明示的な通知コールバックは1つ増える。これは共通分類からフローへ戻すための操作単位の引数で、購読・保持フィールド・中継クラスは増やさない。
+
+フロー側ですべての例外分類を行う案は、通常業務の認可反映・401退避と同じcatch/メッセージの重複を招くため採用しない。共通実行を残し、表示先を渡す構成を採用する。Windowの実行境界は、管理画面の接続確認失敗時には認証Frameを接続し、未承認の編集中遷移やWindow終了時には表示を拒否するため残す。汎用Service/新規クラス・状態フラグ・例外分類器は追加しない。
+
+| 比較（main 8fb832d、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.Connection.cs | 407行 | 400行 |
+| 上記partialのメソッド数 | 28 | 26 |
+| AuthenticationFlow | 337行 | 337行 |
+| フローのpublicメソッド数（プロパティ除外） | 10 | 8 |
+| フローconstructorの協力コールバック数 | 7 | 7 |
+| execute引数のコールバック数 | 操作1（第2引数は接続先データ） | 操作1＋失敗通知1 |
+| 明示フィールド（Window接続partial / フロー） | 7 / 5 | 7 / 5 |
+| 上記boolフィールド | 2 / 0 | 2 / 0 |
+| 製品srcのC#/XAML総量 | 19,432行 | 19,425行 |
+
+OAuth待機の取消/再オープン、10秒の接続期限、旧Page応答拒否、終了時の解放、401の元モデル/実コントロール保持は維持する。ShowErrorの画面別通知・SetOperationsEnabledは今回再設計しない。検証記録は[tests/README](../tests/README.md)を参照する。
+
 ## ShowPageのホーム復帰Task（PR #229）
 
 ShowPageは同期の遷移ガード/表示切替を維持し、ホーム復帰だけを例外処理付きのResumeRecordHomeAsyncへ渡す。async void相当のDispatcherQueueラムダを削除し、Task.Yieldで同期の遷移を終えてから既存ResumeAsyncを待つ。レシート/振替の初回読込もTask.WhenAllで同じ例外境界から待ち、即時の401で一覧が破棄された場合は後続一覧を旧ホームへ生成しない。読込中も他画面へ移動できる既存の操作可否を保つため、全体busyを持つRunAsyncでは包まない。通常の通信/業務エラーと401は既存VMのFailure/通知を維持し、予期しない復帰例外は型だけをTraceへ記録して、現在のホームに限り共有InfoBarへ「一覧を表示できませんでした。」を表示する。例外の内部メッセージは画面へ公開しない。
@@ -193,7 +221,7 @@ PR #225の[家計簿選定仕様](ledger-onboarding.md#所属1件以上で開く
 
 `OpenDestinationAsync`は振替→レシート→科目→支払方法→参加者→人物の既存復帰順を調停する。復帰がない場合だけ`OpenInitialLedgerAsync`でWorkspaceの結果を表示する。通常の家計簿表示から6画面の復帰判定を分離したが、復帰順を持つWindowの横断依存は必要なため残す。401でのモデル/実コントロール保持、起動Pageを解放してから続けるマスタ再取得、10秒期限・Window終了・遅延応答の拒否は既存処理を維持する。
 
-`RunAsync(action, retryConnection: ...)`へ再試行先を渡すのは起動・OAuth・接続先変更だけとし、通常業務は`RunAsync(action)`で既存の共有通知を使う。`ReportFailure`は再試行先がある場合だけ認証フローへ渡し、そのretryを設定してFailurePageへ進む。旧`connectionFailure`と再試行先の組合せを廃止し、通常業務から実際には使われない20個のコールバックを除いた。通常業務の処理本体、権限反映、例外種別/メッセージ、認証退避・busy/finallyは変えない。例外分類は共有の一か所を維持し、起動専用の例外処理を複製しない。通常業務画面の変更はこの未使用引数の除去だけとする。
+現在の`RunAsync(action, failed: ...)`は認証操作にだけ分類済み失敗の通知先を受け取り、通常業務は`RunAsync(action)`で既存の共有通知を使う。認証フローが再試行先とFailurePageを所有する。旧`connectionFailure`と再試行先の組合せを廃止し、通常業務から実際には使われない20個のコールバックを除いた。通常業務の処理本体、権限反映、例外種別/メッセージ、認証退避・busy/finallyは変えない。例外分類は共有の一か所を維持し、起動専用の例外処理を複製しない。通常業務画面の変更はこの未使用引数の除去だけとする。
 
 | 境界整理の比較（基点main 5afcee1、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
