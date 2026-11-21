@@ -2,32 +2,22 @@
     <Grid x:Name="ManagementContent" RowSpacing="16" Padding="24,16,24,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <Button x:Name="ReturnButton" Click="ReturnToRecord" Background="Transparent" BorderThickness="0" AutomationProperties.AutomationId="ReturnButton">
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <FontIcon Glyph="" FontSize="14"/>
-                <TextBlock Text="記録・集計に戻る"/>
-            </StackPanel>
-        </Button>
-        <StackPanel Grid.Row="1" Margin="12,0,0,0" Spacing="8">
+        <StackPanel Grid.Row="0" Margin="12,0,0,0" Spacing="8">
             <TextBlock Text="管理・設定" Style="{ThemeResource TitleTextBlockStyle}"/>
             <TextBlock x:Name="LedgerContext" Text="{x:Bind ViewModel.LedgerName, Mode=OneWay}" Style="{StaticResource Description}"/>
         </StackPanel>
-        <NavigationView x:Name="ManagementNavigation" Grid.Row="2" PaneDisplayMode="Left" IsPaneOpen="True" OpenPaneLength="240" IsPaneToggleButtonVisible="False" IsBackButtonVisible="Collapsed" IsSettingsVisible="False" IsTitleBarAutoPaddingEnabled="False" SelectionChanged="SelectManagement" AutomationProperties.AutomationId="ManagementNavigation">
+        <NavigationView x:Name="ManagementNavigation" Grid.Row="1" PaneDisplayMode="Left" IsPaneOpen="True" OpenPaneLength="240" IsPaneToggleButtonVisible="False" IsBackButtonVisible="Collapsed" IsSettingsVisible="False" IsTitleBarAutoPaddingEnabled="False" SelectionChanged="SelectManagement" AutomationProperties.AutomationId="ManagementNavigation">
             <NavigationView.MenuItems>
                 <NavigationViewItemHeader Content="マスタ管理"/>
                 <NavigationViewItem x:Name="PeopleNavigation" IsEnabled="{x:Bind ViewModel.PeopleEnabled, Mode=OneWay}" Tag="People" Content="人物管理" Icon="Contact" AutomationProperties.AutomationId="PeopleNavigation"/>
                 <NavigationViewItem x:Name="CategoriesNavigation" IsEnabled="{x:Bind ViewModel.CategoriesEnabled, Mode=OneWay}" Tag="Categories" Content="科目管理" AutomationProperties.AutomationId="CategoriesNavigation"/>
                 <NavigationViewItem x:Name="PaymentsNavigation" Tag="Payments" Content="支払方法管理" AutomationProperties.AutomationId="PaymentsNavigation"/>
-                <NavigationViewItem Content="店舗管理" IsEnabled="False" AutomationProperties.AutomationId="ShopsPlaceholder"/>
                 <NavigationViewItemHeader Content="家計簿管理"/>
                 <NavigationViewItem x:Name="ParticipantsNavigation" Visibility="{x:Bind Show(ViewModel.ParticipantsVisible), Mode=OneWay}" Tag="Participants" Content="参加者管理" Icon="People" AutomationProperties.AutomationId="ParticipantsNavigation"/>
                 <NavigationViewItemHeader Content="アプリ設定"/>
                 <NavigationViewItem x:Name="ConnectionNavigation" Tag="Connection" Content="接続先の設定" AutomationProperties.AutomationId="ConnectionNavigation"/>
-                <NavigationViewItem Content="表示設定" IsEnabled="False" AutomationProperties.AutomationId="ViewSettingsPlaceholder"/>
-                <NavigationViewItem Content="入力時の初期値" IsEnabled="False" AutomationProperties.AutomationId="InputDefaultsPlaceholder"/>
                 <NavigationViewItemHeader Content="アカウント"/>
                 <NavigationViewItem x:Name="AccountNavigation" Tag="Account" Content="ログイン情報" IsEnabled="{x:Bind ViewModel.HasAccount, Mode=OneWay}" AutomationProperties.AutomationId="AccountNavigation"/>
                 <NavigationViewItem x:Name="LogoutNavigation" Tag="Logout" Content="ログアウト" IsEnabled="{x:Bind ViewModel.HasAccount, Mode=OneWay}" AutomationProperties.AutomationId="LogoutNavigation"/>
