@@ -96,7 +96,7 @@ public partial class App
         pending.SetResult(true); await old;
         await Wait(() => Find<ContentControl>(root, "Operations").IsEnabled);
         Check(ReceiptEditing is null && Visible(root, "ManagementPage"), "中断要求の遅延応答は離脱後に編集画面を開かない");
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton")); await Wait(() => Visible(root, "HomePage"));
+        await InvokeAsync(() => Find<Button>(root, "RecordButton")); await Wait(() => Visible(root, "HomePage"));
         noRecurrence = true;
         await window.OpenReceiptEditorAsync(summaries[2].ReceiptId); await Wait(() => ReceiptEditing is not null);
         Check(ReceiptEditing!.Header.RecurrenceInterval is null && ReceiptEditing.Header.RecurrenceUnit is null &&
