@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Client.Authentication;
-using Monetail.Windows.Client.Receipts;
+using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Presentation.Receipts;
 using Monetail.Windows.Presentation.Transfers;
 using Monetail.WinUI.Views.Receipts;
@@ -54,7 +54,7 @@ public partial class App
                     var call = await Load(token);
                     return new TransferListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
                         payment, Guid.NewGuid(), call, null)], null);
-                }, search);
+                }, search, _ => "支払方法");
                 view.ViewModel = model;
                 initial = model.StartAsync(search.TransferQuery());
                 model.Suspend();
@@ -68,7 +68,7 @@ public partial class App
                     var call = await Load(token);
                     return new ReceiptListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
                         null, payment, call, null)], null);
-                }, search);
+                }, search, _ => "支払方法");
                 view.ViewModel = model;
                 initial = model.StartAsync(search.Receipts.Query());
                 model.Suspend();
