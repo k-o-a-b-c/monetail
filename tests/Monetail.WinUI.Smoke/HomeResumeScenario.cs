@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Transport;
+using Monetail.Windows.Client.Authentication;
 
 namespace Monetail.WinUI.Smoke;
 
@@ -115,6 +116,21 @@ public partial class App
                     ? notice.IsOpen && notice.Message == "一覧を表示できませんでした。"
                     : !notice.IsOpen && Find<StackPanel>(root, transfers ? "TransferInitialNotice" : "ReceiptInitialNotice").Visibility == Visibility.Visible,
                 "通常の取得失敗は一覧のエラー、予期しない初回/復帰失敗は観測して共有通知へ表示し、アプリを終了しない");
+        }
+        using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
+        {
+            Task<HttpResponseMessage> Reject(HttpRequestMessage request, CancellationToken token) =>
+                Task.FromException<HttpResponseMessage>(new AuthenticationRejectedException());
+            if (transfers)
+                fixture.TransfersHandler = Reject;
+            else
+                fixture.ReceiptsHandler = Reject;
+            var root = await OpenSyntheticWindow(fixture);
+            await window!.StartAsync();
+            await Wait(() => LoginScreen(root) is not null && TransferRuntime("homeResume") is null);
+            Check(Find<Monetail.WinUI.Views.Receipts.ReceiptListView>(root, "ReceiptsView").ViewModel is null &&
+                Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel is null,
+                "初回一覧の即時認証失効は既存ログインへ退避し、旧ホームの後続一覧を生成しない");
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
         {

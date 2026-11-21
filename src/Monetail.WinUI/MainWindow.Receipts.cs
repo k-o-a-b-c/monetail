@@ -67,8 +67,10 @@ public sealed partial class MainWindow
         UpdateReceiptActions();
         RefreshReceiptChoices();
         RenderRecordFilters();
-        await Task.WhenAll(model.StartAsync(recordSearch.Receipts.Query(), lifetime.Token),
-            StartTransferHomeAsync(ledger, api, session, masterToken));
+        var initialRead = model.StartAsync(recordSearch.Receipts.Query(), lifetime.Token);
+        // 即時の401等で一覧が破棄された場合、後続の一覧を旧画面へ生成しない。
+        await Task.WhenAll(initialRead, ReferenceEquals(ReceiptListModel, model)
+            ? StartTransferHomeAsync(ledger, api, session, masterToken) : Task.CompletedTask);
     }
     private async Task GetRecordMastersAsync(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken, CancellationToken token)
     {
