@@ -57,7 +57,7 @@ public partial class App
             await PressReceiptKey(0x0D);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), create));
             Check(fixture.Creations.Count == 0, "名前のEnterは作成ボタンへ移動するだけで送信しない");
-            await PressReceiptKey(0x0D, 0x10);
+            await PressReceiptKey(0x09, 0x10);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), name));
             await PressReceiptKey(0x09);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), create));
