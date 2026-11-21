@@ -105,8 +105,9 @@ public sealed partial class MainWindow
         {
             if (Current())
             {
-                if (recordHome is not null) recordHome.TransferOpening = new(error is TransferRequestException { StatusCode: HttpStatusCode.NotFound }
-                    ? "振替が削除されたか、アクセスできなくなりました。" : "振替またはマスタ情報を取得できませんでした。";
+                if (recordHome is not null)
+                    recordHome.TransferOpening = new(error is TransferRequestException { StatusCode: HttpStatusCode.NotFound }
+                        ? "振替が削除されたか、アクセスできなくなりました。" : "振替またはマスタ情報を取得できませんでした。", false, true);
 
             }
         }
