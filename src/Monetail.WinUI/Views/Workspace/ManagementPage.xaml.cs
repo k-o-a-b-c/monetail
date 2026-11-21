@@ -9,7 +9,6 @@ public sealed partial class ManagementPage : Page
 {
     public ManagementViewModel ViewModel { get; private set; } = null!;
 
-    public event RoutedEventHandler? BackRequested;
     public ManagementPage() => InitializeComponent();
     protected override void OnNavigatedTo(NavigationEventArgs args)
     {
@@ -41,7 +40,6 @@ public sealed partial class ManagementPage : Page
         await ViewModel.SelectCommand.ExecuteAsync(section);
     }
 
-    private void ReturnToRecord(object sender, RoutedEventArgs args) => BackRequested?.Invoke(this, args);
     private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
     public void Release()
     {
@@ -49,7 +47,6 @@ public sealed partial class ManagementPage : Page
             ViewModel.PropertyChanged -= ModelChanged;
         Bindings.StopTracking();
         DetailsHost.Content = null;
-        BackRequested = null;
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs args)
