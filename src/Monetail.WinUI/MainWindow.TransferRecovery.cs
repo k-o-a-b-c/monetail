@@ -55,7 +55,8 @@ public sealed partial class MainWindow
         }
         transferAwaitingLogin = false; transferMastersLoading = true;
         if (currentLedger is { } ledger) DisplayLedgerHeader(ledger);
-        NavigateWorkspace(WorkspaceScreen.HomePage); RenderTransferEditor();
+        NavigateWorkspace(WorkspaceScreen.HomePage);
+        RenderTransferEditor();
         await LoadTransferRecoveryMastersAsync(context, token);
         return true;
     }

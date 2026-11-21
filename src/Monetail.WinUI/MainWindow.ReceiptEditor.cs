@@ -120,7 +120,8 @@ public sealed partial class MainWindow
         var model = ReceiptEntry.ViewModel;
         ReceiptEntry.ViewModel = null;
         model?.Discard();
-        ReceiptEditorPage.Visibility = Visibility.Collapsed; RecordPage?.ShowEditor(null);
+        ReceiptEditorPage.Visibility = Visibility.Collapsed;
+        RecordPage?.ShowEditor(null);
     }
     private void PopulateReceiptEditor() => ReceiptEntry.Populate();
     private void RefreshReceiptEditorChoices()
@@ -172,7 +173,8 @@ public sealed partial class MainWindow
     private async Task BackFromReceiptEditorAsync()
     {
         if (!await LeaveReceiptEditorAsync()) return;
-        NavigateWorkspace(WorkspaceScreen.HomePage); RestoreReceiptListPosition();
+        NavigateWorkspace(WorkspaceScreen.HomePage);
+        RestoreReceiptListPosition();
     }
     private async Task<bool> LeaveReceiptEditorAsync()
     {
@@ -194,7 +196,8 @@ public sealed partial class MainWindow
                 try { if (await dialog.ShowAsync() != ContentDialogResult.Primary || receiptRecoveryPhase == ReceiptRecoveryPhase.Login) return false; }
                 finally { receiptDialogOpen = false; }
             }
-            ResetReceiptEditor(); return true;
+            ResetReceiptEditor();
+            return true;
         }
         finally { ReceiptEntry.SuppressCompletion(false); receiptLeaving = false; }
     }

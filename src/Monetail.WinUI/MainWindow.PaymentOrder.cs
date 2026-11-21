@@ -92,7 +92,11 @@ public sealed partial class MainWindow
     private void CancelPaymentOrder(object sender, RoutedEventArgs args)
     {
         if (busy) return;
-        DiscardPaymentOrder(); if (!CanViewPayments) NavigateWorkspace(WorkspaceScreen.HomePage); else PaymentsContent.Visibility = Visibility.Visible;
+        DiscardPaymentOrder();
+        if (!CanViewPayments)
+            NavigateWorkspace(WorkspaceScreen.HomePage);
+        else
+            PaymentsContent.Visibility = Visibility.Visible;
     }
     private void DiscardPaymentOrder()
     {

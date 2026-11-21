@@ -101,7 +101,12 @@ public sealed partial class MainWindow
         finally
         {
             categoryDialogOpen = categoryDialogClosing = false;
-            if (!closed) { ClearCategoryEditor(); if (!forceCategoryClose && !CanViewCategories) NavigateWorkspace(WorkspaceScreen.HomePage); }
+            if (!closed)
+            {
+                ClearCategoryEditor();
+                if (!forceCategoryClose && !CanViewCategories)
+                    NavigateWorkspace(WorkspaceScreen.HomePage);
+            }
         }
     }
     private void CategoryDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)

@@ -43,7 +43,8 @@ public sealed partial class MainWindow
         { denied = e.Permissions ?? new(null, null); failure = "現在の権限では操作できません。未保存の入力は残しています。"; }
         DisplayLedger(ledger); DisplayCategories(categories);
         if (denied is not null) categoryPermissions = denied;
-        NavigateWorkspace(WorkspaceScreen.ManagementPage); management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Categories;
+        NavigateWorkspace(WorkspaceScreen.ManagementPage);
+        management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Categories;
         PaymentsContent.Visibility = PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = AccountContent.Visibility = ConnectionSettingsContent.Visibility = Visibility.Collapsed;
         CategoriesContent.Visibility = Visibility.Visible; CategoryList.IncludeInactive = draft.IncludeInactive;
         if (draft.Order is { } order)

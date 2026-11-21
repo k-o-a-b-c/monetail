@@ -73,7 +73,8 @@ public sealed partial class MainWindow
         { DiscardLedgerContents(); ClearLedger(); return false; }
         receiptRecoveryPhase = ReceiptRecoveryPhase.Loading;
         if (currentLedger is { } ledger) DisplayLedgerHeader(ledger);
-        NavigateWorkspace(WorkspaceScreen.HomePage); RenderReceiptRecovery();
+        NavigateWorkspace(WorkspaceScreen.HomePage);
+        RenderReceiptRecovery();
         await LoadReceiptRecoveryMastersAsync(context, token);
         return true;
     }

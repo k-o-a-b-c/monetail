@@ -249,7 +249,11 @@ public sealed partial class MainWindow
     {
         if (busy || ManagementDialogOpen) return;
         InvitationsContent.Visibility = Visibility.Collapsed;
-        if (!CanManageParticipants) { NavigateWorkspace(WorkspaceScreen.HomePage); return; }
+        if (!CanManageParticipants)
+        {
+            NavigateWorkspace(WorkspaceScreen.HomePage);
+            return;
+        }
         ParticipantsContent.Visibility = Visibility.Visible;
         await LoadParticipantsAsync();
     }
@@ -357,7 +361,8 @@ public sealed partial class MainWindow
         }
         catch (LedgerRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound) { denied = new(null, null); }
         catch (ParticipantRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound) { denied = error.Permissions ?? new(null, null); }
-        DisplayLedger(ledger); NavigateWorkspace(WorkspaceScreen.ManagementPage);
+        DisplayLedger(ledger);
+        NavigateWorkspace(WorkspaceScreen.ManagementPage);
         management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Participants;
         PeopleContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
         if (members is not null) DisplayMembers(members);

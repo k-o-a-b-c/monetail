@@ -214,7 +214,8 @@ public sealed partial class MainWindow
                 if (answer == ContentDialogResult.None) return false;
                 if (writable && answer == ContentDialogResult.Primary) return await SaveTransferAsync(false, returnToList: false);
             }
-            ResetTransferEditor(); return true;
+            ResetTransferEditor();
+            return true;
         }
         finally { transferLeaving = false; }
     }

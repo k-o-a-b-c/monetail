@@ -164,7 +164,8 @@ public partial class App
             var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
             var payments = new PaymentServer(); fixture.PaymentsHandler = payments.HandleAsync;
             fixture.TaxRatesHandler = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
-            var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
             var openingProgress = Find<ProgressRing>(root, "ReceiptOpenProgress");
             await window!.OpenReceiptEditorAsync(null);
             await Wait(() => Visible(root, "LoginPage"));

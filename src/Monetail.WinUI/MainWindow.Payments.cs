@@ -134,7 +134,12 @@ public sealed partial class MainWindow
         finally
         {
             paymentDialogOpen = paymentDialogClosing = false;
-            if (!closed) { ClearPaymentEditor(); if (!forcePaymentClose && !CanViewPayments) NavigateWorkspace(WorkspaceScreen.HomePage); }
+            if (!closed)
+            {
+                ClearPaymentEditor();
+                if (!forcePaymentClose && !CanViewPayments)
+                    NavigateWorkspace(WorkspaceScreen.HomePage);
+            }
         }
     }
     private void PaymentDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
