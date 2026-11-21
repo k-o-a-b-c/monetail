@@ -137,7 +137,9 @@ Windowが`retry`を正本として保持し、既存の設定/保存認証再読
 
 ### 起動・認証復帰の調停と通常業務の失敗通知
 
-WindowはActivate前に接続先・保存認証の有無を通信なしで判定し、表示先とWindow寿命を管理する。既存`ClientConnection`は設定とClient構成、`ClientSession`は認証の検証/更新/保持、`LedgerWorkspace.StartAsync`は最後の家計簿・所属一覧・1件自動選択、各Pageは表示と操作通知を担当する。これらのClient実装・認証契約・Pageは変更しない。起動仕様は[画面正本](ledger-windows.md#windows版の起動表示接続失敗時の操作)、家計簿の選定は[新規利用の正本](ledger-onboarding.md)を維持する。
+WindowはActivate前に接続先・保存認証の有無を通信なしで判定し、表示先とWindow寿命を管理する。既存`ClientConnection`は設定とClient構成、`ClientSession`は認証の検証/更新/保持、`LedgerWorkspace.StartAsync`は有効な最後の家計簿の取得・履歴無効時の所属一覧取得、各Pageは表示と操作通知を担当する。接続設定/認証のClient実装・認証契約・Pageは変更しない。起動仕様は[画面正本](ledger-windows.md#windows版の起動表示接続失敗時の操作)、家計簿の選定は[新規利用の正本](ledger-onboarding.md)を維持する。
+
+PR #225の[家計簿選定仕様](ledger-onboarding.md#所属1件以上で開く家計簿)を実装済み。`open-last`が有効ならそのまま開き、nullなら所属一覧を取得してWindowが0件は作成・1件以上は既存の選択Viewへ進める。所属1件の自動オープンと専用の404再取得は廃止した。選択Viewは未選択・開く無効で開始し、選択だけではAPIを呼ばず、明示的な「開く」で既存APIを使用する。新しいService/VM/状態はなく、401復帰・通常の開く処理・API/DB契約は変更しない。
 
 `OpenDestinationAsync`は振替→レシート→科目→支払方法→参加者→人物の既存復帰順を調停する。復帰がない場合だけ`OpenInitialLedgerAsync`でWorkspaceの結果を表示する。通常の家計簿表示から6画面の復帰判定を分離したが、復帰順を持つWindowの横断依存は必要なため残す。401でのモデル/実コントロール保持、起動Pageを解放してから続けるマスタ再取得、10秒期限・Window終了・遅延応答の拒否は既存処理を維持する。
 
