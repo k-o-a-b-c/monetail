@@ -16,9 +16,9 @@ public partial class App
 {
     private void ShowHomeTestPage(FrameworkElement root, string name)
     {
-        var show = typeof(MainWindow).GetMethod("ShowPage", BindingFlags.NonPublic | BindingFlags.Instance)
+        var show = typeof(MainWindow).GetMethod("NavigateWorkspace", BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new InvalidOperationException("画面遷移がありません。");
-        show.Invoke(window, [Find<FrameworkElement>(root, name)]);
+        show.Invoke(window, [Enum.Parse(show.GetParameters()[0].ParameterType, name)]);
     }
 
     private async Task CheckHomeResumeLifetime(bool transfers)
@@ -42,39 +42,42 @@ public partial class App
             var root = await OpenSyntheticWindow(fixture);
             await StartSyntheticAsync();
             await Wait(() => TransferRuntime("homeResume") is null);
+            typeof(MainWindow).GetMethod("ResetRecordHome", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, []);
             var search = new RecordSearchState(new(2026, 11, 10));
             var payment = Guid.NewGuid();
             Task initial;
+            var receiptModel = new ReceiptListViewModel((_, _) => Task.FromResult(new ReceiptListInfo([], null)), search, _ => "支払方法");
+            var transferModel = new TransferListViewModel((_, _) => Task.FromResult(new TransferListInfo([], null)), search, _ => "支払方法");
             if (transfers)
             {
-                var view = Find<TransferListView>(root, "TransfersView");
-                view.ViewModel?.Dispose();
+
                 var model = new TransferListViewModel(async (_, token) =>
                 {
                     var call = await Load(token);
                     return new TransferListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
                         payment, Guid.NewGuid(), call, null)], null);
                 }, search, _ => "支払方法");
-                view.ViewModel = model;
+                transferModel = model;
                 initial = model.StartAsync(search.TransferQuery());
                 model.Suspend();
             }
             else
             {
-                var view = Find<ReceiptListView>(root, "ReceiptsView");
-                view.ViewModel?.Dispose();
+
                 var model = new ReceiptListViewModel(async (_, token) =>
                 {
                     var call = await Load(token);
                     return new ReceiptListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
                         null, payment, call, null)], null);
                 }, search, _ => "支払方法");
-                view.ViewModel = model;
+                receiptModel = model;
                 initial = model.StartAsync(search.Receipts.Query());
                 model.Suspend();
             }
             await initial;
             priming = false;
+            var home = new Monetail.Windows.Presentation.Workspace.RecordHomeViewModel(search, receiptModel, transferModel);
+            typeof(MainWindow).GetField("recordHome", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(window, home);
             ShowHomeTestPage(root, "HomePage");
             await Wait(() => calls == 1);
             var first = TransferRuntime("homeResume") as CancellationTokenSource
@@ -95,19 +98,19 @@ public partial class App
             ShowHomeTestPage(root, "HomePage");
             await Wait(() => calls == 3);
             var current = TransferRuntime("homeResume");
-            var pending = typeof(MainWindow).GetField(transfers ? "transferRestorePending" : "receiptRestorePending",
-                BindingFlags.NonPublic | BindingFlags.Instance) ?? throw new InvalidOperationException("表示位置復元の状態がありません。");
-            pending.SetValue(window, true);
+            Monetail.Windows.Presentation.Lists.IRecordListState positionState = transfers ? transferModel : receiptModel;
+            var position = new Monetail.Windows.Presentation.Lists.ListViewportPosition(0, 99);
+            positionState.ViewPosition = position;
             gates[0].SetResult(true);
             gates[1].SetResult(true);
             await Settle();
             var list = Find<ListView>(root, transfers ? "TransferList" : "ReceiptList");
-            Check(ReferenceEquals(current, TransferRuntime("homeResume")) && Equals(pending.GetValue(window), true) &&
+            Check(ReferenceEquals(current, TransferRuntime("homeResume")) && positionState.ViewPosition == position &&
                 list.Items.Count == 0 && calls == 3,
                 "古い読込の遅延完了は最新の復帰所有・表示位置復元・行に触れず、再取得も追加しない");
             gates[2].SetResult(true);
             await Wait(() => TransferRuntime("homeResume") is null && list.Items.Count == 1);
-            Check(Equals(pending.GetValue(window), false) && calls == 3 &&
+            Check(positionState.ViewPosition == position && calls == 3 &&
                 !Find<InfoBar>(root, "ErrorNotice").IsOpen,
                 "最新の復帰だけが表示位置を復元し、旧結果や重複行を反映せず完了する");
         }
@@ -160,10 +163,17 @@ public partial class App
             else
                 fixture.ReceiptsHandler = Reject;
             var root = await OpenSyntheticWindow(fixture);
+            var host = Find<Frame>(root, "WorkspaceHost");
+            Monetail.WinUI.Views.Workspace.RecordHomePage? rejectedPage = null;
+            void CaptureHome(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs args) =>
+                rejectedPage = args.Content as Monetail.WinUI.Views.Workspace.RecordHomePage;
+            host.Navigated += CaptureHome;
             await window!.StartAsync();
             await Wait(() => LoginScreen(root) is not null && TransferRuntime("homeResume") is null);
-            Check(Find<Monetail.WinUI.Views.Receipts.ReceiptListView>(root, "ReceiptsView").ViewModel is null &&
-                Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel is null,
+            host.Navigated -= CaptureHome;
+            Check(host.Content is null && rejectedPage is not null && rejectedPage.ViewModel is null &&
+                ((Monetail.WinUI.Views.Receipts.ReceiptListView)rejectedPage.FindName("ReceiptsView")).ViewModel is null &&
+                ((Monetail.WinUI.Views.Transfers.TransferListView)rejectedPage.FindName("TransfersView")).ViewModel is null,
                 "初回一覧の即時認証失効は既存ログインへ退避し、旧ホームの後続一覧を生成しない");
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })

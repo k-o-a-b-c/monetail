@@ -36,8 +36,8 @@ public partial class App
             await Wait(() => Find<ScrollViewer>(root, "ParticipantEditorContent").Visibility == Visibility.Visible);
             await Settle();
             Check(Find<ComboBox>(root, "ParticipantRole").Visibility == Visibility.Collapsed && Find<TextBlock>(root, "ParticipantOwnRole").Text.Contains("管理者"), "本人の役割は読み取り専用");
-            await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
-            Check(Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible, "参加者ダイアログ中は背後の遷移を抑止");
+            await InvokeAsync(() => Find<Button>(root, "RecordButton"));
+            Check(Find<FrameworkElement>(root, "ManagementPage").Visibility == Visibility.Visible, "参加者ダイアログ中は背後の遷移を抑止");
             Find<ComboBox>(root, "ParticipantPerson").SelectedIndex = 0;
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", true));
             await Wait(() => ParticipantEditorClosed(root));
@@ -127,7 +127,10 @@ public partial class App
             Check(!ParticipantDialogAction(root, "ParticipantDialog", true).IsEnabled && Find<ComboBox>(root, "ParticipantRole").SelectedIndex == 1 && server.ListReads == reads,
                 "降格の403は入力を保持し、応答の権限だけで操作を止め再取得しない");
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", false)); await Wait(() => ParticipantEditorClosed(root));
-            Check(Find<NavigationViewItem>(root, "ParticipantsNavigation").Visibility == Visibility.Collapsed && Find<Grid>(root, "HomePage").Visibility == Visibility.Visible,
+            var returnedHome = Visible(root, "HomePage");
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+            await Wait(() => Visible(root, "ManagementPage") && Equals(TransferRuntime("busy"), false));
+            Check(returnedHome && Find<NavigationViewItem>(root, "ParticipantsNavigation").Visibility == Visibility.Collapsed,
                 "権限喪失後は管理画面から閉じて再入場不可");
         }
     }

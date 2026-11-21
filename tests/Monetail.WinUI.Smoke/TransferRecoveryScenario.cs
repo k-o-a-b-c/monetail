@@ -13,7 +13,16 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
-    private object? TransferRuntime(string name) => typeof(MainWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
+    private object? TransferRuntime(string name)
+    {
+        if (name == "homeResume" || name == "recordKeyboard")
+        {
+            var page = typeof(MainWindow).GetProperty("RecordPage", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
+            return page is null ? null : page.GetType().GetField(name == "recordKeyboard" ? "keyboard" : name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(page);
+        }
+        return typeof(MainWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window)
+            ?? typeof(MainWindow).GetProperty(name, BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window);
+    }
     private async Task CompleteTransferLogin(SyntheticConnection fixture, FrameworkElement root, bool mastersExpireAgain = false)
     {
         fixture.RejectSession = fixture.RejectAuthentication = false; fixture.CompleteLogin = true;
@@ -165,8 +174,11 @@ public partial class App
         await ConfirmTransfer(root, ContentDialogResult.None);
         await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await WaitTransferDialog(root, "未保存の内容があります"); await ConfirmTransfer(root, ContentDialogResult.None);
         Check(TransferEditing == editor && Find<DateInputBox>(root, "TransferDate").Text == "2026/", "通常ナビゲーション取消でも未確定入力を補正・破棄しない");
-        Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "LogoutNavigation");
+        // 未訪問の管理Pageは生成しない。ログアウト自体の離脱保護を既存処理で確認する。
+        var logout = (Task)(typeof(MainWindow).GetMethod("LogoutAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("ログアウト処理がありません。")).Invoke(window, null)!;
         await WaitTransferDialog(root, "未保存の内容があります"); await ConfirmTransfer(root, ContentDialogResult.None);
+        await logout;
         Check(ReferenceEquals(editor, TransferEditing) && fixture.Tokens.Current is not null && Visible(root, "HomePage"), "復帰後の通常ログアウトも未保存確認の取消で入力・認証を保持する");
         await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.Secondary); await Wait(() => TransferEditing is null);
     }
@@ -221,11 +233,13 @@ public partial class App
             Check(ReferenceEquals(editor, TransferEditing) && editor.IsReadOnly && editor.Revision == saved.Revision && editor.Draft.Amount == 2000 &&
                 Find<Button>(root, "TransferSave").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferMasterRetry").Visibility == Visibility.Collapsed && server.Writes.Count == 1,
                 $"再認証後の{role}では現在の参加・権限を検証して入力/旧版を保持し、保存・再送を禁止する");
-            Check(Find<NavigationViewItem>(root, "LogoutNavigation").IsEnabled && Find<NavigationViewItem>(root, "AccountNavigation").IsEnabled,
-                "参加喪失・マスタ失敗でも再ログイン済みのアカウント操作を復元する");
             if (role == "Editor") Check(editor.Draft.To.PaymentMethodId == bank && editor.SavedToPaymentMethodId == saved.ToPaymentMethodId && server.Details == 1,
                 "現在の両選択が本人所有でも保存済みの相手側所有権を確認し、追加詳細GETなしで編集を禁止する");
             await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.Primary); await Wait(() => TransferEditing is null);
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+            await Wait(() => Visible(root, "ManagementPage") && Equals(TransferRuntime("busy"), false));
+            Check(Find<NavigationViewItem>(root, "LogoutNavigation").IsEnabled && Find<NavigationViewItem>(root, "AccountNavigation").IsEnabled,
+                "参加喪失・マスタ失敗でも再ログイン済みのアカウント操作を復元する");
         }
     }
 

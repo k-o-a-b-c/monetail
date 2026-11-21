@@ -15,19 +15,18 @@ internal sealed class ListViewportController
 {
     private readonly UserControl owner;
     private readonly ListView list;
-    private readonly Func<bool> hasModel;
+    private readonly Func<IRecordListState?> model;
     private readonly Func<int, bool, bool, Task> observe;
     private ScrollViewer? scroller;
     private bool viewportQueued, scrollIntent, queuedUserScroll;
     private double previousOffset;
-    private (double Horizontal, double Vertical) returnPosition;
 
-    internal ListViewportController(UserControl owner, ListView list, Func<bool> hasModel,
+    internal ListViewportController(UserControl owner, ListView list, Func<IRecordListState?> model,
         Func<int, bool, bool, Task> observe)
     {
         this.owner = owner;
         this.list = list;
-        this.hasModel = hasModel;
+        this.model = model;
         this.observe = observe;
         list.AddHandler(UIElement.PointerWheelChangedEvent,
             new PointerEventHandler((_, _) => scrollIntent = scroller?.ScrollableHeight > 0), true);
@@ -52,7 +51,6 @@ internal sealed class ListViewportController
 
     internal void ResetForModel()
     {
-        returnPosition = default;
         ResetViewport();
     }
 
@@ -72,15 +70,21 @@ internal sealed class ListViewportController
 
     internal void IgnoreUserScroll() => scrollIntent = queuedUserScroll = false;
 
-    internal void RememberPosition() =>
-        returnPosition = (scroller?.HorizontalOffset ?? 0, scroller?.VerticalOffset ?? 0);
+    internal void RememberPosition()
+    {
+        if (model() is { } current)
+            current.ViewPosition = new(scroller?.HorizontalOffset ?? 0, scroller?.VerticalOffset ?? 0);
+    }
 
     internal void RestorePosition() => owner.DispatcherQueue.TryEnqueue(() =>
     {
         if (CanObserve())
         {
+            list.UpdateLayout();
+            ConnectScroller();
             IgnoreUserScroll();
-            scroller?.ChangeView(returnPosition.Horizontal, returnPosition.Vertical, null, true);
+            var position = model()?.ViewPosition ?? default;
+            scroller?.ChangeView(position.Horizontal, position.Vertical, null, true);
         }
     });
 
@@ -102,7 +106,7 @@ internal sealed class ListViewportController
 
     private bool CanObserve()
     {
-        if (!owner.IsLoaded || !hasModel())
+        if (!owner.IsLoaded || model() is null)
             return false;
         for (DependencyObject? element = owner; element is not null; element = VisualTreeHelper.GetParent(element))
             if (element is FrameworkElement { Visibility: Visibility.Collapsed })

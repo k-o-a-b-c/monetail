@@ -74,7 +74,7 @@ public partial class App
         await PressReceiptKey(0x0D);
         await Wait(() => window!.ReceiptHomeReady && reads == 2);
         Check(searchedText == " 未確定店舗 " && ReceiptEditing is null, "ViewのEnter検索は未確定の原文を共通検索へ渡し、編集を開かない");
-        var keyboard = typeof(MainWindow).GetField("recordKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(window) as FormKeyboard
+        var keyboard = TransferRuntime("recordKeyboard") as FormKeyboard
             ?? throw new InvalidOperationException("一覧のIME制御がありません。");
         var composing = typeof(FormKeyboard).GetField("composing", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(keyboard) as HashSet<TextBox>
             ?? throw new InvalidOperationException("IME観測がありません。");

@@ -34,11 +34,14 @@ public partial class App
         await activeWindow.StartAsync();
         await Wait(() => requests.Count == 1 && Find<ProgressRing>(root, "ReceiptInitialProgress").IsActive);
         var list = Find<ListView>(root, "ReceiptList");
+        var initialProgress = Find<ProgressRing>(root, "ReceiptInitialProgress");
+        var initialNotice = Find<StackPanel>(root, "ReceiptInitialNotice");
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => initialCancelled && Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
-        Check(!Find<ProgressRing>(root, "ReceiptInitialProgress").IsActive && Find<StackPanel>(root, "ReceiptInitialNotice").Visibility == Visibility.Collapsed,
+        Check(!initialProgress.IsActive && initialNotice.Visibility == Visibility.Collapsed,
             "初回読込の画面離脱で要求を中断しリングと読み込み表示を停止");
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
+        list = Find<ListView>(root, "ReceiptList");
         await Wait(() => requests.Count == 2 && Find<ProgressRing>(root, "ReceiptInitialProgress").IsActive);
         Check(requests[0] == requests[1] && list.Items.Count == 0, "初回読込の復帰は同じ確定条件・cursorなしで一度だけ再開");
         initialResume.SetResult(true);
@@ -50,14 +53,22 @@ public partial class App
         var pending = state.ObserveViewportAsync(79, true, true);
         await Wait(() => requests.Count == 3 && Find<ProgressRing>(root, "ReceiptNextProgress").IsActive); await Settle();
         var offset = scroll.VerticalOffset; Check(offset > 0, "追加読込中のスクロール保持を先頭以外の表示位置で検証");
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
+        await Settle();
+        Check(Math.Abs(scroll.VerticalOffset - offset) < 0.1 && ReferenceEquals(list.SelectedItem, selected) && requests.Count == 3,
+            "同じ記録画面の再表示は現在の選択・表示位置を戻さず、読込要求も増やさない");
+        var nextProgress = Find<ProgressRing>(root, "ReceiptNextProgress");
+        var nextNotice = Find<StackPanel>(root, "ReceiptNextNotice");
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => continuationCancelled && Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
         await pending;
-        Check(!state.IsLoading && !Find<ProgressRing>(root, "ReceiptNextProgress").IsActive && Find<StackPanel>(root, "ReceiptNextNotice").Visibility == Visibility.Collapsed,
+        Check(!state.IsLoading && !nextProgress.IsActive && nextNotice.Visibility == Visibility.Collapsed,
             "追加読込の画面離脱で要求・状態・末尾リングを同時に停止");
-        Check(list.Items.Count == 100 && ReferenceEquals(list.Items[0], first) && ReferenceEquals(list.SelectedItem, selected), "追加読込の中断では取得済み行と選択を保持");
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        Check(state.Rows.Count == 100 && ReferenceEquals(state.Rows[0], first) && ReferenceEquals(state.SelectedItem, selected), "追加読込の中断では取得済み行と選択を保持");
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
+        list = Find<ListView>(root, "ReceiptList");
         await Wait(() => requests.Count == 4 && state.IsContinuationLoading && Find<ProgressRing>(root, "ReceiptNextProgress").IsActive); await Settle();
+        scroll = All(list).OfType<ScrollViewer>().First();
         Check(requests[2] == requests[3] && requests[3].Contains("cursor=next", StringComparison.Ordinal), "記録画面への復帰で中断した追加ページの同じ条件・カーソルだけを再開");
         Check(ReferenceEquals(list.SelectedItem, selected) && Math.Abs(scroll.VerticalOffset - offset) < 0.1, "追加読込の再開中も選択とスクロール位置を保持");
         continuationResume.SetResult(true);

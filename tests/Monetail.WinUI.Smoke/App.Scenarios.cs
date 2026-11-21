@@ -74,14 +74,14 @@ public partial class App
         shell.DisplayWorkspace(new LedgerInfo(Guid.NewGuid(), "家族の家計簿", "Admin", Guid.NewGuid().ToString("N")),
             new PeopleInfo([mother, father, child], father.PersonId, "Admin", Guid.NewGuid()));
         await Settle();
-        Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "ホームの表示");
+        Check(Find<FrameworkElement>(root, "HomePage").Visibility == Visibility.Visible, "ホームの表示");
         if (capture) await Capture(root, output, "01-home");
 
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Settle();
         var navigation = Find<NavigationView>(root, "ManagementNavigation");
         var people = Find<ListView>(root, "PeopleList");
-        Check(Find<Grid>(root, "ManagementPage").Visibility == Visibility.Visible, "管理・設定への切替");
+        Check(Find<FrameworkElement>(root, "ManagementPage").Visibility == Visibility.Visible, "管理・設定への切替");
         Check(navigation.IsPaneOpen && ReferenceEquals(navigation.SelectedItem,
             Find<NavigationViewItem>(root, "PeopleNavigation")), "左メニューを保持");
         Check(people.Items.Count == 2, "人物の初期表示は本日有効な人物のみ");
@@ -109,9 +109,9 @@ public partial class App
         if (capture) await Capture(root, output, "04-management-dark");
         root.RequestedTheme = ElementTheme.Default;
 
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
         await Settle();
-        Check(Find<Grid>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
+        Check(Find<FrameworkElement>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
         rasterizationScale = root.XamlRoot.RasterizationScale;
         await CheckInvocationGuards(root);
     }

@@ -153,7 +153,7 @@ public sealed partial class MainWindow
             RenderRecordFilterControls();
         }
         ResetTransferEditor();
-        if (returnToList) ShowPage(HomePage);
+        if (returnToList) NavigateWorkspace(WorkspaceScreen.HomePage);
         if (TransferListModel is { } list && recordSearch is not null)
         {
             var receipt = ReceiptListModel?.StartAsync(receiptSearch!.Query(), lifetime.Token) ?? Task.CompletedTask;
@@ -165,12 +165,8 @@ public sealed partial class MainWindow
     }
     private void RenderRecordFilterControls()
     {
-        if (receiptSearch is null || recordSearch is null) return;
-        receiptFiltersUpdating = true; ReceiptMonth.Text = receiptSearch.MonthText; RecordKeyword.Text = recordSearch.TransferText;
-        RecordMonthPeriod.IsChecked = !receiptSearch.AllPeriods; ReceiptAllPeriods.IsChecked = receiptSearch.AllPeriods;
-        receiptFiltersUpdating = false;
         RefreshReceiptChoices();
-        RenderRecordFilters();
+        recordHome?.RefreshSearch();
     }
     private async Task OfferTransferConflictAsync(TransferEditorState editor)
     {
@@ -218,7 +214,8 @@ public sealed partial class MainWindow
                 if (answer == ContentDialogResult.None) return false;
                 if (writable && answer == ContentDialogResult.Primary) return await SaveTransferAsync(false, returnToList: false);
             }
-            ResetTransferEditor(); transferRestorePending = true; receiptRestorePending = true; return true;
+            ResetTransferEditor();
+            return true;
         }
         finally { transferLeaving = false; }
     }

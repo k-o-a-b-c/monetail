@@ -59,8 +59,9 @@ public partial class App
         masters.Rows[0] = masters.Rows[0] with { Name = "変更後の支払方法" };
         Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "PaymentsNavigation");
         await Wait(() => masters.Reads == reads + 1 && Find<ListView>(root, "PaymentsList").Items.Count == 2 && Find<ContentControl>(root, "Operations").IsEnabled);
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
         await Wait(() => Visible(root, "HomePage"));
+        list = Find<ListView>(root, "ReceiptList");
         Check(first.PaymentName == "変更後の支払方法" && requests.Count == histories && list.Items.Count == 101 && ReferenceEquals(list.SelectedItem, first), "管理画面の再取得をキャッシュへ反映し、記録へ戻っても追加GETせず一覧・選択を維持");
         fail = true; await InvokeAsync(() => Find<Button>(root, "RecordKeywordSearch"));
         await Wait(() => Find<StackPanel>(root, "ReceiptInitialFailure").Visibility == Visibility.Visible);

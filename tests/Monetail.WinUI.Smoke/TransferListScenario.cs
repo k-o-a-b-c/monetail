@@ -40,7 +40,7 @@ public partial class App
         var list = Find<ListView>(root, "TransferList"); var filter = Find<ScrollViewer>(root, "RecordFilterScroller");
         var owner = Find<ComboBox>(root, "ReceiptOwner"); var payment = Find<ComboBox>(root, "ReceiptPayment");
         Check(transfers.Count == 1 && Find<TextBlock>(root, "TransferEmpty").Visibility == Visibility.Visible, "振替0件は中央表示し追加要求しない");
-        Check(((ReceiptFilterChoice)owner.SelectedItem).Id is null && ((ReceiptFilterChoice)payment.SelectedItem).Id is null, "共通の支払者は全員・支払方法は全件で初期化");
+        Check(((Monetail.Windows.Presentation.Workspace.RecordFilterChoice)owner.SelectedItem).Id is null && ((Monetail.Windows.Presentation.Workspace.RecordFilterChoice)payment.SelectedItem).Id is null, "共通の支払者は全員・支払方法は全件で初期化");
         Check(Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled && !All(root).OfType<Button>().Single(b => AutomationProperties.GetAutomationId(b) == "BalanceRegisterPlaceholder").IsEnabled, "振替の登録入口は有効・残高の未実装入口は無効");
         root.UpdateLayout();
         var content = Find<Grid>(root, "RecordContent"); var cards = content.Children.OfType<Border>().ToArray();
@@ -66,12 +66,12 @@ public partial class App
         month.Text = "bad"; await InvokeAsync(() => Find<Button>(root, "RecordMonthApply"));
         Check(transfers.Count == 1 && receipts.Count == 1 && Find<TextBlock>(root, "ReceiptMonthError").Visibility == Visibility.Visible, "不正共通年月は両APIを呼ばず近傍エラー");
         month.Text = "2027-01"; keyword.Text = "未確定";
-        payment.SelectedItem = payment.Items.Cast<ReceiptFilterChoice>().Single(v => v.Id == masters.ActiveId);
+        payment.SelectedItem = payment.Items.Cast<Monetail.Windows.Presentation.Workspace.RecordFilterChoice>().Single(v => v.Id == masters.ActiveId);
         await Wait(() => window.ReceiptHomeReady && transfers.Count == 2 && receipts.Count == 2);
-        owner.SelectedItem = owner.Items.Cast<ReceiptFilterChoice>().Single(v => v.Id == masters.Other);
+        owner.SelectedItem = owner.Items.Cast<Monetail.Windows.Presentation.Workspace.RecordFilterChoice>().Single(v => v.Id == masters.Other);
         await Wait(() => window.ReceiptHomeReady && transfers.Count == 3 && receipts.Count == 3);
         var values = TransferQueryValues(transfers[^1]);
-        Check(values["month"] == current && values["q"] == "" && values["ownerPersonId"] == masters.Other.ToString("D") && values["paymentMethodId"] == masters.ActiveId.ToString("D") && ((ReceiptFilterChoice)payment.SelectedItem).Id == masters.ActiveId,
+        Check(values["month"] == current && values["q"] == "" && values["ownerPersonId"] == masters.Other.ToString("D") && values["paymentMethodId"] == masters.ActiveId.ToString("D") && ((Monetail.Windows.Presentation.Workspace.RecordFilterChoice)payment.SelectedItem).Id == masters.ActiveId,
             "人物・支払方法は独立ANDで両一覧へ適用し未確定年月や名前を確定しない");
         await InvokeAsync(() => Find<Button>(root, "RecordMonthApply")); await Wait(() => window.ReceiptHomeReady && transfers.Count == 4 && receipts.Count == 4);
         Check(TransferQueryValues(transfers[^1])["month"] == "2027-01" && TransferQueryValues(transfers[^1])["q"] == "" && TransferQueryValues(receipts[^1])["q"] == "" && keyword.Text == "未確定",
@@ -83,7 +83,7 @@ public partial class App
         Find<RadioButton>(root, "ReceiptAllPeriods").IsChecked = true; await Wait(() => window.ReceiptHomeReady && transfers.Count == 6 && receipts.Count == 6);
         Check(TransferQueryValues(transfers[^1])["month"] == "all" && !month.IsEnabled, "全期間は両一覧へ共通適用し年月操作を無効化");
         Find<RadioButton>(root, "RecordMonthPeriod").IsChecked = true; await Wait(() => window.ReceiptHomeReady && transfers.Count == 7 && receipts.Count == 7);
-        Check(TransferQueryValues(transfers[^1])["month"] == "2027-01" && ((ReceiptFilterChoice)owner.SelectedItem).Id == masters.Other, "月指定復帰は保持年月・人物・支払方法を維持");
+        Check(TransferQueryValues(transfers[^1])["month"] == "2027-01" && ((Monetail.Windows.Presentation.Workspace.RecordFilterChoice)owner.SelectedItem).Id == masters.Other, "月指定復帰は保持年月・人物・支払方法を維持");
         count = 101; await InvokeAsync(() => Find<Button>(root, "RecordKeywordSearch")); await Wait(() => list.Items.Count == 100 && window.TransferHomeReady);
         var first = (Monetail.Windows.Presentation.Transfers.TransferListItem)list.Items[0]; list.SelectedItem = first;
         await Wait(() => All(list).OfType<TextBlock>().Any(t => t.Text == "振替0"));

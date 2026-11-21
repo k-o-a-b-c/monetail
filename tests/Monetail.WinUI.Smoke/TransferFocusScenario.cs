@@ -35,9 +35,10 @@ public partial class App
         var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
         var opening = window!.OpenTransferEditorAsync(row.TransferId); await Wait(() => server.Details == 1 && Find<ProgressRing>(root, "TransferOpenProgress").IsActive);
         await window.OpenTransferEditorAsync(row.TransferId); Check(server.Details == 1, "振替詳細GET中の二重起動を拒否");
+        var openingProgress = Find<ProgressRing>(root, "TransferOpenProgress");
         await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await opening; await Wait(() => Visible(root, "ManagementPage"));
-        Check(!Find<ProgressRing>(root, "TransferOpenProgress").IsActive && TransferEditing is null, "詳細GET中の画面離脱は要求を中断し編集を生成しない");
-        server.DetailGate.SetResult(true); await InvokeAsync(() => Find<Button>(root, "ReturnButton")); await Wait(() => Visible(root, "HomePage"));
+        Check(!openingProgress.IsActive && TransferEditing is null, "詳細GET中の画面離脱は要求を中断し編集を生成しない");
+        server.DetailGate.SetResult(true); await InvokeAsync(() => Find<Button>(root, "RecordButton")); await Wait(() => Visible(root, "HomePage"));
         Check(Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled && TransferEditing is null, "詳細GETの中断後も登録入口を復元し旧応答を適用しない");
         server.DetailGate = null; server.Rows.Remove(row.TransferId); await window.OpenTransferEditorAsync(row.TransferId);
         Check(TransferEditing is null && Find<TextBlock>(root, "TransferOpenMessage").Text.Contains("アクセス") && !Find<ProgressRing>(root, "TransferOpenProgress").IsActive, "詳細404は一覧を保持して失効と不存在を断定せず表示");

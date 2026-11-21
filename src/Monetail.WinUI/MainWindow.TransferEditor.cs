@@ -14,7 +14,7 @@ public sealed partial class MainWindow
     private TransferEditorState? transferEditor;
     private CancellationTokenSource? transferOpening;
     private Guid? transferOpenRetry;
-    private bool transferDialogOpen, transferLeaving, transferCloseApproved, transferRestorePending;
+    private bool transferDialogOpen, transferLeaving, transferCloseApproved;
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
@@ -49,7 +49,7 @@ public sealed partial class MainWindow
     internal async Task OpenTransferEditorAsync(Guid? id)
     {
         if (busy || closed || ManagementDialogOpen || transferOpening is not null || receiptOpening is not null ||
-            RecordEditorActive || account is null || currentLedger is null || HomePage.Visibility != Visibility.Visible)
+            RecordEditorActive || account is null || currentLedger is null || !IsRecordPageVisible)
             return;
         var ledger = currentLedger.LedgerId;
         var person = account.AuthUserId;
@@ -58,14 +58,11 @@ public sealed partial class MainWindow
         using var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         transferOpening = pending;
         transferOpenRetry = id;
-        TransferOpenNotice.Visibility = Visibility.Visible;
-        TransferOpenProgress.IsActive = true;
-        TransferOpenRetry.Visibility = Visibility.Collapsed;
-        TransferOpenMessage.Text = "振替を読み込み中…";
+        if (recordHome is not null) recordHome.TransferOpening = new("振替を読み込み中…", true, false);
         UpdateTransferActions();
         bool Current() => !closed && ReferenceEquals(transferOpening, pending) && !pending.IsCancellationRequested &&
             currentLedger?.LedgerId == ledger && account?.AuthUserId == person &&
-            HomePage.Visibility == Visibility.Visible && !RecordEditorActive;
+            IsRecordPageVisible && !RecordEditorActive;
         try
         {
             var saved = id is Guid value ? await new TransfersWorkspace(api, session, ledger).GetAsync(value, pending.Token) : null;
@@ -75,7 +72,7 @@ public sealed partial class MainWindow
                 return;
             if (saved is null && !TransferEditorRules.CanCreate(methods))
             {
-                TransferOpenMessage.Text = "振替を登録する権限がありません。";
+                if (recordHome is not null) recordHome.TransferOpening = new("振替を登録する権限がありません。", false, false);
                 return;
             }
             transferEditor = saved is null ? TransferEditorState.Create(DateOnly.FromDateTime(DateTime.Now)) : TransferEditorState.Edit(saved);
@@ -86,12 +83,8 @@ public sealed partial class MainWindow
             model.ActionRequested += ExecuteTransferActionAsync;
             model.AuthenticationRequired += StopTransferAuthentication;
             TransferEntry.ViewModel = model;
-            CancelRecordHomeResume();
-            TransfersView.RememberPosition();
-            ReceiptsView.RememberPosition();
-            TransferListModel?.Suspend();
-            ReceiptListModel?.Suspend();
-            RecordContent.Visibility = Visibility.Collapsed;
+            RecordPage?.RememberPositions();
+            RecordPage?.ShowEditor(EditorContents);
             TransferEditorPage.Visibility = Visibility.Visible;
             PopulateTransferEditor();
             TransferEntry.FocusField("transactionAt");
@@ -109,9 +102,10 @@ public sealed partial class MainWindow
         {
             if (Current())
             {
-                TransferOpenMessage.Text = error is TransferRequestException { StatusCode: HttpStatusCode.NotFound }
-                    ? "振替が削除されたか、アクセスできなくなりました。" : "振替またはマスタ情報を取得できませんでした。";
-                TransferOpenRetry.Visibility = Visibility.Visible;
+                if (recordHome is not null)
+                    recordHome.TransferOpening = new(error is TransferRequestException { StatusCode: HttpStatusCode.NotFound }
+                        ? "振替が削除されたか、アクセスできなくなりました。" : "振替またはマスタ情報を取得できませんでした。", false, true);
+
             }
         }
         finally
@@ -119,22 +113,17 @@ public sealed partial class MainWindow
             if (ReferenceEquals(transferOpening, pending))
             {
                 transferOpening = null;
-                TransferOpenProgress.IsActive = false;
-                if (transferEditor is not null)
-                    TransferOpenNotice.Visibility = Visibility.Collapsed;
+                if (recordHome is not null && transferEditor is not null) recordHome.TransferOpening = null;
                 UpdateTransferActions();
             }
         }
     }
-    private async void RetryTransferOpening(object sender, RoutedEventArgs args) => await OpenTransferEditorAsync(transferOpenRetry);
     private void CancelTransferOpening()
     {
         var pending = transferOpening;
         transferOpening = null;
         pending?.Cancel();
-        TransferOpenNotice.Visibility = Visibility.Collapsed;
-        TransferOpenProgress.IsActive = false;
-        TransferOpenRetry.Visibility = Visibility.Collapsed;
+        if (recordHome is not null) recordHome.TransferOpening = null;
         UpdateTransferActions();
     }
     private void ResetTransferEditor()
@@ -148,7 +137,7 @@ public sealed partial class MainWindow
         TransferEntry.Discard();
         transferEditor = null;
         TransferEditorPage.Visibility = Visibility.Collapsed;
-        RecordContent.Visibility = Visibility.Visible;
+        RecordPage?.ShowEditor(null);
     }
     private void PopulateTransferEditor()
     {
@@ -186,9 +175,9 @@ public sealed partial class MainWindow
     {
         if (await LeaveTransferEditorAsync())
         {
-            ShowPage(HomePage);
+            NavigateWorkspace(WorkspaceScreen.HomePage);
             RestoreTransferPosition();
         }
     }
-    private void RestoreTransferPosition() => TransfersView.RestorePosition();
+    private void RestoreTransferPosition() => RecordPage?.RestorePositions();
 }

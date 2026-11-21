@@ -78,7 +78,17 @@ public partial class App : Application
             return All(dialog).OfType<T>().Where(element => element is Button button && Equals(button.Content, text)).OrderByDescending(element => element.IsLoaded).FirstOrDefault()
                 ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
         }
-        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? (root.FindName("TransferEntry") as Monetail.WinUI.Views.Transfers.TransferEditorView)?.FindName(name) ?? (root.FindName("ReceiptEntry") as Monetail.WinUI.Views.Receipts.ReceiptEditorView)?.FindName(name) ?? FindSharedRecordElement(root, name) ?? FindAuthenticationElement(root, name) ?? FindLedgerPageElement(root, name) ?? FindConnectionElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? (root.FindName("TransferEntry") as Monetail.WinUI.Views.Transfers.TransferEditorView)?.FindName(name) ?? (root.FindName("ReceiptEntry") as Monetail.WinUI.Views.Receipts.ReceiptEditorView)?.FindName(name) ?? FindWorkspaceElement(root, name) ?? FindSharedRecordElement(root, name) ?? FindAuthenticationElement(root, name) ?? FindLedgerPageElement(root, name) ?? FindConnectionElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+    }
+    private static object? FindWorkspaceElement(FrameworkElement root, string name)
+    {
+        var page = (root.FindName("WorkspaceHost") as Frame)?.Content as FrameworkElement;
+        if (name == "HomePage" && page is Monetail.WinUI.Views.Workspace.RecordHomePage ||
+            name == "ManagementPage" && page is Monetail.WinUI.Views.Workspace.ManagementPage ||
+            name == "LedgerChoicePage" && page is Monetail.WinUI.Views.LedgerChoiceView) return page;
+        return page?.FindName(name)
+            ?? (page?.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name)
+            ?? (page?.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name);
     }
     private static object? FindLedgerPageElement(FrameworkElement root, string name) =>
         ((root.FindName("LedgerPageHost") as ContentControl)?.Content as Frame)?.Content is FrameworkElement page ? page.FindName(name) : null;
@@ -111,7 +121,7 @@ public partial class App : Application
             : automationId.StartsWith("Transfer", StringComparison.Ordinal) ? automationId[8..] : automationId;
         foreach (var viewName in new[] { "ReceiptsView", "TransfersView" })
         {
-            if (root.FindName(viewName) is not FrameworkElement view)
+            if ((root.FindName(viewName) ?? FindWorkspaceElement(root, viewName)) is not FrameworkElement view)
                 continue;
             foreach (var name in new[] { "Panel", "Footer" })
                 if (view.FindName(name) is FrameworkElement scope && scope.FindName(localName) is DependencyObject element &&

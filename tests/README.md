@@ -10,11 +10,29 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1210 |
-| Windows Presentation（接続先設定VM・レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 164 |
+| Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 168 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3849 |
+| 合計 | 3853 |
+
+## Shell・記録/管理Page境界（Draft PR #231 / PR1）
+
+[WorkspaceViewModelTests](Monetail.Windows.Presentation.Tests/WorkspaceViewModelTests.cs)の追加4件は、既存RecordSearchStateを用いた共通検索/未確定入力/年月検証、選択・表示位置の維持、中断/再開・破棄後の古い応答拒否/二重破棄、Shell承認付きの管理選択をUIなしで確認する。[WorkspacePageScenario](Monetail.WinUI.Smoke/WorkspacePageScenario.cs)を既存connection-flowへ組み込み、未訪問Page未生成、通常離脱時のVM/内容接続解除、再訪時の新Page/同VMと検索下書き・追加GETなしを確認する。
+
+既存36シナリオは維持する。Receipt/TransferNavigationScenarioは、非表示旧PageのNameScopeを検索する代わりに離脱前のリング/通知を捕捉し、Pageが存在しない間は既存VMの行/選択、復帰後は新Pageの実ListViewと縦横位置を検証する。未訪問の非表示ログアウトメニューを直接選ぶ試験は、既存LogoutAsyncによる同じ未保存確認の取消を検証する。アカウント操作可否は編集離脱後に実際の管理Pageで確認する。ReceiptRecoveryScenarioは既存401復帰の同一入力/モデル/コントロール確認に、同じRecordHomePageの保持を加える。全画面の競合・再送・結果不明・管理401・IME/キーボード・保存後focusの条件/タイムアウトは緩和しない。
+
+構成・計測・PR2/3の未実装境界は[構成正本](../docs/architecture-winui.md#shellpagemvvm統合の3pr計画pr1--draft-pr-231)を参照する。管理詳細/入力Viewと既存ダイアログはWindow所有が残り、全画面の必要時生成/MVVM完了とは扱わない。
+
+ローカルReleaseでClient全1,210件・Presentation全168件（追加4、失敗/skipなし）が成功。Windows上のClient/Presentationは同一fingerprintの[成功ジョブ136970208928](https://github.com/k-o-a-b-c/monetail/actions/runs/44944967852/job/136970208928)を再利用する（当該実行全体は後続のpushで取消されたが、このジョブは完了・成功）。変更前はmain `e74c241`の[Tests 44940338238](https://github.com/k-o-a-b-c/monetail/actions/runs/44940338238)成功を採用し、API/DB/Docker/旧Windows/Windows実保存等の非変更部分はCI選択と成功fingerprintに従う。
+
+最終ソース`b878178`の[Tests 44948027313](https://github.com/k-o-a-b-c/monetail/actions/runs/44948027313)が成功した。製品/検証用WinUI x64 Release（既存WUI2011警告29件ずつ・新規警告/エラーなし）、製品起動、全36シナリオ/923確認（connection-flow168）、個別3シナリオ、全件照合・撮影・不正指定拒否・計測が成功。先行ソース`044d833`の[Tests 44946603397](https://github.com/k-o-a-b-c/monetail/actions/runs/44946603397)も全件成功し、以降の製品差分は移管したC#行と新規スタイル辞書の空行の書式のみで、Roslynトークン列とXMLの要素/属性/値の一致を確認した。成功成果物のホーム・管理標準/狭幅/ダークの撮影を確認した。構造検査・C#構文検査・XML・ベースorigin/mainとの差分全体のgit diff --checkも成功。
+
+途中の失敗は、[初回44943791475](https://github.com/k-o-a-b-c/monetail/actions/runs/44943791475)の振替読込通知の構文漏れ、[44944280939](https://github.com/k-o-a-b-c/monetail/actions/runs/44944280939)のnull参照元に対する一覧接続解除不足、[44945227264](https://github.com/k-o-a-b-c/monetail/actions/runs/44945227264)のnullable通知のx:Bindフォールバック不足だった。Page内で一覧購読を明示解除し、既存共通部品と同じFallbackValueを設定した。新設の再訪試験は[44945695539](https://github.com/k-o-a-b-c/monetail/actions/runs/44945695539)で失敗し、検索入力を標準のTwoWay/PropertyChangedへ統一するとともに、VM反映/Loaded成立を明示して確認した。旧常駐Page/privateフィールドを前提とした試験の参照先漏れも移設先へ修正した。表示/入力/再送の期待値やタイムアウトは緩和していない。
+
+最初のローカルClientコマンドはrestore前のassets欠落とサンドボックスのMSBuild IPC制限によりテスト開始前に停止した。restore/実行条件を整えて上記1,210件が成功した。ローカルのNU1900はNuGet脆弱性メタデータ取得のネットワーク制限であり、Windowsビルドの新規警告ではない。
+
+最終成功実行では既存IME確認も通過し、0xC000027B/0xC0000005の記録はない。既知の断続的ネイティブ停止・IME失敗は原因未特定のままであり、再実行成功を原因解消とは扱わない。WinApp CLIはこの環境にないため未実行。公式Frame/Pageパターン、既存WinUIAnalyzer、Windows CIのビルド/実起動と自動入力で代替検証した。実API/OAuth・実Windows手動操作・物理IME/タッチ・高DPI/文字拡大・スクリーンリーダーは未実施。
 
 ## 認証失敗・再試行の所有（PR #230）
 

@@ -11,6 +11,10 @@
     <Page Include="../../src/Monetail.WinUI/Views/LedgerChoiceView.xaml" Link="Views/LedgerChoiceView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/LedgerChoiceView.xaml.cs" Link="Views/LedgerChoiceView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.Workspace.cs" Link="MainWindow.Workspace.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Workspace/*.xaml" Link="Views/Workspace/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Workspace/*.cs" Link="Views/Workspace/%(Filename)%(Extension)" />
+    <Page Include="../../src/Monetail.WinUI/Styles/*.xaml" Link="Styles/%(Filename)%(Extension)" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Connection.cs" Link="MainWindow.Connection.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Ledgers.cs" Link="MainWindow.Ledgers.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Activation.cs" Link="MainWindow.Activation.cs" />
@@ -34,7 +38,6 @@
     <Compile Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSetupPage.xaml.cs" Link="Views/Connection/ConnectionSetupPage.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
     <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
-    <Compile Include="../../src/Monetail.WinUI/ReceiptFilterChoice.cs" Link="ReceiptFilterChoice.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/RecordListPanel.xaml" Link="Views/RecordListPanel.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/RecordListPanel.xaml.cs" Link="Views/RecordListPanel.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/RecordListFooter.xaml" Link="Views/RecordListFooter.xaml" />
@@ -44,7 +47,6 @@
     <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml.cs" Link="Views/Receipts/ReceiptListView.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml" Link="Views/Transfers/TransferListView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs" Link="Views/Transfers/TransferListView.xaml.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.Transfers.cs" Link="MainWindow.Transfers.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml" Link="Views/Transfers/TransferEditorView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml.cs" Link="Views/Transfers/TransferEditorView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferEditor.cs" Link="MainWindow.TransferEditor.cs" />

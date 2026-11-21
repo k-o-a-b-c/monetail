@@ -153,9 +153,10 @@ public partial class App
             fixture.TaxRatesHandler = (_, token) => { token.Register(() => cancelled = true); return pending.Task; };
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); var opening = window!.OpenReceiptEditorAsync(null);
             await Wait(() => fixture.TaxRatesRequests == 1);
+            var openingProgress = Find<ProgressRing>(root, "ReceiptOpenProgress");
             await InvokeAsync(() => Find<Button>(root, "SettingsButton")); await Wait(() => Visible(root, "ManagementPage"));
             pending.SetResult(TaxHistoryResponse()); await opening;
-            Check(cancelled && ReceiptEditing is null && !Find<ProgressRing>(root, "ReceiptOpenProgress").IsActive && Visible(root, "ManagementPage"),
+            Check(cancelled && ReceiptEditing is null && !openingProgress.IsActive && Visible(root, "ManagementPage"),
                 "税率取得中の離脱は中断し、取消を無視した旧応答も入力画面へ適用しない");
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
@@ -163,9 +164,12 @@ public partial class App
             var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
             var payments = new PaymentServer(); fixture.PaymentsHandler = payments.HandleAsync;
             fixture.TaxRatesHandler = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
-            var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenReceiptEditorAsync(null);
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
+            var openingProgress = Find<ProgressRing>(root, "ReceiptOpenProgress");
+            await window!.OpenReceiptEditorAsync(null);
             await Wait(() => Visible(root, "LoginPage"));
-            Check(ReceiptEditing is null && !Find<ProgressRing>(root, "ReceiptOpenProgress").IsActive,
+            Check(ReceiptEditing is null && !openingProgress.IsActive,
                 "税率取得の401は既存の認証更新/ログイン処理へ接続し、未取得のまま編集を開始しない");
         }
 

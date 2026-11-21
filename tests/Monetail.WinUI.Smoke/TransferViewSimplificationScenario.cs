@@ -101,7 +101,7 @@ public partial class App
         async Task NearEnd()
         {
             // 次の操作位置への準備も製品の復元経路を使い、直前のホイール意図を持ち越さない。
-            SetViewportValue(view, "returnPosition", (scroll.HorizontalOffset, scroll.ScrollableHeight - 30));
+            model.ViewPosition = new(scroll.HorizontalOffset, scroll.ScrollableHeight - 30);
             view.RestorePosition();
             await Wait(() => scroll.VerticalOffset >= scroll.ScrollableHeight - 31);
             await Settle();

@@ -103,7 +103,7 @@ public partial class App
         model.SelectedItem = selected;
         // 仮想化後の位置丸めで最下端へ到達しないよう、ホイールで下へ動ける余地を残す。
         var wheelStart = scroll.ScrollableHeight - scroll.ViewportHeight / 2;
-        SetViewportValue(view, "returnPosition", (Math.Min(80, scroll.ScrollableWidth), wheelStart));
+        model.ViewPosition = new(Math.Min(80, scroll.ScrollableWidth), wheelStart);
         view.RestorePosition();
         await Wait(() => scroll.VerticalOffset >= wheelStart - 1 && scroll.VerticalOffset < scroll.ScrollableHeight);
         await Settle();

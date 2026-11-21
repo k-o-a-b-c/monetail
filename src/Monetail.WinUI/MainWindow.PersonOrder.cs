@@ -122,7 +122,7 @@ public sealed partial class MainWindow
     {
         if (busy) return;
         DiscardPersonOrder();
-        if (!CanViewPeople) ShowPage(HomePage);
+        if (!CanViewPeople) NavigateWorkspace(WorkspaceScreen.HomePage);
         else PeopleContent.Visibility = Visibility.Visible;
     }
 

@@ -55,7 +55,8 @@ public sealed partial class MainWindow
         }
         transferAwaitingLogin = false; transferMastersLoading = true;
         if (currentLedger is { } ledger) DisplayLedgerHeader(ledger);
-        ShowPage(HomePage); RenderTransferEditor();
+        NavigateWorkspace(WorkspaceScreen.HomePage);
+        RenderTransferEditor();
         await LoadTransferRecoveryMastersAsync(context, token);
         return true;
     }
@@ -123,7 +124,7 @@ public sealed partial class MainWindow
     {
         var editor = transferEditor;
         TransferEntry.RestorePosition(() => !closed && !transferAwaitingLogin && editor is not null &&
-            ReferenceEquals(editor, transferEditor) && HomePage.Visibility == Visibility.Visible &&
+            ReferenceEquals(editor, transferEditor) && IsRecordPageVisible &&
             account?.AuthUserId == context.AccountId && connection.Endpoint?.Value == context.ApiOrigin &&
             currentLedger?.LedgerId == context.LedgerId);
     }
