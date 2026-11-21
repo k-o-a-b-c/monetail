@@ -35,10 +35,12 @@ public partial class App
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?? throw new InvalidOperationException("ログインへの入口がありません。");
             showLogin.Invoke(window, [null]);
-            var reportFailure = typeof(MainWindow).GetMethod("ReportFailure",
+            var reportFailure = typeof(MainWindow).GetMethod("RunAuthenticationAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?? throw new InvalidOperationException("接続失敗への入口がありません。");
-            reportFailure.Invoke(window, ["合成の接続失敗", (Func<Task>)(() => Task.CompletedTask)]);
+            Func<Task> fail = () => Task.FromException(new Monetail.Windows.Client.Transport.ApiConnectionException());
+            Action<string> unapproved = _ => throw new InvalidOperationException("未承認の認証画面遷移");
+            await (Task)(reportFailure.Invoke(window, [fail, unapproved]) ?? throw new InvalidOperationException("失敗処理がありません。"));
             Check(Visible(root, "HomePage") && LoginScreen(root) is null && FailureScreen(root) is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing),
                 "認証退避以外の未承認Page移動は元の編集・未確定入力を隠さない");

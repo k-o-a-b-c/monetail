@@ -54,9 +54,11 @@ public sealed partial class MainWindow
     private object? CurrentPage => authentication?.Page ?? (LedgerPageHost.Content as Frame)?.Content;
 
     internal Task StartAsync() => authentication?.StartAsync() ?? Task.CompletedTask;
-    private Task RestartAuthenticationAsync() => ShowAuthentication()?.RestartAsync() ?? Task.CompletedTask;
-    private Task RunAuthenticationAsync(Func<Task> action, ApiEndpoint? candidate) => RunAsync(action,
-        candidate is null ? RestartAuthenticationAsync : () => ConnectAsync(candidate, lifetime.Token));
+    private Task RunAuthenticationAsync(Func<Task> action, Action<string> failed) => RunAsync(action, message =>
+    {
+        if (ShowAuthentication() is not null)
+            failed(message);
+    });
 
     private async Task AuthenticatedAsync(AuthenticatedAccount authenticated, CancellationToken token, bool fromBrowser)
     {
@@ -163,10 +165,11 @@ public sealed partial class MainWindow
     });
     }
 
-    // 例外分類と認証退避は共通。接続/認証経路だけが失敗画面の再試行先を渡す。
-    private async Task RunAsync(Func<Task> action, Func<Task>? retryConnection = null)
+    // 例外分類・busy・認証退避は共通。認証側だけが失敗の表示先を渡す。
+    private async Task RunAsync(Func<Task> action, Action<string>? failed = null)
     {
         if (busy || closed) return;
+        Action<string> report = failed ?? ShowError;
         var receiptView = RememberReceiptAuthenticationView();
         busy = true;
         ErrorNotice.IsOpen = false;
@@ -193,24 +196,24 @@ public sealed partial class MainWindow
                 HttpStatusCode.TooManyRequests => "操作回数の上限に達しました。しばらく待って再試行してください。",
                 _ => "家計簿の操作を完了できませんでした。内容を確認して再試行してください。"
             };
-            ReportFailure(message, retryConnection);
+            report(message);
         }
         catch (CategoryRequestException error)
         {
             ApplyCategoryFailureContext(error);
-            ReportFailure("科目一覧を取得できませんでした。参加状態と権限を確認してください。", retryConnection);
+            report("科目一覧を取得できませんでした。参加状態と権限を確認してください。");
         }
         catch (PaymentMethodRequestException error)
         {
             ApplyPaymentFailureContext(error);
-            ReportFailure("支払方法一覧を取得できませんでした。参加状態と権限を確認してください。", retryConnection);
+            report("支払方法一覧を取得できませんでした。参加状態と権限を確認してください。");
         }
         catch (PeopleRequestException error)
         {
             ApplyPeopleFailureContext(error);
-            ReportFailure(error.StatusCode == HttpStatusCode.TooManyRequests
+            report(error.StatusCode == HttpStatusCode.TooManyRequests
                 ? "操作回数の上限に達しました。しばらく待って再試行してください。"
-                : "人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。", retryConnection);
+                : "人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。");
         }
         catch (Exception error) when (error is ApiConnectionException or HttpRequestException or OperationCanceledException
             or IOException or UnauthorizedAccessException or CryptographicException or SocketException)
@@ -218,7 +221,7 @@ public sealed partial class MainWindow
             var message = error is IOException or UnauthorizedAccessException or CryptographicException
                 ? "設定・認証情報を読み書きできませんでした。保存先へのアクセスを確認してください。"
                 : "サーバーに接続できませんでした。接続先と通信状態を確認してください。";
-            ReportFailure(message, retryConnection);
+            report(message);
         }
         finally
         {
@@ -226,16 +229,6 @@ public sealed partial class MainWindow
             if (receiptRecoveryPhase == ReceiptRecoveryPhase.None && ReferenceEquals(receiptAuthentication, receiptView)) receiptAuthentication = null;
             if (!closed) SetOperationsEnabled(true);
         }
-    }
-
-    private void ReportFailure(string message, Func<Task>? retryConnection)
-    {
-        if (retryConnection is null)
-        {
-            ShowError(message);
-            return;
-        }
-        ShowAuthentication()?.ShowFailure(message, retryConnection);
     }
 
     private void SetOperationsEnabled(bool enabled)
