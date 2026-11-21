@@ -44,7 +44,7 @@
                 <Grid Grid.Column="1">
                     <Button x:Name="RecordButton" Content="記録" Style="{StaticResource HeaderButton}" FontWeight="SemiBold"
                             AutomationProperties.ItemStatus="選択中" Click="ShowRecord"  AutomationProperties.AutomationId="RecordButton"/>
-                    <Border Height="3" Width="32" CornerRadius="2" HorizontalAlignment="Center"
+                    <Border x:Name="RecordSelectionIndicator" Height="3" Width="32" CornerRadius="2" HorizontalAlignment="Center"
                             VerticalAlignment="Bottom" IsHitTestVisible="False"
                             Background="{ThemeResource AccentFillColorDefaultBrush}" />
                 </Grid>
