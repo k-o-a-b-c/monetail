@@ -26,14 +26,14 @@
                         <ComboBox x:Name="ReceiptOwner" ItemsSource="{x:Bind ViewModel.Owners, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Owner, Mode=OneWay}" Header="支払者" Width="140" SelectionChanged="ReceiptOwnerChanged" AutomationProperties.AutomationId="ReceiptOwner">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RecordFilterChoice">
-                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"/>
+                                    <TextBlock Text="{x:Bind Name, Mode=OneTime}"/>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
                         <ComboBox x:Name="ReceiptPayment" ItemsSource="{x:Bind ViewModel.Payments, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Payment, Mode=OneWay}" Header="支払方法" Width="180" SelectionChanged="ReceiptPaymentChanged" AutomationProperties.AutomationId="ReceiptPayment">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:RecordFilterChoice">
-                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"/>
+                                    <TextBlock Text="{x:Bind Name, Mode=OneTime}"/>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
@@ -42,15 +42,15 @@
                         <TextBlock x:Name="ReceiptAppliedMonth" Text="{x:Bind ViewModel.AppliedMonth, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
                     </StackPanel>
                 </ScrollViewer>
-                <TextBlock x:Name="ReceiptMonthError" Text="{x:Bind ViewModel.MonthError, Mode=OneWay}" Grid.Row="1" Visibility="{x:Bind ErrorVisible(ViewModel.MonthError), Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
+                <TextBlock x:Name="ReceiptMonthError" Text="{x:Bind ViewModel.MonthError, Mode=OneWay}" Grid.Row="1" Visibility="{x:Bind ErrorVisible(ViewModel.MonthError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
             </Grid>
             <Border Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource Card}" Padding="12">
                 <receipts:ReceiptListView x:Name="ReceiptsView" ViewModel="{x:Bind ViewModel.Receipts, Mode=OneWay}">
                     <receipts:ReceiptListView.OpeningContent>
-                        <StackPanel x:Name="ReceiptOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.ReceiptOpening), Mode=OneWay}" Spacing="8">
-                            <ProgressRing x:Name="ReceiptOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.ReceiptOpening), Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
-                            <TextBlock x:Name="ReceiptOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.ReceiptOpening), Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="{x:Bind NoticeRetry(ViewModel.ReceiptOpening), Mode=OneWay}" Click="RetryReceiptOpen" AutomationProperties.AutomationId="ReceiptOpenRetry"/>
+                        <StackPanel x:Name="ReceiptOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.ReceiptOpening), Mode=OneWay, FallbackValue=Collapsed}" Spacing="8">
+                            <ProgressRing x:Name="ReceiptOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.ReceiptOpening), Mode=OneWay, FallbackValue=False}" Width="24" Height="24" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="ReceiptOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.ReceiptOpening), Mode=OneWay, FallbackValue=''}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="{x:Bind NoticeRetry(ViewModel.ReceiptOpening), Mode=OneWay, FallbackValue=Collapsed}" Click="RetryReceiptOpen" AutomationProperties.AutomationId="ReceiptOpenRetry"/>
                         </StackPanel>
                     </receipts:ReceiptListView.OpeningContent>
                 </receipts:ReceiptListView>
@@ -58,10 +58,10 @@
             <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12">
                 <transfers:TransferListView x:Name="TransfersView" ViewModel="{x:Bind ViewModel.Transfers, Mode=OneWay}">
                     <transfers:TransferListView.OpeningContent>
-                        <StackPanel x:Name="TransferOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.TransferOpening), Mode=OneWay}" Spacing="8">
-                            <ProgressRing x:Name="TransferOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.TransferOpening), Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
-                            <TextBlock x:Name="TransferOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.TransferOpening), Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                            <Button x:Name="TransferOpenRetry" Content="再試行" Click="RetryTransferOpening" Visibility="{x:Bind NoticeRetry(ViewModel.TransferOpening), Mode=OneWay}"/>
+                        <StackPanel x:Name="TransferOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.TransferOpening), Mode=OneWay, FallbackValue=Collapsed}" Spacing="8">
+                            <ProgressRing x:Name="TransferOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.TransferOpening), Mode=OneWay, FallbackValue=False}" Width="24" Height="24" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="TransferOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.TransferOpening), Mode=OneWay, FallbackValue=''}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <Button x:Name="TransferOpenRetry" Content="再試行" Click="RetryTransferOpening" Visibility="{x:Bind NoticeRetry(ViewModel.TransferOpening), Mode=OneWay, FallbackValue=Collapsed}"/>
                         </StackPanel>
                     </transfers:TransferListView.OpeningContent>
                 </transfers:TransferListView>
