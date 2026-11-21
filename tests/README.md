@@ -16,6 +16,22 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3849 |
 
+## ShowPageのホーム復帰Task（PR #229）
+
+[HomeResumeScenario](Monetail.WinUI.Smoke/HomeResumeScenario.cs)を既存のreceipt-navigation/transfer-navigationへ追加した。同一ホームでの重複開始防止、表示前に中止した復帰、連続離脱/復帰、旧取得の遅延成功が最新の所有者・表示行・表示位置復元の保留を変更しないこと、初回/再開時の503と予期しない例外の表示先、即時認証失効後の一覧破棄、Window終了後の遅延失敗を確認する。中断不能な結果はVM取得デリゲートで再現し、認証HTTPの直列化とは分離する。実HTTPの中断/同一条件・カーソル再開、選択/非先頭スクロール維持と重複行なしの既存確認は変更しない。既存401/連続401・元の実コントロール保持・未保存保護・IMEの確認も維持する。
+
+ローカルReleaseの関連Presentation22件とClient474件は成功（失敗/skipなし）。最初のPresentation実行は隔離環境のVSTest IPC拒否で中止したため、同じコードを実行可能な権限で再実行した。ローカル復元のNuGet脆弱性情報取得には接続不能のNU1900が残り、Windows CIのビルド警告とは区別する。構造検査・文書ファイルリンク・git diff --checkは成功。
+
+最終ソース`45eb8e5`の[CI 44895795846](https://github.com/k-o-a-b-c/monetail/actions/runs/44895795846)は初回で成功。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/900確認（receipt-navigation/transfer-navigation各17確認）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。追加確認は計16件。成功実行では既存IME確認も通過し、0xC0000005/0xC000027Bの記録はないが、過去の原因解決とは扱わない。ビルド後のコードレビューで、ShowPageの同期ガード、VMの通常Failure/401経路、取消後の旧UI更新拒否、終了時解放を確認した。RunAsync/ShowError/AuthenticationFlow、API/DB/外部ライブラリは変更していない。
+
+変更前のmain `c6d97ba`の[Tests 44883487959](https://github.com/k-o-a-b-c/monetail/actions/runs/44883487959)は既存receipt-memosで失敗している（ReceiptMemoのIME確定Enter、focus=ReceiptCategoryChoice、composing=False、保存済みメモは不変）。無関係な製品/試験条件やタイムアウトは変更しない。先行PR #228の[成功CI 44872802755](https://github.com/k-o-a-b-c/monetail/actions/runs/44872802755)と区別し、最新mainの全件成功とは扱わない。非変更のClient/Presentation/API/DB/Docker/旧Windows/Windows実保存等はCI選択・同じfingerprintの成功記録を再利用する。
+
+初回ソース`66a789e`の[CI 44893606481](https://github.com/k-o-a-b-c/monetail/actions/runs/44893606481)では製品ビルド成功後、新規試験のDTO名前空間不足でスモークビルドが失敗し、既存Transport名前空間の指定へ修正した。`00cb9b3`の[CI 44893891025](https://github.com/k-o-a-b-c/monetail/actions/runs/44893891025)は両ビルドが成功したが、新規試験が同じClientSessionのHTTPを並列実行できると誤って仮定し、transfer-navigationの再開待機で失敗した。ClientSessionの既存認証ゲートは要求全体を直列化するため、遅延結果の競合だけをVM取得デリゲートで再現する方式へ修正した。製品の認証ゲート、期待値、待機期限は変更しない。途中の試験修正中の旧CIは新コミットにより中止されており、成功として数えない。
+
+ソース`4dc0705`の[CI 44894452227・初回](https://github.com/k-o-a-b-c/monetail/actions/runs/44894452227/attempts/1)は両Releaseビルド（各29件の既存WUI2011警告・0エラー）が成功した後、新規navigation試験の前に既存レシート一覧試験で0xC000027B（-1073741189）により停止した。直前のui-invokeはReceiptViewportScenario:155のReceiptBack（UIスレッド、Loaded/Root/Host/Enabled=True、Size=False、InvokeはReturnedまで記録）で、runtime-errorは空。原因未特定のため、製品/試験条件は変えず失敗Windowsジョブだけを同一コミットで再実行した。この停止と既存IME失敗は、新規試験の不備による失敗と区別する。同じソースの再実行では追加した遅延競合4確認が成功した後、新規503試験が読込中用InitialNoticeを失敗表示と誤認して失敗した。既存XAMLどおりInitialFailureを検証するよう取得先を訂正し、製品表示や期待するエラー状態は変更しない。続く`d34c396`の[CI 44895326713](https://github.com/k-o-a-b-c/monetail/actions/runs/44895326713)では新規競合/503/予期しない例外/即時401の7確認が成功した後、終了試験が閉鎖後に消去されたNameScopeからErrorNoticeを検索して失敗した。終了前に通知コントロールを取得し、同じ参照で表示不変を確認する方式へ訂正した。
+
+WinApp CLIは環境にないため未実行。今回新しいWinUI API/XAMLは追加せず、既存VM/Viewの復帰・標準の.NET Taskを使用する。実API、物理Windowsでの手動IME/タッチ・高DPI・スクリーンリーダーは未検証。過去の断続的IME/ネイティブ停止の原因解決とは扱わない。責務・状態/コード量の比較は[構成正本](../docs/architecture-winui.md#showpageのホーム復帰taskpr-229)を参照する。
+
 ## 起動・認証フローの寿命分離（PR #228）
 
 [AuthenticationFlowScenario](Monetail.WinUI.Smoke/AuthenticationFlowScenario.cs)を既存connection-flowへ追加した。保存認証/OAuthから業務画面への引き渡しで認証フロー・Frame/Page・7購読・取消元/再試行を解除すること、ログアウト後の新規フローと再ログイン、終了済みフローの操作拒否、ブラウザー待機/認証確認中の離脱と遅延結果拒否、接続先保存後の遅い認証確認の取消、認証後の作成Pageが別ホストを使うことを確認する。強制GCによる回収証明ではなく、恒久参照と購読の解除・非同期処理の終了を検証する。既存[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)は未承認の接続設定/ログイン/失敗画面への遷移拒否を維持し、レシート/振替の401マスタ復帰後に認証フローが残らないことも確認する。その他のPage試験は新しい所有者/名前空間へ取得先だけを変更し、既存の表示・操作・認証・編集保持条件を維持する。
