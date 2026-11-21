@@ -40,6 +40,12 @@ public sealed partial class RecordHomePage : Page
     {
         ViewModel = model;
         Bindings.Update();
+        if (model is null)
+        {
+            // x:Bindは途中の参照がnullになると接続先を更新しないため、購読を明示的に解除する。
+            ReceiptsView.ViewModel = null;
+            TransfersView.ViewModel = null;
+        }
     }
 
     public void ShowEditor(UIElement? editor)
