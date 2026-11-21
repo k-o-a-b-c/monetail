@@ -36,7 +36,7 @@ public partial class App
             await Wait(() => Find<ScrollViewer>(root, "ParticipantEditorContent").Visibility == Visibility.Visible);
             await Settle();
             Check(Find<ComboBox>(root, "ParticipantRole").Visibility == Visibility.Collapsed && Find<TextBlock>(root, "ParticipantOwnRole").Text.Contains("管理者"), "本人の役割は読み取り専用");
-            await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+            await InvokeAsync(() => Find<Button>(root, "RecordButton"));
             Check(Find<FrameworkElement>(root, "ManagementPage").Visibility == Visibility.Visible, "参加者ダイアログ中は背後の遷移を抑止");
             Find<ComboBox>(root, "ParticipantPerson").SelectedIndex = 0;
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", true));
