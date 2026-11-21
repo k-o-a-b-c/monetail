@@ -16,6 +16,16 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3844 |
 
+## 家計簿作成Page・所属更新・ログアウト（PR #227）
+
+[LedgerCreatePageScenario](Monetail.WinUI.Smoke/LedgerCreatePageScenario.cs)を既存connection-flowへ追加し、未訪問Page/旧Grid/内部入力の未生成、所属0件/追加の表示差、名前Enterは作成せずフォーカス移動・Shift+Tab・Tab・Ctrl+Enter、更新0件の同一Page/入力/作成draft保持、更新通信失敗時の認証/入力保持、新しい結果通知なし、更新中の二重操作拒否、ログアウト成功/失敗、同名再試行requestId保持と作成後の直接ホーム、更新後1件/複数/有効な最終家計簿への遷移、実メニューからの追加/キャンセル/再訪、更新中のPage離脱/Window終了と遅延応答拒否・4購読/Frame解放を検証する。既存connection-flowの作成入力検証/通信失敗/再試行と、既存36シナリオの401編集復帰・未保存保護・IME確認は維持する。
+
+ローカルReleaseの関連Client77件（家計簿・セッション・OAuth・保存）、XML・構造検査・git diff --checkは成功。訂正ソース`bee2788`の[Tests 44851502962・再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/44851502962/attempts/2)が成功。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/866確認（connection-flow140、追加21）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。変更前はmain `fdcb28a`の[push Tests 44847274137](https://github.com/k-o-a-b-c/monetail/actions/runs/44847274137)成功を採用し、Client/Presentation/API/DB/Docker/旧Windows/Windows実保存等の非変更部分はCI選択・同じfingerprintの成功結果を再利用する。画面契約は[所属0件の正本](../docs/ledger-onboarding.md#所属0件の家計簿作成画面)、責務・状態/コード量の比較は[WinUI構成](../docs/architecture-winui.md#家計簿作成pageと所属更新)を参照する。
+
+初回の[Tests 44850991661](https://github.com/k-o-a-b-c/monetail/actions/runs/44850991661)は、新規試験で作成ボタン上のShift+Enterが前の欄へ移動すると誤認し、待機に失敗した。既存FormKeyboardはボタン上のEnterを標準の実行操作へ委ねるため、製品動作は変えず試験をShift+Tabへ訂正した。訂正ソース`bee2788`の[Tests 44851502962・初回](https://github.com/k-o-a-b-c/monetail/actions/runs/44851502962/attempts/1)では追加のPageケースを含むconnection-flow140確認と先行プロセス343確認が成功したが、既存の後続プロセスがレシート一覧試験中に終了コード0xC000027B（-1073741189）で停止した。直前のui-invoke診断はReceiptViewportScenarioのReceiptBack操作（UIスレッド、Loaded/Root/Host/Enabled=True、Size=False、InvokeはReturnedまで記録）で、runtime-errorは空。原因未特定のため無関係な製品・試験条件は変更せず、失敗Windowsジョブだけを同一コミットで1回再実行して成功した。再実行成功だけで原因解決とは扱わない。
+
+ビルド後のWinUIレビューでは、旧作成用5コントロールとWindowからの内部名前参照がなく、Pageの4通知/公開フォーカスメソッドだけを使用すること、既存FormKeyboard・作成draft・LogoutAsync・401保持・API/DB契約を維持していることを確認した。XML・構造検査・文書リンク・git diff --checkも成功。最終成功実行では0xC000027B/0xC0000005は記録されていないが、過去の原因解決とは扱わない。WinApp CLIは環境にないため未実行で、既存のFrame/Page・FormKeyboardと実製品ビルドで代替確認した。実API接続、実Windows手動操作、物理IME/タッチ、高DPI・スクリーンリーダーは未検証。
+
 ## 家計簿の明示選択（PR #226）
 
 PR #225統合後の正本に従い、[LedgerWorkspaceTests](Monetail.Windows.Client.Tests/LedgerWorkspaceTests.cs)の履歴なし0/1/複数を更新し、open-last→所属GETだけで行き先情報を返し、自動の開くPOSTや最終選択変更を行わないことを厳密な要求列で検証する。有効な最後の家計簿は追加の一覧/開く要求なしで表示する確認を維持する。無効な前回選択からは現在の所属一覧を返し、明示的なOpenAsyncだけで対象POSTを送る。不要となった自動オープン失敗時の404再取得3ケースを削除し、所属一覧の503/429時の認証保持と、認証失効時に家計簿を開かず失効を返す3ケースを追加した。

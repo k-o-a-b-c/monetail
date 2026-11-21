@@ -76,7 +76,7 @@ WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 F
 
 `Views/Authentication/LoginPage`は表示と`LoginRequested`・`ConnectionChangeRequested`・`BrowserOpenRequested`・`CancelRequested`の4通知を持つ、NavigationCacheMode=Disabledの標準Page。専用ViewModel・Client/HTTP/Window参照は持たない。ログインボタンと接続先変更のAutomationId・標準のTab順を維持する。旧VBはローカルDB起動とWindowsユーザー名による識別であり、このOAuth画面の対応物はない。新版の[ログイン契約](ledger-windows.md#windows版のログイン認証待ちブラウザー完了表示)を維持する。
 
-接続先設定・起動・ログイン・接続失敗を置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが4イベントを購読する。離脱・終了では購読とホストのContentを解除する。通常離脱後の再訪は新しいPageとし、WindowはPage型・4通知・UI切替メソッドだけを扱い、内部x:Nameを参照しない。操作可否は既存のWindowの認証/処理状態から渡し、Pageに業務状態を複製しない。
+接続先設定・起動・ログイン・接続失敗・家計簿作成を置く既存ホストを`AuthenticationHost`、配置/解放を`OpenAuthenticationPage` / `ReleaseAuthenticationPage`へ命名整理した。必要時だけFrame/Pageを生成し、ログインPageが表示されている間だけWindowが4イベントを購読する。離脱・終了では購読とホストのContentを解除する。通常離脱後の再訪は新しいPageとし、WindowはPage型・4通知・UI切替メソッドだけを扱い、内部x:Nameを参照しない。操作可否は既存のWindowの認証/処理状態から渡し、Pageに業務状態を複製しない。
 
 Windowの通常遷移ガードと同じく、認証退避以外では未承認の編集中遷移を拒否する。認証前Pageへの遷移時にも旧画面の可視状態を閉じ、一覧の読取を中断する。共有InfoBarはFrame外に残してログイン中も利用する。通常離脱と401退避を区別する既存の`NavigateToLogin` / `DiscardLedgerContents`は維持し、元のレシート/振替モデル・入力コントロールを破棄しない。閉鎖済みWindowではログインPageを再生成しない。起動時の通信/表示タイミング、OAuth/Client/保存形式は変更しない。
 
@@ -158,6 +158,23 @@ PR #225の[家計簿選定仕様](ledger-onboarding.md#所属1件以上で開く
 | 新規Service / VM / ルーター | 0 / 0 / 0 | 0 / 0 / 0 |
 
 製品総量11行増は通常の家計簿表示の境界1メソッドと可読性のための分岐展開・コメントによる。フィールドや状態フラグは増えていない。単なる移管に留めず、20個の不要な操作間参照と、同じ失敗ポリシーを重複指定するboolを削除した。再試行要求の保持や例外処理を別クラスへ隠す抽象化は加えない。検証結果・既存の断続的な失敗・未検証事項は[tests/README](../tests/README.md)を参照する。
+
+### 家計簿作成Pageと所属更新
+
+`Views/Ledgers/LedgerCreatePage`を既存AuthenticationHostのFrameへ必要時だけ生成する。PageはUI用の所属0件/追加の表示引数、入力、4通知（作成・更新・ログアウト・キャンセル）と既存FormKeyboardを担当する。WindowにはPage内部のx:Name参照を残さず、入力は作成通知の文字列で渡し、不正入力時のフォーカスだけ公開UIメソッドで扱う。新しいViewModel/Service・独自ルーター・永続化/入力コピーを追加しない。画面仕様の正本は[所属0件の作成画面](ledger-onboarding.md#所属0件の家計簿作成画面)。
+
+Windowは既存LedgerCreationDraft・RunAsync・LogoutAsync・LedgerWorkspace.StartAsyncを使用する。更新後0件の場合は既存Pageを再利用し、未確定の入力と同名の再送draftを保持する。通常離脱では4購読とFrame参照・作成draftを解放し、再訪は新しいPageとする。更新中は既存busy/IsEnabledで二重操作を拒否し、ローカルのWindow寿命にリンクした取消元とUnloaded購読で読取を中断する。応答反映前にFrame同一性を確認し、離脱後の遅延応答/既知の失敗で新画面を上書きしない。通常の失敗分類・401退避・既存の作成/認証契約は維持する。
+
+| Page化と操作追加（基点main fdcb28a、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow.xaml | 606行 | 592行 |
+| MainWindow.Connection.cs / Ledgers.cs | 541 / 207行 | 560 / 263行 |
+| 製品srcのC#/XAML総量 | 19,028行 | 19,152行 |
+| Window生成フィールド（旧作成Grid/案内/名前/作成/キャンセル） | 5 | 0 |
+| Pageの公開操作通知 / UIメソッド | 0 / 0 | 4 / 1 |
+| 新規VM / Service / Window状態フィールド | 0 / 0 / 0 | 0 / 0 / 0 |
+
+Page本体はXAML22行・C#42行。製品124行増には新機能の更新/ログアウト、読取寿命とPage通知/解放を含む。旧キーボード接続1行をMainWindow.Personsから除去し、Page内へ移した。旧VBはローカルDB起動でOAuth所属/ログアウトの対応物がなく、新版の正本を優先する。検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
 
 ## 家計簿選択画面の分離（第1段階）
 
