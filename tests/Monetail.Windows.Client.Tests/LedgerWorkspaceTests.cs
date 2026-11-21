@@ -107,6 +107,36 @@ public sealed class LedgerWorkspaceTests
         Assert.NotNull(fixture.Store.Current);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(100)]
+    [InlineData(101)]
+    public void PureCreationNameValidationMatchesTheDraftContract(int length)
+    {
+        var name = "  " + new string('a', length) + "  ";
+        if (length is 0 or 101)
+        {
+            var validation = Assert.Throws<FormatException>(() => LedgerCreationDraft.ValidateName(name));
+            var creation = Assert.Throws<FormatException>(() => new LedgerCreationDraft(name));
+            Assert.Equal(creation.Message, validation.Message);
+        }
+        else
+        {
+            Assert.Equal(new LedgerCreationDraft(name).Name, LedgerCreationDraft.ValidateName(name));
+            Assert.Equal(new string('a', length), LedgerCreationDraft.ValidateName(name));
+        }
+    }
+
+    [Fact]
+    public void CreationNameValidationRetainsUtf16AndUnicodeWhitespaceRules()
+    {
+        Assert.Throws<FormatException>(() => LedgerCreationDraft.ValidateName(" \u3000\t"));
+        var name = string.Concat(Enumerable.Repeat("😀", 50));
+        Assert.Equal(name, LedgerCreationDraft.ValidateName("\u3000" + name + "\u3000"));
+        Assert.Throws<FormatException>(() => LedgerCreationDraft.ValidateName(name + "a"));
+    }
+
     [Fact]
     public async Task CreationRetryUsesTheSameNormalizedNameAndRequestId()
     {

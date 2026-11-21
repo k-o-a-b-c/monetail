@@ -11,10 +11,15 @@ public sealed record LedgerCreationDraft
 {
     public Guid RequestId { get; } = Guid.NewGuid();
     public string Name { get; }
-    public LedgerCreationDraft(string name)
+    public LedgerCreationDraft(string name) => Name = ValidateName(name);
+
+    /// <summary>入力検証だけを行い、再送要求やrequestIdを生成しない。</summary>
+    public static string ValidateName(string name)
     {
-        Name = name.Trim();
-        if (Name.Length is < 1 or > 100) throw new FormatException("家計簿名は1〜100文字で入力してください。");
+        var normalized = name.Trim();
+        if (normalized.Length is < 1 or > 100)
+            throw new FormatException("家計簿名は1〜100文字で入力してください。");
+        return normalized;
     }
 }
 

@@ -9,6 +9,7 @@ using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Presentation.Connection;
 using Monetail.WinUI.Views.Connection;
 using Monetail.WinUI.Views.Authentication;
+using Monetail.WinUI.Views.Ledgers;
 
 namespace Monetail.WinUI;
 
@@ -157,6 +158,14 @@ public sealed partial class MainWindow
             login.BrowserOpenRequested += ReopenBrowser;
             login.CancelRequested += CancelLogin;
         }
+        if (frame.Content is LedgerCreatePage creation)
+        {
+            creation.IsEnabled = !busy;
+            creation.CreateRequested += CreateLedger;
+            creation.RefreshRequested += RefreshLedgerMembership;
+            creation.LogoutRequested += LogoutFromCreation;
+            creation.CancelRequested += CancelCreation;
+        }
         if (frame.Content is FailurePage failure)
         {
             failure.IsEnabled = !busy;
@@ -190,6 +199,14 @@ public sealed partial class MainWindow
             failure.RetryRequested -= RetryConnection;
             failure.ConnectionChangeRequested -= ShowConnection;
             failure.ExitRequested -= Exit;
+        }
+        if (CreationView is { } creation)
+        {
+            creation.CreateRequested -= CreateLedger;
+            creation.RefreshRequested -= RefreshLedgerMembership;
+            creation.LogoutRequested -= LogoutFromCreation;
+            creation.CancelRequested -= CancelCreation;
+            creationDraft = null;
         }
         // Frameの現在エントリに渡したVMも含め、ホストごと参照を解放する。
         AuthenticationHost.Content = null;
@@ -419,6 +436,8 @@ public sealed partial class MainWindow
     private void SetOperationsEnabled(bool enabled)
     {
         Operations.IsEnabled = enabled;
+        if (CreationView is { } creation)
+            creation.IsEnabled = enabled;
         RenderLogin();
         if (AuthenticationHost.Content is Frame { Content: FailurePage failure })
             failure.IsEnabled = enabled;
@@ -463,7 +482,7 @@ public sealed partial class MainWindow
     private void SetLegacyPage(FrameworkElement? page)
     {
         foreach (var candidate in new FrameworkElement[] { HomePage, ManagementPage,
-            LedgerChoicePage, LedgerCreatePage })
+            LedgerChoicePage })
             candidate.Visibility = ReferenceEquals(candidate, page) ? Visibility.Visible : Visibility.Collapsed;
     }
 

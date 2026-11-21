@@ -21,6 +21,8 @@
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
     <Page Include="../../src/Monetail.WinUI/Views/Authentication/LoginPage.xaml" Link="Views/Authentication/LoginPage.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Authentication/LoginPage.xaml.cs" Link="Views/Authentication/LoginPage.xaml.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Ledgers/LedgerCreatePage.xaml" Link="Views/Ledgers/LedgerCreatePage.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Ledgers/LedgerCreatePage.xaml.cs" Link="Views/Ledgers/LedgerCreatePage.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Connection/FailurePage.xaml" Link="Views/Connection/FailurePage.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Connection/FailurePage.xaml.cs" Link="Views/Connection/FailurePage.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSettingsView.xaml" Link="Views/Connection/ConnectionSettingsView.xaml" />
