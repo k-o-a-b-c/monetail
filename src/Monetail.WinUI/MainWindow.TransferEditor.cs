@@ -86,6 +86,7 @@ public sealed partial class MainWindow
             model.ActionRequested += ExecuteTransferActionAsync;
             model.AuthenticationRequired += StopTransferAuthentication;
             TransferEntry.ViewModel = model;
+            CancelRecordHomeResume();
             TransfersView.RememberPosition();
             ReceiptsView.RememberPosition();
             TransferListModel?.Suspend();

@@ -21,6 +21,7 @@ public sealed partial class MainWindow
     private bool closed;
 
     private AuthenticationFlow? authentication;
+    private CancellationTokenSource? homeResume;
 
     private AuthenticationFlow GetAuthentication() => authentication ??= new AuthenticationFlow(
         connection, lifetime.Token, RunAuthenticationAsync, () => !busy && !closed,
@@ -255,7 +256,7 @@ public sealed partial class MainWindow
     private void ShowPage(FrameworkElement page)
     {
         // 未承認の遷移からも編集中データを黙って捨てない。明示ナビゲーションは先に離脱確認する。
-        if (RecordEditorActive && !ReferenceEquals(page, HomePage))
+        if (closed || RecordEditorActive && !ReferenceEquals(page, HomePage))
             return;
         if (EditorAwaitingLogin && ReferenceEquals(page, HomePage)) return;
         ReleaseAuthentication();
@@ -267,19 +268,69 @@ public sealed partial class MainWindow
         SetLegacyPage(page);
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
-        if (ReferenceEquals(page, HomePage)) DispatcherQueue.TryEnqueue(async () =>
+        if (ReferenceEquals(page, HomePage) && homeResume is null)
         {
-            if (closed || HomePage.Visibility != Visibility.Visible) return;
-            if (ReceiptListModel is null) StartReceiptHome();
-            else if (!RecordEditorActive)
+            var resume = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+            homeResume = resume;
+            _ = ResumeRecordHomeAsync(resume);
+        }
+    }
+
+    private bool CanResumeRecordHome(CancellationTokenSource resume) =>
+        !closed && !resume.IsCancellationRequested && !RecordEditorActive && HomePage.Visibility == Visibility.Visible;
+
+    private async Task ResumeRecordHomeAsync(CancellationTokenSource resume)
+    {
+        using (resume)
+        {
+            try
             {
-                await Task.WhenAll(ReceiptListModel.ResumeAsync(lifetime.Token), TransferListModel?.ResumeAsync(lifetime.Token) ?? Task.CompletedTask);
+                // 同期の画面切替を完了してから復帰する。通信の世代管理は一覧VMに任せる。
+                await Task.Yield();
+                if (!CanResumeRecordHome(resume))
+                    return;
+                if (ReceiptListModel is null)
+                    await StartReceiptHomeAsync();
+                else
+                    await Task.WhenAll(ReceiptListModel.ResumeAsync(lifetime.Token),
+                        TransferListModel?.ResumeAsync(lifetime.Token) ?? Task.CompletedTask);
+                if (!CanResumeRecordHome(resume))
+                    return;
                 ReceiptsView.ObserveViewport();
                 TransfersView.ObserveViewport();
+                if (transferRestorePending)
+                {
+                    transferRestorePending = false;
+                    RestoreTransferPosition();
+                }
+                if (receiptRestorePending)
+                {
+                    receiptRestorePending = false;
+                    RestoreReceiptListPosition();
+                }
             }
-            if (transferRestorePending) { transferRestorePending = false; RestoreTransferPosition(); }
-            if (receiptRestorePending) { receiptRestorePending = false; RestoreReceiptListPosition(); }
-        });
+            catch (OperationCanceledException) when (resume.IsCancellationRequested)
+            {
+            }
+            catch (Exception error)
+            {
+                // 一覧の通常エラー/401はVMが処理する。予期しない復帰失敗も未観測にしない。
+                System.Diagnostics.Trace.TraceError("Record home resume failed: {0}", error.GetType().FullName);
+                if (CanResumeRecordHome(resume))
+                    ShowError("一覧を表示できませんでした。");
+            }
+            finally
+            {
+                if (ReferenceEquals(homeResume, resume))
+                    homeResume = null;
+            }
+        }
+    }
+
+    private void CancelRecordHomeResume()
+    {
+        homeResume?.Cancel();
+        homeResume = null;
     }
 
     private void SetLegacyPage(FrameworkElement? page)
@@ -291,6 +342,7 @@ public sealed partial class MainWindow
 
     private void SuspendRecordReads()
     {
+        CancelRecordHomeResume();
         CancelReceiptOpening();
         CancelTransferOpening();
         ReceiptListModel?.Suspend();
@@ -330,6 +382,7 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
+        CancelRecordHomeResume();
         ReleaseAuthentication();
         ReleaseLedgerPage();
         ReleaseConnectionSettings();

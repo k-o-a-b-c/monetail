@@ -32,6 +32,7 @@ public sealed partial class MainWindow
     }
     private void ResetRecordHome()
     {
+        CancelRecordHomeResume();
         receiptRestorePending = false;
         ResetTransfers(); recordSearch = null; recordMasterLifetime?.Cancel(); recordMasterLifetime?.Dispose(); recordMasterLifetime = null;
         if (ReceiptListModel is { } model)
@@ -43,7 +44,7 @@ public sealed partial class MainWindow
         ReceiptsView.ViewModel = null;
         connection.Masters.Clear();
     }
-    private void StartReceiptHome()
+    private async Task StartReceiptHomeAsync()
     {
         if (account is null || currentLedger is null) return;
         var ledger = currentLedger.LedgerId; var api = connection.Api; var session = connection.Session;
@@ -66,8 +67,10 @@ public sealed partial class MainWindow
         UpdateReceiptActions();
         RefreshReceiptChoices();
         RenderRecordFilters();
-        _ = model.StartAsync(recordSearch.Receipts.Query(), lifetime.Token);
-        StartTransferHome(ledger, api, session, masterToken);
+        var initialRead = model.StartAsync(recordSearch.Receipts.Query(), lifetime.Token);
+        // 即時の401等で一覧が破棄された場合、後続の一覧を旧画面へ生成しない。
+        await Task.WhenAll(initialRead, ReferenceEquals(ReceiptListModel, model)
+            ? StartTransferHomeAsync(ledger, api, session, masterToken) : Task.CompletedTask);
     }
     private async Task GetRecordMastersAsync(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken, CancellationToken token)
     {

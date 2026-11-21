@@ -72,6 +72,25 @@ VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解
 
 WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
 
+## ShowPageのホーム復帰Task（PR #229）
+
+ShowPageは同期の遷移ガード/表示切替を維持し、ホーム復帰だけを例外処理付きのResumeRecordHomeAsyncへ渡す。async void相当のDispatcherQueueラムダを削除し、Task.Yieldで同期の遷移を終えてから既存ResumeAsyncを待つ。レシート/振替の初回読込もTask.WhenAllで同じ例外境界から待ち、即時の401で一覧が破棄された場合は後続一覧を旧ホームへ生成しない。読込中も他画面へ移動できる既存の操作可否を保つため、全体busyを持つRunAsyncでは包まない。通常の通信/業務エラーと401は既存VMのFailure/通知を維持し、予期しない復帰例外は型だけをTraceへ記録して、現在のホームに限り共有InfoBarへ「一覧を表示できませんでした。」を表示する。例外の内部メッセージは画面へ公開しない。
+
+WindowのhomeResume取消元1つは、表示復帰Taskとawait後のObserveViewport/表示位置復元の寿命だけを所有する。通信へは従来のWindow tokenを渡し、CursorListViewModelのSuspend・要求世代・再試行・カーソル状態を複製しない。同一ホームで進行中の復帰を二重開始しない。通常離脱・編集開始・一覧破棄・Window終了で表示復帰を取消し、再訪は新しい所有者で開始する。旧Taskは完了後にも取消/画面/編集状態を確認し、現在の所有参照と一致するときだけ参照を解除する。取消元はTaskのusing/finallyで解放する。旧Taskが中断不能な通信完了を待っても、新しい復帰の行・表示位置・復元保留状態へ触れない。
+
+401の未保存入力/元の実コントロール保持、編集復帰順、RunAsync・ShowError・AuthenticationFlowの責務は変更しない。ListViewportController自体の既存Dispatcher処理は今回の対象外とし、一覧の表示位置/可視範囲測定を引き続き担当する。新しいService、Dispatcher基盤、ViewModel状態、bool/世代カウンターは追加しない。
+
+| 比較（基点main c6d97ba、空行込み・生成物除外） | 前 | 後 |
+| --- | ---: | ---: |
+| ShowPageの非同期Dispatcherラムダ | 1 | 0 |
+| 初回一覧読込のTask破棄 | 2 | 0 |
+| Windowの表示復帰取消元 | 0 | 1 |
+| 追加bool/要求世代カウンター | 0 | 0 |
+| MainWindow.Connection.cs / Receipts.cs / Transfers.cs | 354 / 221 / 59行 | 407 / 224 / 59行 |
+| 製品srcのC#/XAML総量 | 19,374行 | 19,432行 |
+
+総量58行増は、例外を観測するTask境界、同期呼出元を保った遷移寿命、await後の旧UI更新拒否のため。単なるコールバック移動ではなく、初回2読込と復帰を同じ例外境界で待つ。通信・業務状態は既存の正本を維持する。検証と手動確認の限界は[tests/README](../tests/README.md)を参照する。
+
 ## 起動・認証フローの寿命分離（PR #228）
 
 内部の具象クラス`Authentication/AuthenticationFlow`一つに、初期表示のローカル判定、接続設定/保存認証確認、OAuthブラウザー待機/取消、認証前Page/Frame購読と再試行を集約する。ClientConnection/ClientSessionは借用し、トークン・アカウント・業務状態を複製しない。主領域の遷移は標準Frame.Navigate、各Pageは既存の表示/操作通知を維持する。StartupService、認証用ViewModel、DI、汎用ルーターを追加しない。
