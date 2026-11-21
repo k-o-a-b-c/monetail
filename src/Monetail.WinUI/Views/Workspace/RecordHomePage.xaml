@@ -1,76 +1,91 @@
-<Page x:Class="Monetail.WinUI.Views.Workspace.RecordHomePage"
- xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:vm="using:Monetail.Windows.Presentation.Workspace" xmlns:receipts="using:Monetail.WinUI.Views.Receipts" xmlns:transfers="using:Monetail.WinUI.Views.Transfers" NavigationCacheMode="Disabled">
- <Grid Margin="32,0,32,32">
-<Grid x:Name="RecordContent" ColumnSpacing="12" RowSpacing="12">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="6*"/><RowDefinition Height="4*"/></Grid.RowDefinitions>
-                <Grid x:Name="RecordFilters" Grid.ColumnSpan="2" RowSpacing="8">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                    <ScrollViewer x:Name="RecordFilterScroller" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled"
-                                  BringIntoViewOnFocusChange="True" IsTabStop="False" AutomationProperties.Name="記録の共通フィルター" AutomationProperties.AutomationId="RecordFilterScroller">
-                        <StackPanel x:Name="RecordFilterRow" Orientation="Horizontal" Spacing="8">
-                            <RadioButton MinWidth="0" x:Name="RecordMonthPeriod" Content="月指定" GroupName="RecordPeriod" IsChecked="{x:Bind MonthEnabled(ViewModel.AllPeriods), Mode=OneWay}" Checked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="RecordMonthPeriod"/>
-                            <RadioButton MinWidth="0" x:Name="ReceiptAllPeriods" IsChecked="{x:Bind ViewModel.AllPeriods, Mode=OneWay}" Content="全期間" GroupName="RecordPeriod" Checked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptAllPeriods"/>
-                            <Button MinWidth="0" x:Name="ReceiptPrevious" IsEnabled="{x:Bind ViewModel.CanMovePrevious, Mode=OneWay}" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptPrevious"/>
-                            <TextBox x:Name="ReceiptMonth" Text="{x:Bind ViewModel.MonthText, Mode=OneWay, FallbackValue=''}" IsEnabled="{x:Bind MonthEnabled(ViewModel.AllPeriods), Mode=OneWay}" Header="年月" Width="112" PlaceholderText="YYYY-MM" TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptMonth"/>
-                            <Button MinWidth="0" x:Name="ReceiptNextMonth" IsEnabled="{x:Bind ViewModel.CanMoveNext, Mode=OneWay}" Content="翌月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptNextMonth"/>
-                            <Button MinWidth="0" x:Name="RecordMonthApply" IsEnabled="{x:Bind MonthEnabled(ViewModel.AllPeriods), Mode=OneWay}" Content="検索" Click="ApplyRecordMonth" VerticalAlignment="Bottom" AutomationProperties.Name="共通年月で検索" AutomationProperties.AutomationId="RecordMonthApply"/>
-                            <ComboBox x:Name="ReceiptOwner" ItemsSource="{x:Bind ViewModel.Owners, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Owner, Mode=OneWay}" Header="支払者" Width="140" SelectionChanged="ReceiptOwnerChanged" AutomationProperties.AutomationId="ReceiptOwner"><ComboBox.ItemTemplate><DataTemplate x:DataType="vm:RecordFilterChoice"><TextBlock Text="{x:Bind Name, Mode=OneWay}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
-                            <ComboBox x:Name="ReceiptPayment" ItemsSource="{x:Bind ViewModel.Payments, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Payment, Mode=OneWay}" Header="支払方法" Width="180" SelectionChanged="ReceiptPaymentChanged" AutomationProperties.AutomationId="ReceiptPayment"><ComboBox.ItemTemplate><DataTemplate x:DataType="vm:RecordFilterChoice"><TextBlock Text="{x:Bind Name, Mode=OneWay}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
-                            <TextBox TextChanged="KeywordDraftChanged" x:Name="RecordKeyword" Text="{x:Bind ViewModel.Keyword, Mode=OneWay, FallbackValue=''}" Header="キーワード" Width="240" PlaceholderText="店名・振替名を部分一致で検索"
-                                     KeyDown="RecordKeywordKeyDown" AutomationProperties.AutomationId="RecordKeyword"/>
-                            <Button x:Name="RecordKeywordSearch" Content="検索" Click="ApplyRecordKeyword" VerticalAlignment="Bottom"
-                                    AutomationProperties.Name="店名と振替名で検索" AutomationProperties.AutomationId="RecordKeywordSearch"/>
-                            <TextBlock x:Name="ReceiptAppliedMonth" Text="{x:Bind ViewModel.AppliedMonth, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
-                        </StackPanel>
-                    </ScrollViewer>
-                    <TextBlock x:Name="ReceiptMonthError" Text="{x:Bind ViewModel.MonthError, Mode=OneWay}" Grid.Row="1" Visibility="{x:Bind ErrorVisible(ViewModel.MonthError), Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                </Grid>
-                <Border Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource Card}" Padding="12">
-                    <receipts:ReceiptListView x:Name="ReceiptsView" ViewModel="{x:Bind ViewModel.Receipts, Mode=OneWay}">
-                        <receipts:ReceiptListView.OpeningContent>
-                            <StackPanel x:Name="ReceiptOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.ReceiptOpening), Mode=OneWay}" Spacing="8">
-                                <ProgressRing x:Name="ReceiptOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.ReceiptOpening), Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
-                                <TextBlock x:Name="ReceiptOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.ReceiptOpening), Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="{x:Bind NoticeRetry(ViewModel.ReceiptOpening), Mode=OneWay}" Click="RetryReceiptOpen" AutomationProperties.AutomationId="ReceiptOpenRetry"/>
-                            </StackPanel>
-                        </receipts:ReceiptListView.OpeningContent>
-                    </receipts:ReceiptListView>
-                </Border>
-                <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12">
-                    <transfers:TransferListView x:Name="TransfersView" ViewModel="{x:Bind ViewModel.Transfers, Mode=OneWay}">
-                        <transfers:TransferListView.OpeningContent>
-                            <StackPanel x:Name="TransferOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.TransferOpening), Mode=OneWay}" Spacing="8">
-                                <ProgressRing x:Name="TransferOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.TransferOpening), Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
-                                <TextBlock x:Name="TransferOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.TransferOpening), Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                                <Button x:Name="TransferOpenRetry" Content="再試行" Click="RetryTransferOpening" Visibility="{x:Bind NoticeRetry(ViewModel.TransferOpening), Mode=OneWay}"/>
-                            </StackPanel>
-                        </transfers:TransferListView.OpeningContent>
-                    </transfers:TransferListView>
-                </Border>
-                <Border Grid.Column="1" Grid.Row="2" Style="{StaticResource Card}" Padding="12">
-                    <Grid RowSpacing="12">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="1" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False"
-                                    AutomationProperties.Name="残高の登録" AutomationProperties.AutomationId="BalanceRegisterPlaceholder" />
-                        </Grid>
-                        <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
-                        <TextBlock Grid.Row="2" Text="残高登録の機能は今後追加します。" Style="{StaticResource Description}" />
-                    </Grid>
-                </Border>
+<Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Monetail.Windows.Presentation.Workspace" xmlns:receipts="using:Monetail.WinUI.Views.Receipts" xmlns:transfers="using:Monetail.WinUI.Views.Transfers" x:Class="Monetail.WinUI.Views.Workspace.RecordHomePage" NavigationCacheMode="Disabled">
+    <Grid Margin="32,0,32,32">
+        <Grid x:Name="RecordContent" ColumnSpacing="12" RowSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="6*"/>
+                <RowDefinition Height="4*"/>
+            </Grid.RowDefinitions>
+            <Grid x:Name="RecordFilters" Grid.ColumnSpan="2" RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <ScrollViewer x:Name="RecordFilterScroller" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled" BringIntoViewOnFocusChange="True" IsTabStop="False" AutomationProperties.Name="記録の共通フィルター" AutomationProperties.AutomationId="RecordFilterScroller">
+                    <StackPanel x:Name="RecordFilterRow" Orientation="Horizontal" Spacing="8">
+                        <RadioButton MinWidth="0" x:Name="RecordMonthPeriod" Content="月指定" GroupName="RecordPeriod" IsChecked="{x:Bind MonthEnabled(ViewModel.AllPeriods), Mode=OneWay}" Checked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="RecordMonthPeriod"/>
+                        <RadioButton MinWidth="0" x:Name="ReceiptAllPeriods" IsChecked="{x:Bind ViewModel.AllPeriods, Mode=OneWay}" Content="全期間" GroupName="RecordPeriod" Checked="ReceiptPeriodChanged" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptAllPeriods"/>
+                        <Button MinWidth="0" x:Name="ReceiptPrevious" IsEnabled="{x:Bind ViewModel.CanMovePrevious, Mode=OneWay}" Content="前月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptPrevious"/>
+                        <TextBox x:Name="ReceiptMonth" Text="{x:Bind ViewModel.MonthText, Mode=OneWay, FallbackValue=''}" IsEnabled="{x:Bind MonthEnabled(ViewModel.AllPeriods), Mode=OneWay}" Header="年月" Width="112" PlaceholderText="YYYY-MM" TextChanged="ReceiptDraftChanged" KeyDown="ReceiptTextKeyDown" AutomationProperties.AutomationId="ReceiptMonth"/>
+                        <Button MinWidth="0" x:Name="ReceiptNextMonth" IsEnabled="{x:Bind ViewModel.CanMoveNext, Mode=OneWay}" Content="翌月" Click="MoveReceiptMonth" VerticalAlignment="Bottom" AutomationProperties.AutomationId="ReceiptNextMonth"/>
+                        <Button MinWidth="0" x:Name="RecordMonthApply" IsEnabled="{x:Bind MonthEnabled(ViewModel.AllPeriods), Mode=OneWay}" Content="検索" Click="ApplyRecordMonth" VerticalAlignment="Bottom" AutomationProperties.Name="共通年月で検索" AutomationProperties.AutomationId="RecordMonthApply"/>
+                        <ComboBox x:Name="ReceiptOwner" ItemsSource="{x:Bind ViewModel.Owners, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Owner, Mode=OneWay}" Header="支払者" Width="140" SelectionChanged="ReceiptOwnerChanged" AutomationProperties.AutomationId="ReceiptOwner">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecordFilterChoice">
+                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ComboBox x:Name="ReceiptPayment" ItemsSource="{x:Bind ViewModel.Payments, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Payment, Mode=OneWay}" Header="支払方法" Width="180" SelectionChanged="ReceiptPaymentChanged" AutomationProperties.AutomationId="ReceiptPayment">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecordFilterChoice">
+                                    <TextBlock Text="{x:Bind Name, Mode=OneWay}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBox TextChanged="KeywordDraftChanged" x:Name="RecordKeyword" Text="{x:Bind ViewModel.Keyword, Mode=OneWay, FallbackValue=''}" Header="キーワード" Width="240" PlaceholderText="店名・振替名を部分一致で検索" KeyDown="RecordKeywordKeyDown" AutomationProperties.AutomationId="RecordKeyword"/>
+                        <Button x:Name="RecordKeywordSearch" Content="検索" Click="ApplyRecordKeyword" VerticalAlignment="Bottom" AutomationProperties.Name="店名と振替名で検索" AutomationProperties.AutomationId="RecordKeywordSearch"/>
+                        <TextBlock x:Name="ReceiptAppliedMonth" Text="{x:Bind ViewModel.AppliedMonth, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Bottom"/>
+                    </StackPanel>
+                </ScrollViewer>
+                <TextBlock x:Name="ReceiptMonthError" Text="{x:Bind ViewModel.MonthError, Mode=OneWay}" Grid.Row="1" Visibility="{x:Bind ErrorVisible(ViewModel.MonthError), Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
             </Grid>
-<ContentControl x:Name="EditorHost" IsTabStop="False" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
- </Grid>
+            <Border Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource Card}" Padding="12">
+                <receipts:ReceiptListView x:Name="ReceiptsView" ViewModel="{x:Bind ViewModel.Receipts, Mode=OneWay}">
+                    <receipts:ReceiptListView.OpeningContent>
+                        <StackPanel x:Name="ReceiptOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.ReceiptOpening), Mode=OneWay}" Spacing="8">
+                            <ProgressRing x:Name="ReceiptOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.ReceiptOpening), Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="ReceiptOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.ReceiptOpening), Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <Button x:Name="ReceiptOpenRetry" Content="再試行" Visibility="{x:Bind NoticeRetry(ViewModel.ReceiptOpening), Mode=OneWay}" Click="RetryReceiptOpen" AutomationProperties.AutomationId="ReceiptOpenRetry"/>
+                        </StackPanel>
+                    </receipts:ReceiptListView.OpeningContent>
+                </receipts:ReceiptListView>
+            </Border>
+            <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12">
+                <transfers:TransferListView x:Name="TransfersView" ViewModel="{x:Bind ViewModel.Transfers, Mode=OneWay}">
+                    <transfers:TransferListView.OpeningContent>
+                        <StackPanel x:Name="TransferOpenNotice" Visibility="{x:Bind NoticeVisible(ViewModel.TransferOpening), Mode=OneWay}" Spacing="8">
+                            <ProgressRing x:Name="TransferOpenProgress" IsActive="{x:Bind NoticeLoading(ViewModel.TransferOpening), Mode=OneWay}" Width="24" Height="24" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="TransferOpenMessage" Text="{x:Bind NoticeMessage(ViewModel.TransferOpening), Mode=OneWay}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                            <Button x:Name="TransferOpenRetry" Content="再試行" Click="RetryTransferOpening" Visibility="{x:Bind NoticeRetry(ViewModel.TransferOpening), Mode=OneWay}"/>
+                        </StackPanel>
+                    </transfers:TransferListView.OpeningContent>
+                </transfers:TransferListView>
+            </Border>
+            <Border Grid.Column="1" Grid.Row="2" Style="{StaticResource Card}" Padding="12">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="1"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="残高登録" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="＋ 登録" IsEnabled="False" AutomationProperties.Name="残高の登録" AutomationProperties.AutomationId="BalanceRegisterPlaceholder"/>
+                    </Grid>
+                    <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}"/>
+                    <TextBlock Grid.Row="2" Text="残高登録の機能は今後追加します。" Style="{StaticResource Description}"/>
+                </Grid>
+            </Border>
+        </Grid>
+        <ContentControl x:Name="EditorHost" IsTabStop="False" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+    </Grid>
 </Page>

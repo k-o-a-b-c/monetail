@@ -32,9 +32,11 @@ public partial class App
         await activeWindow.StartAsync();
         await Wait(() => requests.Count == 1 && Find<ProgressRing>(root, "TransferInitialProgress").IsActive);
         var list = Find<ListView>(root, "TransferList");
+        var initialProgress = Find<ProgressRing>(root, "TransferInitialProgress");
+        var initialNotice = Find<StackPanel>(root, "TransferInitialNotice");
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => initialCancelled && Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
-        Check(!Find<ProgressRing>(root, "TransferInitialProgress").IsActive && Find<StackPanel>(root, "TransferInitialNotice").Visibility == Visibility.Collapsed,
+        Check(!initialProgress.IsActive && initialNotice.Visibility == Visibility.Collapsed,
             "初回読込の画面離脱で要求を中断しリングと読み込み表示を停止");
         await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
         list = Find<ListView>(root, "TransferList");
@@ -49,16 +51,18 @@ public partial class App
         var pending = state.ObserveViewportAsync(79, true, true);
         await Wait(() => requests.Count == 3 && Find<ProgressRing>(root, "TransferNextProgress").IsActive); await Settle();
         var offset = scroll.VerticalOffset; Check(offset > 0, "追加読込中のスクロール保持を先頭以外の表示位置で検証");
+        var nextProgress = Find<ProgressRing>(root, "TransferNextProgress");
+        var nextNotice = Find<StackPanel>(root, "TransferNextNotice");
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => continuationCancelled && Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
         await pending;
-        Check(!state.IsLoading && !Find<ProgressRing>(root, "TransferNextProgress").IsActive && Find<StackPanel>(root, "TransferNextNotice").Visibility == Visibility.Collapsed,
+        Check(!state.IsLoading && !nextProgress.IsActive && nextNotice.Visibility == Visibility.Collapsed,
             "追加読込の画面離脱で要求・状態・末尾リングを同時に停止");
-        Check(list.Items.Count == 100 && ReferenceEquals(list.Items[0], first) && ReferenceEquals(list.SelectedItem, selected), "追加読込の中断では取得済み行と選択を保持");
+        Check(state.Rows.Count == 100 && ReferenceEquals(state.Rows[0], first) && ReferenceEquals(state.SelectedItem, selected), "追加読込の中断では取得済み行と選択を保持");
         await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
         list = Find<ListView>(root, "TransferList");
-        scroll = All(list).OfType<ScrollViewer>().First();
         await Wait(() => requests.Count == 4 && state.IsContinuationLoading && Find<ProgressRing>(root, "TransferNextProgress").IsActive); await Settle();
+        scroll = All(list).OfType<ScrollViewer>().First();
         Check(requests[2] == requests[3] && requests[3].Contains("cursor=next", StringComparison.Ordinal), "記録画面への復帰で中断した追加ページの同じ条件・カーソルだけを再開");
         Check(ReferenceEquals(list.SelectedItem, selected) && Math.Abs(scroll.VerticalOffset - offset) < 0.1, "追加読込の再開中も選択とスクロール位置を保持");
         continuationResume.SetResult(true);

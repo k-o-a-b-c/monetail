@@ -97,12 +97,13 @@ public sealed partial class RecordHomePage : Page
                 await Task.Yield();
                 if (!Current(pending))
                     return;
+                // 再生成した一覧は、保留中の追加読込の完了を待たず表示位置を復元する。
+                RestorePositions();
                 await ViewModel!.ResumeAsync();
                 if (!Current(pending))
                     return;
                 ReceiptsView.ObserveViewport();
                 TransfersView.ObserveViewport();
-                RestorePositions();
             }
             catch (OperationCanceledException)when (pending.IsCancellationRequested)
             {
