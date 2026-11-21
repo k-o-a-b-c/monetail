@@ -51,6 +51,7 @@ public partial class App
             Check(!CreationDetached(page) && VisibleAncestors(Find<TextBlock>(root, "NoLedgersNotice")) &&
                 VisibleAncestors(refresh) && VisibleAncestors(logout) && Find<Button>(root, "CancelLedgerCreation").Visibility == Visibility.Collapsed,
                 "所属0件の同じPageは招待案内・更新・ログアウトを表示しキャンセルを出さない");
+            await CheckCreationPresentation(root, page, name, create, refresh);
             name.Text = "  保持する家計簿  ";
             await ActivateReceiptInputWindowAsync();
             await FocusTransferControl(name);
@@ -73,21 +74,25 @@ public partial class App
             await InvokeAsync(() => refresh);
             await Wait(() => Equals(TransferRuntime("busy"), false));
             Check(ReferenceEquals(CreationScreen(root), page) && ReferenceEquals(Find<TextBox>(root, "NewLedgerName"), name) &&
-                name.Text == "  保持する家計簿  " && ReferenceEquals(TransferRuntime("creationDraft"), draft) && !Find<InfoBar>(root, "ErrorNotice").IsOpen,
-                "更新後も0件なら同じPage・入力・同名再送要求を保ち、新しい結果通知を出さない");
+                name.Text == "  保持する家計簿  " && ReferenceEquals(TransferRuntime("creationDraft"), draft) && !Find<InfoBar>(root, "ErrorNotice").IsOpen &&
+                Find<TextBlock>(root, "MembershipResult").Visibility == Visibility.Visible,
+                "所属確認後も0件なら同じPage・入力・同名再送要求を保ち、確認ボタン直下へ通常の結果を示す");
             var tokens = fixture.Tokens.Current;
             fixture.FailLedgerRead = true;
             await InvokeAsync(() => refresh);
             await Wait(() => Equals(TransferRuntime("busy"), false));
             Check(ReferenceEquals(CreationScreen(root), page) && name.Text == "  保持する家計簿  " &&
-                Find<InfoBar>(root, "ErrorNotice").IsOpen && ReferenceEquals(tokens, fixture.Tokens.Current),
+                Find<InfoBar>(root, "ErrorNotice").IsOpen && ReferenceEquals(tokens, fixture.Tokens.Current) &&
+                Find<TextBlock>(root, "MembershipResult").Visibility == Visibility.Collapsed,
                 "更新の通信失敗は共有エラーだけを表示し、名前・Page・保存認証を保持する");
             fixture.FailLedgerRead = false;
             fixture.LedgerReadGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
             var reads = fixture.Requests.Count;
             await InvokeAsync(() => refresh);
             await Wait(() => fixture.Requests.Count == reads + 1);
-            Check(!page.IsEnabled && !refresh.IsEnabled && Equals(TransferRuntime("busy"), true),
+            Check(!page.IsEnabled && !refresh.IsEnabled && Equals(TransferRuntime("busy"), true) &&
+                Find<ProgressRing>(root, "BusyProgress") is { IsActive: true, Visibility: Visibility.Visible, Width: 24, Height: 24 } &&
+                Find<TextBlock>(root, "MembershipResult").Visibility == Visibility.Collapsed && !All(page).OfType<ProgressRing>().Any(),
                 "更新中は既存busyとPage.IsEnabledで入力と操作の二重実行を防ぐ");
             foreach (var operation in new[] { "RefreshLedgerMembership", "LogoutFromCreation" })
                 typeof(MainWindow).GetMethod(operation, BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, [page, null]);
@@ -145,7 +150,11 @@ public partial class App
             var ledger = TransferRuntime("currentLedger");
             await OpenLedgerAdditionAsync(root);
             var first = CreationScreen(root) ?? throw new InvalidOperationException("追加Pageがありません。");
-            Check(Find<TextBlock>(root, "NoLedgersNotice").Visibility == Visibility.Collapsed &&
+            Check(Find<TextBlock>(root, "PageTitle").Text == "家計簿の作成" &&
+                Find<StackPanel>(root, "InvitationSection").Visibility == Visibility.Collapsed &&
+                Find<Border>(root, "InvitationDivider").Visibility == Visibility.Collapsed &&
+                Find<Border>(root, "LogoutDivider").Visibility == Visibility.Collapsed &&
+                Find<TextBlock>(root, "NoLedgersNotice").Visibility == Visibility.Collapsed &&
                 Find<Button>(root, "RefreshLedgersButton").Visibility == Visibility.Collapsed &&
                 Find<Button>(root, "CreatePageLogoutButton").Visibility == Visibility.Collapsed && VisibleAncestors(Find<Button>(root, "CancelLedgerCreation")),
                 "後からの追加は同じPage型を使い、案内・更新・ログアウトを隠してキャンセルを表示する");

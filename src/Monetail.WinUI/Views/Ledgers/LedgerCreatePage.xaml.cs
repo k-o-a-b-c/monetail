@@ -1,16 +1,20 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Navigation;
 using Monetail.WinUI.Input;
+using Monetail.Windows.Client.Ledgers;
 
 namespace Monetail.WinUI.Views.Ledgers;
 
 public sealed partial class LedgerCreatePage : Page
 {
+    private readonly FormKeyboard keyboard;
+
     public LedgerCreatePage()
     {
         InitializeComponent();
-        _ = new FormKeyboard(this, CreateLedgerButton, NotifyCreateAsync, NewLedgerName);
+        keyboard = new FormKeyboard(this, CreateLedgerButton, NotifyCreateAsync, NewLedgerName);
     }
 
     public event EventHandler<string>? CreateRequested;
@@ -22,12 +26,39 @@ public sealed partial class LedgerCreatePage : Page
     {
         base.OnNavigatedTo(args);
         var emptyMembership = (bool)args.Parameter;
-        NoLedgersNotice.Visibility = RefreshLedgersButton.Visibility = CreatePageLogoutButton.Visibility =
-            emptyMembership ? Visibility.Visible : Visibility.Collapsed;
+        PageTitle.Text = emptyMembership ? "家計簿がありません" : "家計簿の作成";
+        foreach (var element in new FrameworkElement[] { NoLedgersNotice, CreateSectionTitle, InvitationDivider,
+            InvitationSection, RefreshLedgersButton, LogoutDivider, CreatePageLogoutButton })
+            element.Visibility = emptyMembership ? Visibility.Visible : Visibility.Collapsed;
         CancelLedgerCreation.Visibility = emptyMembership ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    public void FocusName() => NewLedgerName.Focus(FocusState.Programmatic);
+    public void ShowNameError(string message)
+    {
+        LedgerNameError.Text = message;
+        LedgerNameError.Visibility = Visibility.Visible;
+        AutomationProperties.SetHelpText(NewLedgerName, message);
+        NewLedgerName.Focus(FocusState.Programmatic);
+    }
+
+    private void NameChanged(object sender, TextChangedEventArgs args)
+    {
+        if (LedgerNameError is null || LedgerNameError.Visibility != Visibility.Visible)
+            return;
+        try
+        {
+            LedgerCreationDraft.ValidateName(NewLedgerName.Text);
+            LedgerNameError.Text = "";
+            LedgerNameError.Visibility = Visibility.Collapsed;
+            AutomationProperties.SetHelpText(NewLedgerName, "");
+        }
+        catch (FormatException)
+        {
+            // 検証の正本はClient。同じ不正入力なら既存エラーを維持する。
+        }
+    }
+
+    public void ShowEmptyMembership() => MembershipResult.Visibility = Visibility.Visible;
 
     private Task NotifyCreateAsync()
     {
@@ -36,7 +67,11 @@ public sealed partial class LedgerCreatePage : Page
     }
 
     private void RequestCreate(object sender, RoutedEventArgs args) => _ = NotifyCreateAsync();
-    private void RequestRefresh(object sender, RoutedEventArgs args) => RefreshRequested?.Invoke(this, args);
+    private void RequestRefresh(object sender, RoutedEventArgs args)
+    {
+        MembershipResult.Visibility = Visibility.Collapsed;
+        RefreshRequested?.Invoke(this, args);
+    }
     private void RequestLogout(object sender, RoutedEventArgs args) => LogoutRequested?.Invoke(this, args);
     private void RequestCancel(object sender, RoutedEventArgs args) => CancelRequested?.Invoke(this, args);
 }

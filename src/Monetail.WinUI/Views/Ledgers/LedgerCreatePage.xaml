@@ -6,16 +6,32 @@
     <Grid Padding="32">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center" Spacing="24">
-                <TextBlock Text="家計簿の作成" Style="{ThemeResource TitleTextBlockStyle}" />
-                <TextBlock x:Name="NoLedgersNotice" Text="参加している家計簿はありません。&#x0a;参加する場合は、管理者から招待リンクを受け取ってください。"
-                           FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                <TextBox x:Name="NewLedgerName" Header="家計簿名" AutomationProperties.AutomationId="NewLedgerName" />
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="CreateLedgerButton" Content="作成" Click="RequestCreate" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="CreateLedgerButton" />
-                    <Button x:Name="RefreshLedgersButton" Content="更新" Click="RequestRefresh" AutomationProperties.AutomationId="RefreshLedgersButton" />
-                    <Button x:Name="CreatePageLogoutButton" Content="ログアウト" Click="RequestLogout" AutomationProperties.AutomationId="CreatePageLogoutButton" />
-                    <Button x:Name="CancelLedgerCreation" Content="キャンセル" Click="RequestCancel" AutomationProperties.AutomationId="CancelLedgerCreation" />
+                <TextBlock x:Name="PageTitle" Style="{ThemeResource TitleTextBlockStyle}" TextWrapping="Wrap" />
+                <TextBlock x:Name="NoLedgersNotice" Text="現在、参加している家計簿はありません。" TextWrapping="Wrap" />
+                <StackPanel Spacing="12">
+                    <TextBlock x:Name="CreateSectionTitle" Text="新しく家計簿を作成" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                    <StackPanel Spacing="8">
+                        <TextBox x:Name="NewLedgerName" Header="家計簿名" TextChanged="NameChanged"
+                                 AutomationProperties.Name="家計簿名" AutomationProperties.AutomationId="NewLedgerName" />
+                        <TextBlock x:Name="LedgerNameError" Visibility="Collapsed" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button x:Name="CreateLedgerButton" Content="作成" Click="RequestCreate" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="CreateLedgerButton" />
+                        <Button x:Name="CancelLedgerCreation" Content="キャンセル" Click="RequestCancel" AutomationProperties.AutomationId="CancelLedgerCreation" />
+                    </StackPanel>
                 </StackPanel>
+                <Border x:Name="InvitationDivider" Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                <StackPanel x:Name="InvitationSection" Spacing="12">
+                    <TextBlock x:Name="InvitationHeading" Text="招待された家計簿に参加" Style="{ThemeResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                    <TextBlock x:Name="InvitationDescription" Text="管理者から招待リンクを受け取り、ブラウザーで参加手続きを完了してください。" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ConfirmationHint" Text="参加後は、以下のボタンを押してください。" TextWrapping="Wrap" />
+                    <Button x:Name="RefreshLedgersButton" Content="参加中の家計簿を確認" Click="RequestRefresh" AutomationProperties.AutomationId="RefreshLedgersButton" />
+                    <TextBlock x:Name="MembershipResult" Text="参加中の家計簿は見つかりませんでした。" Visibility="Collapsed" TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+                <Border x:Name="LogoutDivider" Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                <Button x:Name="CreatePageLogoutButton" Content="ログアウト" Click="RequestLogout" AutomationProperties.AutomationId="CreatePageLogoutButton" />
             </StackPanel>
         </ScrollViewer>
     </Grid>

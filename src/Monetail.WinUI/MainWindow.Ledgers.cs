@@ -101,8 +101,9 @@ public sealed partial class MainWindow
         }
         catch (FormatException error)
         {
-            ShowError(error.Message);
-            CreationView?.FocusName();
+            ErrorNotice.IsOpen = false;
+            ErrorNotice.Visibility = Visibility.Collapsed;
+            CreationView?.ShowNameError(error.Message);
             return Task.CompletedTask;
         }
         var draft = creationDraft;
@@ -128,6 +129,8 @@ public sealed partial class MainWindow
                 try
                 {
                     await OpenInitialLedgerAsync(cancellation.Token);
+                    if (ReferenceEquals(CreationView, page))
+                        page.ShowEmptyMembership();
                 }
                 catch (Exception error) when ((cancellation.IsCancellationRequested || !ReferenceEquals(CreationView, page)) &&
                     error is OperationCanceledException or ApiConnectionException or HttpRequestException or

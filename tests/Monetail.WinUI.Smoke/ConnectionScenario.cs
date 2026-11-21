@@ -74,7 +74,8 @@ public partial class App
             Find<TextBox>(root, "NewLedgerName").Text = new string('a', 101);
             await InvokeAsync(() => Find<Button>(root, "CreateLedgerButton"));
             await Settle();
-            Check(fixture.Creations.Count == 0 && Find<InfoBar>(root, "ErrorNotice").IsOpen, "家計簿名の上限超過を送信前に表示");
+            Check(fixture.Creations.Count == 0 && Find<TextBlock>(root, "LedgerNameError").Visibility == Visibility.Visible &&
+                !Find<InfoBar>(root, "ErrorNotice").IsOpen, "家計簿名の上限超過を入力欄直下へ表示しInfoBarを使わない");
             Find<TextBox>(root, "NewLedgerName").Text = "  家族の家計簿  ";
             fixture.FailCreation = true;
             await InvokeAsync(() => Find<Button>(root, "CreateLedgerButton"));
