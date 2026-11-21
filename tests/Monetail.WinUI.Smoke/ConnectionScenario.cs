@@ -12,6 +12,7 @@ public partial class App
 {
     private async Task CheckConnectionFlow(string output, bool capture)
     {
+        await CheckAuthenticationFlowLifetime();
         await CheckLedgerCreationPage();
         await CheckLedgerChoiceControl();
         await CheckConnectionSettingsLifecycle();
@@ -223,7 +224,7 @@ public partial class App
         if (reloadSettings)
         {
             // 別プロセスでの設定変更を模擬する再起動は、表示前の設定読込段階も通す。
-            var restart = typeof(MainWindow).GetMethod("RetryStartupAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            var restart = typeof(MainWindow).GetMethod("RestartAuthenticationAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?? throw new InvalidOperationException("再起動の入口がありません。");
             await (Task)(restart.Invoke(current, []) ?? throw new InvalidOperationException());
         }

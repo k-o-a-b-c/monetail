@@ -77,9 +77,9 @@ public partial class App
                 Find<Button>(root, "CancelLoginButton").IsEnabled && fixture.BrowserOpens == 1,
                 "同じPageの認証待ちではログインを隠し、busy中でも再オープン/取消を使える");
             var waitingUri = fixture.AuthorizationUri;
-            var start = typeof(MainWindow).GetMethod("LoginAsync", BindingFlags.NonPublic | BindingFlags.Instance)
+            var start = typeof(Monetail.WinUI.Authentication.AuthenticationFlow).GetMethod("LoginAsync", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("ログイン操作がありません。");
-            await (Task)(start.Invoke(window, []) ?? throw new InvalidOperationException("操作結果がありません。"));
+            await (Task)(start.Invoke(TransferRuntime("authentication"), []) ?? throw new InvalidOperationException("操作結果がありません。"));
             Check(fixture.BrowserOpens == 1 && fixture.AuthorizationUri == waitingUri && ReferenceEquals(LoginScreen(root), page),
                 "認証待ち中のログイン再要求では二重開始せず、同じPageと要求URLを維持する");
             var reopen = Find<Button>(root, "ReopenBrowserButton");

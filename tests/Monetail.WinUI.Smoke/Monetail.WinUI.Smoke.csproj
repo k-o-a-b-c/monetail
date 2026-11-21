@@ -18,6 +18,7 @@
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Participants.cs" Link="MainWindow.Participants.cs" />
     <Compile Include="../../src/Monetail.WinUI/ParticipantRow.cs" Link="ParticipantRow.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.PersonOrder.cs" Link="MainWindow.PersonOrder.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Authentication/*.cs" Link="Authentication/%(Filename)%(Extension)" />
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
     <Page Include="../../src/Monetail.WinUI/Views/Authentication/LoginPage.xaml" Link="Views/Authentication/LoginPage.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Authentication/LoginPage.xaml.cs" Link="Views/Authentication/LoginPage.xaml.cs" />

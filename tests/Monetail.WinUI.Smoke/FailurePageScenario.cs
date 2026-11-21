@@ -66,11 +66,11 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "RetryButton"));
             await Wait(() => fixture.Requests.Count(path => path == "/auth/me") == reads + 1 && Startup(root) is not null);
             var host = Find<ContentControl>(root, "AuthenticationHost");
-            var frame = host.Content;
-            var retryMethod = typeof(MainWindow).GetMethod("RetryConnection", BindingFlags.NonPublic | BindingFlags.Instance)
+            var frame = (host.Content as Frame)?.Content;
+            var retryMethod = typeof(Monetail.WinUI.Authentication.AuthenticationFlow).GetMethod("Retry", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("再試行入口がありません。");
-            retryMethod.Invoke(window, [null, null]);
-            Check(ReferenceEquals(host.Content, frame) && fixture.Requests.Count(path => path == "/auth/me") == reads + 1,
+            retryMethod.Invoke(TransferRuntime("authentication"), [null, null]);
+            Check(ReferenceEquals((host.Content as Frame)?.Content, frame) && fixture.Requests.Count(path => path == "/auth/me") == reads + 1,
                 "再試行中の重複操作は設定再読込とPage再生成を含めて開始しない");
             fixture.ConnectionGate.SetResult(true);
             await Wait(() => Visible(root, "HomePage") && Equals(TransferRuntime("busy"), false));
