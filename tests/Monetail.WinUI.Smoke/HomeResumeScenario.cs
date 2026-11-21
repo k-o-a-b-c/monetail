@@ -185,6 +185,7 @@ public partial class App
             await Wait(() => started);
             var scope = TransferRuntime("homeResume") as CancellationTokenSource
                 ?? throw new InvalidOperationException("終了時の復帰所有者がありません。");
+            var closingNotice = Find<InfoBar>(root, "ErrorNotice");
             // 最終Windowを閉じても、後続の非同期終了確認とシナリオを継続する。
             using var next = new SyntheticConnection();
             var keeper = new MainWindow(next.CreateConnection());
@@ -194,7 +195,7 @@ public partial class App
             gate.SetResult(true);
             await Settle();
             Check(scope.IsCancellationRequested && TransferRuntime("homeResume") is null &&
-                !Find<InfoBar>(root, "ErrorNotice").IsOpen,
+                !closingNotice.IsOpen,
                 "Window終了で復帰を取り消し、終了後の非同期失敗を観測して旧表示を更新しない");
             window = keeper;
         }
