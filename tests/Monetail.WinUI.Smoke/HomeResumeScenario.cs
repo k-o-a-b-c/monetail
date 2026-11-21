@@ -2,8 +2,7 @@ using System.Net;
 using System.Reflection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Monetail.Windows.Client.Receipts;
-using Monetail.Windows.Client.Transfers;
+using Monetail.Windows.Client.Transport;
 
 namespace Monetail.WinUI.Smoke;
 
