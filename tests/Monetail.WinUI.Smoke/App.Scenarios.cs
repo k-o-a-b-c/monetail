@@ -109,7 +109,7 @@ public partial class App
         if (capture) await Capture(root, output, "04-management-dark");
         root.RequestedTheme = ElementTheme.Default;
 
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
         await Settle();
         Check(Find<FrameworkElement>(root, "HomePage").Visibility == Visibility.Visible, "同じウィンドウでホームへ戻る");
         rasterizationScale = root.XamlRoot.RasterizationScale;
