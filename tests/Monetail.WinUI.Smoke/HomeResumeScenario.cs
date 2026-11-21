@@ -148,7 +148,7 @@ public partial class App
             var notice = Find<InfoBar>(root, "ErrorNotice");
             Check(unexpected
                     ? notice.IsOpen && notice.Message == "一覧を表示できませんでした。"
-                    : !notice.IsOpen && Find<StackPanel>(root, transfers ? "TransferInitialNotice" : "ReceiptInitialNotice").Visibility == Visibility.Visible,
+                    : !notice.IsOpen && Find<StackPanel>(root, transfers ? "TransferInitialFailure" : "ReceiptInitialFailure").Visibility == Visibility.Visible,
                 "通常の取得失敗は一覧のエラー、予期しない初回/復帰失敗は観測して共有通知へ表示し、アプリを終了しない");
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
