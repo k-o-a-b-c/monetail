@@ -17,20 +17,20 @@ public sealed class LedgerWorkspaceTests
     [InlineData(0)]
     [InlineData(1)]
     [InlineData(2)]
-    public async Task MissingHistoryRoutesToCreationSingleLedgerOrChoicesAndOnlyOpeningWrites(int count)
+    public async Task MissingHistoryReturnsMembershipWithoutAutomaticallyOpeningAnyLedger(int count)
     {
         var rows = new[] { First, Second }.Take(count).ToArray();
         using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
         {
             "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
             "/ledgers" => Json(rows),
-            _ => Json(First)
+            _ => throw new InvalidOperationException("Unexpected request")
         });
         var destination = await fixture.Workspace.StartAsync();
-        Assert.Equal(count == 1 ? First : null, destination.Opened);
-        Assert.Equal(count == 1 ? 0 : count, destination.Choices.Count);
-        Assert.Equal(count == 1 ? 2 : 1, fixture.Requests.Count(row => row.Method == HttpMethod.Post));
-        Assert.DoesNotContain(fixture.Requests, row => row.Method == HttpMethod.Put);
+        Assert.Null(destination.Opened);
+        Assert.Equal(rows, destination.Choices);
+        Assert.Equal(new[] { (HttpMethod.Post, "/ledgers/open-last"), (HttpMethod.Get, "/ledgers") }, fixture.Requests);
+        Assert.NotNull(fixture.Store.Current);
     }
 
     [Fact]
@@ -44,40 +44,58 @@ public sealed class LedgerWorkspaceTests
     }
 
     [Fact]
-    public async Task RemovedPreviousSelectionFallsBackToCurrentMembership()
+    public async Task RemovedPreviousSelectionReturnsMembershipAndOnlyExplicitOpeningWritesTheSelection()
     {
         using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
         {
             "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
             "/ledgers" => Json(new[] { Second }),
-            var path when path == $"/ledgers/{First.LedgerId:N}/open" => new(HttpStatusCode.NotFound),
-            _ => Json(Second)
-        });
-        Assert.Equal(Second, (await fixture.Workspace.StartAsync()).Opened);
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public async Task MembershipIsReloadedOnceWhenSingleAutomaticOpeningReturnsNotFound(int remaining)
-    {
-        var lists = 0;
-        var rows = new[] { First, Second }.Take(remaining).ToArray();
-        using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
-        {
-            "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
-            "/ledgers" => Json(++lists == 1 ? new[] { First } : rows),
-            var path when path == $"/ledgers/{First.LedgerId:N}/open" => new(HttpStatusCode.NotFound),
+            var path when path == $"/ledgers/{Second.LedgerId:N}/open" => Json(Second),
             _ => throw new InvalidOperationException("Unexpected request")
         });
         var destination = await fixture.Workspace.StartAsync();
         Assert.Null(destination.Opened);
-        Assert.Equal(rows, destination.Choices);
-        Assert.Equal(2, lists);
-        Assert.Equal(new[] { "/ledgers/open-last", "/ledgers", $"/ledgers/{First.LedgerId:N}/open", "/ledgers" },
-            fixture.Requests.Select(row => row.Path));
-        Assert.NotNull(fixture.Store.Current);
+        Assert.Equal(new[] { Second }, destination.Choices);
+        Assert.Equal(new[] { (HttpMethod.Post, "/ledgers/open-last"), (HttpMethod.Get, "/ledgers") }, fixture.Requests);
+        Assert.Equal(Second, await fixture.Workspace.OpenAsync(Second.LedgerId));
+        Assert.Equal((HttpMethod.Post, $"/ledgers/{Second.LedgerId:N}/open"), fixture.Requests[2]);
+        Assert.Equal(3, fixture.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    public async Task MembershipFailureDoesNotPretendThereAreNoLedgersOrDiscardAuthentication(HttpStatusCode status)
+    {
+        using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
+            "/ledgers" => new(status),
+            _ => throw new InvalidOperationException("Unexpected request")
+        });
+        var tokens = fixture.Store.Current;
+        var error = await Record.ExceptionAsync(() => fixture.Workspace.StartAsync());
+        if (status == HttpStatusCode.ServiceUnavailable)
+            Assert.IsType<ApiConnectionException>(error);
+        else
+            Assert.Equal(status, Assert.IsType<LedgerRequestException>(error).StatusCode);
+        Assert.Same(tokens, fixture.Store.Current);
+        Assert.Equal(new[] { (HttpMethod.Post, "/ledgers/open-last"), (HttpMethod.Get, "/ledgers") }, fixture.Requests);
+    }
+
+    [Fact]
+    public async Task DefinitiveAuthenticationLossDuringMembershipReadNeverOpensALedger()
+    {
+        using var fixture = new Fixture(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/ledgers/open-last" => Json(new { ledger = (LedgerInfo?)null }),
+            "/ledgers" => new(HttpStatusCode.Unauthorized),
+            "/connect/token" => new(HttpStatusCode.BadRequest) { Content = JsonContent.Create(new { error = "invalid_grant" }) },
+            _ => throw new InvalidOperationException("Unexpected request")
+        });
+        await Assert.ThrowsAsync<AuthenticationRejectedException>(() => fixture.Workspace.StartAsync());
+        Assert.Null(fixture.Store.Current);
+        Assert.Equal(new[] { "/ledgers/open-last", "/ledgers", "/connect/token" }, fixture.Requests.Select(row => row.Path));
     }
 
     [Fact]

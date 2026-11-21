@@ -1,4 +1,3 @@
-using System.Net;
 using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Transport;
 
@@ -27,14 +26,6 @@ public sealed class LedgerWorkspace(MonetailApiClient api, ClientSession session
         var previous = await session.ExecuteAuthenticatedAsync(api.OpenLastLedgerAsync, token);
         if (previous is not null) return new(previous, []);
         var choices = await ListAsync(token);
-        if (choices.Length == 1)
-        {
-            try { return new(await OpenAsync(choices[0].LedgerId, token), []); }
-            catch (LedgerRequestException error) when (error.StatusCode == HttpStatusCode.NotFound)
-            {
-                choices = await ListAsync(token);
-            }
-        }
         return new(null, choices);
     }
 

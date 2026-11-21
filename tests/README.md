@@ -16,11 +16,23 @@
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
 | 合計 | 3844 |
 
+## 家計簿の明示選択（PR #226）
+
+PR #225統合後の正本に従い、[LedgerWorkspaceTests](Monetail.Windows.Client.Tests/LedgerWorkspaceTests.cs)の履歴なし0/1/複数を更新し、open-last→所属GETだけで行き先情報を返し、自動の開くPOSTや最終選択変更を行わないことを厳密な要求列で検証する。有効な最後の家計簿は追加の一覧/開く要求なしで表示する確認を維持する。無効な前回選択からは現在の所属一覧を返し、明示的なOpenAsyncだけで対象POSTを送る。不要となった自動オープン失敗時の404再取得3ケースを削除し、所属一覧の503/429時の認証保持と、認証失効時に家計簿を開かず失効を返す3ケースを追加した。
+
+[StartupBoundaryScenario](Monetail.WinUI.Smoke/StartupBoundaryScenario.cs)は0件は作成・1件以上は選択を確認し、所属1件でも未選択・開く無効で開始し、選択だけでは通信せず、開くの明示操作で1回だけ送信することを検証する。[LedgerChoiceScenario](Monetail.WinUI.Smoke/LedgerChoiceScenario.cs)の明示オープン404/認証失効を所属1件にも拡張し、404で一覧を自動再取得せず、選択と再操作可能状態を維持する。既存の401編集保持・通信失敗/再試行・10秒期限・Window/Page寿命の確認は維持する。
+
+ローカルReleaseの関連Client77件（家計簿・セッション・OAuth・保存）、構造検査・git diff --checkは成功。ソース`184f871`の[Tests 44844043974・再実行](https://github.com/k-o-a-b-c/monetail/actions/runs/44844043974/attempts/2)が成功。Client全1,205件・Presentation全164件（失敗/skipなし）、製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/845確認（connection-flow119）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。変更前はmain `ecbeaaa`の[push Tests 44843593510](https://github.com/k-o-a-b-c/monetail/actions/runs/44843593510)成功を採用する。API/DB/Docker/旧Windows/Windows実保存等の非変更部分はCI選択・同一fingerprintの成功結果を再利用する。選定仕様の正本は[新規利用](../docs/ledger-onboarding.md#所属1件以上で開く家計簿)、実装構成は[WinUI構成](../docs/architecture-winui.md#起動認証復帰の調停と通常業務の失敗通知)を参照する。
+
+[初回のWindows CI](https://github.com/k-o-a-b-c/monetail/actions/runs/44844043974/attempts/1)は、家計簿選択を含むconnection-flow119確認が成功した後、既存receipt-memosのReceiptMemoでIME確定Enter後のフォーカス移動を検出して失敗した（focus=ReceiptCategoryChoice、composing=False、保存済みメモ不変）。同じ診断は過去にも発生しており、今回メモ/IMEの製品・試験コードは変更していない。失敗Windowsジョブだけを同一コミットで1回再実行して成功した。期待値・タイムアウトは変更せず、原因は未特定で、再実行成功だけで解決とは扱わない。
+
+ビルド後のWinUIレビューで、Window/既存View/API/DB/認証処理に製品差分がなく、選択・開く操作・401保持の既存経路を使うことを確認した。XML・文書リンク・構造検査・git diff --checkも成功。最終成功実行に0xC0000005の記録はないが、過去の原因解決とは扱わない。WinApp CLIはこの環境にないため未実行。新しいXAML/UI APIは導入していない。実API接続、実Windows手動操作、物理IME/タッチ、高DPI・スクリーンリーダーは未検証。
+
 ## 起動・認証復帰と通常業務の境界整理（PR #224）
 
 [StartupBoundaryScenario](Monetail.WinUI.Smoke/StartupBoundaryScenario.cs)を既存connection-flowへ追加し、履歴なし・所属0/1/複数の行き先と要求順、通常業務の家計簿404/403/429/入力不備・科目/支払方法/人物業務エラー・通信/保存障害が共有通知へ進むこと、認証/家計簿/retryを保持して再送やFailurePage表示を行わないことを確認する。[StartupScenario](Monetail.WinUI.Smoke/StartupScenario.cs)の401レシート/振替復帰では、通常のopen-last/所属一覧より編集復帰が優先される条件も追加した。未保存入力・旧revision・同じモデル/実コントロールの保持、連続401・マスタ再取得・不要な詳細GET/自動保存なしの既存確認は維持する。
 
-[LedgerWorkspaceTests](Monetail.Windows.Client.Tests/LedgerWorkspaceTests.cs)に、1件自動選択が404になった直後に所属を1回再取得し、0/1/複数へ変化した最新一覧を返す3ケースを追加した。既存の選定ロジックは変更せず、再開先の推測や追加の自動選択をしないことを検証する。
+PR #224時点の所属1件自動選択・404再取得の3ケースは、PR #225の確定仕様変更により廃止した。現在の[LedgerWorkspaceTests](Monetail.Windows.Client.Tests/LedgerWorkspaceTests.cs)は、下記PR #226の明示選択と取得失敗/認証失効を検証する。
 
 ローカルReleaseの関連Client77件（家計簿・セッション・OAuth・保存）、構造検査・文書リンク・git diff --checkは成功。ソース`6258d73`の[Tests 44829690209](https://github.com/k-o-a-b-c/monetail/actions/runs/44829690209)は初回で成功した。製品/検証用WinUI x64 Release（各29件の既存WUI2011警告・0エラー）、製品起動、全36シナリオ/840確認（connection-flow114）、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功。ソース`6258d73`の[Client/Presentationジョブ136611302672](https://github.com/k-o-a-b-c/monetail/actions/runs/44829690209/job/136611302672)でClient全1,205件・Presentation全164件が成功（失敗/skipなし）。基点main `5afcee1`の[push Tests 44820225020](https://github.com/k-o-a-b-c/monetail/actions/runs/44820225020)を変更前成功記録として採用し、API/DB/Docker/旧Windows/Windows実保存等の非変更部分はCI選択・同一fingerprintの成功結果を再利用する。責務・依存/メソッド/フィールド/コード量の比較は[構成正本](../docs/architecture-winui.md#起動認証復帰の調停と通常業務の失敗通知)を参照する。
 
