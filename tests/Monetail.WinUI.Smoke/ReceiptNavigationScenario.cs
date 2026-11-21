@@ -40,7 +40,7 @@ public partial class App
         await Wait(() => initialCancelled && Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
         Check(!initialProgress.IsActive && initialNotice.Visibility == Visibility.Collapsed,
             "初回読込の画面離脱で要求を中断しリングと読み込み表示を停止");
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
         list = Find<ListView>(root, "ReceiptList");
         await Wait(() => requests.Count == 2 && Find<ProgressRing>(root, "ReceiptInitialProgress").IsActive);
         Check(requests[0] == requests[1] && list.Items.Count == 0, "初回読込の復帰は同じ確定条件・cursorなしで一度だけ再開");
@@ -65,7 +65,7 @@ public partial class App
         Check(!state.IsLoading && !nextProgress.IsActive && nextNotice.Visibility == Visibility.Collapsed,
             "追加読込の画面離脱で要求・状態・末尾リングを同時に停止");
         Check(state.Rows.Count == 100 && ReferenceEquals(state.Rows[0], first) && ReferenceEquals(state.SelectedItem, selected), "追加読込の中断では取得済み行と選択を保持");
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
         list = Find<ListView>(root, "ReceiptList");
         await Wait(() => requests.Count == 4 && state.IsContinuationLoading && Find<ProgressRing>(root, "ReceiptNextProgress").IsActive); await Settle();
         scroll = All(list).OfType<ScrollViewer>().First();
