@@ -10,7 +10,7 @@ public partial class App
     private AuthenticationFlow? CurrentAuthentication => TransferRuntime("authentication") as AuthenticationFlow;
 
     private static bool AuthenticationReleased(AuthenticationFlow flow) => flow.View is null && flow.Page is null &&
-        new[] { "startupCancellation", "browserCancellation", "browserLogin", "retry" }.All(name =>
+        new[] { "readCancellation", "browserCancellation", "browserLogin", "retry" }.All(name =>
             (typeof(AuthenticationFlow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("認証フローの寿命状態がありません。")).GetValue(flow) is null);
 
@@ -73,6 +73,31 @@ public partial class App
                 ?? throw new InvalidOperationException("ブラウザー取消状態がありません。");
             Check(browser.GetValue(flow) is null && cancellation.GetValue(flow) is null,
                 "離脱で旧ブラウザー待機と認証検証を中断し、完了後は取消参照を残さない");
+        }
+        using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
+        {
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+            var navigation = Find<NavigationView>(root, "ManagementNavigation");
+            navigation.SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
+            await Wait(() => Find<ContentControl>(root, "ConnectionSettingsContent").Content is not null);
+            fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.IgnoreConnectionCancellation = true;
+            var reads = fixture.Requests.Count;
+            await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
+            await Wait(() => fixture.Requests.Skip(reads).Contains("/.well-known/openid-configuration"));
+            var metadata = fixture.ConnectionGate;
+            fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            metadata.SetResult(true);
+            await Wait(() => fixture.Requests.Skip(reads).Contains("/auth/me"));
+            var pending = CurrentAuthentication ?? throw new InvalidOperationException("接続確認の認証所有者がありません。");
+            typeof(MainWindow).GetMethod("OpenConnectionSetup", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, []);
+            fixture.ConnectionGate.SetResult(true);
+            await Wait(() => Equals(TransferRuntime("busy"), false));
+            Check(ConnectionSetupVisible(root) && !fixture.Requests.Skip(reads).Contains("/ledgers/open-last") &&
+                typeof(AuthenticationFlow).GetField("readCancellation", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(pending) is null,
+                "接続先保存後の遅い認証確認もフローのPage寿命で中断し、新設定画面を業務画面へ差し替えない");
         }
         using (var fixture = new SyntheticConnection(saved: true))
         {

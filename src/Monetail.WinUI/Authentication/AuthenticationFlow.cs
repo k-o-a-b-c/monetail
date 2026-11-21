@@ -24,7 +24,7 @@ internal sealed class AuthenticationFlow(
     Action close) : IDisposable
 {
     private Frame? frame = new() { IsNavigationStackEnabled = false };
-    private CancellationTokenSource? startupCancellation;
+    private CancellationTokenSource? readCancellation;
     private CancellationTokenSource? browserCancellation;
     private BrowserOAuthLogin? browserLogin;
     private Func<Task>? retry;
@@ -65,29 +65,31 @@ internal sealed class AuthenticationFlow(
 
     public Task RestartAsync() => PrepareInitialDestination() ? StartAsync() : Task.CompletedTask;
 
-    public Task StartAsync()
+    public Task StartAsync() => frame is not null && canOperate() && IsStarting
+        ? RunConnectionReadAsync(RestoreAsync, null)
+        : Task.CompletedTask;
+
+    private Task RunConnectionReadAsync(Func<CancellationToken, Task> operation, ApiEndpoint? candidate)
     {
-        if (frame is null || !canOperate() || !IsStarting)
-            return Task.CompletedTask;
         var page = Page;
         return execute(async () =>
         {
             using var timeout = ConnectionTimeout();
-            startupCancellation = timeout;
+            readCancellation = timeout;
             try
             {
-                await RestoreAsync(timeout.Token);
+                await operation(timeout.Token);
             }
             catch (Exception error) when ((frame is null || !ReferenceEquals(Page, page)) && IsNavigationFailure(error))
             {
-                // 離脱/終了後に戻る認証応答・失敗で現在の画面を上書きしない。
+                // 離脱/終了後の接続・認証応答と失敗で、現在の画面を上書きしない。
             }
             finally
             {
-                if (ReferenceEquals(startupCancellation, timeout))
-                    startupCancellation = null;
+                if (ReferenceEquals(readCancellation, timeout))
+                    readCancellation = null;
             }
-        }, null);
+        }, candidate);
     }
 
     private static bool IsNavigationFailure(Exception error) =>
@@ -96,7 +98,7 @@ internal sealed class AuthenticationFlow(
             IOException or UnauthorizedAccessException or CryptographicException or SocketException;
 
     // 401復帰は先に元の画面を表示してマスタ取得を続けるため、Page解放だけで中断しない。
-    public void KeepRecoveryReadAlive() => startupCancellation = null;
+    public void KeepRecoveryReadAlive() => readCancellation = null;
 
     private CancellationTokenSource ConnectionTimeout()
     {
@@ -109,6 +111,8 @@ internal sealed class AuthenticationFlow(
     {
         var account = await connection.Session.RestoreAsync(token);
         token.ThrowIfCancellationRequested();
+        if (frame is null)
+            return;
         if (account is null)
             loginRequired(null);
         else
@@ -119,12 +123,12 @@ internal sealed class AuthenticationFlow(
     {
         if (frame is null || !canOperate() || token.IsCancellationRequested)
             return Task.CompletedTask;
-        return execute(async () =>
+        return RunConnectionReadAsync(async readToken =>
         {
-            using var timeout = ConnectionTimeout();
             try
             {
-                // 検証/保存後の復元はWindow寿命へ渡し、設定Viewの解放だけで止めない。
+                // 検証/保存後は設定Viewの解放と切り離し、認証フロー/Windowの寿命で管理する。
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(readToken);
                 using var cancellation = token.Register(timeout.Cancel);
                 await connection.ConnectAsync(candidate, timeout.Token);
             }
@@ -132,7 +136,7 @@ internal sealed class AuthenticationFlow(
             {
                 return;
             }
-            await RestoreAsync(timeout.Token);
+            await RestoreAsync(readToken);
         }, candidate);
     }
 
@@ -197,7 +201,7 @@ internal sealed class AuthenticationFlow(
 
     private void ReleasePage()
     {
-        startupCancellation?.Cancel();
+        readCancellation?.Cancel();
         browserCancellation?.Cancel();
         if (Page is ConnectionSetupPage setup)
             setup.Release();
@@ -325,7 +329,7 @@ internal sealed class AuthenticationFlow(
         browserCancellation?.Cancel();
         ReleasePage();
         frame = null;
-        startupCancellation = null;
+        readCancellation = null;
         browserCancellation = null;
         browserLogin = null;
         retry = null;
