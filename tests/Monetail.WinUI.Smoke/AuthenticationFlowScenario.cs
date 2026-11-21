@@ -109,4 +109,66 @@ public partial class App
                 "所属0件の家計簿作成は認証後の専用ホストへ引き渡し、認証フローを保持しない");
         }
     }
+
+    private async Task CheckAuthenticationFailureRetries()
+    {
+        using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
+        {
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
+            var tokens = fixture.Tokens.Current;
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+            Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
+            await Wait(() => Find<ContentControl>(root, "ConnectionSettingsContent").Content is not null);
+            const string candidate = "https://retry.example.test/";
+            Find<TextBox>(root, "ServerUrl").Text = candidate;
+            fixture.FailConnection = true;
+            await InvokeAsync(() => Find<Button>(root, "ConnectButton"));
+            await Wait(() => FailureScreen(root) is not null && Equals(TransferRuntime("busy"), false));
+            var failure = FailureScreen(root) ?? throw new InvalidOperationException("接続変更の失敗Pageがありません。");
+            var flow = CurrentAuthentication ?? throw new InvalidOperationException("接続変更の認証フローがありません。");
+            Check(fixture.Settings.Load()!.Equals(SyntheticConnection.Endpoint) && ReferenceEquals(fixture.Tokens.Current, tokens) &&
+                fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration"]) &&
+                !fixture.OtherServerAuthenticated && !Find<InfoBar>(root, "ErrorNotice").IsOpen,
+                "管理画面の接続変更失敗は専用Pageへ進み、設定・認証情報を変更せず候補への再試行を保持する");
+            fixture.FailConnection = false;
+            fixture.ConnectionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            await InvokeAsync(() => Find<Button>(root, "RetryButton"));
+            await Wait(() => fixture.OtherServerRequests.Count == 2 && Equals(TransferRuntime("busy"), true));
+            var retry = typeof(AuthenticationFlow).GetMethod("Retry", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("再試行入口がありません。");
+            retry.Invoke(flow, [null, null]);
+            Check(ReferenceEquals(flow, CurrentAuthentication) && fixture.OtherServerRequests.Count == 2 && !failure.IsEnabled &&
+                fixture.Settings.Load()!.Equals(SyntheticConnection.Endpoint) && ReferenceEquals(fixture.Tokens.Current, tokens),
+                "候補再試行中は共通busyで重複実行を拒否し、検証完了前の設定・トークンを保持する");
+            fixture.ConnectionGate.SetResult(true);
+            await Wait(() => LoginScreen(root) is not null && Equals(TransferRuntime("busy"), false));
+            Check(fixture.Settings.Load()!.Value == candidate && fixture.Tokens.Current is null && FailureDetached(failure) &&
+                fixture.OtherServerRequests.SequenceEqual((string[])["/.well-known/openid-configuration", "/.well-known/openid-configuration"]) &&
+                !fixture.OtherServerAuthenticated,
+                "再試行は保存済み旧接続先でなく失敗した候補を再検証し、成功後だけ保存・認証消去してログインへ進む");
+        }
+        using (var fixture = new SyntheticConnection(saved: true)
+            { HasPreviousLedger = true, CompleteLogin = true, FailLedgerRead = true })
+        {
+            fixture.Tokens.Current = null;
+            var root = await OpenSyntheticWindow(fixture);
+            var current = window ?? throw new InvalidOperationException("対象Windowがありません。");
+            await InvokeAsync(() => Find<Button>(root, "LoginButton"));
+            await Wait(() => FailureScreen(root) is not null && Equals(TransferRuntime("busy"), false));
+            if (fixture.CallbackTask is { } callback)
+                await callback;
+            var failure = FailureScreen(root) ?? throw new InvalidOperationException("家計簿取得の失敗Pageがありません。");
+            Check(fixture.BrowserOpens == 1 && fixture.Tokens.Current is not null &&
+                Find<TextBlock>(root, "FailureMessage").Text == "家計簿の操作を完了できませんでした。内容を確認して再試行してください。" &&
+                !Find<InfoBar>(root, "ErrorNotice").IsOpen,
+                "OAuth成功後の家計簿取得失敗も共通分類の専用失敗Pageを表示し、取得済み認証を削除しない");
+            fixture.FailLedgerRead = false;
+            await InvokeAsync(() => Find<Button>(root, "RetryButton"));
+            await Wait(() => Visible(root, "HomePage") && current.ReceiptHomeReady && Equals(TransferRuntime("busy"), false));
+            Check(fixture.BrowserOpens == 1 && fixture.Requests.Count(path => path == "/auth/me") == 2 &&
+                fixture.Requests.Count(path => path == "/ledgers/open-last") == 2 && FailureDetached(failure) && CurrentAuthentication is null,
+                "家計簿取得の再試行はブラウザーを再実行せず保存認証から復元し、成功後に認証フローを解放する");
+        }
+    }
 }

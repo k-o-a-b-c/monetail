@@ -15,7 +15,7 @@ namespace Monetail.WinUI.Authentication;
 internal sealed class AuthenticationFlow(
     ClientConnection connection,
     CancellationToken windowLifetime,
-    Func<Func<Task>, ApiEndpoint?, Task> execute,
+    Func<Func<Task>, Action<string>, Task> execute,
     Func<bool> canOperate,
     Func<AuthenticatedAccount, CancellationToken, bool, Task> authenticated,
     Action<string?> loginRequired,
@@ -63,13 +63,13 @@ internal sealed class AuthenticationFlow(
         return false;
     }
 
-    public Task RestartAsync() => PrepareInitialDestination() ? StartAsync() : Task.CompletedTask;
+    private Task RestartAsync() => PrepareInitialDestination() ? StartAsync() : Task.CompletedTask;
 
     public Task StartAsync() => frame is not null && canOperate() && IsStarting
-        ? RunConnectionReadAsync(RestoreAsync, null)
+        ? RunConnectionReadAsync(RestoreAsync, RestartAsync)
         : Task.CompletedTask;
 
-    private Task RunConnectionReadAsync(Func<CancellationToken, Task> operation, ApiEndpoint? candidate)
+    private Task RunConnectionReadAsync(Func<CancellationToken, Task> operation, Func<Task> repeat)
     {
         var page = Page;
         return execute(async () =>
@@ -89,7 +89,7 @@ internal sealed class AuthenticationFlow(
                 if (ReferenceEquals(readCancellation, timeout))
                     readCancellation = null;
             }
-        }, candidate);
+        }, message => ShowFailure(message, repeat));
     }
 
     private static bool IsNavigationFailure(Exception error) =>
@@ -137,7 +137,7 @@ internal sealed class AuthenticationFlow(
                 return;
             }
             await RestoreAsync(readToken);
-        }, candidate);
+        }, () => ConnectAsync(candidate, windowLifetime));
     }
 
     public void ShowConnectionSetup()
@@ -160,7 +160,7 @@ internal sealed class AuthenticationFlow(
             notice(message);
     }
 
-    public void ShowFailure(string message, Func<Task> repeat)
+    private void ShowFailure(string message, Func<Task> repeat)
     {
         if (frame is null)
             return;
@@ -282,7 +282,7 @@ internal sealed class AuthenticationFlow(
                 browserCancellation = null;
                 RenderLogin();
             }
-        }, null);
+        }, message => ShowFailure(message, RestartAsync));
     }
 
     private async Task OpenBrowserAsync()
