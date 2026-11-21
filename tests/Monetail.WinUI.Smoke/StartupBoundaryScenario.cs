@@ -14,12 +14,29 @@ public partial class App
             using var fixture = new SyntheticConnection(saved: true) { ChoiceCount = count };
             var root = await OpenSyntheticWindow(fixture);
             await StartSyntheticAsync();
-            var destination = count switch { 0 => "LedgerCreatePage", 1 => "HomePage", _ => "LedgerChoicePage" };
+            var destination = count == 0 ? "LedgerCreatePage" : "LedgerChoicePage";
             Check(Visible(root, destination) && Startup(root) is null && fixture.Requests.Take(3).SequenceEqual(
                 (string[])["/auth/me", "/ledgers/open-last", "/ledgers"]) &&
                 fixture.Requests.Count(path => path == "/ledgers/open-last") == 1 &&
-                fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == (count == 1 ? 1 : 0),
-                $"通常起動の所属{count}件は既存Workspaceの判断で表示先を決め、家計簿を二重取得しない");
+                !fixture.Requests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
+                $"通常起動の所属{count}件は件数にかかわらず家計簿を自動で開かず、0件は作成・1件以上は選択へ進む");
+            if (count == 1)
+            {
+                var page = Find<Monetail.WinUI.Views.LedgerChoiceView>(root, "LedgerChoicePage");
+                var choices = Find<ListView>(page, "LedgerChoices");
+                var open = Find<Button>(page, "OpenLedgerButton");
+                Check(choices.Items.Count == 1 && choices.SelectedItem is null && !open.IsEnabled &&
+                    fixture.Requests.Count == 3 && TransferRuntime("currentLedger") is null,
+                    "所属1件も未選択・開く無効で開始し、一覧を表示しただけでは最終選択を変更しない");
+                choices.SelectedIndex = 0;
+                Check(open.IsEnabled && fixture.Requests.Count == 3,
+                    "1件の家計簿を選択しても開くを押すまでは通信しない");
+                await InvokeAsync(() => open);
+                await Wait(() => Visible(root, "HomePage") && Equals(TransferRuntime("busy"), false));
+                Check(fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1 &&
+                    TransferRuntime("currentLedger") is not null,
+                    "開くの明示操作で初めて既存APIを1回呼び、家計簿を開く");
+            }
         }
 
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })

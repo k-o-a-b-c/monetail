@@ -49,15 +49,18 @@ public partial class App
                 fixture.Requests.Count(p => p.EndsWith("/open", StringComparison.Ordinal)) == 1 && Find<TextBlock>(root, "LedgerName").Text == "もう一つの家計簿" && ReferenceEquals(originalWindow, window),
                 "実Enterは選択IDを一度通知しMainWindowが一度だけ家計簿を開く。同じWindowを維持する");
         }
-        using (var fixture = new SyntheticConnection(saved: true) { ChoiceCount = 2, CannotOpenLedger = true })
+        foreach (var count in new[] { 1, 2 })
         {
+            using var fixture = new SyntheticConnection(saved: true) { ChoiceCount = count, CannotOpenLedger = true };
             var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
             var page = Find<LedgerChoiceView>(root, "LedgerChoicePage");
             var choices = Find<ListView>(page, "LedgerChoices"); var open = Find<Button>(page, "OpenLedgerButton");
             choices.SelectedIndex = 0;
             await InvokeAsync(() => open); await Wait(() => Equals(TransferRuntime("busy"), false));
-            Check(Visible(root, "LedgerChoicePage") && choices.SelectedIndex == 0 && open.IsEnabled && Find<InfoBar>(root, "ErrorNotice").IsOpen,
-                "開く処理の失敗はMainWindowで表示しUserControlの選択と再操作可能状態を保持する");
+            Check(Visible(root, "LedgerChoicePage") && choices.SelectedIndex == 0 && open.IsEnabled && Find<InfoBar>(root, "ErrorNotice").IsOpen &&
+                fixture.Requests.Count(path => path == "/ledgers") == 1 &&
+                fixture.Requests.Count(path => path.EndsWith("/open", StringComparison.Ordinal)) == 1,
+                $"所属{count}件の明示オープンが参加解除で404になっても、選択と再操作を保持し自動再取得しない");
             fixture.RejectSession = fixture.RejectAuthentication = true;
             await InvokeAsync(() => open); await Wait(() => Visible(root, "LoginPage"));
             Check(choices.Items.Count == 0 && choices.SelectedItem is null && !open.IsEnabled && page.Ledgers.Count == 0,
