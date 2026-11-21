@@ -81,6 +81,7 @@ public sealed partial class MainWindow
             };
             model.ConfirmationRequested += kind => ConfirmReceiptEditorAsync(model, kind);
             ReceiptEntry.ViewModel = model;
+            CancelRecordHomeResume();
             ReceiptsView.RememberPosition();
             ReceiptListModel?.Suspend();
             TransferListModel?.Suspend();

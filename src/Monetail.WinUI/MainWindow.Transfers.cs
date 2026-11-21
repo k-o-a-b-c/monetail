@@ -24,7 +24,7 @@ public sealed partial class MainWindow
         TransfersView.ViewModel = null;
         transferRestorePending = false;
     }
-    private void StartTransferHome(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken)
+    private Task StartTransferHomeAsync(Guid ledger, MonetailApiClient api, ClientSession session, CancellationToken masterToken)
     {
         var workspace = new TransfersWorkspace(api, session, ledger);
         var model = new TransferListViewModel(async (query, token) =>
@@ -36,7 +36,7 @@ public sealed partial class MainWindow
         model.PropertyChanged += TransferListChanged;
         TransfersView.ViewModel = model;
         UpdateTransferActions();
-        _ = model.StartAsync(recordSearch!.TransferQuery(), lifetime.Token);
+        return model.StartAsync(recordSearch!.TransferQuery(), lifetime.Token);
     }
     private void TransferListChanged(object? sender, PropertyChangedEventArgs args)
     {

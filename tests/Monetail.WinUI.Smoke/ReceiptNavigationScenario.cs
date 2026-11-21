@@ -11,6 +11,7 @@ public partial class App
 {
     private async Task CheckReceiptNavigation()
     {
+        await CheckHomeResumeLifetime(false);
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
         var initial = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var initialResume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
