@@ -4,6 +4,11 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Client.Authentication;
+using Monetail.Windows.Client.Receipts;
+using Monetail.Windows.Presentation.Receipts;
+using Monetail.Windows.Presentation.Transfers;
+using Monetail.WinUI.Views.Receipts;
+using Monetail.WinUI.Views.Transfers;
 
 namespace Monetail.WinUI.Smoke;
 
@@ -22,26 +27,55 @@ public partial class App
         {
             var gates = Enumerable.Range(0, 3).Select(_ => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)).ToArray();
             var calls = 0;
-            async Task<HttpResponseMessage> Load(HttpRequestMessage request, CancellationToken token)
+            var priming = true;
+            async Task<int> Load(CancellationToken token)
             {
+                if (priming)
+                    await Task.Delay(Timeout.Infinite, token);
                 var call = ++calls;
                 if (call > gates.Length)
                     throw new InvalidOperationException("不要なホーム再取得");
-                // 中断不能な応答で、VMの世代とWindowの表示復帰の両方を確認する。
+                // 認証通信の直列化とは分離し、中断不能な取得結果をVM境界で再現する。
                 await gates[call - 1].Task;
-                var payment = Guid.NewGuid();
-                return transfers
-                    ? PaymentServer.Json(new TransferListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
-                        payment, Guid.NewGuid(), call, null)], null))
-                    : PaymentServer.Json(new ReceiptListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
-                        null, payment, call, null)], null));
+                return call;
             }
-            if (transfers)
-                fixture.TransfersHandler = Load;
-            else
-                fixture.ReceiptsHandler = Load;
             var root = await OpenSyntheticWindow(fixture);
-            await window!.StartAsync();
+            await StartSyntheticAsync();
+            await Wait(() => TransferRuntime("homeResume") is null);
+            var search = new RecordSearchState(new(2026, 11, 10));
+            var payment = Guid.NewGuid();
+            Task initial;
+            if (transfers)
+            {
+                var view = Find<TransferListView>(root, "TransfersView");
+                view.ViewModel?.Dispose();
+                var model = new TransferListViewModel(async (_, token) =>
+                {
+                    var call = await Load(token);
+                    return new TransferListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
+                        payment, Guid.NewGuid(), call, null)], null);
+                }, search);
+                view.ViewModel = model;
+                initial = model.StartAsync(search.TransferQuery());
+                model.Suspend();
+            }
+            else
+            {
+                var view = Find<ReceiptListView>(root, "ReceiptsView");
+                view.ViewModel?.Dispose();
+                var model = new ReceiptListViewModel(async (_, token) =>
+                {
+                    var call = await Load(token);
+                    return new ReceiptListInfo([new(Guid.NewGuid(), new(2026, 11, 10), "復帰" + call,
+                        null, payment, call, null)], null);
+                }, search);
+                view.ViewModel = model;
+                initial = model.StartAsync(search.Receipts.Query());
+                model.Suspend();
+            }
+            await initial;
+            priming = false;
+            ShowHomeTestPage(root, "HomePage");
             await Wait(() => calls == 1);
             var first = TransferRuntime("homeResume") as CancellationTokenSource
                 ?? throw new InvalidOperationException("初回復帰の所有者がありません。");
@@ -90,7 +124,7 @@ public partial class App
             async Task<HttpResponseMessage> Load(HttpRequestMessage request, CancellationToken token)
             {
                 calls++;
-                await gate.Task;
+                await gate.Task.WaitAsync(token);
                 if (unexpected)
                     throw new InvalidOperationException("合成の予期しない読込失敗（画面へ公開しない）");
                 return new(HttpStatusCode.ServiceUnavailable);
