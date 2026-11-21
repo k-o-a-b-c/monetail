@@ -160,7 +160,7 @@ public partial class App
                 await callback;
             var failure = FailureScreen(root) ?? throw new InvalidOperationException("家計簿取得の失敗Pageがありません。");
             Check(fixture.BrowserOpens == 1 && fixture.Tokens.Current is not null &&
-                Find<TextBlock>(root, "FailureMessage").Text == "家計簿の操作を完了できませんでした。内容を確認して再試行してください。" &&
+                Find<TextBlock>(root, "FailureMessage").Text == "サーバーに接続できませんでした。接続先と通信状態を確認してください。" &&
                 !Find<InfoBar>(root, "ErrorNotice").IsOpen,
                 "OAuth成功後の家計簿取得失敗も共通分類の専用失敗Pageを表示し、取得済み認証を削除しない");
             fixture.FailLedgerRead = false;
