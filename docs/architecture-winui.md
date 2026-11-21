@@ -35,9 +35,9 @@ API接続先URLは、Windowsユーザーごとの`%LOCALAPPDATA%\Monetail\settin
 
 Window構築中に認証フローのPrepareInitialDestinationで接続先と保存認証の有無をローカルで調べ、Activate前に初回表示先を決定する。未設定はConnectionSetupPage、認証なしはログインを直接表示し、StartAsyncで通信や起動Pageを開始しない。認証ありの場合だけ、同じAuthenticationHostのFrameへ表示専用のStartupPageを生成する。保存/認証読込エラーは共有失敗画面と明示再試行へ接続する。起動時の状態別契約は[58](ledger-windows.md#windows版の起動表示接続失敗時の操作)を正本とする。
 
-StartupPageはNavigationCacheMode=Disabledの標準Pageで、表示時からProgressRingが動く。ViewModelやWindowへの通知は持たない。Windowはページ型とホストだけを扱い、内部コントロールを参照しない。認証情報の存在判定はClientSession.HasSavedAuthenticationから既存ITokenStore.Loadを利用し、トークンをWindowへ公開・キャッシュせず、RestoreAsyncで改めて読込・検証する。起動でのメタデータ取得は省略するが、接続先確定時の検証と既存認証更新は維持する。
+StartupPageはNavigationCacheMode=Disabledの標準Pageで、表示時からProgressRingが動く。ViewModelやWindowへの通知は持たない。認証フローはページ型とFrameだけを扱い、内部コントロールを参照しない。認証情報の存在判定はClientSession.HasSavedAuthenticationから既存ITokenStore.Loadを利用し、トークンをWindowへ公開・キャッシュせず、RestoreAsyncで改めて読込・検証する。起動でのメタデータ取得は省略するが、接続先確定時の検証と既存認証更新は維持する。
 
-起動読取の取消元をWindowに1つ保持し、共有ホスト解放時に取消する。認証が確認でき、保持中の振替/レシート編集へ正式に復帰する場合は、Page解放から切り離して既存のWindow所有マスタ再取得へ引き継ぐ（同じ10秒期限・Window寿命は維持する）。認証/家計簿取得後にも取消を確認し、Page離脱後の既知の遅延失敗も画面へ適用しない。新しい状態bool・Service・ルーター・認証スナップショットは追加しない。従来の遅延表示Task/タイマー・Window内の起動Gridを削除する。
+起動/接続読取の取消元を認証フローに1つ保持し、Page解放時に取消する。認証が確認でき、保持中の振替/レシート編集へ正式に復帰する場合は、Page解放から切り離して既存のWindow所有マスタ再取得へ引き継ぐ（同じ10秒期限・Window寿命は維持する）。認証/家計簿取得後にも取消を確認し、Page離脱後の既知の遅延失敗も画面へ適用しない。新しい状態bool・Service・ルーター・認証スナップショットは追加しない。従来の遅延表示Task/タイマー・Window内の起動Gridを削除する。
 
 | 起動変更の比較（基点main 5e5f20a、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
@@ -174,7 +174,7 @@ PR #225の[家計簿選定仕様](ledger-onboarding.md#所属1件以上で開く
 
 `OpenDestinationAsync`は振替→レシート→科目→支払方法→参加者→人物の既存復帰順を調停する。復帰がない場合だけ`OpenInitialLedgerAsync`でWorkspaceの結果を表示する。通常の家計簿表示から6画面の復帰判定を分離したが、復帰順を持つWindowの横断依存は必要なため残す。401でのモデル/実コントロール保持、起動Pageを解放してから続けるマスタ再取得、10秒期限・Window終了・遅延応答の拒否は既存処理を維持する。
 
-`RunAsync(action, retryConnection: ...)`へ再試行先を渡すのは起動・OAuth・接続先変更だけとし、通常業務は`RunAsync(action)`で既存の共有通知を使う。`ReportFailure`は再試行先がある場合だけWindowのretryを設定してFailurePageへ進む。旧`connectionFailure`と再試行先の組合せを廃止し、通常業務から実際には使われない20個のコールバックを除いた。通常業務の処理本体、権限反映、例外種別/メッセージ、認証退避・busy/finallyは変えない。例外分類は共有の一か所を維持し、起動専用の例外処理を複製しない。通常業務画面の変更はこの未使用引数の除去だけとする。
+`RunAsync(action, retryConnection: ...)`へ再試行先を渡すのは起動・OAuth・接続先変更だけとし、通常業務は`RunAsync(action)`で既存の共有通知を使う。`ReportFailure`は再試行先がある場合だけ認証フローへ渡し、そのretryを設定してFailurePageへ進む。旧`connectionFailure`と再試行先の組合せを廃止し、通常業務から実際には使われない20個のコールバックを除いた。通常業務の処理本体、権限反映、例外種別/メッセージ、認証退避・busy/finallyは変えない。例外分類は共有の一か所を維持し、起動専用の例外処理を複製しない。通常業務画面の変更はこの未使用引数の除去だけとする。
 
 | 境界整理の比較（基点main 5afcee1、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
