@@ -161,20 +161,24 @@ PR #225の[家計簿選定仕様](ledger-onboarding.md#所属1件以上で開く
 
 ### 家計簿作成Pageと所属更新
 
-`Views/Ledgers/LedgerCreatePage`を既存AuthenticationHostのFrameへ必要時だけ生成する。PageはUI用の所属0件/追加の表示引数、入力、4通知（作成・更新・ログアウト・キャンセル）と既存FormKeyboardを担当する。WindowにはPage内部のx:Name参照を残さず、入力は作成通知の文字列で渡し、不正入力時のフォーカスだけ公開UIメソッドで扱う。新しいViewModel/Service・独自ルーター・永続化/入力コピーを追加しない。画面仕様の正本は[所属0件の作成画面](ledger-onboarding.md#所属0件の家計簿作成画面)。
+`Views/Ledgers/LedgerCreatePage`を既存AuthenticationHostのFrameへ必要時だけ生成する。PageはUI用の所属0件/追加の表示引数、入力、4通知（作成・所属確認・ログアウト・キャンセル）と既存FormKeyboardを担当する。WindowにはPage内部のx:Name参照を残さず、入力は作成通知の文字列で渡し、欄下エラー/フォーカスと正常な所属0件の補足結果だけ公開UIメソッドで扱う。新しいViewModel/Service・独自ルーター・永続化/入力コピーを追加しない。画面仕様の正本は[所属0件の作成画面](ledger-onboarding.md#所属0件の家計簿作成画面)。
 
-Windowは既存LedgerCreationDraft・RunAsync・LogoutAsync・LedgerWorkspace.StartAsyncを使用する。更新後0件の場合は既存Pageを再利用し、未確定の入力と同名の再送draftを保持する。通常離脱では4購読とFrame参照・作成draftを解放し、再訪は新しいPageとする。更新中は既存busy/IsEnabledで二重操作を拒否し、ローカルのWindow寿命にリンクした取消元とUnloaded購読で読取を中断する。応答反映前にFrame同一性を確認し、離脱後の遅延応答/既知の失敗で新画面を上書きしない。通常の失敗分類・401退避・既存の作成/認証契約は維持する。
+Windowは既存LedgerCreationDraft・RunAsync・LogoutAsync・LedgerWorkspace.StartAsyncを使用する。所属確認後0件の場合は既存Pageを再利用し、未確定の入力と同名の再送draftを保持する。通常離脱では4購読とFrame参照・作成draftを解放し、再訪は新しいPageとする。更新中は既存busy/IsEnabledで二重操作を拒否し、ローカルのWindow寿命にリンクした取消元とUnloaded購読で読取を中断する。応答反映前にFrame同一性を確認し、離脱後の遅延応答/既知の失敗で新画面を上書きしない。通常の失敗分類・401退避・既存の作成/認証契約は維持する。
 
 | Page化と操作追加（基点main fdcb28a、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
 | MainWindow.xaml | 606行 | 592行 |
-| MainWindow.Connection.cs / Ledgers.cs | 541 / 207行 | 560 / 263行 |
-| 製品srcのC#/XAML総量 | 19,028行 | 19,152行 |
+| MainWindow.Connection.cs / Ledgers.cs | 541 / 207行 | 560 / 266行 |
+| 製品srcのC#/XAML総量 | 19,028行 | 19,211行 |
 | Window生成フィールド（旧作成Grid/案内/名前/作成/キャンセル） | 5 | 0 |
-| Pageの公開操作通知 / UIメソッド | 0 / 0 | 4 / 1 |
+| Pageの公開操作通知 / UIメソッド | 0 / 0 | 4 / 2 |
 | 新規VM / Service / Window状態フィールド | 0 / 0 / 0 | 0 / 0 / 0 |
 
-Page本体はXAML22行・C#42行。製品124行増には新機能の更新/ログアウト、読取寿命とPage通知/解放を含む。旧キーボード接続1行をMainWindow.Personsから除去し、Page内へ移した。旧VBはローカルDB起動でOAuth所属/ログアウトの対応物がなく、新版の正本を優先する。検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
+Page本体はXAML38行・C#77行。製品183行増には所属確認/ログアウト、読取寿命・通知/解放と最終レイアウト/検証表示を含む。旧キーボード接続1行をMainWindow.Personsから除去し、Page内へ移した。旧VBはローカルDB起動でOAuth所属/ログアウトの対応物がなく、新版の正本を優先する。検証結果と未検証事項は[tests/README](../tests/README.md)を参照する。
+
+最終レイアウトは所属0件の「家計簿がありません」から、新規作成・招待参加・補助ログアウトを区切り線で分ける。追加時は同じPage型で短いフォームに切り替える。検証の正本は既存LedgerCreationDraft内の純粋なValidateNameへまとめ、コンストラクターとPageの欄下エラー解除で共用する。表示の再判定ではdraftやrequestIdを生成しない。Pageには同じFormKeyboardのUI参照だけを保持し、業務入力や処理フラグを複製しない。
+
+必須/文字数違反は欄下テキストと入力欄のアクセシビリティHelpTextを更新し、InfoBarを使用しない。API/通信失敗は共有InfoBarを維持する。所属確認開始時は古い補足結果を消し、正常終了して同じPageに残った場合だけ通常色の0件結果を表示する。右上24pxの共通ProgressRingと既存busy/IsEnabledを使い、Page内に新しいRingや固定高さのエラー領域を追加しない。
 
 ## 家計簿選択画面の分離（第1段階）
 
