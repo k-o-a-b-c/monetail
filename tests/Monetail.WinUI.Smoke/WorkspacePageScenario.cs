@@ -26,8 +26,19 @@ public partial class App
         Check(first.ViewModel is null && ((Monetail.WinUI.Views.Receipts.ReceiptListView)first.FindName("ReceiptsView")).ViewModel is null &&
             !ReferenceEquals(first, host.Content),
             "通常離脱は記録PageのVM購読・一覧接続を解除し、管理Pageへ標準遷移する");
-        await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+        Check(Find<Grid>(root, "WorkspaceHeader").Visibility == Visibility.Visible &&
+            Find<Border>(root, "RecordSelectionIndicator").Visibility == Visibility.Collapsed &&
+            managementPage.FindName("ReturnButton") is null,
+            "管理画面でも共通ヘッダーを表示し、記録の選択表示と専用戻るボタンを残さない");
+        var menu = (NavigationView)managementPage.FindName("ManagementNavigation");
+        Check(menu.MenuItems.OfType<NavigationViewItem>().All(item =>
+                item.Content?.ToString() is not ("店舗管理" or "表示設定" or "入力時の初期値")),
+            "廃止済みの設定メニューを表示しない");
+        await InvokeAsync(() => Find<Button>(root, "RecordButton"));
         await Wait(() => host.Content is RecordHomePage { IsLoaded: true } && TransferRuntime("homeResume") is null);
+        Check(Find<Grid>(root, "WorkspaceHeader").Visibility == Visibility.Visible &&
+            Find<Border>(root, "RecordSelectionIndicator").Visibility == Visibility.Visible,
+            "記録画面でも共通ヘッダーと選択表示を維持する");
         var second = (RecordHomePage)host.Content;
         var preserved = !ReferenceEquals(first, second) && ReferenceEquals(model, second.ViewModel) &&
             Find<TextBox>(root, "ReceiptMonth").Text == "2026/" && Find<TextBox>(root, "RecordKeyword").Text == "入力中の検索" &&
