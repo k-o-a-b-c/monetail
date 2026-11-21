@@ -84,7 +84,6 @@ public sealed partial class MainWindow
         creationDraft = null;
         ReleaseAuthentication();
         ReleaseConnectionSettings();
-        SuspendRecordReads();
         HideWorkspace();
         AuthenticationNotice(null);
         var frame = new Frame { IsNavigationStackEnabled = false };

@@ -30,7 +30,6 @@ public sealed partial class MainWindow
     {
         if (closed || RecordEditorActive && !EditorAwaitingLogin)
             return null;
-        SuspendRecordReads();
         ReleaseLedgerPage();
         ReleaseConnectionSettings();
         HideWorkspace();
@@ -244,11 +243,12 @@ public sealed partial class MainWindow
 
     private void SuspendRecordReads()
     {
-        RecordPage?.Suspend();
         CancelReceiptOpening();
         CancelTransferOpening();
-        ReceiptListModel?.Suspend();
-        TransferListModel?.Suspend();
+        if (RecordPage is { } page)
+            page.Suspend();
+        else
+            recordHome?.Suspend();
     }
 
     private void ShowError(string message)

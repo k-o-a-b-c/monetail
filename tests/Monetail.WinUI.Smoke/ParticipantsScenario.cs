@@ -127,7 +127,10 @@ public partial class App
             Check(!ParticipantDialogAction(root, "ParticipantDialog", true).IsEnabled && Find<ComboBox>(root, "ParticipantRole").SelectedIndex == 1 && server.ListReads == reads,
                 "降格の403は入力を保持し、応答の権限だけで操作を止め再取得しない");
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", false)); await Wait(() => ParticipantEditorClosed(root));
-            Check(Find<NavigationViewItem>(root, "ParticipantsNavigation").Visibility == Visibility.Collapsed && Find<FrameworkElement>(root, "HomePage").Visibility == Visibility.Visible,
+            var returnedHome = Visible(root, "HomePage");
+            await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+            await Wait(() => Visible(root, "ManagementPage") && Equals(TransferRuntime("busy"), false));
+            Check(returnedHome && Find<NavigationViewItem>(root, "ParticipantsNavigation").Visibility == Visibility.Collapsed,
                 "権限喪失後は管理画面から閉じて再入場不可");
         }
     }

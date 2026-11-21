@@ -86,7 +86,9 @@ public partial class App : Application
         if (name == "HomePage" && page is Monetail.WinUI.Views.Workspace.RecordHomePage ||
             name == "ManagementPage" && page is Monetail.WinUI.Views.Workspace.ManagementPage ||
             name == "LedgerChoicePage" && page is Monetail.WinUI.Views.LedgerChoiceView) return page;
-        return page?.FindName(name);
+        return page?.FindName(name)
+            ?? (page?.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name)
+            ?? (page?.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name);
     }
     private static object? FindLedgerPageElement(FrameworkElement root, string name) =>
         ((root.FindName("LedgerPageHost") as ContentControl)?.Content as Frame)?.Content is FrameworkElement page ? page.FindName(name) : null;
