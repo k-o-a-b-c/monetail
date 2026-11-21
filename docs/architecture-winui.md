@@ -72,7 +72,7 @@ VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解
 
 WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
 
-## Shell・Page・MVVM統合の3PR計画（PR1）
+## Shell・Page・MVVM統合の3PR計画（PR1 / Draft PR #231）
 
 最終構成はMainWindowを共通Shell（ナビゲーション許可、家計簿/本人/接続先、認証フロー、横断未保存確認、全体操作状態/通知、Window寿命）とし、主画面は標準Frame/Page、複雑な表示/CommandはPresentation、業務下書き/通信/版/再送はClientを正本とする。全面MVVM化のための基盤や独自ルーターは作らない。
 
@@ -82,13 +82,57 @@ WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 F
 | PR2 | 人物/科目/支払方法/参加者/招待と順序・ダイアログを機能View/VMへ移管。各取得寿命、権限投影、競合/401/再送と画面通知を維持し、Windowの管理詳細Grid・条件付きShowErrorを除去。ダイアログは必要時生成 | 未実装 |
 | PR3 | 既存レシート/振替EditorView/VMを各入力Pageへ統合。Windowの入力View所有とAPI調整を整理し、401の実コントロール保持・フォーカス/未確定入力/要求保持を維持して旧partial/ホストを撤去 | 未実装 |
 
+最終の主遷移はShellのWorkspaceHostとし、記録ホーム・管理コンテナー・家計簿選択・レシート入力・振替入力を標準Pageとして必要時に開く。既に必要時Pageである家計簿作成と認証前画面は、それぞれ既存のLedgerPageHost/AuthenticationFlowのFrameを再利用する。管理コンテナー内の人物/科目/支払方法/参加者・招待は機能単位のPage/Viewと既存PresentationのVMへ分け、標準Frame/NavigationViewで選択する。単純な家計簿選択/作成と認証前Pageには専用VMを増やさない。PR2の機能内部の一覧/順序/ダイアログの型は、各仕様と既存モデルを確認して最小限にする。
+
+最終構成では、各VMが表示投影/Command/画面読取の世代・取消を、Clientが下書き/権限/版/不変要求と結果不明を、ViewがIME/フォーカス/スクロールと必要時生成のダイアログを所有する。Shellは現在コンテキストと遷移承認を渡し、入力コントロールや選択を読まない。RunAsyncの例外分類は再利用し、機能分離に合わせてfailed通知を当該Viewへ接続してShowErrorの機能分岐を減らす。新しい共通エラーServiceは作らない。
+
+PR3で入力専用Pageへ移る際は、一覧VM/検索/位置を保持してホームPageを通常解放し、遷移前の未保存確認を取消した場合は元Pageを維持する。401だけは認証用の既存Frameを前面に出し、元入力Page/VM/実コントロール/未完了要求を同じ本人・家計簿・接続先での復帰または明示破棄まで保持する。通常離脱/別コンテキスト/終了で購読・読取取消・参照を解放し、書込の取消を保存失敗の確定とは扱わない。入力内容の別スナップショットや画面レジストリは設けない。
+
 着手時はHomePageにヘッダー・共通検索・3一覧・両入力Viewが常駐し、ManagementPageにNavigationViewと全管理機能が常駐していた。記録検索と管理メニュー選択はWindowのpartialから内部x:Nameを直接操作し、通常離脱でもViewを保持していた。比較対象はmain e74c241、一覧/編集/Client契約と既存スモークを正本とする。
 
 PR1はRecordHomePageとManagementPageを必要時にFrame.Navigateで生成し、通常離脱では購読・内容・Frame参照を解放する。記録VMは家計簿単位に検索・既存2一覧VMを保持し、View再生成でも同じ行/選択を利用する。表示位置は一覧VMの値へ移し、ListViewportControllerはUI測定/適用を担当する。検索下書きはRecordSearchStateの既存値を使用し、別の文字列/フィルター正本を作らない。記録Pageの読取/表示復帰はそのPageで取消し、古い復帰が新Pageへ作用しない。
 
 401で編集中の記録PageはFrameから外さず非表示で一時保持する。AuthenticationFlowは別Frameを既存どおり所有し、同じ本人/家計簿/接続先での復帰だけ元のPage・入力View・モデルを再利用する。通常離脱/別本人/終了では保持を解除する。家計簿選択は既存の単純なViewをPageへ変更し、選択だけでは開かない契約を維持する。家計簿作成Pageと認証前Pageの契約は変更しない。
 
+旧Windows版のViewForm_List.vb（登録/編集後の選択行復元）とViewForm.vb（年月/設定への操作）、MasterMaintenanceFormの対応部分を照合した。選択保持は継承し、別WindowのShowDialogや旧ショートカットを新設せず、新版の同一Window・共通検索/キー仕様を維持する。今回の構造変更による操作仕様の追加はない。
+
 管理詳細と入力Viewの業務移管はPR2/3であり、PR1ではWindowが既存の2つの内容領域（管理詳細/入力）を所有してPageへ内容単位で接続する。Page内部のコントロールをWindowへ公開する転送層は設けない。この未移管領域と既存ダイアログの先行生成・Windowの機能固有エラー分岐は残存事項で、全画面のMVVM/必要時生成が完了したとは扱わない。ページ境界を作るだけの案より検索・選択/操作の正本をVMへ移す案を採用し、入力業務を同時に移す大規模案は後続へ分割する。
+
+### PR1の依存・状態比較
+
+```mermaid
+flowchart LR
+    Shell[MainWindow / Shell] --> Frame[WorkspaceHost / Frame]
+    Frame --> Home[RecordHomePage]
+    Frame --> Settings[ManagementPage]
+    Frame --> Choice[LedgerChoiceView / Page]
+    Home --> HomeVM[RecordHomeViewModel]
+    HomeVM --> Lists[既存のReceipt / Transfer一覧VM]
+    HomeVM --> Search[既存RecordSearchState]
+    Settings --> MenuVM[ManagementViewModel]
+    Shell --> Auth[既存AuthenticationFlow]
+    Shell --> Legacy[管理詳細 / 入力内容：PR2・PR3で移管]
+```
+
+比較基準はmain `e74c241`。手書きのMainWindow*.csをRoslynで計測し、生成コード・obj/binは含めない。フィールド数はFieldDeclarationで宣言した変数数で、プロパティ/生成backing fieldは除外する。直接参照は移管先のx:Name識別子のC#出現数で、宣言/文字列を含む一貫した集計。機能詳細や入力内部の未移管参照は別扱いとする。
+
+| 項目 | 変更前 | PR1 |
+| --- | ---: | ---: |
+| MainWindow.xaml行数 | 593 | 464 |
+| MainWindow*.cs行数 / メソッド数 | 3,870 / 304 | 3,726 / 286 |
+| MainWindowの明示フィールド / うちbool | 110 / 40 | 106 / 37 |
+| 共通検索・一覧内部・管理メニューへの直接依存（コントロール種類 / 参照箇所） | 32 / 108 | 0 / 0 |
+| WinUI + PresentationのC#/XAML総行数 | 9,052 | 9,431 |
+
+Windowの`receiptFiltersUpdating`、`receiptRestorePending`、`transferRestorePending`を撤去し、検索の別所有フィールドと個別一覧の設定/同期コードを除去した。`homeResume`と検索キーボードはPageへ移管し、取消はPage寿命、通信世代は既存一覧VMに限定する。表示位置は既存一覧VMへ保持し、Page再生成直後に既存ListViewportControllerで復元する。追加読込中も位置を維持し、遅延応答で再度位置を上書きしない。
+
+新規の2Page + 2VMは計13個の明示フィールド（bool 5個）。内訳は記録VMの選択肢2配列・読込開始通知2値・破棄済み1、管理VMの選択・家計簿名・表示可否4、Pageのキーボード/復帰取消2である。Windowと新規4クラスの合計だけではフィールド119/bool42となり、全体の状態数が減ったとは主張しない。表示用投影がXAMLの直接設定から通知可能なVM値へ変わった分を含み、検索・行・選択・業務下書き・requestIdの正本は増やしていない。総行数増379行はPage寿命/型付きバインディングと明示通知を含むコストであり、行数削減を成果とはしない。
+
+追加型は2Page・2VM・選択肢/読込通知/表示位置の3型・Shell内のprivate enumの計8型。旧ReceiptFilterChoiceを削除し、既存LedgerChoiceViewは型追加せずPageへ変更した。Service/DI/ルーターは0増である。
+
+記録VMの8Commandと管理VMの1Commandに既存操作を接続する。Pageの公開接続は記録がVM参照1・操作7・失敗イベント1、管理がVM参照1・操作2・戻るイベント1。Windowは子コントロールを触らず、VM/API調整と内容領域2つの受渡しだけを使う。管理VMの承認/選択コールバック2と記録VMの再試行通知2は、今回Windowに残すAPI/遷移責務の境界である。汎用Service・DI・イベントバス・新規インターフェイスは追加しない。型付き選択肢/読込通知/表示位置の小さな値オブジェクト以外の汎用モデルも追加しない。
+
+既存の管理詳細/入力業務・条件付きShowError・ダイアログ寿命はPR2/3へ残す。PR2では管理機能ごとに既存401/版競合/並び順テストを移設し、旧内容領域を機能Page/Viewへ置き換える。PR3では既存入力View/VMを再利用し、専用Pageの生成/破棄と401一時保持を移管してEditorContentsを撤去する。各PRでClient/業務状態を複製せず、未保存取消と結果不明の要求保持を先に検証する。
 
 ## RunAsyncと認証失敗の責務（PR #230）
 
