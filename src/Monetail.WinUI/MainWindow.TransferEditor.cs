@@ -83,10 +83,7 @@ public sealed partial class MainWindow
             model.ActionRequested += ExecuteTransferActionAsync;
             model.AuthenticationRequired += StopTransferAuthentication;
             TransferEntry.ViewModel = model;
-            RecordPage?.Suspend();
             RecordPage?.RememberPositions();
-            TransferListModel?.Suspend();
-            ReceiptListModel?.Suspend();
             RecordPage?.ShowEditor(EditorContents);
             TransferEditorPage.Visibility = Visibility.Visible;
             PopulateTransferEditor();

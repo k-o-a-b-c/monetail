@@ -18,6 +18,7 @@ public partial class App
         var model = first.ViewModel ?? throw new InvalidOperationException("記録VMがありません。");
         Find<TextBox>(root, "ReceiptMonth").Text = "2026/";
         Find<TextBox>(root, "RecordKeyword").Text = "入力中の検索";
+        await Wait(() => model.MonthText == "2026/" && model.Keyword == "入力中の検索");
         var reads = fixture.Requests.Count(path => path.EndsWith("/receipts", StringComparison.Ordinal));
         await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
         await Wait(() => host.Content is ManagementPage && Equals(TransferRuntime("busy"), false));
@@ -26,7 +27,7 @@ public partial class App
             !ReferenceEquals(first, host.Content),
             "通常離脱は記録PageのVM購読・一覧接続を解除し、管理Pageへ標準遷移する");
         await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
-        await Wait(() => host.Content is RecordHomePage && TransferRuntime("homeResume") is null);
+        await Wait(() => host.Content is RecordHomePage { IsLoaded: true } && TransferRuntime("homeResume") is null);
         var second = (RecordHomePage)host.Content;
         var preserved = !ReferenceEquals(first, second) && ReferenceEquals(model, second.ViewModel) &&
             Find<TextBox>(root, "ReceiptMonth").Text == "2026/" && Find<TextBox>(root, "RecordKeyword").Text == "入力中の検索" &&

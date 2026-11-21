@@ -163,10 +163,17 @@ public partial class App
             else
                 fixture.ReceiptsHandler = Reject;
             var root = await OpenSyntheticWindow(fixture);
+            var host = Find<Frame>(root, "WorkspaceHost");
+            Monetail.WinUI.Views.Workspace.RecordHomePage? rejectedPage = null;
+            void CaptureHome(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs args) =>
+                rejectedPage = args.Content as Monetail.WinUI.Views.Workspace.RecordHomePage;
+            host.Navigated += CaptureHome;
             await window!.StartAsync();
             await Wait(() => LoginScreen(root) is not null && TransferRuntime("homeResume") is null);
-            Check(Find<Monetail.WinUI.Views.Receipts.ReceiptListView>(root, "ReceiptsView").ViewModel is null &&
-                Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel is null,
+            host.Navigated -= CaptureHome;
+            Check(host.Content is null && rejectedPage is not null && rejectedPage.ViewModel is null &&
+                ((Monetail.WinUI.Views.Receipts.ReceiptListView)rejectedPage.FindName("ReceiptsView")).ViewModel is null &&
+                ((Monetail.WinUI.Views.Transfers.TransferListView)rejectedPage.FindName("TransfersView")).ViewModel is null,
                 "初回一覧の即時認証失効は既存ログインへ退避し、旧ホームの後続一覧を生成しない");
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
