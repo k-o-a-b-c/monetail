@@ -175,7 +175,7 @@ public partial class App
             await Settle();
             Find<TextBox>(root, "PersonName").Text = "破棄する編集";
             var navigation = Find<NavigationView>(root, "ManagementNavigation");
-            await InvokeAsync(() => Find<Button>(root, "ReturnButton"));
+            await InvokeAsync(() => Find<Button>(root, "RecordButton"));
             await Settle();
             Check(!EditorClosed(root) && Find<TextBox>(root, "PersonName").Text == "破棄する編集" &&
                 Find<FrameworkElement>(root, "ManagementPage").Visibility == Visibility.Visible && server.Reads == 2,
