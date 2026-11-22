@@ -78,9 +78,9 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
 
     [ObservableProperty]
     public partial PersonRow? SelectedOwner { get; set; }
-    public Guid? ChosenOwner => Editing?.OwnerPersonId ?? (permission?.CurrentRole == "Editor" ? permission.MyPersonId : SelectedOwner?.Person.PersonId);
+    public Guid? ChosenOwner => Editing?.OwnerPersonId ?? SelectedOwner?.Person.PersonId;
     public bool ChooseOwner => Editing is null && IsAdmin;
-    public string OwnerName => OwnerLabel(Editing?.OwnerPersonId ?? permission?.MyPersonId ?? Guid.Empty);
+    public string OwnerName => OwnerLabel(ChosenOwner ?? Guid.Empty);
     public string LatestOwner => OwnerLabel(Latest?.OwnerPersonId ?? Guid.Empty);
     public string OrderOwnerName => OwnerLabel(OrderOwner);
     public Guid OrderOwner { get; private set; }
@@ -202,7 +202,8 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         Latest = null;
         Creation = null;
         editorDenied = false;
-        SelectedOwner = null;
+        SelectedOwner = person is null && permission?.CurrentRole == "Editor"
+            ? Owners.FirstOrDefault(row => row.Person.PersonId == permission.MyPersonId) : null;
         Operation = deletion ? ManagementEditorOperation.Delete : person is null ? ManagementEditorOperation.Create : ManagementEditorOperation.Edit;
         Name = person?.Name ?? "";
         FromText = DateTimeInput.FormatDate(person?.ValidFrom);
@@ -482,7 +483,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         {
             if (Editing is not null && Info?.PaymentMethods.Any(p => p.PaymentMethodId == Editing.PaymentMethodId) != true)
                 missing.Add(Editing.PaymentMethodId);
-            editorDenied = denied is not null || (Editing is null ? !IsAdmin : !CanEdit(Editing));
+            editorDenied = denied is not null || (Editing is null ? ChosenOwner is not { } owner || !CanManageOwner(owner) : !CanEdit(Editing));
             if (editorDenied)
                 ShowError(null, denied ?? "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
         }

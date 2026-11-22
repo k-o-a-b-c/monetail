@@ -120,6 +120,51 @@ public sealed class ManagementFeatureViewModelTests
         Assert.False(model.OrderCommand.CanExecute(other));
     }
 
+    [Theory]
+    [InlineData("Admin", false, false)]
+    [InlineData("Editor", false, true)]
+    [InlineData("Editor", true, false)]
+    public async Task PaymentRecoveryPreservesChosenOwnerAndReevaluatesCurrentRights(string initialRole, bool remapped, bool canSave)
+    {
+        var mine = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        var people = new[]
+        {
+            new PersonInfo(mine, "本人", null, null, 0, Guid.NewGuid()),
+            new PersonInfo(other, "別の人物", null, null, 1, Guid.NewGuid())
+        };
+        var state = new PaymentMethodsInfo([], [new(mine, Guid.NewGuid()), new(other, Guid.NewGuid())], mine, initialRole);
+        using var fixture = new ManagementTestContext(request => request.Method == HttpMethod.Get
+            ? request.RequestUri!.AbsolutePath.EndsWith("/people")
+                ? Json(new PeopleInfo(people, state.MyPersonId, state.CurrentRole, Guid.NewGuid())) : Json(state)
+            : new(HttpStatusCode.ServiceUnavailable), initialRole);
+        using var model = new PaymentMethodsManagementViewModel(fixture.Context);
+        await model.LoadAsync(default);
+        await model.AddCommand.ExecuteAsync(null);
+        var chosen = initialRole == "Admin" ? other : mine;
+        if (initialRole == "Admin")
+            model.SelectedOwner = model.Owners.Single(row => row.Person.PersonId == chosen);
+        Assert.Equal(chosen, model.ChosenOwner);
+        model.Name = "入力を維持";
+        Assert.False(await model.SaveEditorAsync(null, null));
+        var creation = model.Creation;
+        var writes = fixture.Requests.Where(request => request.Method == HttpMethod.Post).ToArray();
+        Assert.Single(writes);
+        state = state with { CurrentRole = "Editor", MyPersonId = remapped ? other : mine };
+        await model.ResumeAsync(null, default);
+        Assert.Equal(chosen, model.ChosenOwner);
+        Assert.Equal(people.Single(person => person.PersonId == chosen).Name, model.OwnerName);
+        Assert.Equal("入力を維持", model.Name);
+        Assert.Same(creation, model.Creation);
+        Assert.Equal(canSave, model.CanSave);
+        Assert.Single(fixture.Requests, request => request.Method == HttpMethod.Post);
+        Assert.False(await model.SaveEditorAsync(null, null));
+        var retried = fixture.Requests.Where(request => request.Method == HttpMethod.Post).ToArray();
+        Assert.Equal(canSave ? 2 : 1, retried.Length);
+        Assert.Equal(writes[0].Body, retried[^1].Body);
+        Assert.Same(creation, model.Creation);
+    }
+
     [Fact]
     public async Task ParticipantConflictAndExplicitAdoptionDoNotFetchOrOverwriteRawChoice()
     {
