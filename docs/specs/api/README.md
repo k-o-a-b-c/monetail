@@ -36,7 +36,7 @@ docs/specs/api/
 | --- | --- | --- | --- |
 | 認証・セッション・全体アカウント | [認証API](../../auth-api-contract.md)、[セッション保護](../../auth-session-security.md)、[認証・パスキー](../../auth-passkeys.md) | 公開HTTP契約とセキュリティ前提を参照関係で整理。Windows認証操作やWeb画面は対象外 | 未移行（既存正本を維持） |
 | 家計簿の作成・選択・参照 | [家計簿API](../../ledger-core-api.md)、[共通前提](../../ledger-core-principles.md) | 家計簿の業務条件・要求応答を整理。選択UIは含めない | 未移行 |
-| 人物 | [人物・参加者API](../../ledger-person-api-contract.md)、[人物管理](../../ledger-persons.md)、[競合と後続](../../ledger-person-conflicts.md) | 人物GET/POST/PATCH/DELETE・共通順PUT、名前・有効期間・参照制限・権限・409/再送を集約。画面動作と参加者APIを分離 | **次の移行対象・未移行** |
+| 人物 | [人物・参加者API](../../ledger-person-api-contract.md)、[人物管理](../../ledger-persons.md)、[競合と後続](../../ledger-person-conflicts.md) | 人物GET/POST/PATCH/DELETE・共通順PUT、名前・有効期間・参照制限・権限・409/再送を集約。画面動作と参加者APIを分離 | **[人物API草案あり・正本未切替](features/persons.md)** |
 | 参加者・人物対応 | [人物・参加者API](../../ledger-person-api-contract.md)、[参加者管理](../../ledger-participants.md)、[競合と後続](../../ledger-person-conflicts.md) | 参加者GET/編集GET/PATCH/DELETE・役割と人物対応・権限境界。人物のCRUDとは分離 | 未移行 |
 | 招待・参加受諾 | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 招待発行・確認・取消・受諾のHTTP/権限。招待Web/WinUIの結果不明時表示はUI側 | 未移行 |
 | 科目 | [家計簿DB・モデル](../../ledger-core-schema.md)（科目マスタ、CRUD、並び順） | API契約・業務制約を抜き出し、DB列・WinUI画面・初期値を分離 | 未移行 |
