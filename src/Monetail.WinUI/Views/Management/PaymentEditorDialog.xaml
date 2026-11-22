@@ -1,0 +1,37 @@
+<ContentDialog xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:input="using:Monetail.WinUI.Input" x:Name="PaymentDialog" Title="{x:Bind ViewModel.Title, Mode=OneWay}" PrimaryButtonText="{x:Bind ViewModel.PrimaryText, Mode=OneWay}" CloseButtonText="キャンセル" DefaultButton="{x:Bind Default(ViewModel.IsDeleting), Mode=OneWay}" PrimaryButtonClick="SavePayment" Opened="PaymentDialogOpened" Closing="PaymentDialogClosing" HorizontalContentAlignment="Stretch" x:Class="Monetail.WinUI.Views.Management.PaymentEditorDialog" IsPrimaryButtonEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}" IsEnabled="{x:Bind Not(ViewModel.Context.IsBusy), Mode=OneWay}">
+    <ScrollViewer x:Name="PaymentEditorContent" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="16">
+            <TextBlock x:Name="PaymentRestoredNotice" Text="未保存の入力を復元しました。内容を確認してください。" Visibility="{x:Bind Show(ViewModel.Restored), Mode=OneWay}" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PaymentDeleteNotice" Visibility="{x:Bind Show(ViewModel.IsDeleting), Mode=OneWay}" TextWrapping="Wrap" Text="{x:Bind ViewModel.DeleteNotice, Mode=OneWay}"/>
+            <StackPanel x:Name="PaymentFields" Spacing="16" Visibility="{x:Bind Hide(ViewModel.IsDeleting), Mode=OneWay}">
+                <ComboBox x:Name="PaymentOwnerChoice" Header="所有者" DisplayMemberPath="Name" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="PaymentOwnerChoice" ItemsSource="{x:Bind ViewModel.Owners, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedOwner, Mode=TwoWay}" Visibility="{x:Bind Show(ViewModel.ChooseOwner), Mode=OneWay}"/>
+                <StackPanel x:Name="PaymentOwnerFixed" Visibility="{x:Bind Hide(ViewModel.ChooseOwner), Mode=OneWay}">
+                    <TextBlock Text="所有者" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="PaymentOwnerName" TextWrapping="Wrap" Text="{x:Bind ViewModel.OwnerName, Mode=OneWay}"/>
+                </StackPanel>
+                <TextBox x:Name="PaymentName" Header="支払方法名" AutomationProperties.AutomationId="PaymentName" Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock x:Name="PaymentNameError" Visibility="{x:Bind Error(ViewModel.NameError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.NameError, Mode=OneWay}"/>
+                <input:DateInputBox x:Name="PaymentFrom" Header="有効開始日" AllowEmpty="True" AutomationProperties.AutomationId="PaymentFrom" Text="{x:Bind ViewModel.FromText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <input:DateInputBox x:Name="PaymentTo" Header="有効終了日" AllowEmpty="True" AutomationProperties.AutomationId="PaymentTo" Text="{x:Bind ViewModel.ToText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock x:Name="PaymentPeriodError" Visibility="{x:Bind Error(ViewModel.PeriodError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.PeriodError, Mode=OneWay}"/>
+                <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}"/>
+            </StackPanel>
+            <Border x:Name="PaymentConflict" Visibility="{x:Bind Show(ViewModel.HasLatest), Mode=OneWay}" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="ほかの操作で変更されています。最新の保存内容" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                    <TextBlock Text="所有者" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="LatestPaymentOwner" TextWrapping="Wrap" Text="{x:Bind ViewModel.LatestOwner, Mode=OneWay}"/>
+                    <TextBlock Text="支払方法名" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="LatestPaymentName" TextWrapping="Wrap" Text="{x:Bind ViewModel.LatestName, Mode=OneWay}"/>
+                    <TextBlock Text="有効開始日" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="LatestPaymentFrom" Text="{x:Bind ViewModel.LatestFrom, Mode=OneWay}"/>
+                    <TextBlock Text="有効終了日" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="LatestPaymentTo" Text="{x:Bind ViewModel.LatestTo, Mode=OneWay}"/>
+                    <TextBlock Text="切り替えると、未保存の入力や削除対象の確認内容を最新内容に置き換えます。" TextWrapping="Wrap"/>
+                    <Button Content="最新内容に切り替える" Click="UseLatestPayment" AutomationProperties.AutomationId="UseLatestPaymentButton"/>
+                </StackPanel>
+            </Border>
+            <TextBlock x:Name="PaymentSaveError" Visibility="{x:Bind Error(ViewModel.SaveError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.SaveError, Mode=OneWay}"/>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

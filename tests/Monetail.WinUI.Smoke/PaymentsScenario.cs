@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Management;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -14,7 +15,7 @@ public partial class App
     private static ContentDialog PaymentDialogFor(FrameworkElement root) => Find<ContentDialog>(root, "PaymentDialog");
     private static Button PaymentFooter(FrameworkElement root, bool save) => All(PaymentDialogFor(root)).OfType<Button>().OrderByDescending(b => b.IsLoaded)
         .First(b => Equals(b.Content, save ? PaymentDialogFor(root).PrimaryButtonText : PaymentDialogFor(root).CloseButtonText));
-    private static bool PaymentEditorClosed(FrameworkElement root) => Find<ScrollViewer>(root, "PaymentEditorContent").Visibility == Visibility.Collapsed;
+    private static bool PaymentEditorClosed(FrameworkElement root) => ManagementDialogClosed(root, "PaymentDialog");
     private static async Task PaymentDialogReady(FrameworkElement root) => await Wait(() => !PaymentEditorClosed(root) &&
         PaymentDialogFor(root).IsLoaded && Find<ContentControl>(root, "Operations").IsEnabled && All(PaymentDialogFor(root)).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null && Equals(b.Content, PaymentDialogFor(root).CloseButtonText)));
     private async Task<FrameworkElement> OpenPaymentsWindow(SyntheticConnection fixture, PaymentServer server)
@@ -69,7 +70,7 @@ public partial class App
             Check(Find<ComboBox>(root, "PaymentOwnerChoice").SelectedIndex == -1 && !PaymentDialogFor(root).IsPrimaryButtonEnabled,
                 "管理者の追加所有者は未選択から始まり、選択前は登録不可");
             ChoosePaymentOwner(root, server.Mine);
-            var keyboard = (FormKeyboard)typeof(MainWindow).GetField("paymentKeyboard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!;
+            var keyboard = (FormKeyboard)PaymentDialogFor(root).GetType().GetField("keyboard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(PaymentDialogFor(root))!;
             Find<TextBox>(root, "PaymentName").Focus(FocusState.Programmatic);
             await keyboard.HandleEnter(false, false)!;
             Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<DateInputBox>(root, "PaymentFrom")), "支払方法ダイアログのEnterは保存せず次の日付欄へ移動");
@@ -117,7 +118,7 @@ public partial class App
             Check(order.Items.Cast<PaymentRow>().First().Name == "競合時に追加された方法" && server.Reads == reads,
                 "並び順競合は未知の追加行も応答の全情報で表示し、未保存順を破棄、追加GETなし");
             var currentIds = order.Items.Cast<PaymentRow>().Select(r => r.Payment.PaymentMethodId).ToArray();
-            await InvokeAsync(() => Find<Button>(root, "SavePaymentOrderButton")); await Wait(() => Find<Grid>(root, "PaymentOrderContent").Visibility == Visibility.Collapsed);
+            await InvokeAsync(() => Find<Button>(root, "SavePaymentOrderButton")); await Wait(() => !ManagementVisible(root, "PaymentOrderContent"));
             using var savedOrder = JsonDocument.Parse(server.Writes.Last().Body);
             Check(savedOrder.RootElement.GetProperty("ownerPersonId").GetGuid() == server.Mine && savedOrder.RootElement.GetProperty("paymentMethodIds").EnumerateArray().Select(p => p.GetGuid()).SequenceEqual(currentIds),
                 "競合後の保存は対象人物と新版・最新全IDを1要求で送信");
@@ -127,7 +128,7 @@ public partial class App
             Check(server.Reads == reads && server.Writes.Count == writes, "並び順キャンセルでは保存も追加GETもしない");
             await OpenOrderFor(root, server.Mine);
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
-            await Settle(); Check(Find<Grid>(root, "PaymentOrderContent").Visibility == Visibility.Collapsed, "左メニュー移動時は未保存順を破棄");
+            await Settle(); Check(!ManagementVisible(root, "PaymentOrderContent"), "左メニュー移動時は未保存順を破棄");
         }
         foreach (var role in new[] { "Editor", "Viewer" })
         {
@@ -185,7 +186,7 @@ public partial class App
             Check(server.Writes.Count == 0, "支払方法の同一アカウント再ログインは入力/未保存順を復元し、自動保存しない");
             if (!order) await PaymentDialogReady(root);
             await InvokeAsync(() => order ? Find<Button>(root, "SavePaymentOrderButton") : PaymentFooter(root, true));
-            await Wait(() => order ? Find<Grid>(root, "PaymentOrderContent").Visibility == Visibility.Collapsed : PaymentEditorClosed(root));
+            await Wait(() => order ? !ManagementVisible(root, "PaymentOrderContent") : PaymentEditorClosed(root));
             Check(server.Writes.Single().Body == rejected, "再ログイン後も作成requestIdまたは旧順序版と全IDを維持");
         }
         using (var fixture = new SyntheticConnection(saved: true))

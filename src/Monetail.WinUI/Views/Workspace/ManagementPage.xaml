@@ -22,7 +22,7 @@
                 <NavigationViewItem x:Name="AccountNavigation" Tag="Account" Content="ログイン情報" IsEnabled="{x:Bind ViewModel.HasAccount, Mode=OneWay}" AutomationProperties.AutomationId="AccountNavigation"/>
                 <NavigationViewItem x:Name="LogoutNavigation" Tag="Logout" Content="ログアウト" IsEnabled="{x:Bind ViewModel.HasAccount, Mode=OneWay}" AutomationProperties.AutomationId="LogoutNavigation"/>
             </NavigationView.MenuItems>
-            <ContentControl x:Name="DetailsHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
+            <Frame x:Name="DetailsHost" IsNavigationStackEnabled="False"/>
         </NavigationView>
     </Grid>
 </Page>

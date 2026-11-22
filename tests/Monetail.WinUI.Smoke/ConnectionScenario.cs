@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Management;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -28,7 +29,7 @@ public partial class App
             {
                 Check(Find<ContentControl>(initial, "AuthenticationHost").Content is Frame { Content: Monetail.WinUI.Views.Connection.ConnectionSetupPage } &&
                     initial.FindName("StartupPage") is null && fixture.Requests.Count == 0 &&
-                    Find<ContentControl>(initial, "ConnectionSettingsContent").Content is null,
+                    initial.FindName("ConnectionSettingsContent") is null && ManagementFeature(initial) is null,
                     "未設定はActivate前に初回Pageだけを生成し、Startup/通信/管理用Viewを開始しない");
             });
             await StartSyntheticAsync();
@@ -112,6 +113,8 @@ public partial class App
             navigation.SelectedItem = Find<NavigationViewItem>(root, "LogoutNavigation");
             await Wait(() => Find<InfoBar>(root, "ErrorNotice").IsOpen);
             Check(fixture.Tokens.Current is not null && Visible(root, "ManagementPage"), "ログアウトの通信失敗では認証と画面を保持");
+            Check(ReferenceEquals(navigation.SelectedItem, Find<NavigationViewItem>(root, "AccountNavigation")),
+                "ログアウト失敗後はログイン情報の選択へ戻し、同じログアウト操作を再試行できる");
             fixture.FailLogout = false;
             navigation.SelectedItem = Find<NavigationViewItem>(root, "LogoutNavigation");
             await Wait(() => Visible(root, "LoginPage"));
@@ -292,6 +295,7 @@ public partial class App
         internal Task? CallbackTask;
         internal TaskCompletionSource<bool>? ConnectionGate;
         internal TaskCompletionSource<bool>? LedgerReadGate;
+        internal TaskCompletionSource<bool>? LedgerListGate;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ReceiptsHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? TransfersHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? TaxRatesHandler;
@@ -300,7 +304,7 @@ public partial class App
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? PaymentsHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? CategoriesHandler;
         internal Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? ParticipantsHandler;
-        internal bool ConnectionCancelled, RateLimitOpening, RejectSession, CannotOpenLedger;
+        internal bool ConnectionCancelled, RateLimitOpening, RejectSession, CannotOpenLedger, FailLedgerSwitch;
         internal bool CompleteLogin, FailCreation, FailLogout, FailConnection, FailLedgerRead, HasPreviousLedger, FailBrowser, RejectAuthentication;
         internal int ChoiceCount, BrowserOpens;
         internal bool OtherServerAuthenticated;
@@ -399,13 +403,18 @@ public partial class App
             if (path == "/ledgers/open-last" && FailLedgerRead) return new(HttpStatusCode.ServiceUnavailable);
             if (path == "/ledgers/open-last") return RateLimitOpening ? new(HttpStatusCode.TooManyRequests) :
                 Json(new { ledger = HasPreviousLedger ? first : null });
-            if (path == "/ledgers" && request.Method == HttpMethod.Get) return Json(new[] { first, second }.Take(ChoiceCount));
+            if (path == "/ledgers" && request.Method == HttpMethod.Get)
+            {
+                if (LedgerListGate is { } listGate)
+                    await listGate.Task.WaitAsync(token);
+                return Json(new[] { first, second }.Take(ChoiceCount));
+            }
             if (path == "/ledgers" && request.Method == HttpMethod.Post)
             {
                 Creations.Add(await request.Content!.ReadAsStringAsync(token));
                 return FailCreation ? new(HttpStatusCode.ServiceUnavailable) : Json(first);
             }
-            if (path == $"/ledgers/{second.LedgerId:N}/open") return Json(second);
+            if (path == $"/ledgers/{second.LedgerId:N}/open") return FailLedgerSwitch ? new(HttpStatusCode.ServiceUnavailable) : Json(second);
             if (path == $"/ledgers/{first.LedgerId:N}/open") return CannotOpenLedger ? new(HttpStatusCode.NotFound) : Json(first);
             if (path.EndsWith("/tax-rates", StringComparison.Ordinal))
             {

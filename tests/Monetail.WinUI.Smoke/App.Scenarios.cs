@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Management;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Transport;
@@ -32,6 +33,8 @@ public partial class App
                 TraceInvocation($"participantRecoveryAttempt={attempt}; phase=passed");
             }
         }),
+        new("management-mvvm", "existing", CheckManagementMvvm),
+        new("management-ledger-switch", "existing", CheckManagementLedgerSwitch),
         new("categories", "existing", CheckCategories),
         new("people-filter", "existing", CheckPeopleFilter),
         new("tax-rate-connection-cache", "existing", CheckTaxRateConnectionCache),
@@ -61,18 +64,19 @@ public partial class App
     // 初期ホーム/管理画面と操作ヘルパーの確認は同じ初期画面に依存するため、一組で実行する。
     private async Task CheckShell(string output, bool capture)
     {
-        var previous = window;
-        var shell = new MainWindow(); window = shell;
-        var root = (FrameworkElement)shell.Content;
-        ObserveDialogs(root); shell.Activate();
-        await Wait(() => root.IsLoaded);
-        previous?.Close();
+        using var fixture = new SyntheticConnection(saved: true);
+        fixture.HasPreviousLedger = true;
         var today = DateOnly.FromDateTime(DateTime.Now);
         var mother = new PersonInfo(Guid.NewGuid(), "母", today, null, 0, Guid.NewGuid());
         var father = new PersonInfo(Guid.NewGuid(), "父", null, null, 1, Guid.NewGuid());
         var child = new PersonInfo(Guid.NewGuid(), "子供", null, today.AddDays(-1), 2, Guid.NewGuid());
-        shell.DisplayWorkspace(new LedgerInfo(Guid.NewGuid(), "家族の家計簿", "Admin", Guid.NewGuid().ToString("N")),
-            new PeopleInfo([mother, father, child], father.PersonId, "Admin", Guid.NewGuid()));
+        fixture.PeopleHandler = (_, _) => Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = System.Net.Http.Json.JsonContent.Create(new PeopleInfo([mother, father, child], father.PersonId, "Admin", Guid.NewGuid()))
+        });
+        var root = await OpenSyntheticWindow(fixture);
+        await StartSyntheticAsync();
+        var shell = window!;
         await Settle();
         Check(Find<FrameworkElement>(root, "HomePage").Visibility == Visibility.Visible, "ホームの表示");
         if (capture) await Capture(root, output, "01-home");

@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Management;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -12,31 +13,31 @@ public partial class App
         {
             var server = new PeopleServer();
             var root = await OpenPersonOrderWindow(fixture, server);
-            var list = Find<ListView>(root, "PersonOrderList");
-            var up = Find<Button>(root, "MovePersonUpButton");
-            var down = Find<Button>(root, "MovePersonDownButton");
-            Check(((PersonRow)list.Items[0]).Name == "母" && ((PersonRow)list.Items[1]).Name == "父（本人）" &&
-                !up.IsEnabled && !down.IsEnabled && server.Reads == 2,
+            ListView list() => Find<ListView>(root, "PersonOrderList");
+            Button up() => Find<Button>(root, "MovePersonUpButton");
+            Button down() => Find<Button>(root, "MovePersonDownButton");
+            Check(((PersonRow)list().Items[0]).Name == "母" && ((PersonRow)list().Items[1]).Name == "父（本人）" &&
+                !up().IsEnabled && !down().IsEnabled && server.Reads == 2,
                 "並び順設定は追加GETなしで共通順を表示し、本人を先頭にしない");
-            list.SelectedIndex = 0;
-            Check(!up.IsEnabled && down.IsEnabled, "共通順の先頭は上へ移動できない");
-            await InvokeAsync(() => down);
-            Check(list.SelectedIndex == 1 && ((PersonRow)list.Items[1]).Name == "母" && up.IsEnabled && !down.IsEnabled &&
+            list().SelectedIndex = 0;
+            Check(!up().IsEnabled && down().IsEnabled, "共通順の先頭は上へ移動できない");
+            await InvokeAsync(() => down());
+            Check(list().SelectedIndex == 1 && ((PersonRow)list().Items[1]).Name == "母" && up().IsEnabled && !down().IsEnabled &&
                 server.Writes.Count == 0, "上へ・下へは選択を保って移動し、端を越えず通信しない");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonOrderButton"));
             Check(Find<Grid>(root, "PeopleContent").Visibility == Visibility.Visible && server.Writes.Count == 0,
                 "並び順のキャンセルは共通順を保存せず一覧へ戻る");
             await InvokeAsync(() => Find<Button>(root, "PersonOrderButton"));
             await Settle();
-            Check(((PersonRow)list.Items[0]).Name == "母", "キャンセルした順序を再開せず保存済み共通順を使う");
-            list.SelectedIndex = 1;
-            await InvokeAsync(() => up);
-            var expected = list.Items.Cast<PersonRow>().Select(row => row.Person.PersonId).ToArray();
+            Check(((PersonRow)list().Items[0]).Name == "母", "キャンセルした順序を再開せず保存済み共通順を使う");
+            list().SelectedIndex = 1;
+            await InvokeAsync(() => up());
+            var expected = list().Items.Cast<PersonRow>().Select(row => row.Person.PersonId).ToArray();
             server.OrderStarted = new();
             server.ReleaseOrder = new();
             await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => server.OrderStarted.Task.IsCompleted);
-            Check(!up.IsEnabled && !down.IsEnabled && !Find<Button>(root, "CancelPersonOrderButton").IsEnabled &&
+            Check(!up().IsEnabled && !down().IsEnabled && !Find<Button>(root, "CancelPersonOrderButton").IsEnabled &&
                 !Find<Button>(root, "SavePersonOrderButton").IsEnabled, "並び順保存中は重複・移動・取消を受け付けない");
             server.ReleaseOrder.SetResult();
             await Wait(() => !OrderVisible(root));
@@ -51,17 +52,17 @@ public partial class App
         {
             var server = new PeopleServer();
             var root = await OpenPersonOrderWindow(fixture, server);
-            var list = Find<ListView>(root, "PersonOrderList");
-            list.SelectedIndex = 1;
+            ListView list() => Find<ListView>(root, "PersonOrderList");
+            list().SelectedIndex = 1;
             await InvokeAsync(() => Find<Button>(root, "MovePersonUpButton"));
             server.ConflictNextOrder = true;
             await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => Find<InfoBar>(root, "PersonOrderNotice").IsOpen);
-            Check(OrderVisible(root) && ((PersonRow)list.Items[0]).Name == "子供" && ((PersonRow)list.Items[1]).Name == "父（本人）" &&
+            Check(OrderVisible(root) && ((PersonRow)list().Items[0]).Name == "子供" && ((PersonRow)list().Items[1]).Name == "父（本人）" &&
                 Find<InfoBar>(root, "PersonOrderNotice").Severity == InfoBarSeverity.Informational && server.Reads == 2,
                 "共通順の競合は説明して最新一覧へ直接置換し、人物の追加・削除も追加GETなしで反映");
             var stale = server.Writes.Single().Body;
-            list.SelectedIndex = 1;
+            list().SelectedIndex = 1;
             await InvokeAsync(() => Find<Button>(root, "MovePersonUpButton"));
             await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => !OrderVisible(root));
@@ -75,14 +76,14 @@ public partial class App
         {
             var server = new PeopleServer();
             var root = await OpenPersonOrderWindow(fixture, server);
-            var list = Find<ListView>(root, "PersonOrderList");
-            list.SelectedIndex = 1;
+            ListView list() => Find<ListView>(root, "PersonOrderList");
+            list().SelectedIndex = 1;
             await InvokeAsync(() => Find<Button>(root, "MovePersonUpButton"));
             server.FailNextSave = true;
             await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => Find<InfoBar>(root, "PersonOrderNotice").IsOpen);
             var failed = server.Writes.Single().Body;
-            Check(((PersonRow)list.Items[0]).Name == "父（本人）" && server.Reads == 2,
+            Check(((PersonRow)list().Items[0]).Name == "父（本人）" && server.Reads == 2,
                 "並び順の通信失敗は未保存順を保持し再取得しない");
             server.LoseOrderResponse = true;
             await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
@@ -90,7 +91,7 @@ public partial class App
             Check(failed == server.Writes[^1].Body, "並び順の再試行は同じ全IDと全体更新版を使う");
             await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => Find<InfoBar>(root, "PersonOrderNotice").Severity == InfoBarSeverity.Informational);
-            Check(((PersonRow)list.Items[0]).Name == "父（本人）" && server.Reads == 2,
+            Check(((PersonRow)list().Items[0]).Name == "父（本人）" && server.Reads == 2,
                 "応答喪失後の再送も更新版競合で確認済みのサーバー順に収束する");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonOrderButton"));
         }
@@ -100,28 +101,27 @@ public partial class App
             using var fixture = new SyntheticConnection(saved: true);
             var server = new PeopleServer();
             var root = await OpenPersonOrderWindow(fixture, server);
-            var list = Find<ListView>(root, "PersonOrderList");
-            list.SelectedIndex = 1;
+            ListView list() => Find<ListView>(root, "PersonOrderList");
+            list().SelectedIndex = 1;
             await InvokeAsync(() => Find<Button>(root, "MovePersonUpButton"));
             if (removed) server.Joined = false;
             else server.Role = "Viewer";
             await InvokeAsync(() => Find<Button>(root, "SavePersonOrderButton"));
             await Wait(() => Find<InfoBar>(root, "PersonOrderNotice").IsOpen);
-            Check(OrderVisible(root) && ((PersonRow)list.Items[0]).Name == "父（本人）" &&
+            Check(OrderVisible(root) && ((PersonRow)list().Items[0]).Name == "父（本人）" &&
                 !Find<Button>(root, "SavePersonOrderButton").IsEnabled && !Find<Button>(root, "MovePersonDownButton").IsEnabled &&
                 server.Reads == 2, removed ? "除外後の並び順は保持して保存禁止、再取得や自動遷移はしない" :
                 "降格後の並び順は保持して保存禁止、再取得や自動遷移はしない");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonOrderButton"));
-            Check(!Find<Button>(root, "PersonOrderButton").IsEnabled &&
-                (!removed || Visible(root, "HomePage")), "閉じた後も最新権限で共通順の再入場を止める");
+            Check((removed ? Visible(root, "HomePage") && ManagementFeature(root) is null : !Find<Button>(root, "PersonOrderButton").IsEnabled), "閉じた後も最新権限で共通順の再入場を止める");
         }
 
         using (var fixture = new SyntheticConnection(saved: true))
         {
             var server = new PeopleServer();
             var root = await OpenPersonOrderWindow(fixture, server);
-            var list = Find<ListView>(root, "PersonOrderList");
-            list.SelectedIndex = 1;
+            ListView list() => Find<ListView>(root, "PersonOrderList");
+            list().SelectedIndex = 1;
             await InvokeAsync(() => Find<Button>(root, "MovePersonUpButton"));
             Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
             await Settle();
@@ -132,13 +132,13 @@ public partial class App
             await Settle();
             window!.AppWindow.ResizeClient(new(900, 620));
             await Settle();
-            Check(((PersonRow)list.Items[0]).Name == "母" && list.ActualHeight > 0 &&
+            Check(((PersonRow)list().Items[0]).Name == "母" && list().ActualHeight > 0 &&
                 FitsHorizontally(Find<Button>(root, "SavePersonOrderButton"), Find<Grid>(root, "PersonOrderContent")),
                 "並び順は一覧から再開し、コンパクトな画面でも一覧と保存操作が収まる");
         }
     }
 
-    private static bool OrderVisible(FrameworkElement root) => Find<Grid>(root, "PersonOrderContent").Visibility == Visibility.Visible;
+    private static bool OrderVisible(FrameworkElement root) => ManagementVisible(root, "PersonOrderContent");
 
     private async Task<FrameworkElement> OpenPersonOrderWindow(SyntheticConnection fixture, PeopleServer server)
     {

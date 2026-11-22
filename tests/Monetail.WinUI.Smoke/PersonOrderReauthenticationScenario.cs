@@ -1,3 +1,5 @@
+using Monetail.WinUI.Views.Management;
+using Monetail.Windows.Presentation.Management;
 using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -69,6 +71,7 @@ public partial class App
             using var fixture = new SyntheticConnection(saved: true);
             var server = new PeopleServer();
             var root = await RejectPersonOrderSession(fixture, server);
+            var model = ((PeoplePage)ManagementFeature(root)!).ViewModel;
             fixture.RejectSession = false;
             if (changedServer)
             {
@@ -85,7 +88,7 @@ public partial class App
                 await fixture.CallbackTask!;
             }
             Check(Visible(root, "HomePage") && !OrderVisible(root) &&
-                Find<ListView>(root, "PersonOrderList").Items.Count == 0 && server.Writes.Count == 0,
+                ManagementFeature(root) is null && model.OrderRows.Count == 0 && !model.IsOrdering && server.Writes.Count == 0,
                 changedServer ? "別の接続先へ未保存順を引き継がない" : "別のアカウントへ未保存順を引き継がない");
             var requests = changedServer ? fixture.OtherServerRequests : fixture.Requests;
             Check(!requests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),

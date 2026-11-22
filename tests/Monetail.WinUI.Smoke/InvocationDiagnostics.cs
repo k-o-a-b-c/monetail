@@ -68,16 +68,24 @@ public partial class App
         });
     }
 
+    private static readonly ConditionalWeakTable<ContentDialog, object> observedDialogs = new();
     private static void ObserveDialogs(FrameworkElement root)
     {
-        foreach (var name in new[] { "PersonDialog", "PaymentDialog", "CategoryDialog", "ParticipantDialog", "InvitationCancelDialog", "ReceiptConfirmationDialog", "TransferConfirmationDialog" })
-        {
-            var dialog = Find<ContentDialog>(root, name);
-            var id = RuntimeHelpers.GetHashCode(dialog);
-            dialog.Opened += (_, _) => TraceInvocation($"dialog={name}; id={id}; event=opened");
-            dialog.Closing += (_, _) => TraceInvocation($"dialog={name}; id={id}; event=closing");
-            dialog.Closed += (_, _) => TraceInvocation($"dialog={name}; id={id}; event=closed");
-        }
+        foreach (var name in new[] { "ReceiptConfirmationDialog", "TransferConfirmationDialog" })
+            if (root.FindName(name) is ContentDialog dialog)
+                ObserveDialog(dialog);
+    }
+    private static void ObserveDialog(ContentDialog dialog)
+    {
+        if (observedDialogs.TryGetValue(dialog, out _))
+            return;
+        observedDialogs.Add(dialog, new());
+        var id = RuntimeHelpers.GetHashCode(dialog);
+        var name = dialog.Name;
+        TraceInvocation($"dialog={name}; id={id}; event=observed; loaded={dialog.IsLoaded}");
+        dialog.Opened += (_, _) => TraceInvocation($"dialog={name}; id={id}; event=opened");
+        dialog.Closing += (_, _) => TraceInvocation($"dialog={name}; id={id}; event=closing");
+        dialog.Closed += (_, _) => TraceInvocation($"dialog={name}; id={id}; event=closed");
     }
 
     private async Task CheckInvocationGuards(FrameworkElement root)

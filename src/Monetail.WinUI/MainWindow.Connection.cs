@@ -31,7 +31,6 @@ public sealed partial class MainWindow
         if (closed || RecordEditorActive && !EditorAwaitingLogin)
             return null;
         ReleaseLedgerPage();
-        ReleaseConnectionSettings();
         HideWorkspace();
         var flow = GetAuthentication();
         AuthenticationHost.Content = flow.View;
@@ -61,6 +60,8 @@ public sealed partial class MainWindow
     {
         token.ThrowIfCancellationRequested();
         account = authenticated;
+        if (management is not null)
+            management.AccountName = authenticated.DisplayName ?? "";
         if (EditorAwaitingLogin)
             authentication?.KeepRecoveryReadAlive();
         await OpenDestinationAsync(token);
@@ -82,34 +83,17 @@ public sealed partial class MainWindow
     private async Task ShowConnectionAsync()
     {
         if (!EditorAwaitingLogin && !await LeaveRecordEditorAsync()) return;
-        DropPendingCategoryEdit();
-        DropPendingPaymentEdit();
-        DropPendingPersonEdit();
         if (account is not null && currentLedger is not null)
         {
             NavigateWorkspace(WorkspaceScreen.ManagementPage);
-            PeopleContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
-            management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Connection;
-            OpenConnectionSettings();
+            if (ManagementPage is { } page)
+                await page.OpenSectionAsync(Monetail.Windows.Presentation.Workspace.ManagementSection.Connection);
             return;
         }
         OpenConnectionSetup();
     }
 
     private void OpenConnectionSetup() => ShowAuthentication()?.ShowConnectionSetup();
-
-    private void OpenConnectionSettings()
-    {
-        ReleaseConnectionSettings();
-        ConnectionSettingsContent.Content = new ConnectionSettingsView(new ConnectionSettingsViewModel(connection.Endpoint, ConnectAsync));
-        ConnectionSettingsContent.Visibility = Visibility.Visible;
-    }
-
-    private void ReleaseConnectionSettings()
-    {
-        (ConnectionSettingsContent.Content as ConnectionSettingsView)?.ViewModel.Dispose();
-        ConnectionSettingsContent.Content = null;
-    }
 
     private async Task ConnectAsync(ApiEndpoint candidate, CancellationToken token)
     {
@@ -118,14 +102,14 @@ public sealed partial class MainWindow
             await GetAuthentication().ConnectAsync(candidate, token);
     }
 
-    private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login;
+    private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login || management?.Context.IsSuspended == true;
 
     // ログインへの移動準備。画面表示だけでは編集状態を破棄しない。
     private void NavigateToLogin(string? message = null)
     {
         if (closed)
             return;
-        var suspended = SuspendTransferForAuthentication() || SuspendReceiptForAuthentication();
+        var suspended = SuspendTransferForAuthentication() || SuspendReceiptForAuthentication() || SuspendManagementForAuthentication();
         account = null;
         if (!suspended)
         {
@@ -139,7 +123,6 @@ public sealed partial class MainWindow
     {
         if (closed || RecordEditorActive && !EditorAwaitingLogin)
             return;
-        if (management is not null) management.HasAccount = false;
         ShowAuthentication()?.ShowLogin(message);
     }
 
@@ -148,10 +131,6 @@ public sealed partial class MainWindow
         if (!await LeaveRecordEditorAsync()) return;
         await RunAsync(async () =>
     {
-        DropPendingCategoryEdit();
-        DropPendingPaymentEdit();
-        DropPendingPersonEdit();
-        pendingParticipantEdit = null;
         await connection.Session.LogoutAsync(lifetime.Token);
         account = null;
         DiscardLedgerContents();
@@ -175,13 +154,13 @@ public sealed partial class MainWindow
         catch (ObjectDisposedException) when (closed) { }
         catch (AuthenticationRejectedException)
         {
-            RememberCategoryEdit();
-            RememberPaymentEdit();
-            RememberPersonEdit();
-            RememberParticipantEdit();
             NavigateToLogin("ログインを継続できません。もう一度ログインしてください。");
         }
-        catch (AuthenticationContextChangedException error) { pendingParticipantEdit = null; DropPendingCategoryEdit(); DropPendingPaymentEdit(); DropPendingPersonEdit(); NavigateToLogin(error.Message); }
+        catch (AuthenticationContextChangedException error)
+        {
+            DiscardManagement();
+            NavigateToLogin(error.Message);
+        }
         catch (LedgerRequestException error)
         {
             var message = error.StatusCode switch
@@ -193,19 +172,16 @@ public sealed partial class MainWindow
             };
             report(message);
         }
-        catch (CategoryRequestException error)
+        catch (CategoryRequestException)
         {
-            ApplyCategoryFailureContext(error);
             report("科目一覧を取得できませんでした。参加状態と権限を確認してください。");
         }
-        catch (PaymentMethodRequestException error)
+        catch (PaymentMethodRequestException)
         {
-            ApplyPaymentFailureContext(error);
             report("支払方法一覧を取得できませんでした。参加状態と権限を確認してください。");
         }
         catch (PeopleRequestException error)
         {
-            ApplyPeopleFailureContext(error);
             report(error.StatusCode == HttpStatusCode.TooManyRequests
                 ? "操作回数の上限に達しました。しばらく待って再試行してください。"
                 : "人物一覧を取得できませんでした。家計簿への参加状態と権限を確認してください。");
@@ -232,10 +208,8 @@ public sealed partial class MainWindow
         if (CreationView is { } creation)
             creation.IsEnabled = enabled;
         authentication?.SetOperationsEnabled();
-        CategoryDialog.IsEnabled = enabled;
-        PaymentDialog.IsEnabled = enabled;
-        PersonDialog.IsEnabled = ParticipantDialog.IsEnabled = InvitationCancelDialog.IsEnabled = enabled;
-        UpdatePeopleActions();
+        if (management is not null)
+            management.Context.IsBusy = !enabled;
         var showProgress = !enabled && authentication?.IsStarting != true;
         BusyProgress.IsActive = showProgress;
         BusyProgress.Visibility = showProgress ? Visibility.Visible : Visibility.Collapsed;
@@ -253,24 +227,6 @@ public sealed partial class MainWindow
 
     private void ShowError(string message)
     {
-        if (categoryDialogOpen && !categoryDialogClosing && !forceCategoryClose) { ShowCategoryError(null, message); return; }
-        if (orderedCategories is not null) { ShowCategoryOrderNotice(message); return; }
-        if (paymentDialogOpen && !paymentDialogClosing && !forcePaymentClose) { ShowPaymentError(null, message); return; }
-        if (orderedPayments is not null) { ShowPaymentOrderNotice(message); return; }
-        if (participantDialogOpen && !forceParticipantClose) { ShowParticipantError(message); return; }
-        if (invitationDialogOpen && !forceParticipantClose)
-        { InvitationCancelError.Text = message; InvitationCancelError.Visibility = Visibility.Visible; return; }
-        if (InvitationsContent.Visibility == Visibility.Visible) { ShowInvitationNotice(message); return; }
-        if (IsOrderingPeople)
-        {
-            ShowPersonOrderNotice(message);
-            return;
-        }
-        if (personDialogOpen && !personDialogClosing && !forcePersonDialogClose)
-        {
-            ShowPersonError(null, message);
-            return;
-        }
         ErrorNotice.Message = message;
         ErrorNotice.Visibility = Visibility.Visible;
         ErrorNotice.IsOpen = true;
@@ -287,7 +243,6 @@ public sealed partial class MainWindow
         RecordPage?.Suspend();
         ReleaseAuthentication();
         ReleaseLedgerPage();
-        ReleaseConnectionSettings();
         transferAuthentication = null;
         transferEditor = null;
         ResetRecordHome();
@@ -299,10 +254,7 @@ public sealed partial class MainWindow
         ReleaseWorkspace();
         ResetReceiptEditor();
         connection.Masters.Changed -= ReceiptMasterChanged;
-        DiscardCategoryEditor();
-        DiscardPaymentEditor();
-        DiscardPersonEditor();
-        ResetParticipants();
+        DiscardManagement();
         lifetime.Cancel();
         connection.Dispose();
     }

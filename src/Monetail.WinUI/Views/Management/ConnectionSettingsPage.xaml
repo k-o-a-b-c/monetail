@@ -1,0 +1,3 @@
+<Page x:Class="Monetail.WinUI.Views.Management.ConnectionSettingsPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" NavigationCacheMode="Disabled" IsTabStop="False">
+    <Border Style="{StaticResource Card}" Margin="16,0,0,0"><ContentControl x:Name="ConnectionSettingsContent" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top" IsTabStop="False"/></Border>
+</Page>

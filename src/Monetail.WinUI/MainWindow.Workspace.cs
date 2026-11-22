@@ -24,7 +24,6 @@ public sealed partial class MainWindow
             return;
         ReleaseAuthentication();
         ReleaseLedgerPage();
-        ReleaseConnectionSettings();
         WorkspaceHost.Visibility = Visibility.Visible;
         WorkspaceHeader.Visibility = screen == WorkspaceScreen.LedgerChoicePage || currentLedger is null ? Visibility.Collapsed : Visibility.Visible;
         RecordSelectionIndicator.Visibility = screen == WorkspaceScreen.HomePage ? Visibility.Visible : Visibility.Collapsed;
@@ -43,6 +42,9 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (screen == WorkspaceScreen.ManagementPage && ManagementPage is not null)
+            return;
+
         SuspendRecordReads();
         ReleaseWorkspace();
         WorkspaceHost.Visibility = Visibility.Visible;
@@ -54,17 +56,9 @@ public sealed partial class MainWindow
                 ((RecordHomePage)WorkspaceHost.Content).Failed += WorkspaceFailed;
                 break;
             case WorkspaceScreen.ManagementPage:
-                management = new(() => !busy && !ManagementDialogOpen, SelectManagementAsync)
-                {
-                    LedgerName = currentLedger?.Name ?? "家計簿が開かれていません",
-                    HasAccount = account is not null,
-                    PeopleEnabled = CanViewPeople,
-                    CategoriesEnabled = CanViewCategories,
-                    ParticipantsVisible = CanManageParticipants
-                };
+                EnsureManagement();
                 WorkspaceHost.Navigate(typeof(ManagementPage), management);
-                var page = (ManagementPage)WorkspaceHost.Content;
-                page.SetDetails(ManagementContents);
+                ((ManagementPage)WorkspaceHost.Content).ReturnRequested += ReturnFromManagement;
                 break;
             case WorkspaceScreen.LedgerChoicePage:
                 WorkspaceHost.Navigate(typeof(LedgerChoiceView));
@@ -86,17 +80,19 @@ public sealed partial class MainWindow
         if (WorkspaceHost.Content is RecordHomePage records)
             records.Release();
         if (WorkspaceHost.Content is ManagementPage settings)
+        {
+            settings.ReturnRequested -= ReturnFromManagement;
             settings.Release();
+        }
         if (WorkspaceHost.Content is LedgerChoiceView choices)
             choices.OpenRequested -= OpenSelectedLedger;
         WorkspaceHost.Content = null;
-        management = null;
     }
 
     private void HideWorkspace()
     {
         SuspendRecordReads();
-        if (!RecordEditorActive || !EditorAwaitingLogin)
+        if ((!RecordEditorActive || !EditorAwaitingLogin) && management?.Context.IsSuspended != true)
             ReleaseWorkspace();
         WorkspaceHost.Visibility = WorkspaceHeader.Visibility = Visibility.Collapsed;
     }

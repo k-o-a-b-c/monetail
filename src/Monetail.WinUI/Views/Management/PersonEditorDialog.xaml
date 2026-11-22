@@ -1,0 +1,32 @@
+<ContentDialog xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:input="using:Monetail.WinUI.Input" x:Name="PersonDialog" Title="{x:Bind ViewModel.Title, Mode=OneWay}" PrimaryButtonText="{x:Bind ViewModel.PrimaryText, Mode=OneWay}" CloseButtonText="キャンセル" DefaultButton="{x:Bind Default(ViewModel.IsDeleting), Mode=OneWay}" Opened="PersonDialogOpened" Closing="PersonDialogClosing" PrimaryButtonClick="SavePerson" HorizontalContentAlignment="Stretch" x:Class="Monetail.WinUI.Views.Management.PersonEditorDialog" IsPrimaryButtonEnabled="{x:Bind ViewModel.CanSave, Mode=OneWay}" IsEnabled="{x:Bind Not(ViewModel.Context.IsBusy), Mode=OneWay}">
+    <ScrollViewer x:Name="PersonEditorContent" HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel HorizontalAlignment="Stretch" Spacing="16">
+            <TextBlock x:Name="PersonRestoredNotice" Visibility="{x:Bind Show(ViewModel.Restored), Mode=OneWay}" Text="未保存の入力を復元しました。内容を確認してください。" Style="{StaticResource Description}"/>
+            <TextBlock x:Name="PersonDeleteNotice" Visibility="{x:Bind Show(ViewModel.IsDeleting), Mode=OneWay}" TextWrapping="Wrap" Text="{x:Bind ViewModel.DeleteNotice, Mode=OneWay}"/>
+            <StackPanel x:Name="PersonFields" Spacing="16" Visibility="{x:Bind Hide(ViewModel.IsDeleting), Mode=OneWay}">
+                <TextBox x:Name="PersonName" Header="人物名" AutomationProperties.AutomationId="PersonName" Text="{x:Bind ViewModel.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock x:Name="PersonNameError" Visibility="{x:Bind Error(ViewModel.NameError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.NameError, Mode=OneWay}"/>
+                <input:DateInputBox x:Name="PersonValidFrom" Header="有効開始日" AllowEmpty="True" AutomationProperties.AutomationId="PersonValidFrom" Text="{x:Bind ViewModel.FromText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{x:Bind Not(ViewModel.IncludesPeriod), Mode=OneWay}" IsTabStop="{x:Bind ViewModel.IncludesPeriod, Mode=OneWay}"/>
+                <input:DateInputBox x:Name="PersonValidTo" Header="有効終了日" AllowEmpty="True" AutomationProperties.AutomationId="PersonValidTo" Text="{x:Bind ViewModel.ToText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{x:Bind Not(ViewModel.IncludesPeriod), Mode=OneWay}" IsTabStop="{x:Bind ViewModel.IncludesPeriod, Mode=OneWay}"/>
+                <TextBlock x:Name="PersonPeriodError" Visibility="{x:Bind Error(ViewModel.PeriodError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.PeriodError, Mode=OneWay}"/>
+                <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}"/>
+                <TextBlock x:Name="PersonPeriodPermission" Visibility="{x:Bind Hide(ViewModel.IncludesPeriod), Mode=OneWay}" Text="有効期間は管理者のみ変更できます。" Style="{StaticResource Description}"/>
+            </StackPanel>
+            <Border x:Name="PersonConflict" Visibility="{x:Bind Show(ViewModel.HasLatest), Mode=OneWay}" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="ほかの操作で変更されています。" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                    <TextBlock Text="最新の保存内容" TextWrapping="Wrap"/>
+                    <TextBlock Text="人物名" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="LatestPersonName" TextWrapping="Wrap" Text="{x:Bind ViewModel.LatestName, Mode=OneWay}"/>
+                    <TextBlock Text="有効開始日" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="LatestPersonFrom" Text="{x:Bind ViewModel.LatestFrom, Mode=OneWay}"/>
+                    <TextBlock Text="有効終了日" Style="{StaticResource Description}"/>
+                    <TextBlock x:Name="LatestPersonTo" Text="{x:Bind ViewModel.LatestTo, Mode=OneWay}"/>
+                    <TextBlock x:Name="PersonConflictExplanation" Text="{x:Bind ViewModel.ConflictExplanation, Mode=OneWay}" TextWrapping="Wrap"/>
+                    <Button x:Name="UseLatestPersonButton" Content="最新内容に切り替える" Click="UseLatestPerson" AutomationProperties.AutomationId="UseLatestPersonButton"/>
+                </StackPanel>
+            </Border>
+            <TextBlock x:Name="PersonSaveError" Visibility="{x:Bind Error(ViewModel.SaveError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.SaveError, Mode=OneWay}"/>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>
