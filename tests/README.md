@@ -10,11 +10,11 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1210 |
-| Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・管理4機能VM・投影・Command・共通ページング・復帰） | 186 |
+| Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・管理4機能VM・投影・Command・共通ページング・復帰） | 189 |
 | Windowsの実DPAPI・保存 | 3 |
-| WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・37シナリオ） | 2 |
+| WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・38シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3871 |
+| 合計 | 3874 |
 
 <a id="management-mvvm-pr2"></a>
 
@@ -32,6 +32,15 @@
 [Tests 45007441533](https://github.com/k-o-a-b-c/monetail/actions/runs/45007441533)では変更していない振替候補の実キー入力が失敗した（focused=True、textMatches=False、draftMatches=False、foreground=True）。原因は未特定。次の[45007791390](https://github.com/k-o-a-b-c/monetail/actions/runs/45007791390)では同じ未変更の振替入力シナリオは通過したが、人物削除の解放済みPage取得で全体が失敗したため、元の操作ボタン参照で既存の無効状態を検証するよう修正した。入力試験の期待値/タイムアウト/製品IME処理は変更せず、成功回を原因解消とは扱わない。重複退避フラグ削減後の[45009953783・初回](https://github.com/k-o-a-b-c/monetail/actions/runs/45009953783/attempts/1)では、同じ未変更の振替候補試験のプレビュー表示/業務値分離の確認が別途失敗した。直前成功ソースとの差分は未訪問の管理4Pageだけで、この試験では管理Pageを生成しないことを確認し、条件を変えず失敗Windowsジョブだけ同一ソースで再実行した。[attempt 2](https://github.com/k-o-a-b-c/monetail/actions/runs/45009953783/attempts/2)でも同じ確認が失敗した。因果関係を特定できていないため、追加の4Pageフラグ削減は取り下げ、全37シナリオ成功を確認した製品/テスト内容へ範囲を戻した。実キー未反映とは別の失敗として扱い、原因未特定のままにする。既知の0xC000027B/0xC0000005も未解決のままとする。
 
 移管XAML末尾の空白4行を除去した以外、最終の製品/テスト内容は`80c52726d422693a5104e01e31bdd8e6263a9534`と同一であり、[Tests 45009447116](https://github.com/k-o-a-b-c/monetail/actions/runs/45009447116)で製品/検証用WinUI x64 Release・製品起動・全37シナリオ/939確認、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。両ビルドは各5件の既存WUI2011警告（ReceiptEditorView）・新規警告/エラーなし。新設management-mvvmの10確認、人物・科目・支払方法・参加者/招待の401/競合/権限、既存レシート/振替の復帰と一覧操作を含む。最終差分で末尾空白以外の製品/テストの同一性を確認し、後続の文書更新・取り下げコミットは既存CI選択/fingerprintの成功結果を再利用する。末尾整形後の最終CI結果は[PR #244](https://github.com/k-o-a-b-c/monetail/pull/244)を参照する。管理標準幅/狭幅/ダークの静止画を確認したが、900×620では一覧の可視領域が小さく、実機操作性は未検証。今回、行高・余白・共通ヘッダーの仕様は変更しない。
+
+
+### 共通ヘッダーの家計簿切替・未保存順序（PR #244レビュー対応）
+
+管理画面でも家計簿メニューを表示する。[ManagementOrderChangesTests](Monetail.Windows.Presentation.Tests/ManagementOrderChangesTests.cs)の3件で人物/科目/支払方法の開始時ID順との差分、元へ戻す操作、取消/再開始、認証復帰で基準を変更しないことと通知を確認する。[ManagementLedgerSwitchScenario](Monetail.WinUI.Smoke/ManagementLedgerSwitchScenario.cs)の`management-ledger-switch`（38確認）で、管理からメニューを開く/閉じる、現家計簿選択、別家計簿選択時の確認・取消・明示破棄、未変更/元へ戻した順序の確認省略、同一Page/並び順/選択の保持、自動保存なしを確認する。人物編集ダイアログ中/処理中の切替禁止、確認中の別遷移抑止、切替API失敗の保持、家計簿追加の取消、離脱後の古いメニュー非表示も含む。承認仕様の正本はUI_DESIGN.mdのDEC-348補足とする。
+
+ソース`dc660b4`の[Tests 45021485046](https://github.com/k-o-a-b-c/monetail/actions/runs/45021485046)が成功した。Client全1,210件・Presentation全189件（失敗/skipなし）、製品/検証用WinUI x64 Release・製品起動、全38シナリオ/977確認、個別3シナリオ・一覧照合・不正指定拒否・計測/撮影が成功。新シナリオは約5.55秒。両ビルド各5件の既存WUI2011（ReceiptEditorView）、新規警告・エラーなし。ローカルPresentation全189件・構造検査・git diff --checkも成功。新テスト初回は人物対応のfixtureが存在しない人物IDを指して2件失敗し、実Clientの検証に合うfixtureへ修正後3件/全189件が成功した。製品条件・期待値・待機時間は緩和しない。
+
+API/DB等の非変更入力は既存CIの成功fingerprintを再利用する。今回のWindows実行に既知の候補/IMEの断続失敗や0xC000027B/0xC0000005の記録はないが、原因解消とは扱わない。後続の検証文書更新は同一製品/テスト入力の成功を再利用し、最終コミットのCIはPRへ記録する。
 
 WinApp CLIはこのLinux環境にないため未実行。Windows CIの製品/スモークRelease・実起動と自動操作、既存Analyzer/構造検査で検証する。実API/OAuth、実Windowsでの物理IME・マウス/タッチ・高DPI/文字拡大・支援技術の手動操作、ヒープ計測によるGC回収確認は未実施。
 
