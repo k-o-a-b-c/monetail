@@ -13,7 +13,6 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
     private CancellationTokenSource? reads;
     private ContentDialog? dialog;
     private Task dialogTask = Task.CompletedTask;
-    private bool suspended;
     public ParticipantsPage() => InitializeComponent();
     protected override void OnNavigatedTo(NavigationEventArgs args)
     {
@@ -45,7 +44,7 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
         }
         finally
         {
-            if (!suspended && ReferenceEquals(dialog, current))
+            if (!ViewModel.Context.IsSuspended && ReferenceEquals(dialog, current))
             {
                 ReleaseDialog();
                 ViewModel.CloseEditor();
@@ -67,7 +66,6 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
 
     public void SuspendForAuthentication()
     {
-        suspended = true;
         reads?.Cancel();
         if (dialog is ParticipantEditorDialog participant)
             participant.Suspend();
@@ -85,7 +83,6 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
         reads?.Dispose();
         reads = CancellationTokenSource.CreateLinkedTokenSource(ViewModel.Context.Token);
         ViewModel.ActivateReads(reads.Token);
-        suspended = false;
         if (dialog is ParticipantEditorDialog participant)
         {
             participant.Resuming();

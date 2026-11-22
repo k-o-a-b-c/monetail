@@ -13,7 +13,6 @@ public sealed partial class PeoplePage : Page, IManagementFeature
     private CancellationTokenSource? reads;
     private PersonEditorDialog? dialog;
     private Task dialogTask = Task.CompletedTask;
-    private bool suspended;
     public PeoplePage() => InitializeComponent();
     protected override void OnNavigatedTo(NavigationEventArgs args)
     {
@@ -50,7 +49,7 @@ public sealed partial class PeoplePage : Page, IManagementFeature
         }
         finally
         {
-            if (!suspended && ReferenceEquals(dialog, current))
+            if (!ViewModel.Context.IsSuspended && ReferenceEquals(dialog, current))
             {
                 current.Release();
                 dialog = null;
@@ -63,7 +62,6 @@ public sealed partial class PeoplePage : Page, IManagementFeature
 
     public void SuspendForAuthentication()
     {
-        suspended = true;
         reads?.Cancel();
         dialog?.Suspend();
     }
@@ -72,7 +70,6 @@ public sealed partial class PeoplePage : Page, IManagementFeature
     {
         await dialogTask;
         await ViewModel.ResumeAsync(denied, token);
-        suspended = false;
         if (dialog is not null)
             dialogTask = ShowDialogAsync(dialog);
     }

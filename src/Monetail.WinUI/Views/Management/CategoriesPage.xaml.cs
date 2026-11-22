@@ -13,7 +13,6 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
     private CancellationTokenSource? reads;
     private CategoryEditorDialog? dialog;
     private Task dialogTask = Task.CompletedTask;
-    private bool suspended;
     public CategoriesPage() => InitializeComponent();
     protected override void OnNavigatedTo(NavigationEventArgs args)
     {
@@ -50,7 +49,7 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
         }
         finally
         {
-            if (!suspended && ReferenceEquals(dialog, current))
+            if (!ViewModel.Context.IsSuspended && ReferenceEquals(dialog, current))
             {
                 current.Release();
                 dialog = null;
@@ -63,7 +62,6 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
 
     public void SuspendForAuthentication()
     {
-        suspended = true;
         reads?.Cancel();
         dialog?.Suspend();
     }
@@ -72,7 +70,6 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
     {
         await dialogTask;
         await ViewModel.ResumeAsync(denied, token);
-        suspended = false;
         if (dialog is not null)
             dialogTask = ShowDialogAsync(dialog);
     }
