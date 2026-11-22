@@ -160,7 +160,7 @@ PR1のソース行数・フィールド数・直接参照数の比較値、検�
 | MainWindow C# / メソッド | 3,729行 / 286 | 1,843行 / 119 |
 | MainWindow 明示フィールド / うちbool | 106 / 37 | 38 / 12 |
 | 管理内部のx:Name直接参照（異なる名前 / 出現回数） | 126 / 524 | 0 / 0 |
-| WinUI＋Presentation製品総行数（C#＋XAML） | 9,421 | 10,811 |
+| WinUI＋Presentation製品総行数（C#＋XAML） | 9,421 | 10,807 |
 | 同C#明示フィールド / うちbool | 221 / 67 | 194 / 55 |
 | 同ObservableProperty / うちbool | 2 / 0 | 55 / 13 |
 | 明示フィールド＋ObservablePropertyのbool宣言 | 67 | 68 |
@@ -168,7 +168,7 @@ PR1のソース行数・フィールド数・直接参照数の比較値、検�
 | 管理の具象型に宣言する操作/寿命通知event | 5 | 10 |
 | 管理VM/Contextが保持する協力Func | 2 | 4 |
 
-製品総量は1,390行増えた。XAMLバインディング、4機能VMの通知/Command、Pageとダイアログの寿命接続が増分であり、コード量や全体状態数を減らしたとは扱わない。Windowの管理9partial（1,788行）と4種類の復帰Snapshotを削除し、元のDTO/Draft・実Viewを保持する方式へ統一した。4Pageの退避boolを共有状態から導出する追加案は、最終CIの未変更候補試験の失敗との因果関係を特定できず、今回から取り下げた。検証済みのPage/ダイアログ寿命の判定を残し、全体boolの削減は達成したと扱わない。3機能のIsOrderingは版から導出し、入力エラーはfield/message一組から投影する。未使用の4保存Command/4保存通知は設けず、ダイアログの標準PrimaryButton/deferralを利用する。
+製品総量は1,386行増えた。XAMLバインディング、4機能VMの通知/Command、Pageとダイアログの寿命接続が増分であり、コード量や全体状態数を減らしたとは扱わない。Windowの管理9partial（1,788行）と4種類の復帰Snapshotを削除し、元のDTO/Draft・実Viewを保持する方式へ統一した。4Pageの退避boolを共有状態から導出する追加案は、最終CIの未変更候補試験の失敗との因果関係を特定できず、今回から取り下げた。検証済みのPage/ダイアログ寿命の判定を残し、全体boolの削減は達成したと扱わない。3機能のIsOrderingは版から導出し、入力エラーはfield/message一組から投影する。未使用の4保存Command/4保存通知は設けず、ダイアログの標準PrimaryButton/deferralを利用する。
 
 追加した主要な境界は6機能/単純Page、4機能VM、共有ManagementContext、UI寿命用の小さなIManagementFeature契約と5必要時ダイアログ。Commandが完了済みViewのTaskを直接保持しないようVMのawait境界を置き、通常離脱ではViewのイベント接続を解除する。操作/寿命通知eventは旧科目Viewの5個から、メニュー1・編集開始4・機能からの復帰4・Shellへの復帰1の10個へ増えた（標準UI/PropertyChanged通知とinterface上の重複宣言を除く）。管理VM/Contextの協力Funcは遷移許可/内部遷移の2個から、遷移許可/接続設定/ログアウト/共通実行の4個へ変わる。各購読は通常離脱時に解除し、Window全体や内部コントロールをViewへ渡さないための境界に限定する。新規Service/DI/外部ライブラリ、共通CRUD基底クラスはない。共通コンテキストと寿命契約は、Windowから機能内部を参照せず、共通busy・認証・取消を既存実行へ接続するために限定した。
 

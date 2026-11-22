@@ -4,4 +4,3 @@
         <TextBlock x:Name="InvitationCancelError" Visibility="{x:Bind Error(ViewModel.CancelError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.CancelError, Mode=OneWay}"/>
     </StackPanel>
 </ContentDialog>
-        
