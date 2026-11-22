@@ -10,11 +10,30 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1210 |
-| Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・投影・Command・共通ページング・復帰） | 168 |
+| Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・管理4機能VM・投影・Command・共通ページング・復帰） | 186 |
 | Windowsの実DPAPI・保存 | 3 |
-| WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・36シナリオ） | 2 |
+| WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・37シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3853 |
+| 合計 | 3871 |
+
+<a id="management-mvvm-pr2"></a>
+
+## 管理機能Page/MVVM分離（Draft PR #244 / PR2）
+
+[PeopleManagementViewModelTests](Monetail.Windows.Presentation.Tests/PeopleManagementViewModelTests.cs)と[ManagementFeatureViewModelTests](Monetail.Windows.Presentation.Tests/ManagementFeatureViewModelTests.cs)で、Clientの入力検証/近傍エラー、生入力保持、作成Draft/requestId再送、行409の明示採用、順序/旧版/選択を保持する復帰、現在権限とCommand可否、支払方法の同じEditor/降格/人物対応変更後の所有者・同一作成要求の保持、招待の未完了Draftの通常移動時保持、所有者候補の差替え、破棄済み読取の遅延401と二重Disposeを確認する。既存の管理メニュー承認テストも維持する。Clientの業務状態・API/DBは変更しない。
+
+[ManagementMvvmScenario](Monetail.WinUI.Smoke/ManagementMvvmScenario.cs)を独立シナリオ`management-mvvm`として追加する。人物Page内部へのWindow参照なし、未訪問ダイアログ未生成、未承認の遷移取消、通常キャンセルでの入力/参照解放、通常再訪の新Page/同VM、離脱済みログイン情報Pageの表示名購読解除、連続401の同一Page/VM/実入力コントロール・作成Draftと自動保存なしを確認する。既存36シナリオは維持し、旧CategoryListView/WindowのNameScope・private取得を、機能Page/必要時ダイアログの現在の所有者へ変更する。閉じた画面の取得だけを前提にせず、キャンセルは論理的な解放、401は一時非表示での保持を待つ。別本人/接続先への変更は解放済みコントロールを再取得せず、元VMの入力/順序の消去と画面参照の解放を確認する。未完了の招待発行を保持した取消中の401でも、取消確認だけ解放し同じ発行要求を手動再試行できることを確認する。条件・期待値・15秒待機/各プロセス120秒上限は緩和しない。
+
+
+ローカルのPresentation全186件（追加18、失敗/skipなし）、構文検査・XML・構造検査・文書リンク・git diff --checkは成功。Windowsの[Client/Presentation成功ジョブ137168343444](https://github.com/k-o-a-b-c/monetail/actions/runs/45009447116/job/137168343444)でClient全1,210件・Presentation全186件が成功した。以降の両プロジェクトは不変のためCIのfingerprint再利用に従う。変更前はmain `e54a1c3`の[Tests 44972268742](https://github.com/k-o-a-b-c/monetail/actions/runs/44972268742)成功を採用し、API/DB/Docker/旧Windows/Windows実保存等の非変更部分は既存の成功記録を再利用する。構成合計3,871件を今回同時に全件実行した意味ではない。
+
+途中のCIでは、必要時ダイアログのクラス名とx:Nameの衝突、旧行プロパティ参照、移設時のイベント引数型、旧常駐コントロール/閉じたダイアログ/並び替え領域を使い続けたテスト参照が失敗した。現在の所有者を取得し直すよう修正し、非表示と通常解放の完了を分けて待つ。科目Viewerへの降格後にホーム復帰を要求した移設時のテスト変更は取り消し、元の閲覧継続・変更不可の条件へ戻した。ログアウト失敗後にNavigationViewの選択がLogoutへ残る製品不整合も修正した。招待発行Draftを保持した取消中の401のダイアログ参照残りはコードレビューで発見し、取消だけ解放する回帰確認を追加した。追加した実ComboBoxItemの検証は[45008253299](https://github.com/k-o-a-b-c/monetail/actions/runs/45008253299)で失敗し、候補データの可否がUIへ反映されていないことを検出した。Viewが標準ComboBoxItemのIsEnabledへ反映し、候補/選択通知の購読を解放するよう修正した。新しい状態フラグや認可ルールは追加しない。[45008846873](https://github.com/k-o-a-b-c/monetail/actions/runs/45008846873)では支払方法の認証中降格で所有者の表示が本人へ変わる不整合を検出した。選択済み所有者を正本にして現在権限/人物対応で保存可否を判定し、同じEditor・降格・人物対応変更の3ケースを追加した。これらを既知の断続失敗と混同せず、修正後の別ソースで検証する。
+
+[Tests 45007441533](https://github.com/k-o-a-b-c/monetail/actions/runs/45007441533)では変更していない振替候補の実キー入力が失敗した（focused=True、textMatches=False、draftMatches=False、foreground=True）。原因は未特定。次の[45007791390](https://github.com/k-o-a-b-c/monetail/actions/runs/45007791390)では同じ未変更の振替入力シナリオは通過したが、人物削除の解放済みPage取得で全体が失敗したため、元の操作ボタン参照で既存の無効状態を検証するよう修正した。入力試験の期待値/タイムアウト/製品IME処理は変更せず、成功回を原因解消とは扱わない。重複退避フラグ削減後の[45009953783・初回](https://github.com/k-o-a-b-c/monetail/actions/runs/45009953783/attempts/1)では、同じ未変更の振替候補試験のプレビュー表示/業務値分離の確認が別途失敗した。直前成功ソースとの差分は未訪問の管理4Pageだけで、この試験では管理Pageを生成しないことを確認し、条件を変えず失敗Windowsジョブだけ同一ソースで再実行した。[attempt 2](https://github.com/k-o-a-b-c/monetail/actions/runs/45009953783/attempts/2)でも同じ確認が失敗した。因果関係を特定できていないため、追加の4Pageフラグ削減は取り下げ、全37シナリオ成功を確認した製品/テスト内容へ範囲を戻した。実キー未反映とは別の失敗として扱い、原因未特定のままにする。既知の0xC000027B/0xC0000005も未解決のままとする。
+
+最終の製品/テスト内容は`80c52726d422693a5104e01e31bdd8e6263a9534`と同一であり、[Tests 45009447116](https://github.com/k-o-a-b-c/monetail/actions/runs/45009447116)で製品/検証用WinUI x64 Release・製品起動・全37シナリオ/939確認、個別3シナリオ・全件照合・撮影・不正指定拒否・計測が成功した。両ビルドは各5件の既存WUI2011警告（ReceiptEditorView）・新規警告/エラーなし。新設management-mvvmの10確認、人物・科目・支払方法・参加者/招待の401/競合/権限、既存レシート/振替の復帰と一覧操作を含む。最終差分で製品/テストの同一性を確認し、後続の文書更新・取り下げコミットは既存CI選択/fingerprintの成功結果を再利用する。管理標準幅/狭幅/ダークの静止画を確認したが、900×620では一覧の可視領域が小さく、実機操作性は未検証。今回、行高・余白・共通ヘッダーの仕様は変更しない。
+
+WinApp CLIはこのLinux環境にないため未実行。Windows CIの製品/スモークRelease・実起動と自動操作、既存Analyzer/構造検査で検証する。実API/OAuth、実Windowsでの物理IME・マウス/タッチ・高DPI/文字拡大・支援技術の手動操作、ヒープ計測によるGC回収確認は未実施。
 
 ## Shell・記録/管理Page境界（Draft PR #231 / PR1）
 
