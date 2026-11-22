@@ -234,6 +234,7 @@ public sealed partial class MainWindow
             return;
         if (closed)
             return;
+        ReturnFromReleasedEditor();
         ledgerMenu?.Hide();
         ledgerMenu = null;
         var page = CurrentPage;

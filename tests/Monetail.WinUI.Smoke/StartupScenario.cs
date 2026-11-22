@@ -41,7 +41,7 @@ public partial class App
             Func<Task> fail = () => Task.FromException(new Monetail.Windows.Client.Transport.ApiConnectionException());
             Action<string> unapproved = _ => throw new InvalidOperationException("未承認の認証画面遷移");
             await (Task)(reportFailure.Invoke(window, [fail, unapproved]) ?? throw new InvalidOperationException("失敗処理がありません。"));
-            Check(Visible(root, "HomePage") && LoginScreen(root) is null && FailureScreen(root) is null && date.Text == "2026/" &&
+            Check(Visible(root, receipt ? "ReceiptEditorPage" : "TransferEditorPage") && LoginScreen(root) is null && FailureScreen(root) is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing),
                 "認証退避以外の未承認Page移動は元の編集・未確定入力を隠さない");
             await ExpireReceiptLogin(fixture);
@@ -59,8 +59,8 @@ public partial class App
                 "401退避中の通信失敗では元の編集モデル・実コントロール・未確定入力・保存認証を保持する");
             fixture.FailConnection = false;
             await InvokeAsync(() => Find<Button>(root, "RetryButton"));
-            await Wait(() => Visible(root, "HomePage") && Equals(TransferRuntime("busy"), false));
-            Check(Visible(root, "HomePage") && Startup(root) is null && CurrentAuthentication is null && date.Text == "2026/" &&
+            await Wait(() => Visible(root, receipt ? "ReceiptEditorPage" : "TransferEditorPage") && Equals(TransferRuntime("busy"), false));
+            Check(Visible(root, receipt ? "ReceiptEditorPage" : "TransferEditorPage") && Startup(root) is null && CurrentAuthentication is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing) &&
                 (receipt ? ReceiptView.ViewModel?.IsReadOnly == false : Equals((CurrentTransferPage?.ViewModel?.MastersFailed ?? false), false)) &&
                 fixture.Requests.Skip(reads).Any(path => path.EndsWith("/payment-methods", StringComparison.Ordinal)),

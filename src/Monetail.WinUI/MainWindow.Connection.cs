@@ -128,7 +128,9 @@ public sealed partial class MainWindow
 
     private async Task LogoutAsync()
     {
-        if (!await LeaveRecordEditorAsync()) return;
+        if (!await LeaveRecordEditorAsync())
+            return;
+        ReturnFromReleasedEditor();
         await RunAsync(async () =>
     {
         await connection.Session.LogoutAsync(lifetime.Token);

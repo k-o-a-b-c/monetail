@@ -125,17 +125,16 @@ public sealed partial class ReceiptEditorPage
     }
     public void Release()
     {
-        Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        if (ViewModel is not { } model)
+            return;
+        ViewModel = null;
+        model.ConfirmationRequested -= ConfirmAsync;
+        ModelChanged(model, null);
+        Bindings.StopTracking();
+        model.Discard();
         confirmation?.Hide();
         Loaded -= InitialFocus;
-        if (ViewModel is { } model)
-        {
-            model.ConfirmationRequested -= ConfirmAsync;
-            ModelChanged(model, null);
-            model.Discard();
-        }
-        Bindings.StopTracking();
-        ViewModel = null;
+        Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
         IsCancellationTarget = null;
         position = null;
         Clear();

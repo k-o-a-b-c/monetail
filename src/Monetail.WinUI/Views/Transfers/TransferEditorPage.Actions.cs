@@ -203,17 +203,24 @@ public sealed partial class TransferEditorPage
     }
     public void Release()
     {
-        Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        if (ViewModel is not { } model)
+            return;
+        ViewModel = null;
+        model.ActionRequested -= ExecuteActionAsync;
+        Bindings.StopTracking();
+        model.Release();
+        TransferName.Loaded -= ObserveNameInput;
+        TransferName.UnregisterPropertyChangedCallback(AutoSuggestBox.IsSuggestionListOpenProperty, suggestionCallback);
+        if (nameInput is { } input)
+        {
+            input.TextCompositionStarted -= NameCompositionStarted;
+            input.TextCompositionEnded -= NameCompositionEnded;
+            nameInput = null;
+        }
+        CancelRequests();
         confirmation?.Hide();
         Loaded -= InitialFocus;
-        CancelRequests();
-        if (ViewModel is { } model)
-        {
-            model.ActionRequested -= ExecuteActionAsync;
-            model.Release();
-        }
-        Bindings.StopTracking();
-        ViewModel = null;
+        Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
         ReturnRequested = null;
         RetryMastersRequested = null;
         Saved = null;

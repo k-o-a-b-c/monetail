@@ -47,7 +47,7 @@ public sealed partial class TransferEditorViewModel
         recoveryLoading?.Cancel();
         RememberAuthentication();
         Context?.Masters.Clear();
-        Refresh();
+        UpdateMasters(null, null);
     }
     public async Task<LedgerInfo?> LoadRecoveryMastersAsync(CancellationToken token)
     {

@@ -66,30 +66,8 @@ public sealed partial class TransferEditorPage : Page
         InitializeComponent();
         transferKeyboard = new FormKeyboard(this, TransferSave,
             () => ViewModel?.SaveCommand.ExecuteAsync(null) ?? Task.CompletedTask, TransferDate, TransferTime, TransferAmount, TransferMemo);
-        TransferName.Loaded += (_, _) =>
-        {
-            if (transferNameInputObserved || Descendant<TextBox>(TransferName) is not { } input)
-                return;
-            transferNameInputObserved = true;
-            transferKeyboard.ObserveInput(input);
-            input.TextCompositionStarted += (_, _) => transferNameCompositionPending = true;
-            input.TextCompositionEnded += (_, _) => DispatcherQueue.TryEnqueue(() =>
-            {
-                if (!transferKeyboard.IsComposing && transferNameCompositionPending)
-                {
-                    transferNameCompositionPending = false;
-                    _ = SearchTransferNamesAsync(true);
-                }
-            });
-        };
-        TransferName.RegisterPropertyChangedCallback(AutoSuggestBox.IsSuggestionListOpenProperty, (_, _) =>
-        {
-            if (TransferName.IsSuggestionListOpen || transferClosingSuggestions || transferRendering || transferEditor is null)
-                return;
-            RestoreTransferTypedName();
-            transferSuggestionsSuppressed = true;
-            CancelTransferSuggestions();
-        });
+        TransferName.Loaded += ObserveNameInput;
+        suggestionCallback = TransferName.RegisterPropertyChangedCallback(AutoSuggestBox.IsSuggestionListOpenProperty, SuggestionsClosed);
         TransferDate.IsCancellationTarget = TransferTime.IsCancellationTarget = element =>
         {
             for (; element is not null; element = VisualTreeHelper.GetParent(element))
@@ -97,6 +75,34 @@ public sealed partial class TransferEditorPage : Page
                     return true;
             return false;
         };
+    }
+    private readonly long suggestionCallback;
+    private TextBox? nameInput;
+    private void ObserveNameInput(object sender, RoutedEventArgs args)
+    {
+        if (nameInput is not null || Descendant<TextBox>(TransferName) is not { } input)
+            return;
+        nameInput = input;
+        transferKeyboard.ObserveInput(input);
+        input.TextCompositionStarted += NameCompositionStarted;
+        input.TextCompositionEnded += NameCompositionEnded;
+    }
+    private void NameCompositionStarted(object sender, object args) => transferNameCompositionPending = true;
+    private void NameCompositionEnded(object sender, object args) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (ViewModel is not null && !transferKeyboard.IsComposing && transferNameCompositionPending)
+        {
+            transferNameCompositionPending = false;
+            _ = SearchTransferNamesAsync(true);
+        }
+    });
+    private void SuggestionsClosed(DependencyObject sender, DependencyProperty property)
+    {
+        if (TransferName.IsSuggestionListOpen || transferClosingSuggestions || transferRendering || transferEditor is null)
+            return;
+        RestoreTransferTypedName();
+        transferSuggestionsSuppressed = true;
+        CancelTransferSuggestions();
     }
     private static T? Descendant<T>(DependencyObject root) where T : DependencyObject
     {
@@ -279,7 +285,7 @@ public sealed partial class TransferEditorPage : Page
     private readonly Dictionary<string, TransferSuggestionsInfo> transferSuggestions = new(StringComparer.Ordinal);
     private CancellationTokenSource? transferSuggestionCancellation, transferAutofillCancellation;
     private long transferSuggestionGeneration;
-    private bool transferClosingSuggestions, transferSuggestionsSuppressed, transferNameFocusTransition, transferNameInputObserved, transferNameCompositionPending, transferNameKeyboardSubmit, transferNameKeyboardHadSuggestions;
+    private bool transferClosingSuggestions, transferSuggestionsSuppressed, transferNameFocusTransition, transferNameCompositionPending, transferNameKeyboardSubmit, transferNameKeyboardHadSuggestions;
     private string? transferNamePreview;
     private (string Name, DateOnly Day, Guid? From)? transferAutofillKey;
     private static bool TransferKeyDown(VirtualKey key) => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);
