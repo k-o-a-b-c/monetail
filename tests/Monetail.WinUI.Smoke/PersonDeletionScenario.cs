@@ -116,6 +116,8 @@ public partial class App
             using var fixture = new SyntheticConnection(saved: true);
             var server = new PeopleServer();
             var root = await OpenDeletionConfirmation(fixture, server);
+            var deleteButton = Find<Button>(root, "DeletePersonButton");
+            var addButton = Find<Button>(root, "AddPersonButton");
             if (removed) server.Joined = false;
             else server.Role = "Viewer";
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
@@ -124,7 +126,7 @@ public partial class App
                 removed ? "除外後の削除は確認内で拒否し追加GETしない" : "降格後の削除は確認内で拒否し追加GETしない");
             await InvokeAsync(() => Find<Button>(root, "CancelPersonButton"));
             await Wait(() => EditorClosed(root));
-            Check(!Find<Button>(root, "DeletePersonButton").IsEnabled && !Find<Button>(root, "AddPersonButton").IsEnabled,
+            Check(!deleteButton.IsEnabled && !addButton.IsEnabled,
                 "削除拒否の現在権限を閉じた後のボタンにも反映");
             if (!removed)
             {
