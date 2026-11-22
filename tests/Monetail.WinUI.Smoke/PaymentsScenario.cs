@@ -15,7 +15,7 @@ public partial class App
     private static ContentDialog PaymentDialogFor(FrameworkElement root) => Find<ContentDialog>(root, "PaymentDialog");
     private static Button PaymentFooter(FrameworkElement root, bool save) => All(PaymentDialogFor(root)).OfType<Button>().OrderByDescending(b => b.IsLoaded)
         .First(b => Equals(b.Content, save ? PaymentDialogFor(root).PrimaryButtonText : PaymentDialogFor(root).CloseButtonText));
-    private static bool PaymentEditorClosed(FrameworkElement root) => !ManagementDialogVisible(root, "PaymentDialog");
+    private static bool PaymentEditorClosed(FrameworkElement root) => ManagementDialogClosed(root, "PaymentDialog");
     private static async Task PaymentDialogReady(FrameworkElement root) => await Wait(() => !PaymentEditorClosed(root) &&
         PaymentDialogFor(root).IsLoaded && Find<ContentControl>(root, "Operations").IsEnabled && All(PaymentDialogFor(root)).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null && Equals(b.Content, PaymentDialogFor(root).CloseButtonText)));
     private async Task<FrameworkElement> OpenPaymentsWindow(SyntheticConnection fixture, PaymentServer server)

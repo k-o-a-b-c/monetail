@@ -280,6 +280,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
 
     public void CloseEditor()
     {
+        Name = FromText = ToText = "";
         Editing = Latest = null;
         Creation = null;
         Operation = ManagementEditorOperation.None;

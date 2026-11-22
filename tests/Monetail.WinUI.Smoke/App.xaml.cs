@@ -107,6 +107,10 @@ public partial class App : Application
     private static bool ManagementDialogVisible(FrameworkElement root, string name) =>
         FindManagementElement(root, name) is ContentDialog { IsLoaded: true };
 
+    private static bool ManagementDialogClosed(FrameworkElement root, string name) =>
+        FindManagementElement(root, name) is not ContentDialog dialog || !dialog.IsLoaded &&
+        ((root.FindName("WorkspaceHost") as Frame)?.Content as Monetail.WinUI.Views.Workspace.ManagementPage)?.ViewModel.Context.IsSuspended == true;
+
     private static object? FindLedgerPageElement(FrameworkElement root, string name) =>
         ((root.FindName("LedgerPageHost") as ContentControl)?.Content as Frame)?.Content is FrameworkElement page ? page.FindName(name) : null;
 
@@ -148,7 +152,7 @@ public partial class App : Application
         return null;
     }
     private static bool EditorClosed(FrameworkElement root) =>
-        !ManagementDialogVisible(root, "PersonDialog");
+        ManagementDialogClosed(root, "PersonDialog");
     private static IEnumerable<DependencyObject> All(DependencyObject root)
     {
         for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)

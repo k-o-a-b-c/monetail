@@ -17,7 +17,7 @@ public partial class App
     private static ContentDialog CategoryDialogFor(FrameworkElement root) => Find<ContentDialog>(root, "CategoryDialog");
     private static Button CategoryFooter(FrameworkElement root, bool save) => All(CategoryDialogFor(root)).OfType<Button>()
         .OrderByDescending(b => b.IsLoaded).First(b => Equals(b.Content, save ? CategoryDialogFor(root).PrimaryButtonText : CategoryDialogFor(root).CloseButtonText));
-    private static bool CategoryEditorClosed(FrameworkElement root) => !ManagementDialogVisible(root, "CategoryDialog");
+    private static bool CategoryEditorClosed(FrameworkElement root) => ManagementDialogClosed(root, "CategoryDialog");
     private static async Task CategoryDialogReady(FrameworkElement root) => await Wait(() => !CategoryEditorClosed(root) && CategoryDialogFor(root).IsLoaded &&
         Find<ContentControl>(root, "Operations").IsEnabled && All(CategoryDialogFor(root)).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null && Equals(b.Content, CategoryDialogFor(root).CloseButtonText)));
     private async Task<FrameworkElement> OpenCategoriesWindow(SyntheticConnection fixture, CategoryServer server)

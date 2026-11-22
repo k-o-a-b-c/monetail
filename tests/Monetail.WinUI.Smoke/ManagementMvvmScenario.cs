@@ -29,7 +29,7 @@ public partial class App
             "未承認の管理内遷移では同じ人物Page・ダイアログ・入力を維持する");
         await InvokeAsync(() => Find<Button>(root, "CancelPersonButton"));
         await Wait(() => EditorClosed(root));
-        Check(FindManagementElement(root, "PersonDialog") is null && !model.HasEditor && model.Creation is null,
+        Check(FindManagementElement(root, "PersonDialog") is null && !model.HasEditor && model.Creation is null && model.Name == "",
             "通常キャンセルは編集状態とダイアログ参照を解放する");
         Find<CheckBox>(root, "IncludeInactivePeople").IsChecked = true;
         navigation.SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");

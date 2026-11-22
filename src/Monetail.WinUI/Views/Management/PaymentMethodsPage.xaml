@@ -8,7 +8,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <InfoBar x:Name="ErrorNotice" IsOpen="{x:Bind HasError(ViewModel.ListError), Mode=OneWay, FallbackValue=False}" Visibility="{x:Bind Error(ViewModel.ListError), Mode=OneWay, FallbackValue=Collapsed}" Message="{x:Bind ViewModel.ListError, Mode=OneWay}" Severity="Error" IsClosable="True" Closed="CloseNotice"/>
+            <InfoBar x:Name="ErrorNotice" AutomationProperties.LiveSetting="Polite" IsOpen="{x:Bind HasError(ViewModel.ListError), Mode=OneWay, FallbackValue=False}" Visibility="{x:Bind Error(ViewModel.ListError), Mode=OneWay, FallbackValue=Collapsed}" Message="{x:Bind ViewModel.ListError, Mode=OneWay}" Severity="Error" IsClosable="True" Closed="CloseNotice"/>
             <Grid x:Name="PaymentsContent" Visibility="{x:Bind Hide(ViewModel.IsOrdering), Mode=OneWay}" RowSpacing="16" Grid.Row="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>

@@ -200,7 +200,7 @@ public partial class App
             Check(server.CreateRequests.Single() == original, "招待発行の認証復帰でも同じrequestIdを再使用");
         }
     }
-    private static bool ParticipantEditorClosed(FrameworkElement root) => !ManagementDialogVisible(root, "ParticipantDialog");
+    private static bool ParticipantEditorClosed(FrameworkElement root) => ManagementDialogClosed(root, "ParticipantDialog");
     private static async Task WaitParticipantDialogReady(FrameworkElement root) => await Wait(() => !ParticipantEditorClosed(root) &&
         Find<ContentDialog>(root, "ParticipantDialog").IsLoaded && Find<ContentControl>(root, "Operations").IsEnabled &&
         All(Find<ContentDialog>(root, "ParticipantDialog")).OfType<Button>().Any(b => InvokeTargetReady(b) &&

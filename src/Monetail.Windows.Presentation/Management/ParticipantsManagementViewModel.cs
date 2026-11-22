@@ -221,6 +221,10 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
 
     public void CloseEditor()
     {
+        Role = "Viewer";
+        SelectedPerson = null;
+        PersonChoices = [];
+        OnPropertyChanged(nameof(PersonChoices));
         Editing = Latest = null;
         IsExcluding = false;
         EditorError = PersonError = null;

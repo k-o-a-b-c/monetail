@@ -274,6 +274,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
 
     public void CloseEditor()
     {
+        Name = FromText = ToText = "";
         Editing = Latest = null;
         Creation = null;
         Operation = ManagementEditorOperation.None;

@@ -311,6 +311,8 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
 
     public void CloseEditor()
     {
+        Name = FromText = ToText = "";
+        SelectedOwner = null;
         Editing = Latest = null;
         Creation = null;
         Operation = ManagementEditorOperation.None;
