@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Presentation.Management;
@@ -15,7 +16,36 @@ public sealed partial class ParticipantEditorDialog : ContentDialog
         ViewModel = model;
         InitializeComponent();
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync);
+        ViewModel.PropertyChanged += ModelChanged;
+        RenderPeople();
     }
+
+    private void RenderPeople()
+    {
+        ParticipantPerson.SelectionChanged -= SelectPerson;
+        ParticipantPerson.ItemsSource = ViewModel.PersonChoices.Select(choice => new ComboBoxItem
+        {
+            Content = choice.Name,
+            Tag = choice,
+            IsEnabled = choice.IsSelectable
+        }).ToArray();
+        RenderPersonSelection();
+        ParticipantPerson.SelectionChanged += SelectPerson;
+    }
+
+    private void RenderPersonSelection() => ParticipantPerson.SelectedItem = ParticipantPerson.Items.OfType<ComboBoxItem>()
+        .FirstOrDefault(item => ReferenceEquals(item.Tag, ViewModel.SelectedPerson));
+
+    private void ModelChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(ViewModel.PersonChoices))
+            RenderPeople();
+        else if (args.PropertyName == nameof(ViewModel.SelectedPerson))
+            RenderPersonSelection();
+    }
+
+    private void SelectPerson(object sender, SelectionChangedEventArgs args) => ViewModel.SelectedPerson =
+        (ParticipantPerson.SelectedItem as ComboBoxItem)?.Tag as ParticipantPersonChoice;
 
     private void ParticipantDialogClosing(ContentDialog sender, ContentDialogClosingEventArgs args) => args.Cancel = ViewModel.Context.IsBusy && !suspended;
     private async void SaveParticipant(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -48,6 +78,8 @@ public sealed partial class ParticipantEditorDialog : ContentDialog
     public void Resuming() => suspended = false;
     public void Release()
     {
+        ViewModel.PropertyChanged -= ModelChanged;
+        ParticipantPerson.SelectionChanged -= SelectPerson;
         Suspend();
         Bindings.StopTracking();
     }

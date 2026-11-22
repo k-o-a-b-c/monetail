@@ -10,13 +10,7 @@
                     <ComboBoxItem Content="管理者" Tag="Admin"/>
                 </ComboBox>
                 <TextBlock x:Name="ParticipantOwnRole" Visibility="{x:Bind Show(ViewModel.IsSelf), Mode=OneWay}" TextWrapping="Wrap" Text="{x:Bind ViewModel.OwnRole, Mode=OneWay}"/>
-                <ComboBox x:Name="ParticipantPerson" Header="対応する人物" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ParticipantPerson" ItemsSource="{x:Bind ViewModel.PersonChoices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedPerson, Mode=TwoWay}" DisplayMemberPath="Name">
-                    <ComboBox.ItemContainerStyle>
-                        <Style TargetType="ComboBoxItem">
-                            <Setter Property="IsEnabled" Value="{Binding IsSelectable}"/>
-                        </Style>
-                    </ComboBox.ItemContainerStyle>
-                </ComboBox>
+                <ComboBox x:Name="ParticipantPerson" Header="対応する人物" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ParticipantPerson" SelectionChanged="SelectPerson"/>
                 <TextBlock x:Name="ParticipantPersonError" Visibility="{x:Bind Error(ViewModel.PersonError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.PersonError, Mode=OneWay}"/>
             </StackPanel>
             <Border x:Name="ParticipantConflict" Visibility="{x:Bind Show(ViewModel.HasLatest), Mode=OneWay}" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">

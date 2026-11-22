@@ -47,8 +47,8 @@ public partial class App
             await InvokeAsync(() => ParticipantActionButton(list, server.Other.AccountId, "編集"));
             await Wait(() => !ParticipantEditorClosed(root)); await Settle();
             ComboBox role() => Find<ComboBox>(root, "ParticipantRole"); ComboBox person() => Find<ComboBox>(root, "ParticipantPerson");
-            Check(server.EditReads == 2 && person().Items.OfType<ParticipantPersonChoice>().Any(item => !item.IsSelectable), "編集開始の1要求で人物候補を取得し対応済み候補を無効化");
-            var unavailable = person().Items.OfType<ParticipantPersonChoice>().First(item => !item.IsSelectable);
+            Check(server.EditReads == 2 && person().Items.OfType<ComboBoxItem>().Any(item => item.Tag is ParticipantPersonChoice { IsSelectable: false }), "編集開始の1要求で人物候補を取得し対応済み候補を無効化");
+            var unavailable = person().Items.OfType<ComboBoxItem>().First(item => item.Tag is ParticipantPersonChoice { IsSelectable: false });
             person().IsDropDownOpen = true;
             await Wait(() => person().ContainerFromItem(unavailable) is ComboBoxItem { IsLoaded: true });
             Check(person().ContainerFromItem(unavailable) is ComboBoxItem { IsEnabled: false },
