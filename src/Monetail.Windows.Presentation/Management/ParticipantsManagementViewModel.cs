@@ -145,7 +145,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
 
     [RelayCommand(CanExecute = nameof(CanExclude))]
     private Task ExcludeAsync(MemberInfo? member) => OpenEditorAsync(new(member!, []), true);
-    private Task OpenEditorAsync(MemberEditInfo edit, bool excluding)
+    private async Task OpenEditorAsync(MemberEditInfo edit, bool excluding)
     {
         Editing = edit;
         Latest = null;
@@ -154,7 +154,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         EditorError = PersonError = null;
         FillFields(edit);
         NotifyState();
-        return EditorRequested?.Invoke() ?? Task.CompletedTask;
+        await (EditorRequested?.Invoke() ?? Task.CompletedTask);
     }
 
     private void FillFields(MemberEditInfo edit)
@@ -345,12 +345,12 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
 
     public void Copied(bool success) => InvitationNotice = success ? "招待リンクをコピーしました。送付先を限定してください。" : "コピーできませんでした。クリップボードへのアクセスを確認してください。";
     [RelayCommand(CanExecute = nameof(CanUseInvitation))]
-    private Task CancelAsync(LedgerInvitationInfo? invitation)
+    private async Task CancelAsync(LedgerInvitationInfo? invitation)
     {
         Cancelling = invitation;
         CancelError = null;
         NotifyState();
-        return EditorRequested?.Invoke() ?? Task.CompletedTask;
+        await (EditorRequested?.Invoke() ?? Task.CompletedTask);
     }
 
     public async Task<bool> CancelInvitationAsync()

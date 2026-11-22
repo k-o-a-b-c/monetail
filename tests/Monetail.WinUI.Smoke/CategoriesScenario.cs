@@ -114,15 +114,15 @@ public partial class App
             Check(name().Text == "重複" && Find<TextBlock>(root, "CategoryNameError").Text.Contains("同じ名前"), "重複名は近傍エラーと入力保持");
             await InvokeAsync(() => CategoryFooter(root, false)); await Wait(() => CategoryEditorClosed(root));
 
-            await OpenCategoryOrderScreen(root); var order = Find<ListView>(root, "CategoryOrderList");
-            Check(order.Items.Count == server.Rows.Count && order.Items.Cast<CategoryRow>().Select(r => r.Category.CategoryId).SequenceEqual(server.Rows.Select(r => r.CategoryId)), "科目並び替えは全期間・収支混在の共通順");
-            order.SelectedIndex = 0; await InvokeAsync(() => Find<Button>(root, "MoveCategoryDownButton")); server.OrderConflict = true; await InvokeAsync(() => Find<Button>(root, "SaveCategoryOrderButton"));
+            await OpenCategoryOrderScreen(root); ListView order() => Find<ListView>(root, "CategoryOrderList");
+            Check(order().Items.Count == server.Rows.Count && order().Items.Cast<CategoryRow>().Select(r => r.Category.CategoryId).SequenceEqual(server.Rows.Select(r => r.CategoryId)), "科目並び替えは全期間・収支混在の共通順");
+            order().SelectedIndex = 0; await InvokeAsync(() => Find<Button>(root, "MoveCategoryDownButton")); server.OrderConflict = true; await InvokeAsync(() => Find<Button>(root, "SaveCategoryOrderButton"));
             await Wait(() => Find<InfoBar>(root, "CategoryOrderNotice").IsOpen);
-            Check(((CategoryRow)order.Items[0]).Name == "競合追加" && server.Reads == 1, "科目順序競合は未保存順を破棄し未知の追加行も応答から反映");
-            var ids = order.Items.Cast<CategoryRow>().Select(r => r.Category.CategoryId).ToArray();
+            Check(((CategoryRow)order().Items[0]).Name == "競合追加" && server.Reads == 1, "科目順序競合は未保存順を破棄し未知の追加行も応答から反映");
+            var ids = order().Items.Cast<CategoryRow>().Select(r => r.Category.CategoryId).ToArray();
             await InvokeAsync(() => Find<Button>(root, "SaveCategoryOrderButton")); await Wait(() => !ManagementVisible(root, "CategoryOrderContent"));
             using (var body = JsonDocument.Parse(server.Writes[^1].Body)) Check(body.RootElement.GetProperty("categoryIds").EnumerateArray().Select(r => r.GetGuid()).SequenceEqual(ids) && server.Reads == 1, "順序保存は最新全ID・新版を送信し応答一覧へ復帰");
-            before = server.Writes.Count; await OpenCategoryOrderScreen(root); order.SelectedIndex = 0; await InvokeAsync(() => Find<Button>(root, "MoveCategoryDownButton")); await InvokeAsync(() => Find<Button>(root, "CancelCategoryOrderButton"));
+            before = server.Writes.Count; await OpenCategoryOrderScreen(root); order().SelectedIndex = 0; await InvokeAsync(() => Find<Button>(root, "MoveCategoryDownButton")); await InvokeAsync(() => Find<Button>(root, "CancelCategoryOrderButton"));
             Check(server.Writes.Count == before && server.Reads == 1, "並び替えキャンセルは通信なし");
             await OpenCategoryOrderScreen(root); Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation"); await Settle();
             Check(!ManagementVisible(root, "CategoryOrderContent"), "左メニュー移動で未保存科目順を破棄");

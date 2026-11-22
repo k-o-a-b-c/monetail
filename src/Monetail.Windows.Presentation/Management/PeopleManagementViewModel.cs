@@ -165,7 +165,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     private Task EditAsync() => OpenAsync(Selected!.Person, false);
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private Task DeleteAsync() => OpenAsync(Selected!.Person, true);
-    private Task OpenAsync(PersonInfo? person, bool deletion)
+    private async Task OpenAsync(PersonInfo? person, bool deletion)
     {
         Editing = person;
         Latest = null;
@@ -179,7 +179,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         Restored = false;
         ClearErrors();
         NotifyState();
-        return EditorRequested?.Invoke() ?? Task.CompletedTask;
+        await (EditorRequested?.Invoke() ?? Task.CompletedTask);
     }
 
     public async Task<bool> SaveEditorAsync(DateOnly? from, DateOnly? to)

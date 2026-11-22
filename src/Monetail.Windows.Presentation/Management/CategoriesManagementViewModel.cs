@@ -163,7 +163,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     private Task EditAsync() => OpenAsync(Selected!.Category, false);
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private Task DeleteAsync() => OpenAsync(Selected!.Category, true);
-    private Task OpenAsync(CategoryInfo? person, bool deletion)
+    private async Task OpenAsync(CategoryInfo? person, bool deletion)
     {
         Editing = person;
         Latest = null;
@@ -178,7 +178,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
         Restored = false;
         ClearErrors();
         NotifyState();
-        return EditorRequested?.Invoke() ?? Task.CompletedTask;
+        await (EditorRequested?.Invoke() ?? Task.CompletedTask);
     }
 
     public async Task<bool> SaveEditorAsync(DateOnly? from, DateOnly? to)

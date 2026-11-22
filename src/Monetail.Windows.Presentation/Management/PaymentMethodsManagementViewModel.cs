@@ -196,7 +196,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     private Task EditAsync() => OpenAsync(Selected!.Payment, false);
     [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
     private Task DeleteAsync() => OpenAsync(Selected!.Payment, true);
-    private Task OpenAsync(PaymentMethodInfo? person, bool deletion)
+    private async Task OpenAsync(PaymentMethodInfo? person, bool deletion)
     {
         Editing = person;
         Latest = null;
@@ -210,7 +210,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         Restored = false;
         ClearErrors();
         NotifyState();
-        return EditorRequested?.Invoke() ?? Task.CompletedTask;
+        await (EditorRequested?.Invoke() ?? Task.CompletedTask);
     }
 
     public async Task<bool> SaveEditorAsync(DateOnly? from, DateOnly? to)

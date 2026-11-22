@@ -75,7 +75,11 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
 
     private bool CanSelect(ManagementSection section) => canNavigate();
     [RelayCommand(CanExecute = nameof(CanSelect))]
-    private Task SelectAsync(ManagementSection section) => canNavigate() ? NavigationRequested?.Invoke(section) ?? Task.CompletedTask : Task.CompletedTask;
+    private async Task SelectAsync(ManagementSection section)
+    {
+        if (canNavigate())
+            await (NavigationRequested?.Invoke(section) ?? Task.CompletedTask);
+    }
     public ConnectionSettingsViewModel CreateConnectionSettings() => new(ApiEndpoint.Parse(Context.Origin), connect);
     public Task LogoutAsync() => logout();
     public void Dispose()

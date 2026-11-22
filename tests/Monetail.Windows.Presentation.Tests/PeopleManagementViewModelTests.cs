@@ -121,6 +121,22 @@ public sealed class PeopleManagementViewModelTests
         Assert.NotNull(model.SaveError);
     }
 
+    [Fact]
+    public async Task CommandOwnsItsContinuationInsteadOfRetainingTheViewDialogTask()
+    {
+        using var fixture = new Fixture(_ => throw new InvalidOperationException());
+        var model = fixture.Model;
+        model.Apply(People);
+        var viewTask = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        model.EditorRequested += () => viewTask.Task;
+        var operation = model.AddCommand.ExecuteAsync(null);
+        Assert.NotSame(viewTask.Task, model.AddCommand.ExecutionTask);
+        Assert.False(operation.IsCompleted);
+        viewTask.SetResult();
+        await operation;
+        Assert.True(model.AddCommand.ExecutionTask!.IsCompletedSuccessfully);
+    }
+
     private static HttpResponseMessage Json(object value, HttpStatusCode status = HttpStatusCode.OK) => new(status) { Content = JsonContent.Create(value) };
     private sealed class Fixture : IDisposable
     {
