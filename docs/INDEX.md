@@ -4,6 +4,7 @@
 
 | 内容 | 正本・更新先 |
 | --- | --- |
+| monetailの目的・主要概念・機能の全体像 | [製品概要](product-overview.md) |
 | 次の優先順位・残る作業 | [07 ロードマップ](07-roadmap.md) |
 | 認証設計の入口・旧見出し | [43 認証](43-passkey-authentication-design.md) |
 | アカウント・パスキー・登録・全失効と復旧 | [認証・パスキー](auth-passkeys.md) |
