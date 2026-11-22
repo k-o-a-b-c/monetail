@@ -40,7 +40,16 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
     public PaymentMethodsManagementViewModel Payments => payments ??= Observe(new PaymentMethodsManagementViewModel(Context));
     public ParticipantsManagementViewModel Participants => participants ??= Observe(new ParticipantsManagementViewModel(Context));
 
+    public bool HasOrderChanges => SelectedSection switch
+    {
+        ManagementSection.People => people?.HasOrderChanges == true,
+        ManagementSection.Categories => categories?.HasOrderChanges == true,
+        ManagementSection.Payments => payments?.HasOrderChanges == true,
+        _ => false
+    };
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasOrderChanges))]
     public partial ManagementSection SelectedSection { get; set; }
 
     public event Func<ManagementSection, Task>? NavigationRequested;
@@ -63,6 +72,11 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
 
     private void StateChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (args.PropertyName == nameof(HasOrderChanges))
+        {
+            OnPropertyChanged(nameof(HasOrderChanges));
+            return;
+        }
         if (sender != Context && args.PropertyName is not ("CanView" or "CanManage"))
             return;
         OnPropertyChanged(nameof(LedgerName));

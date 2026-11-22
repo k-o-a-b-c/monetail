@@ -31,6 +31,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     public PersonInfo? Latest { get; private set; }
     public PersonCreationDraft? Creation { get; private set; }
     public Guid OrderRevision { get; private set; }
+    private Guid[] originalOrder = [];
     public bool IncludesPeriod { get; private set; }
 
     private bool editorDenied, orderDenied;
@@ -44,6 +45,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     public partial PersonRow? SelectedOrder { get; set; }
 
     public bool IsOrdering => OrderRevision != Guid.Empty;
+    public bool HasOrderChanges => IsOrdering && !OrderRows.Select(row => row.Person.PersonId).SequenceEqual(originalOrder);
 
     [ObservableProperty]
     public partial ManagementEditorOperation Operation { get; private set; }
@@ -299,6 +301,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         OrderRows.Clear();
         foreach (var row in people)
             OrderRows.Add(new(row, row.PersonId == Context.Permissions.MyPersonId));
+        originalOrder = OrderRows.Select(row => row.Person.PersonId).ToArray();
         SelectedOrder = null;
         NotifyState();
         OnPropertyChanged(nameof(IsOrdering));
@@ -377,6 +380,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     private void FinishOrder()
     {
         OrderRevision = Guid.Empty;
+        originalOrder = [];
         OrderRows.Clear();
         SelectedOrder = null;
         OrderNotice = null;
@@ -438,6 +442,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     {
         foreach (var name in new[]
         {
+            nameof(HasOrderChanges),
             nameof(IsAdmin),
             nameof(CanView),
             nameof(HasEditor),

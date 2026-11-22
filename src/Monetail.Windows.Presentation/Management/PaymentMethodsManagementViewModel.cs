@@ -20,6 +20,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     public PaymentMethodInfo? Latest { get; private set; }
     public PaymentMethodCreationDraft? Creation { get; private set; }
     public Guid OrderRevision { get; private set; }
+    private Guid[] originalOrder = [];
 
     private bool editorDenied, orderDenied;
     [ObservableProperty]
@@ -32,6 +33,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     public partial PaymentRow? SelectedOrder { get; set; }
 
     public bool IsOrdering => OrderRevision != Guid.Empty;
+    public bool HasOrderChanges => IsOrdering && !OrderRows.Select(row => row.Payment.PaymentMethodId).SequenceEqual(originalOrder);
 
     [ObservableProperty]
     public partial ManagementEditorOperation Operation { get; private set; }
@@ -339,6 +341,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         OrderRows.Clear();
         foreach (var row in people)
             OrderRows.Add(new(row));
+        originalOrder = OrderRows.Select(row => row.Payment.PaymentMethodId).ToArray();
         SelectedOrder = null;
         NotifyState();
         OnPropertyChanged(nameof(IsOrdering));
@@ -422,6 +425,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     private void FinishOrder()
     {
         OrderRevision = Guid.Empty;
+        originalOrder = [];
         OrderRows.Clear();
         SelectedOrder = null;
         OrderNotice = null;
@@ -495,6 +499,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     {
         foreach (var name in new[]
         {
+            nameof(HasOrderChanges),
             nameof(IsAdmin),
             nameof(CanView),
             nameof(HasEditor),

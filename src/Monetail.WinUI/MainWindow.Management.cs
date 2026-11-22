@@ -9,7 +9,7 @@ namespace Monetail.WinUI;
 public sealed partial class MainWindow
 {
     private ManagementPage? ManagementPage => WorkspaceHost.Content as ManagementPage;
-    private bool ManagementDialogOpen => transferDialogOpen || receiptDialogOpen || ManagementPage?.HasDialog == true;
+    private bool ManagementDialogOpen => ledgerSwitchDialog is not null || transferDialogOpen || receiptDialogOpen || ManagementPage?.HasDialog == true;
 
     private void EnsureManagement()
     {

@@ -21,6 +21,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     public CategoryInfo? Latest { get; private set; }
     public CategoryCreationDraft? Creation { get; private set; }
     public Guid OrderRevision { get; private set; }
+    private Guid[] originalOrder = [];
 
     private bool editorDenied, orderDenied;
     [ObservableProperty]
@@ -33,6 +34,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     public partial CategoryRow? SelectedOrder { get; set; }
 
     public bool IsOrdering => OrderRevision != Guid.Empty;
+    public bool HasOrderChanges => IsOrdering && !OrderRows.Select(row => row.Category.CategoryId).SequenceEqual(originalOrder);
 
     [ObservableProperty]
     public partial ManagementEditorOperation Operation { get; private set; }
@@ -305,6 +307,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
         OrderRows.Clear();
         foreach (var row in people)
             OrderRows.Add(new(row));
+        originalOrder = OrderRows.Select(row => row.Category.CategoryId).ToArray();
         SelectedOrder = null;
         NotifyState();
         OnPropertyChanged(nameof(IsOrdering));
@@ -383,6 +386,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     private void FinishOrder()
     {
         OrderRevision = Guid.Empty;
+        originalOrder = [];
         OrderRows.Clear();
         SelectedOrder = null;
         OrderNotice = null;
@@ -447,6 +451,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     {
         foreach (var name in new[]
         {
+            nameof(HasOrderChanges),
             nameof(IsAdmin),
             nameof(CanView),
             nameof(HasEditor),

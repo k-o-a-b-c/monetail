@@ -16,6 +16,7 @@ public sealed partial class MainWindow
     private IReadOnlyList<LedgerInfo> ledgerChoices = [];
     private LedgerCreationDraft? creationDraft;
     private MenuFlyout? ledgerMenu;
+    private ContentDialog? ledgerSwitchDialog;
 
     private async Task OpenDestinationAsync(CancellationToken token)
     {
@@ -184,7 +185,13 @@ public sealed partial class MainWindow
 
     private async Task OpenLedgerAsync(Guid ledgerId)
     {
-        if (!await LeaveRecordEditorAsync()) return;
+        if (closed || busy || ManagementDialogOpen)
+            return;
+        ledgerMenu?.Hide();
+        if (ManagementPage is not null && currentLedger?.LedgerId == ledgerId)
+            return;
+        if (!await LeaveRecordEditorAsync() || !await ConfirmManagementLedgerLeaveAsync())
+            return;
         await RunAsync(async () =>
     {
         var opened = await connection.Ledgers.OpenAsync(ledgerId, lifetime.Token);
@@ -192,10 +199,46 @@ public sealed partial class MainWindow
     });
     }
 
+    private async Task<bool> ConfirmManagementLedgerLeaveAsync()
+    {
+        if (closed || busy || ManagementDialogOpen)
+            return false;
+        if (ManagementPage is not { } page || !page.ViewModel.HasOrderChanges)
+            return true;
+        var ledgerId = currentLedger?.LedgerId;
+        var accountId = account?.AuthUserId;
+        var dialog = new ContentDialog
+        {
+            XamlRoot = WorkspaceRoot.XamlRoot,
+            Title = "未保存の並び順があります",
+            Content = "現在の管理画面を離れると、未保存の並び順は破棄されます。",
+            PrimaryButtonText = "破棄して切替",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Close
+        };
+        ledgerSwitchDialog = dialog;
+        try
+        {
+            using var cancellation = lifetime.Token.Register(dialog.Hide);
+            return await dialog.ShowAsync() == ContentDialogResult.Primary && !closed &&
+                ReferenceEquals(page, CurrentPage) && currentLedger?.LedgerId == ledgerId &&
+                account?.AuthUserId == accountId;
+        }
+        finally
+        {
+            ledgerSwitchDialog = null;
+        }
+    }
+
     private async void ShowLedgerMenu(object sender, RoutedEventArgs args)
     {
-        if (busy || ManagementDialogOpen || !await LeaveRecordEditorAsync()) return;
+        if (closed || busy || ManagementDialogOpen || !await LeaveRecordEditorAsync())
+            return;
+        if (closed)
+            return;
+        ledgerMenu?.Hide();
         ledgerMenu = null;
+        var page = CurrentPage;
         await RunAsync(async () =>
         {
             var choices = await connection.Ledgers.ListAsync(lifetime.Token);
@@ -203,16 +246,35 @@ public sealed partial class MainWindow
             foreach (var ledger in choices)
             {
                 var item = new MenuFlyoutItem { Text = ledger.Name };
-                item.Click += async (_, _) => await OpenLedgerAsync(ledger.LedgerId);
+                item.Click += async (_, _) =>
+                {
+                    if (ReferenceEquals(page, CurrentPage))
+                        await OpenLedgerAsync(ledger.LedgerId);
+                };
                 menu.Items.Add(item);
             }
             menu.Items.Add(new MenuFlyoutSeparator());
             var create = new MenuFlyoutItem { Text = "＋追加" };
-            create.Click += (_, _) => ShowCreation();
+            create.Click += async (_, _) =>
+            {
+                if (closed || busy || ManagementDialogOpen || !ReferenceEquals(page, CurrentPage))
+                    return;
+                menu.Hide();
+                if (await ConfirmManagementLedgerLeaveAsync())
+                    ShowCreation();
+            };
             menu.Items.Add(create);
-            ledgerMenu = menu;
+            menu.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(ledgerMenu, menu))
+                    ledgerMenu = null;
+            };
+            if (ReferenceEquals(page, CurrentPage))
+                ledgerMenu = menu;
         });
-        if (!closed && IsRecordPageVisible) ledgerMenu?.ShowAt(LedgerSelector);
+        if (!closed && !ManagementDialogOpen && ReferenceEquals(page, CurrentPage) &&
+            WorkspaceHost.Visibility == Visibility.Visible && WorkspaceHeader.Visibility == Visibility.Visible)
+            ledgerMenu?.ShowAt(LedgerSelector);
     }
 
 }
