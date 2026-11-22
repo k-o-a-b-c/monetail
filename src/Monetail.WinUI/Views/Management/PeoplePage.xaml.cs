@@ -26,6 +26,7 @@ public sealed partial class PeoplePage : Page, IManagementFeature
     }
 
     public Task LoadAsync() => ViewModel.LoadAsync(reads!.Token);
+    public event EventHandler? ReturnRequested;
     public bool CanStay => ViewModel.CanView;
     public bool HasDialog => dialog is not null;
     public bool CanRestoreAuthentication => ViewModel.CanRestoreAuthentication;
@@ -54,6 +55,8 @@ public sealed partial class PeoplePage : Page, IManagementFeature
                 current.Release();
                 dialog = null;
                 ViewModel.CloseEditor();
+                if (!CanStay)
+                    ReturnRequested?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -78,6 +81,8 @@ public sealed partial class PeoplePage : Page, IManagementFeature
     {
         if (args.PropertyName == nameof(ViewModel.SelectedOrder) && ViewModel.IsOrdering && PersonOrderList is not null && ViewModel.SelectedOrder is { } row)
             PersonOrderList.ScrollIntoView(row);
+        if (args.PropertyName == nameof(ViewModel.IsOrdering) && !ViewModel.IsOrdering && !CanStay)
+            ReturnRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OrderLoaded(object sender, RoutedEventArgs args) => _ = new FormKeyboard(PersonOrderContent, SavePersonOrderButton, () => ViewModel.SaveOrderCommand.ExecuteAsync(null));
@@ -99,6 +104,7 @@ public sealed partial class PeoplePage : Page, IManagementFeature
         ViewModel.EditorRequested -= OpenEditorAsync;
         ViewModel.PropertyChanged -= ModelChanged;
         ViewModel.Leave();
+        ReturnRequested = null;
         Bindings.StopTracking();
     }
 }

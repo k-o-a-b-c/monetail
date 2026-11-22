@@ -22,6 +22,17 @@ public sealed partial class MainWindow
         management = new(context, () => !busy && !ManagementDialogOpen, ConnectAsync, LogoutAsync, account.DisplayName ?? "");
     }
 
+    private bool SuspendManagementForAuthentication()
+    {
+        if (management?.Context.IsSuspended == true)
+            return true;
+        if (ManagementPage?.SuspendForAuthentication() != true)
+            return false;
+        // 管理の実入力だけを保持し、従来どおり認証失効前の記録一覧・マスタを解除する。
+        ResetRecordHome();
+        return true;
+    }
+
     private void DiscardManagement()
     {
         ManagementPage?.Release();
@@ -50,7 +61,7 @@ public sealed partial class MainWindow
         try
         {
             ledger = await connection.Ledgers.OpenAsync(ledger.LedgerId, token);
-            context.Reopened(ledger);
+            context.Reopened(ledger, connection.Api, connection.Session);
         }
         catch (LedgerRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {

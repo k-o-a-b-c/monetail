@@ -26,6 +26,7 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
     }
 
     public Task LoadAsync() => ViewModel.LoadAsync(reads!.Token);
+    public event EventHandler? ReturnRequested;
     public bool CanStay => ViewModel.CanView;
     public bool HasDialog => dialog is not null;
     public bool CanRestoreAuthentication => ViewModel.CanRestoreAuthentication;
@@ -54,6 +55,8 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
                 current.Release();
                 dialog = null;
                 ViewModel.CloseEditor();
+                if (!CanStay)
+                    ReturnRequested?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -78,12 +81,16 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
     {
         if (args.PropertyName == nameof(ViewModel.SelectedOrder) && ViewModel.IsOrdering && PaymentOrderList is not null && ViewModel.SelectedOrder is { } row)
             PaymentOrderList.ScrollIntoView(row);
+        if (args.PropertyName == nameof(ViewModel.IsOrdering) && !ViewModel.IsOrdering && !CanStay)
+            ReturnRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OpenPaymentOrder(object sender, RoutedEventArgs args)
     {
         if (sender is Button { Tag: Guid owner } && ViewModel.OrderCommand.CanExecute(owner))
             ViewModel.OrderCommand.Execute(owner);
+        if (args.PropertyName == nameof(ViewModel.IsOrdering) && !ViewModel.IsOrdering && !CanStay)
+            ReturnRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OrderLoaded(object sender, RoutedEventArgs args) => _ = new FormKeyboard(PaymentOrderContent, SavePaymentOrderButton, () => ViewModel.SaveOrderCommand.ExecuteAsync(null));
@@ -105,6 +112,7 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
         ViewModel.EditorRequested -= OpenEditorAsync;
         ViewModel.PropertyChanged -= ModelChanged;
         ViewModel.Leave();
+        ReturnRequested = null;
         Bindings.StopTracking();
     }
 }

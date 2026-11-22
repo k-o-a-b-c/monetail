@@ -29,7 +29,7 @@ public partial class App
             {
                 Check(Find<ContentControl>(initial, "AuthenticationHost").Content is Frame { Content: Monetail.WinUI.Views.Connection.ConnectionSetupPage } &&
                     initial.FindName("StartupPage") is null && fixture.Requests.Count == 0 &&
-                    Find<ContentControl>(initial, "ConnectionSettingsContent").Content is null,
+                    initial.FindName("ConnectionSettingsContent") is null && ManagementFeature(initial) is null,
                     "未設定はActivate前に初回Pageだけを生成し、Startup/通信/管理用Viewを開始しない");
             });
             await StartSyntheticAsync();

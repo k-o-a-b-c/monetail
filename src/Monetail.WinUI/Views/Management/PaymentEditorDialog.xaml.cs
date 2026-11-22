@@ -58,22 +58,22 @@ public sealed partial class PaymentEditorDialog : ContentDialog
         if (keyboard.IsComposing || !ViewModel.CanSave)
             return false;
         var saved = await ViewModel.SaveEditorAsync(PaymentFrom.Complete(), PaymentTo.Complete());
-        if (!saved && !suspended)
+        if (!saved && !suspended && ViewModel.InputError?.Field is { } field)
         {
-            if (ViewModel.NameError is not null)
-                PaymentName.Focus(FocusState.Programmatic);
-            else if (ViewModel.PeriodError is not null)
-                PaymentFrom.Focus(FocusState.Programmatic);
+            Control target = field switch
+            {
+                "name" => PaymentName,
+                "validFrom" => PaymentFrom,
+                _ => PaymentTo
+            };
+            target.Focus(FocusState.Programmatic);
         }
-
         return saved;
     }
 
     private void UseLatestPayment(object sender, RoutedEventArgs args)
     {
         ViewModel.AdoptLatestCommand.Execute(null);
-        if (!ViewModel.IsDeleting)
-            PaymentName.Focus(FocusState.Programmatic);
     }
 
     // 401のPrimaryButton deferral中にShowAsyncの完了を待たない。

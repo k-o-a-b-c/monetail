@@ -25,6 +25,7 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
     }
 
     public Task LoadAsync() => ViewModel.LoadAsync(reads!.Token);
+    public event EventHandler? ReturnRequested;
     public bool CanStay => ViewModel.CanManage;
     public bool HasDialog => dialog is not null;
     public bool CanRestoreAuthentication => ViewModel.CanRestoreAuthentication;
@@ -49,6 +50,8 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
                 ReleaseDialog();
                 ViewModel.CloseEditor();
                 ViewModel.CloseCancellation();
+                if (!CanStay)
+                    ReturnRequested?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -135,6 +138,7 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
         ReleaseDialog();
         ViewModel.EditorRequested -= OpenEditorAsync;
         ViewModel.Leave();
+        ReturnRequested = null;
         Bindings.StopTracking();
     }
 }

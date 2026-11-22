@@ -64,15 +64,16 @@ public sealed partial class ManagementPage : Page
         }
 
         if (Feature is { } feature)
+        {
+            feature.ReturnRequested += ReturnFromFeature;
             await feature.LoadAsync();
+        }
     }
 
     private void ModelChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(ManagementViewModel.SelectedSection))
             RenderSelection();
-        if (Feature is { CanStay: false, HasDialog: false } && !ViewModel.Context.IsBusy && !ViewModel.Context.IsSuspended)
-            ReturnRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void RenderSelection() => ManagementNavigation.SelectedItem = ManagementNavigation.MenuItems.OfType<NavigationViewItem>().Single(item => Equals(item.Tag, ViewModel.SelectedSection.ToString()));
@@ -107,9 +108,15 @@ public sealed partial class ManagementPage : Page
         ViewModel.Context.IsSuspended = false;
     }
 
+    private void ReturnFromFeature(object? sender, EventArgs args) => ReturnRequested?.Invoke(this, EventArgs.Empty);
+
     private void ReleaseDetails()
     {
-        Feature?.Release();
+        if (Feature is { } feature)
+        {
+            feature.ReturnRequested -= ReturnFromFeature;
+            feature.Release();
+        }
         (DetailsHost.Content as ConnectionSettingsPage)?.Release();
         DetailsHost.Content = null;
     }

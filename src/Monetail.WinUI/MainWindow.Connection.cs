@@ -107,7 +107,7 @@ public sealed partial class MainWindow
     {
         if (closed)
             return;
-        var suspended = SuspendTransferForAuthentication() || SuspendReceiptForAuthentication() || ManagementPage?.SuspendForAuthentication() == true;
+        var suspended = SuspendTransferForAuthentication() || SuspendReceiptForAuthentication() || SuspendManagementForAuthentication();
         account = null;
         if (!suspended)
         {

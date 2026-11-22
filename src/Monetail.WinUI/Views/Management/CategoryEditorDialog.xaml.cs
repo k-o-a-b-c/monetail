@@ -58,22 +58,24 @@ public sealed partial class CategoryEditorDialog : ContentDialog
         if (keyboard.IsComposing || !ViewModel.CanSave)
             return false;
         var saved = await ViewModel.SaveEditorAsync(CategoryFrom.Complete(), CategoryTo.Complete());
-        if (!saved && !suspended)
+        if (!saved && !suspended && ViewModel.InputError?.Field is { } field)
         {
-            if (ViewModel.NameError is not null)
-                CategoryName.Focus(FocusState.Programmatic);
-            else if (ViewModel.PeriodError is not null)
-                CategoryFrom.Focus(FocusState.Programmatic);
+            Control target = field switch
+            {
+                "name" => CategoryName,
+                "incomeExpense" => CategoryIncome,
+                "taxCategoryCode" => CategoryTax,
+                "validFrom" => CategoryFrom,
+                _ => CategoryTo
+            };
+            target.Focus(FocusState.Programmatic);
         }
-
         return saved;
     }
 
     private void UseLatestCategory(object sender, RoutedEventArgs args)
     {
         ViewModel.AdoptLatestCommand.Execute(null);
-        if (!ViewModel.IsDeleting)
-            CategoryName.Focus(FocusState.Programmatic);
     }
 
     // 401のPrimaryButton deferral中にShowAsyncの完了を待たない。

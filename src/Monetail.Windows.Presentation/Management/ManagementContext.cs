@@ -28,10 +28,10 @@ public sealed partial class ManagementContext : ObservableObject, IDisposable
     public Guid AccountId { get; }
     public string Origin { get; }
     public LedgerMasterCache Masters { get; }
-    public PeopleWorkspace People { get; }
-    public CategoriesWorkspace Categories { get; }
-    public PaymentMethodsWorkspace Payments { get; }
-    public ParticipantsWorkspace Participants { get; }
+    public PeopleWorkspace People { get; private set; }
+    public CategoriesWorkspace Categories { get; private set; }
+    public PaymentMethodsWorkspace Payments { get; private set; }
+    public ParticipantsWorkspace Participants { get; private set; }
     public CancellationToken Token => lifetime?.Token ?? new CancellationToken(true);
     public bool IsDisposed => lifetime is null;
     public bool CanOperate => !IsBusy && !IsSuspended && !IsDisposed;
@@ -52,10 +52,15 @@ public sealed partial class ManagementContext : ObservableObject, IDisposable
             Permissions = permission;
     }
 
-    public void Reopened(LedgerInfo ledger)
+    public void Reopened(LedgerInfo ledger, MonetailApiClient api, ClientSession session)
     {
         Ledger = ledger;
         Permissions = new(ledger.Role, Permissions.MyPersonId);
+        // 認証フローの再試行でClientが再構成された場合も、入力や要求を作り直さない。
+        People = new(api, session, ledger.LedgerId);
+        Categories = new(api, session, ledger.LedgerId);
+        Payments = new(api, session, ledger.LedgerId);
+        Participants = new(api, session, ledger.LedgerId);
     }
 
     public Task ReadAsync(Func<Task> action, CancellationToken token, Action<string> failed) => RunAsync(async () =>

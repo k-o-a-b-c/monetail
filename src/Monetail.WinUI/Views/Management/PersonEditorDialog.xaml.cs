@@ -58,14 +58,16 @@ public sealed partial class PersonEditorDialog : ContentDialog
         if (keyboard.IsComposing || !ViewModel.CanSave)
             return false;
         var saved = await ViewModel.SaveEditorAsync(ViewModel.IncludesPeriod ? PersonValidFrom.Complete() : ViewModel.Editing?.ValidFrom, ViewModel.IncludesPeriod ? PersonValidTo.Complete() : ViewModel.Editing?.ValidTo);
-        if (!saved && !suspended)
+        if (!saved && !suspended && ViewModel.InputError?.Field is { } field)
         {
-            if (ViewModel.NameError is not null)
-                PersonName.Focus(FocusState.Programmatic);
-            else if (ViewModel.PeriodError is not null)
-                PersonValidFrom.Focus(FocusState.Programmatic);
+            Control target = field switch
+            {
+                "name" => PersonName,
+                "validFrom" => PersonValidFrom,
+                _ => PersonValidTo
+            };
+            target.Focus(FocusState.Programmatic);
         }
-
         return saved;
     }
 

@@ -26,6 +26,7 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
     }
 
     public Task LoadAsync() => ViewModel.LoadAsync(reads!.Token);
+    public event EventHandler? ReturnRequested;
     public bool CanStay => ViewModel.CanView;
     public bool HasDialog => dialog is not null;
     public bool CanRestoreAuthentication => ViewModel.CanRestoreAuthentication;
@@ -54,6 +55,8 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
                 current.Release();
                 dialog = null;
                 ViewModel.CloseEditor();
+                if (!CanStay)
+                    ReturnRequested?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -78,6 +81,8 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
     {
         if (args.PropertyName == nameof(ViewModel.SelectedOrder) && ViewModel.IsOrdering && CategoryOrderList is not null && ViewModel.SelectedOrder is { } row)
             CategoryOrderList.ScrollIntoView(row);
+        if (args.PropertyName == nameof(ViewModel.IsOrdering) && !ViewModel.IsOrdering && !CanStay)
+            ReturnRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OrderLoaded(object sender, RoutedEventArgs args) => _ = new FormKeyboard(CategoryOrderContent, SaveCategoryOrderButton, () => ViewModel.SaveOrderCommand.ExecuteAsync(null));
@@ -99,6 +104,7 @@ public sealed partial class CategoriesPage : Page, IManagementFeature
         ViewModel.EditorRequested -= OpenEditorAsync;
         ViewModel.PropertyChanged -= ModelChanged;
         ViewModel.Leave();
+        ReturnRequested = null;
         Bindings.StopTracking();
     }
 }

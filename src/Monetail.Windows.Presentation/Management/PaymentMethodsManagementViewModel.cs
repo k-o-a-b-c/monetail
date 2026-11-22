@@ -31,8 +31,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     [ObservableProperty]
     public partial PaymentRow? SelectedOrder { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsOrdering { get; private set; }
+    public bool IsOrdering => OrderRevision != Guid.Empty;
 
     [ObservableProperty]
     public partial ManagementEditorOperation Operation { get; private set; }
@@ -47,13 +46,11 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     public partial string ToText { get; set; } = "";
 
     [ObservableProperty]
-    public partial string? NameError { get; private set; }
-
-    [ObservableProperty]
-    public partial string? PeriodError { get; private set; }
-
-    [ObservableProperty]
-    public partial string? SaveError { get; private set; }
+    [NotifyPropertyChangedFor(nameof(NameError), nameof(PeriodError), nameof(SaveError))]
+    public partial ManagementInputError? InputError { get; private set; }
+    public string? NameError => InputError?.Field == "name" ? InputError.Message : null;
+    public string? PeriodError => InputError?.Field is "validFrom" or "validTo" ? InputError.Message : null;
+    public string? SaveError => InputError is not null && NameError is null && PeriodError is null ? InputError.Message : null;
 
     [ObservableProperty]
     public partial string? ListError { get; private set; }
@@ -322,18 +319,10 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         NotifyState();
     }
 
-    public void ClearErrors() => NameError = PeriodError = SaveError = null;
+    public void ClearErrors() => InputError = null;
     public void ClearListError() => ListError = null;
     public void ClearOrderNotice() => OrderNotice = null;
-    public void ShowError(string? field, string message)
-    {
-        if (field == "name")
-            NameError = message;
-        else if (field is "validFrom" or "validTo")
-            PeriodError = message;
-        else
-            SaveError = message;
-    }
+    public void ShowError(string? field, string message) => InputError = new(field, message);
 
     [RelayCommand(CanExecute = nameof(CanOrder))]
     private void Order(Guid owner) => BeginOrder(owner, Info!.OwnerOrderRevisions.Single(p => p.PersonId == owner).OrderRevision, Info.PaymentMethods.Where(p => p.OwnerPersonId == owner).OrderBy(p => p.DisplayOrder).ThenBy(p => p.PaymentMethodId.ToString("N"), StringComparer.Ordinal));
@@ -342,7 +331,6 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         OrderOwner = owner;
         OrderRevision = revision;
         orderDenied = false;
-        IsOrdering = true;
         OrderNotice = null;
         Restored = false;
         OrderRows.Clear();
@@ -350,6 +338,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
             OrderRows.Add(new(row));
         SelectedOrder = null;
         NotifyState();
+        OnPropertyChanged(nameof(IsOrdering));
     }
 
     [RelayCommand(CanExecute = nameof(CanMoveUp))]
@@ -428,23 +417,19 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
 
     private void FinishOrder()
     {
-        IsOrdering = false;
+        OrderRevision = Guid.Empty;
         OrderRows.Clear();
         SelectedOrder = null;
         OrderNotice = null;
-        OrderRevision = Guid.Empty;
         orderDenied = false;
         NotifyState();
+        OnPropertyChanged(nameof(IsOrdering));
     }
 
     public void Leave()
     {
         CloseEditor();
-        IsOrdering = false;
-        OrderRows.Clear();
-        SelectedOrder = null;
-        OrderNotice = null;
-        NotifyState();
+        FinishOrder();
     }
 
     public async Task ResumeAsync(string? denied, CancellationToken token)
@@ -486,8 +471,9 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
 
             SelectedOrder = OrderRows.FirstOrDefault(row => row.Payment.PaymentMethodId == selectedId);
             orderDenied = denied is not null || !CanManageOwner(OrderOwner);
-            OrderNoticeInformational = false;
-            OrderNotice = orderDenied ? denied ?? "現在の権限では並び順を保存できません。未保存の並び順は残しています。" : null;
+            OrderNoticeInformational = true;
+            OrderNotice = denied ?? (orderDenied ? "現在の権限では保存できません。未保存の並び順は残しています。"
+                : "未保存の並び順を復元しました。内容を確認してください。");
         }
         else if (HasEditor)
         {

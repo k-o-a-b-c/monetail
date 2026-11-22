@@ -16,6 +16,8 @@ public enum ManagementEditorOperation
     Delete
 }
 
+public sealed record ManagementInputError(string? Field, string Message);
+
 /// <summary>人物の表示・編集・順序の唯一の画面状態。保存値と要求IDは既存Clientの型をそのまま使う。</summary>
 public sealed partial class PeopleManagementViewModel : ObservableObject, IDisposable
 {
@@ -41,8 +43,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     [ObservableProperty]
     public partial PersonRow? SelectedOrder { get; set; }
 
-    [ObservableProperty]
-    public partial bool IsOrdering { get; private set; }
+    public bool IsOrdering => OrderRevision != Guid.Empty;
 
     [ObservableProperty]
     public partial ManagementEditorOperation Operation { get; private set; }
@@ -57,13 +58,11 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     public partial string ToText { get; set; } = "";
 
     [ObservableProperty]
-    public partial string? NameError { get; private set; }
-
-    [ObservableProperty]
-    public partial string? PeriodError { get; private set; }
-
-    [ObservableProperty]
-    public partial string? SaveError { get; private set; }
+    [NotifyPropertyChangedFor(nameof(NameError), nameof(PeriodError), nameof(SaveError))]
+    public partial ManagementInputError? InputError { get; private set; }
+    public string? NameError => InputError?.Field == "name" ? InputError.Message : null;
+    public string? PeriodError => InputError?.Field is "validFrom" or "validTo" ? InputError.Message : null;
+    public string? SaveError => InputError is not null && NameError is null && PeriodError is null ? InputError.Message : null;
 
     [ObservableProperty]
     public partial string? ListError { get; private set; }
@@ -283,18 +282,10 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         NotifyState();
     }
 
-    public void ClearErrors() => NameError = PeriodError = SaveError = null;
+    public void ClearErrors() => InputError = null;
     public void ClearListError() => ListError = null;
     public void ClearOrderNotice() => OrderNotice = null;
-    public void ShowError(string? field, string message)
-    {
-        if (field == "name")
-            NameError = message;
-        else if (field is "validFrom" or "validTo")
-            PeriodError = message;
-        else
-            SaveError = message;
-    }
+    public void ShowError(string? field, string message) => InputError = new(field, message);
 
     [RelayCommand(CanExecute = nameof(CanOrder))]
     private void Order() => BeginOrder(Info!.People.OrderBy(p => p.DisplayOrder), Info.OrderRevision);
@@ -302,7 +293,6 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     {
         OrderRevision = revision;
         orderDenied = false;
-        IsOrdering = true;
         OrderNotice = null;
         Restored = false;
         OrderRows.Clear();
@@ -310,6 +300,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
             OrderRows.Add(new(row, row.PersonId == Context.Permissions.MyPersonId));
         SelectedOrder = null;
         NotifyState();
+        OnPropertyChanged(nameof(IsOrdering));
     }
 
     [RelayCommand(CanExecute = nameof(CanMoveUp))]
@@ -383,23 +374,19 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
 
     private void FinishOrder()
     {
-        IsOrdering = false;
+        OrderRevision = Guid.Empty;
         OrderRows.Clear();
         SelectedOrder = null;
         OrderNotice = null;
-        OrderRevision = Guid.Empty;
         orderDenied = false;
         NotifyState();
+        OnPropertyChanged(nameof(IsOrdering));
     }
 
     public void Leave()
     {
         CloseEditor();
-        IsOrdering = false;
-        OrderRows.Clear();
-        SelectedOrder = null;
-        OrderNotice = null;
-        NotifyState();
+        FinishOrder();
     }
 
     public async Task ResumeAsync(string? denied, CancellationToken token)
