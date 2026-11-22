@@ -89,8 +89,6 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
     {
         if (sender is Button { Tag: Guid owner } && ViewModel.OrderCommand.CanExecute(owner))
             ViewModel.OrderCommand.Execute(owner);
-        if (args.PropertyName == nameof(ViewModel.IsOrdering) && !ViewModel.IsOrdering && !CanStay)
-            ReturnRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OrderLoaded(object sender, RoutedEventArgs args) => _ = new FormKeyboard(PaymentOrderContent, SavePaymentOrderButton, () => ViewModel.SaveOrderCommand.ExecuteAsync(null));

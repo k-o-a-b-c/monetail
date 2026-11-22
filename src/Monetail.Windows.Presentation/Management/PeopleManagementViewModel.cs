@@ -317,6 +317,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
             return;
         OrderRows.Move(index, target);
         SelectedOrder = row;
+        OnPropertyChanged(nameof(SelectedOrder));
         NotifyState();
     }
 

@@ -355,6 +355,7 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
             return;
         OrderRows.Move(index, target);
         SelectedOrder = row;
+        OnPropertyChanged(nameof(SelectedOrder));
         NotifyState();
     }
 

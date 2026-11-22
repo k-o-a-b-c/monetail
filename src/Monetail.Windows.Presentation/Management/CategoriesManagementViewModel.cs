@@ -323,6 +323,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
             return;
         OrderRows.Move(index, target);
         SelectedOrder = row;
+        OnPropertyChanged(nameof(SelectedOrder));
         NotifyState();
     }
 
