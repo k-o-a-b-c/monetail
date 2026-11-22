@@ -34,6 +34,9 @@ public partial class App
         Find<CheckBox>(root, "IncludeInactivePeople").IsChecked = true;
         navigation.SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
         await Wait(() => ManagementFeature(root) is AccountPage);
+        var accountPage = (AccountPage)ManagementFeature(root)!;
+        var management = ((Monetail.WinUI.Views.Workspace.ManagementPage)Find<FrameworkElement>(root, "ManagementPage")).ViewModel;
+        var accountName = management.AccountName;
         Check(!ReferenceEquals(page, ManagementFeature(root)) && model.IncludeInactive,
             "通常移動は人物PageをFrameから外し、必要な一覧設定だけをViewModelへ保持する");
         navigation.SelectedItem = Find<NavigationViewItem>(root, "PeopleNavigation");
@@ -42,6 +45,11 @@ public partial class App
         Check(!ReferenceEquals(page, reopened) && ReferenceEquals(model, reopened.ViewModel) && model.IncludeInactive &&
             FindManagementElement(root, "PersonDialog") is null,
             "再訪は新しい人物Pageと同じ一覧モデルを使い、未訪問のダイアログを生成しない");
+        management.AccountName = "離脱後の表示名";
+        await Settle();
+        Check(Find<TextBlock>(accountPage, "AccountName").Text == accountName,
+            "通常離脱したログイン情報PageはViewModelの表示名通知を購読し続けない");
+        management.AccountName = accountName;
         await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
         await WaitPersonEditorReady(root);
         var nameInput = Find<TextBox>(root, "PersonName");

@@ -14,4 +14,6 @@ public sealed partial class AccountPage : Page
         ViewModel = (ManagementViewModel)args.Parameter;
         Bindings.Update();
     }
+
+    public void Release() => Bindings.StopTracking();
 }

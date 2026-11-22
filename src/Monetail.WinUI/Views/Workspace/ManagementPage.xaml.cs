@@ -118,6 +118,7 @@ public sealed partial class ManagementPage : Page
             feature.ReturnRequested -= ReturnFromFeature;
             feature.Release();
         }
+        (DetailsHost.Content as AccountPage)?.Release();
         (DetailsHost.Content as ConnectionSettingsPage)?.Release();
         DetailsHost.Content = null;
     }
