@@ -1,0 +1,111 @@
+<Page xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Monetail.Windows.Presentation.Management" x:Class="Monetail.WinUI.Views.Management.PaymentMethodsPage" NavigationCacheMode="Disabled" IsTabStop="False">
+    <Page.Resources>
+        <CollectionViewSource IsSourceGrouped="True" x:Name="PaymentsSource" Source="{x:Bind ViewModel.Groups, Mode=OneWay}"/>
+    </Page.Resources>
+    <Border Style="{StaticResource Card}" Margin="16,0,0,0">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <InfoBar x:Name="ErrorNotice" IsOpen="{x:Bind HasError(ViewModel.ListError), Mode=OneWay, FallbackValue=False}" Visibility="{x:Bind Error(ViewModel.ListError), Mode=OneWay, FallbackValue=Collapsed}" Message="{x:Bind ViewModel.ListError, Mode=OneWay}" Severity="Error" IsClosable="True" Closed="CloseNotice"/>
+            <Grid x:Name="PaymentsContent" Visibility="{x:Bind Hide(ViewModel.IsOrdering), Mode=OneWay}" RowSpacing="16" Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="支払方法管理" Style="{ThemeResource TitleTextBlockStyle}"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="AddPaymentButton" Content="追加" AutomationProperties.AutomationId="AddPaymentButton" Command="{x:Bind ViewModel.AddCommand}"/>
+                    <Button x:Name="EditPaymentButton" Content="編集" AutomationProperties.AutomationId="EditPaymentButton" Command="{x:Bind ViewModel.EditCommand}"/>
+                    <Button x:Name="DeletePaymentButton" Content="削除" AutomationProperties.AutomationId="DeletePaymentButton" Command="{x:Bind ViewModel.DeleteCommand}"/>
+                </StackPanel>
+                <CheckBox x:Name="IncludeInactivePayments" Grid.Row="2" Content="有効期間外も表示" AutomationProperties.AutomationId="IncludeInactivePayments" IsChecked="{x:Bind ViewModel.IncludeInactive, Mode=TwoWay}"/>
+                <Grid Grid.Row="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid ColumnSpacing="12" Padding="12,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="支払方法名"/>
+                        <TextBlock Grid.Column="1" Text="有効開始日"/>
+                        <TextBlock Grid.Column="2" Text="有効終了日"/>
+                    </Grid>
+                    <ListView x:Name="PaymentsList" Grid.Row="1" SelectionMode="Single" HorizontalContentAlignment="Stretch" AutomationProperties.Name="人物別の支払方法一覧" AutomationProperties.AutomationId="PaymentsList" ItemsSource="{Binding View, ElementName=PaymentsSource}" SelectedItem="{x:Bind ViewModel.Selected, Mode=TwoWay}">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.GroupStyle>
+                            <GroupStyle HidesIfEmpty="True">
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate x:DataType="vm:PaymentGroup">
+                                        <Grid ColumnSpacing="12" Margin="0,12,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1" Content="並び順変更" Tag="{x:Bind OwnerId}" Visibility="{x:Bind CanOrder}" Click="OpenPaymentOrder"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ListView.GroupStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PaymentRow">
+                                <Grid ColumnSpacing="12" Padding="0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="120"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind ValidFrom}"/>
+                                    <TextBlock Grid.Column="2" Text="{x:Bind ValidTo}"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock x:Name="EmptyPayments" Grid.Row="1" Text="表示対象の支払方法はありません。" Visibility="{x:Bind Show(ViewModel.IsEmpty), Mode=OneWay}" Style="{StaticResource Description}"/>
+                </Grid>
+            </Grid>
+            <Grid x:Name="PaymentOrderContent" Visibility="{x:Bind Show(ViewModel.IsOrdering), Mode=OneWay}" RowSpacing="16" Grid.Row="1" x:Load="{x:Bind ViewModel.IsOrdering, Mode=OneWay}" Loaded="OrderLoaded">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="支払方法の並び順" Style="{ThemeResource TitleTextBlockStyle}"/>
+                <TextBlock x:Name="PaymentOrderOwner" Grid.Row="1" TextWrapping="Wrap" FontWeight="SemiBold" Text="{x:Bind ViewModel.OrderOwnerName, Mode=OneWay}"/>
+                <InfoBar x:Name="PaymentOrderNotice" Grid.Row="2" Visibility="{x:Bind Error(ViewModel.OrderNotice), Mode=OneWay, FallbackValue=Collapsed}" IsOpen="{x:Bind HasError(ViewModel.OrderNotice), Mode=OneWay, FallbackValue=False}" Closed="CloseError" Message="{x:Bind ViewModel.OrderNotice, Mode=OneWay}" Severity="{x:Bind Severity(ViewModel.OrderNoticeInformational), Mode=OneWay}"/>
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="MovePaymentUpButton" Content="上へ" AutomationProperties.AutomationId="MovePaymentUpButton" Command="{x:Bind ViewModel.MoveUpCommand}"/>
+                    <Button x:Name="MovePaymentDownButton" Content="下へ" AutomationProperties.AutomationId="MovePaymentDownButton" Command="{x:Bind ViewModel.MoveDownCommand}"/>
+                </StackPanel>
+                <ListView x:Name="PaymentOrderList" Grid.Row="4" SelectionMode="Single" AutomationProperties.Name="有効期間外を含む全支払方法の順序" AutomationProperties.AutomationId="PaymentOrderList" ItemsSource="{x:Bind ViewModel.OrderRows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedOrder, Mode=TwoWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PaymentRow">
+                            <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="SavePaymentOrderButton" Content="保存" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SavePaymentOrderButton" Command="{x:Bind ViewModel.SaveOrderCommand}"/>
+                    <Button x:Name="CancelPaymentOrderButton" Content="キャンセル" AutomationProperties.AutomationId="CancelPaymentOrderButton" Command="{x:Bind ViewModel.CancelOrderCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Page>

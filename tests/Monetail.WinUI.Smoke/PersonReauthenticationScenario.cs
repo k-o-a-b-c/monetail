@@ -97,7 +97,7 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "LoginButton"));
             await Wait(() => Visible(root, "HomePage"));
             await fixture.CallbackTask!;
-            Check(Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Collapsed &&
+            Check(!ManagementDialogVisible(root, "PersonDialog") &&
                 Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0 &&
                 !fixture.Requests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
                 "別アカウントでは入力を引き継がず、元の編集家計簿も自動で開かない");

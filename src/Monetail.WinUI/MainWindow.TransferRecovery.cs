@@ -87,7 +87,7 @@ public sealed partial class MainWindow
             if (!Current()) return;
             connection.Masters.UpdatePeople(context.LedgerId, people); connection.Masters.UpdatePayments(context.LedgerId, methods);
             if (currentLedger is { } ledgerInfo) DisplayLedgerHeader(ledgerInfo with { Role = methods.CurrentRole });
-            peoplePermissions = new(methods.CurrentRole, methods.MyPersonId);
+            management?.Context.ApplyPermissions(new(methods.CurrentRole, methods.MyPersonId));
             var canEdit = TransferEditorRules.CanCreate(methods) && (!editor.IsExisting ||
                 editor.SavedFromPaymentMethodId is Guid from && editor.SavedToPaymentMethodId is Guid to && TransferEditorRules.CanUse(methods, from) && TransferEditorRules.CanUse(methods, to));
             if (!canEdit) { editor.EnterReadOnly(TransferReadOnlyReason.Forbidden); TransferNotice("編集権限がなくなったため、保存できません"); }

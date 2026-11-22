@@ -21,10 +21,7 @@ public sealed partial class MainWindow
     {
         if (await ResumeTransferEditAsync(token)) return;
         if (await ResumeReceiptEditAsync(token)) return;
-        if (await ResumeCategoryEditAsync(token)) return;
-        if (await ResumePaymentEditAsync(token)) return;
-        if (await ResumeParticipantEditAsync(token)) return;
-        if (await ResumePersonEditAsync(token)) return;
+        if (await ResumeManagementAsync(token)) return;
         await OpenInitialLedgerAsync(token);
     }
 
@@ -54,10 +51,7 @@ public sealed partial class MainWindow
         if (receiptAuthentication is not null) DiscardReceiptAuthentication();
         else ResetReceiptEditor();
         ResetRecordHome();
-        ResetCategories();
-        ResetPayments();
-        ResetPeople();
-        ResetParticipants();
+        DiscardManagement();
     }
 
     // 選択中の家計簿とヘッダーだけを解除する。編集状態の破棄は呼出元で明示する。
@@ -67,11 +61,9 @@ public sealed partial class MainWindow
         ledgerChoices = [];
         creationDraft = null;
         if (WorkspaceHost.Content is Monetail.WinUI.Views.LedgerChoiceView choices) choices.Ledgers = ledgerChoices;
-        PeopleList.ItemsSource = null;
         ledgerMenu = null;
         LedgerSelector.IsEnabled = false;
         LedgerName.Text = "家計簿を選択";
-        if (management is not null) management.LedgerName = "家計簿が開かれていません";
     }
 
     private LedgerCreatePage? CreationView => (LedgerPageHost.Content as Frame)?.Content as LedgerCreatePage;
@@ -83,7 +75,6 @@ public sealed partial class MainWindow
             return;
         creationDraft = null;
         ReleaseAuthentication();
-        ReleaseConnectionSettings();
         HideWorkspace();
         AuthenticationNotice(null);
         var frame = new Frame { IsNavigationStackEnabled = false };
@@ -197,9 +188,6 @@ public sealed partial class MainWindow
         await RunAsync(async () =>
     {
         var opened = await connection.Ledgers.OpenAsync(ledgerId, lifetime.Token);
-        PeopleList.ItemsSource = null;
-        EmptyPeople.Text = "人物一覧を読み込んでいます。";
-        EmptyPeople.Visibility = Visibility.Visible;
         DisplayLedger(opened);
     });
     }
@@ -226,71 +214,5 @@ public sealed partial class MainWindow
         });
         if (!closed && IsRecordPageVisible) ledgerMenu?.ShowAt(LedgerSelector);
     }
-
-    private Task LoadPeopleAsync()
-    {
-        if (account is null || currentLedger is null || !CanViewPeople) return Task.CompletedTask;
-        return RunAsync(async () =>
-        {
-            var workspace = new PeopleWorkspace(connection.Api, connection.Session, currentLedger.LedgerId);
-            DisplayPeople(await workspace.ListAsync(lifetime.Token));
-        });
-    }
-
-    private async Task SelectManagementAsync(Monetail.Windows.Presentation.Workspace.ManagementSection item)
-    {
-        if (busy || ManagementDialogOpen) return;
-        if (management is not null) management.SelectedSection = item;
-        ReleaseConnectionSettings();
-        DropPendingCategoryEdit(); DiscardCategoryEditor(); DiscardCategoryOrder();
-        CategoriesContent.Visibility = Visibility.Collapsed;
-        DropPendingPaymentEdit(); DiscardPaymentEditor(); DiscardPaymentOrder();
-        PaymentsContent.Visibility = Visibility.Collapsed;
-        DropPendingPersonEdit();
-        DiscardPersonEditor();
-        DiscardPersonOrder();
-        PeopleContent.Visibility = ParticipantsContent.Visibility = InvitationsContent.Visibility = ConnectionSettingsContent.Visibility = AccountContent.Visibility = Visibility.Collapsed;
-        if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Participants)
-        {
-            if (!CanManageParticipants) return;
-            ParticipantsContent.Visibility = Visibility.Visible;
-            await LoadParticipantsAsync();
-        }
-        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Categories)
-        {
-            CategoriesContent.Visibility = Visibility.Visible;
-            await LoadCategoriesAsync();
-        }
-        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Payments)
-        {
-            PaymentsContent.Visibility = Visibility.Visible;
-            await LoadPaymentsAsync();
-        }
-        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.People)
-        {
-            PeopleContent.Visibility = Visibility.Visible;
-            await LoadPeopleAsync();
-        }
-        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Connection)
-        {
-            OpenConnectionSettings();
-        }
-        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Account)
-        {
-            AccountName.Text = account?.DisplayName ?? "";
-            AccountServer.Text = connection.Endpoint?.Value ?? "";
-            AccountContent.Visibility = Visibility.Visible;
-        }
-        else if (item == Monetail.Windows.Presentation.Workspace.ManagementSection.Logout)
-        {
-            // 失敗時も本人と開いている家計簿を保持する。
-            management!.SelectedSection = Monetail.Windows.Presentation.Workspace.ManagementSection.Account;
-            AccountContent.Visibility = Visibility.Visible;
-            AccountName.Text = account?.DisplayName ?? "";
-            AccountServer.Text = connection.Endpoint?.Value ?? "";
-            await LogoutAsync();
-        }
-    }
-
 
 }

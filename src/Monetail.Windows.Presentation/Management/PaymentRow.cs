@@ -1,8 +1,7 @@
-using Microsoft.UI.Xaml;
 using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Transport;
 
-namespace Monetail.WinUI;
+namespace Monetail.Windows.Presentation.Management;
 
 public sealed class PaymentRow(PaymentMethodInfo payment)
 {
@@ -17,5 +16,5 @@ public sealed class PaymentGroup(Guid ownerId, string name, bool canOrder, IEnum
 {
     public Guid OwnerId { get; } = ownerId;
     public string Name { get; } = name;
-    public Visibility OrderVisibility { get; } = canOrder ? Visibility.Visible : Visibility.Collapsed;
+    public bool CanOrder { get; } = canOrder;
 }

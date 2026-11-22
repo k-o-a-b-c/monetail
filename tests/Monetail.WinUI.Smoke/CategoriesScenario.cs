@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Management;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -11,12 +12,12 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
-    private static Monetail.WinUI.Views.CategoryListView CategoryListRoot(FrameworkElement root) =>
-        Find<Monetail.WinUI.Views.CategoryListView>(root, "CategoryList");
+    private static Monetail.WinUI.Views.Management.CategoriesPage CategoryListRoot(FrameworkElement root) =>
+        (Monetail.WinUI.Views.Management.CategoriesPage)ManagementFeature(root)!;
     private static ContentDialog CategoryDialogFor(FrameworkElement root) => Find<ContentDialog>(root, "CategoryDialog");
     private static Button CategoryFooter(FrameworkElement root, bool save) => All(CategoryDialogFor(root)).OfType<Button>()
         .OrderByDescending(b => b.IsLoaded).First(b => Equals(b.Content, save ? CategoryDialogFor(root).PrimaryButtonText : CategoryDialogFor(root).CloseButtonText));
-    private static bool CategoryEditorClosed(FrameworkElement root) => Find<ScrollViewer>(root, "CategoryEditorContent").Visibility == Visibility.Collapsed;
+    private static bool CategoryEditorClosed(FrameworkElement root) => !ManagementDialogVisible(root, "CategoryDialog");
     private static async Task CategoryDialogReady(FrameworkElement root) => await Wait(() => !CategoryEditorClosed(root) && CategoryDialogFor(root).IsLoaded &&
         Find<ContentControl>(root, "Operations").IsEnabled && All(CategoryDialogFor(root)).OfType<Button>().Any(b => b.IsLoaded && b.XamlRoot is not null && Equals(b.Content, CategoryDialogFor(root).CloseButtonText)));
     private async Task<FrameworkElement> OpenCategoriesWindow(SyntheticConnection fixture, CategoryServer server)
@@ -61,7 +62,7 @@ public partial class App
             Check(list.Items.Count == 2 && list.SelectedItem is null && !Find<Button>(CategoryListRoot(root), "EditCategoryButton").IsEnabled && server.Writes.Count == 0, "フィルターで隠れた選択を解除し、科目を更新削除しない");
             await OpenCategoryDialog(root, "AddCategoryButton");
             Check(Equals(((ComboBoxItem)Find<ComboBox>(root, "CategoryIncome").SelectedItem).Tag, "Expense") && Equals(((ComboBoxItem)Find<ComboBox>(root, "CategoryTax").SelectedItem).Tag, "Standard") && Find<DateInputBox>(root, "CategoryFrom").Text == "" && Find<DateInputBox>(root, "CategoryTo").Text == "", "科目追加の初期値は支出・標準・期間空欄");
-            var keyboard = (FormKeyboard)typeof(MainWindow).GetField("categoryKeyboard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(window)!;
+            var keyboard = (FormKeyboard)CategoryDialogFor(root).GetType().GetField("keyboard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(CategoryDialogFor(root))!;
             Find<TextBox>(root, "CategoryName").Focus(FocusState.Programmatic); await keyboard.HandleEnter(false, false)!;
             Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<ComboBox>(root, "CategoryIncome")) && server.Writes.Count == 0, "科目名のEnterは保存せず収支欄へ移動");
             Find<ComboBox>(root, "CategoryIncome").IsDropDownOpen = true;
@@ -119,12 +120,12 @@ public partial class App
             await Wait(() => Find<InfoBar>(root, "CategoryOrderNotice").IsOpen);
             Check(((CategoryRow)order.Items[0]).Name == "競合追加" && server.Reads == 1, "科目順序競合は未保存順を破棄し未知の追加行も応答から反映");
             var ids = order.Items.Cast<CategoryRow>().Select(r => r.Category.CategoryId).ToArray();
-            await InvokeAsync(() => Find<Button>(root, "SaveCategoryOrderButton")); await Wait(() => Find<Grid>(root, "CategoryOrderContent").Visibility == Visibility.Collapsed);
+            await InvokeAsync(() => Find<Button>(root, "SaveCategoryOrderButton")); await Wait(() => !ManagementVisible(root, "CategoryOrderContent"));
             using (var body = JsonDocument.Parse(server.Writes[^1].Body)) Check(body.RootElement.GetProperty("categoryIds").EnumerateArray().Select(r => r.GetGuid()).SequenceEqual(ids) && server.Reads == 1, "順序保存は最新全ID・新版を送信し応答一覧へ復帰");
             before = server.Writes.Count; await OpenCategoryOrderScreen(root); order.SelectedIndex = 0; await InvokeAsync(() => Find<Button>(root, "MoveCategoryDownButton")); await InvokeAsync(() => Find<Button>(root, "CancelCategoryOrderButton"));
             Check(server.Writes.Count == before && server.Reads == 1, "並び替えキャンセルは通信なし");
             await OpenCategoryOrderScreen(root); Find<NavigationView>(root, "ManagementNavigation").SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation"); await Settle();
-            Check(Find<Grid>(root, "CategoryOrderContent").Visibility == Visibility.Collapsed, "左メニュー移動で未保存科目順を破棄");
+            Check(!ManagementVisible(root, "CategoryOrderContent"), "左メニュー移動で未保存科目順を破棄");
         }
         foreach (var role in new[] { "Editor", "Viewer" })
         {
@@ -136,7 +137,7 @@ public partial class App
         {
             var server = new CategoryServer(); server.Rows.Clear(); var root = await OpenCategoriesWindow(fixture, server);
             Check(Find<TextBlock>(CategoryListRoot(root), "EmptyCategories").Visibility == Visibility.Visible && Find<Button>(CategoryListRoot(root), "AddCategoryButton").IsEnabled, "科目0件でも管理者は追加可能");
-            await OpenCategoryOrderScreen(root); await InvokeAsync(() => Find<Button>(root, "SaveCategoryOrderButton")); await Wait(() => Find<Grid>(root, "CategoryOrderContent").Visibility == Visibility.Collapsed);
+            await OpenCategoryOrderScreen(root); await InvokeAsync(() => Find<Button>(root, "SaveCategoryOrderButton")); await Wait(() => !ManagementVisible(root, "CategoryOrderContent"));
             using var body = JsonDocument.Parse(server.Writes.Single().Body); Check(body.RootElement.GetProperty("categoryIds").GetArrayLength() == 0, "科目0件の全件並び替えは空配列");
         }
         using (var fixture = new SyntheticConnection(saved: true))
@@ -147,7 +148,7 @@ public partial class App
             await Wait(() => Find<TextBlock>(root, "CategorySaveError").Visibility == Visibility.Visible);
             Check(!CategoryDialogFor(root).IsPrimaryButtonEnabled && Find<TextBox>(root, "CategoryName").Text == "保存不可でも残す" && server.Reads == 1, "科目権限喪失は入力保持・保存不可・再取得なし");
             await InvokeAsync(() => CategoryFooter(root, false)); await Wait(() => CategoryEditorClosed(root));
-            Check(!Find<Button>(CategoryListRoot(root), "AddCategoryButton").IsEnabled, "権限喪失後も変更不可");
+            Check(Visible(root, "HomePage") && ManagementFeature(root) is null, "権限喪失後は科目Pageを解放し変更不可");
         }
         using (var fixture = new SyntheticConnection(saved: true))
         {
@@ -197,7 +198,7 @@ public partial class App
             }
             if (mode != "order") Check(Equals(((ComboBoxItem)Find<ComboBox>(root, "CategoryTax").SelectedItem).Tag, "Exempt"), "認証復帰は初期選択値で上書きしない");
             await InvokeAsync(() => mode == "order" ? Find<Button>(root, "SaveCategoryOrderButton") : CategoryFooter(root, true));
-            await Wait(() => mode == "order" ? Find<Grid>(root, "CategoryOrderContent").Visibility == Visibility.Collapsed : CategoryEditorClosed(root));
+            await Wait(() => mode == "order" ? !ManagementVisible(root, "CategoryOrderContent") : CategoryEditorClosed(root));
             Check(server.Writes.Single().Body == rejected, "認証復帰後もrequestId・入力・行版または全ID・順序版を維持");
         }
     }

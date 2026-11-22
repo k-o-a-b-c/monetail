@@ -1,7 +1,7 @@
 using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Transport;
 
-namespace Monetail.WinUI;
+namespace Monetail.Windows.Presentation.Management;
 
 public sealed class CategoryRow(CategoryInfo category)
 {
