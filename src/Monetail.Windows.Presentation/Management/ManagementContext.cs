@@ -69,9 +69,9 @@ public sealed partial class ManagementContext : ObservableObject, IDisposable
         {
             await action();
         }
-        catch (Exception error)when (token.IsCancellationRequested && error is OperationCanceledException or AuthenticationRejectedException or AuthenticationContextChangedException)
+        catch (Exception error) when (token.IsCancellationRequested && error is OperationCanceledException or AuthenticationRejectedException or AuthenticationContextChangedException)
         {
-        // 通常の認証失効はWindowへ渡し、破棄済み読取の応答だけを無効化する。
+            // 通常の認証失効はWindowへ渡し、破棄済み読取の応答だけを無効化する。
         }
     }, message =>
     {

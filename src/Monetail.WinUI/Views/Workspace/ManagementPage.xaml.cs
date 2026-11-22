@@ -39,6 +39,7 @@ public sealed partial class ManagementPage : Page
 
         ReleaseDetails();
         ViewModel.SelectedSection = section;
+        RenderSelection();
         switch (section)
         {
             case ManagementSection.People:

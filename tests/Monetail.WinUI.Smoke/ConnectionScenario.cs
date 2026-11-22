@@ -113,6 +113,8 @@ public partial class App
             navigation.SelectedItem = Find<NavigationViewItem>(root, "LogoutNavigation");
             await Wait(() => Find<InfoBar>(root, "ErrorNotice").IsOpen);
             Check(fixture.Tokens.Current is not null && Visible(root, "ManagementPage"), "ログアウトの通信失敗では認証と画面を保持");
+            Check(ReferenceEquals(navigation.SelectedItem, Find<NavigationViewItem>(root, "AccountNavigation")),
+                "ログアウト失敗後はログイン情報の選択へ戻し、同じログアウト操作を再試行できる");
             fixture.FailLogout = false;
             navigation.SelectedItem = Find<NavigationViewItem>(root, "LogoutNavigation");
             await Wait(() => Visible(root, "LoginPage"));

@@ -28,7 +28,8 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
     private PaymentMethodsManagementViewModel? payments;
     private ParticipantsManagementViewModel? participants;
     public ManagementContext Context { get; }
-    public string AccountName { get; }
+    [ObservableProperty]
+    public partial string AccountName { get; set; } = "";
     public string LedgerName => Context.Ledger.Name;
     public bool HasAccount => !Context.IsSuspended;
     public bool PeopleEnabled => people?.CanView ?? Context.Permissions.CurrentRole is not null;
