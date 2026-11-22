@@ -148,7 +148,7 @@ public partial class App
             await Wait(() => Find<TextBlock>(root, "CategorySaveError").Visibility == Visibility.Visible);
             Check(!CategoryDialogFor(root).IsPrimaryButtonEnabled && Find<TextBox>(root, "CategoryName").Text == "保存不可でも残す" && server.Reads == 1, "科目権限喪失は入力保持・保存不可・再取得なし");
             await InvokeAsync(() => CategoryFooter(root, false)); await Wait(() => CategoryEditorClosed(root));
-            Check(Visible(root, "HomePage") && ManagementFeature(root) is null, "権限喪失後は科目Pageを解放し変更不可");
+            Check(!Find<Button>(CategoryListRoot(root), "AddCategoryButton").IsEnabled, "権限喪失後も変更不可");
         }
         using (var fixture = new SyntheticConnection(saved: true))
         {
