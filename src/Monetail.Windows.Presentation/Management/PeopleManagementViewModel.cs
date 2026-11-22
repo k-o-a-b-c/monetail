@@ -84,7 +84,6 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     }
 
     public event Func<Task>? EditorRequested;
-    public event Func<Task>? SaveRequested;
     public bool IsAdmin => Context.Permissions.CurrentRole == "Admin";
     public bool CanView => Context.Permissions.CurrentRole is not null;
     public bool HasEditor => Operation != ManagementEditorOperation.None;
@@ -121,16 +120,21 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         NotifyState();
     }
 
-    public Task LoadAsync(CancellationToken token) => Context.RunAsync(async () =>
+    public Task LoadAsync(CancellationToken token) => Context.ReadAsync(async () =>
     {
-        var result = await Context.People.ListAsync(token);
-        if (!token.IsCancellationRequested && !Context.IsDisposed)
-            Apply(result);
-    }, message =>
-    {
-        if (!token.IsCancellationRequested)
-            ListError = message;
-    });
+        try
+        {
+            var result = await Context.People.ListAsync(token);
+            if (!token.IsCancellationRequested && !Context.IsDisposed)
+                Apply(result);
+        }
+        catch (PeopleRequestException error)
+        {
+            token.ThrowIfCancellationRequested();
+            ApplyFailure(error);
+            throw;
+        }
+    }, token, message => ListError = message);
     public void Apply(PeopleInfo info)
     {
         if (Context.IsDisposed)
@@ -179,8 +183,6 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         return EditorRequested?.Invoke() ?? Task.CompletedTask;
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
-    private Task SaveAsync() => SaveRequested?.Invoke() ?? Task.CompletedTask;
     public async Task<bool> SaveEditorAsync(DateOnly? from, DateOnly? to)
     {
         if (!CanSave)
@@ -469,7 +471,6 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         AddCommand.NotifyCanExecuteChanged();
         EditCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
-        SaveCommand.NotifyCanExecuteChanged();
         OrderCommand.NotifyCanExecuteChanged();
         MoveUpCommand.NotifyCanExecuteChanged();
         MoveDownCommand.NotifyCanExecuteChanged();
@@ -479,6 +480,6 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     public void Dispose()
     {
         Context.PropertyChanged -= ContextChanged;
-        EditorRequested = SaveRequested = null;
+        EditorRequested = null;
     }
 }

@@ -25,10 +25,10 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="AddPersonButton" Content="追加" AutomationProperties.AutomationId="AddPersonButton" Command="{x:Bind ViewModel.AddCommand}"/>
-                    <Button x:Name="EditPersonButton" Grid.Column="1" Content="編集" AutomationProperties.AutomationId="EditPersonButton" Command="{x:Bind ViewModel.EditCommand}"/>
-                    <Button x:Name="DeletePersonButton" Grid.Column="2" Content="削除" HorizontalAlignment="Left" AutomationProperties.AutomationId="DeletePersonButton" Command="{x:Bind ViewModel.DeleteCommand}"/>
-                    <Button x:Name="PersonOrderButton" Grid.Column="3" Content="並び順変更" AutomationProperties.AutomationId="PersonOrderButton" Command="{x:Bind ViewModel.OrderCommand}"/>
+                    <Button x:Name="AddPersonButton" Content="追加" AutomationProperties.AutomationId="AddPersonButton" Command="{x:Bind ViewModel.AddCommand, Mode=OneTime}"/>
+                    <Button x:Name="EditPersonButton" Grid.Column="1" Content="編集" AutomationProperties.AutomationId="EditPersonButton" Command="{x:Bind ViewModel.EditCommand, Mode=OneTime}"/>
+                    <Button x:Name="DeletePersonButton" Grid.Column="2" Content="削除" HorizontalAlignment="Left" AutomationProperties.AutomationId="DeletePersonButton" Command="{x:Bind ViewModel.DeleteCommand, Mode=OneTime}"/>
+                    <Button x:Name="PersonOrderButton" Grid.Column="3" Content="並び順変更" AutomationProperties.AutomationId="PersonOrderButton" Command="{x:Bind ViewModel.OrderCommand, Mode=OneTime}"/>
                 </Grid>
                 <CheckBox x:Name="IncludeInactivePeople" Grid.Row="3" Content="有効期間外も表示" AutomationProperties.AutomationId="IncludeInactivePeople" IsChecked="{x:Bind ViewModel.IncludeInactive, Mode=TwoWay}"/>
                 <Border Grid.Row="4" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="0,0,0,1" Padding="12,8,12,16">
@@ -61,9 +61,9 @@
                                             <ColumnDefinition Width="136"/>
                                             <ColumnDefinition Width="136"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" FontSize="16"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind ValidFrom}" FontSize="16"/>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind ValidTo}" FontSize="16"/>
+                                        <TextBlock Text="{x:Bind Name, Mode=OneTime}" TextWrapping="Wrap" FontSize="16"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind ValidFrom, Mode=OneTime}" FontSize="16"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind ValidTo, Mode=OneTime}" FontSize="16"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -88,22 +88,22 @@
                 <TextBlock x:Name="PersonOrderRestoredNotice" Grid.Row="2" Visibility="{x:Bind Show(ViewModel.Restored), Mode=OneWay}" Text="未保存の並び順を復元しました。内容を確認してください。" Style="{StaticResource Description}"/>
                 <InfoBar x:Name="PersonOrderNotice" Grid.Row="3" Visibility="{x:Bind Error(ViewModel.OrderNotice), Mode=OneWay, FallbackValue=Collapsed}" IsOpen="{x:Bind HasError(ViewModel.OrderNotice), Mode=OneWay, FallbackValue=False}" IsClosable="True" Closed="CloseError" Message="{x:Bind ViewModel.OrderNotice, Mode=OneWay}" Severity="{x:Bind Severity(ViewModel.OrderNoticeInformational), Mode=OneWay}"/>
                 <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="MovePersonUpButton" Content="上へ" AutomationProperties.AutomationId="MovePersonUpButton" Command="{x:Bind ViewModel.MoveUpCommand}"/>
-                    <Button x:Name="MovePersonDownButton" Content="下へ" AutomationProperties.AutomationId="MovePersonDownButton" Command="{x:Bind ViewModel.MoveDownCommand}"/>
+                    <Button x:Name="MovePersonUpButton" Content="上へ" AutomationProperties.AutomationId="MovePersonUpButton" Command="{x:Bind ViewModel.MoveUpCommand, Mode=OneTime}"/>
+                    <Button x:Name="MovePersonDownButton" Content="下へ" AutomationProperties.AutomationId="MovePersonDownButton" Command="{x:Bind ViewModel.MoveDownCommand, Mode=OneTime}"/>
                 </StackPanel>
                 <Grid Grid.Row="5">
                     <ListView x:Name="PersonOrderList" SelectionMode="Single" AutomationProperties.Name="共通の人物順" AutomationProperties.AutomationId="PersonOrderList" ItemsSource="{x:Bind ViewModel.OrderRows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedOrder, Mode=TwoWay}">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:PersonRow">
-                                <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/>
+                                <TextBlock Text="{x:Bind Name, Mode=OneTime}" TextWrapping="Wrap" Margin="8,12"/>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
                     <TextBlock x:Name="EmptyPersonOrder" Text="人物は登録されていません。" Visibility="{x:Bind Empty(ViewModel.OrderRows.Count), Mode=OneWay}" Style="{StaticResource Description}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Grid>
                 <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="SavePersonOrderButton" Content="保存" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SavePersonOrderButton" Command="{x:Bind ViewModel.SaveOrderCommand}"/>
-                    <Button x:Name="CancelPersonOrderButton" Content="キャンセル" AutomationProperties.AutomationId="CancelPersonOrderButton" Command="{x:Bind ViewModel.CancelOrderCommand}"/>
+                    <Button x:Name="SavePersonOrderButton" Content="保存" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SavePersonOrderButton" Command="{x:Bind ViewModel.SaveOrderCommand, Mode=OneTime}"/>
+                    <Button x:Name="CancelPersonOrderButton" Content="キャンセル" AutomationProperties.AutomationId="CancelPersonOrderButton" Command="{x:Bind ViewModel.CancelOrderCommand, Mode=OneTime}"/>
                 </StackPanel>
             </Grid>
         </Grid>

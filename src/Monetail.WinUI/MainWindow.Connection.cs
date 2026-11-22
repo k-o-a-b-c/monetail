@@ -170,11 +170,11 @@ public sealed partial class MainWindow
             };
             report(message);
         }
-        catch (CategoryRequestException error)
+        catch (CategoryRequestException)
         {
             report("科目一覧を取得できませんでした。参加状態と権限を確認してください。");
         }
-        catch (PaymentMethodRequestException error)
+        catch (PaymentMethodRequestException)
         {
             report("支払方法一覧を取得できませんでした。参加状態と権限を確認してください。");
         }

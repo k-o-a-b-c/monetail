@@ -84,7 +84,6 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     }
 
     public event Func<Task>? EditorRequested;
-    public event Func<Task>? SaveRequested;
     public bool IsAdmin => Info is not null && permission?.CurrentRole == "Admin";
     public bool CanView => permission is null || permission.CurrentRole is not null;
 
@@ -94,11 +93,11 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     public bool HasLatest => Latest is not null;
     public bool CanRestoreAuthentication => IsOrdering || HasEditor && !IsDeleting;
     public bool IsEmpty => Rows.Count == 0;
-    public string EmptyText => Info is null ? "表示対象の科目はありません。" : "表示対象の科目はありません。";
+
     public string Title => IsDeleting ? "科目の削除" : Editing is null ? "科目の追加" : "科目の編集";
     public string PrimaryText => IsDeleting ? "削除" : Editing is null ? "登録" : "保存";
     public string DeleteNotice => $"「{Editing?.Name}」を削除しますか。参照がある科目は削除できません。";
-    public string ConflictExplanation => IsDeleting ? "切り替えると、削除対象の確認内容を最新内容に置き換えます。確認してから削除してください。" : "切り替えると、現在の未保存の入力を最新内容に置き換えます。";
+
     public string LatestName => Latest?.Name ?? "";
     public string LatestIncome => CategoryRow.IncomeLabel(Latest?.IncomeExpense ?? "");
     public string LatestTax => CategoryRow.TaxLabel(Latest?.TaxCategoryCode ?? "");
@@ -120,21 +119,24 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     partial void OnSelectedOrderChanged(CategoryRow? value) => NotifyState();
     private void ContextChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(ManagementContext.Permissions))
-            RenderRows();
         NotifyState();
     }
 
-    public Task LoadAsync(CancellationToken token) => Context.RunAsync(async () =>
+    public Task LoadAsync(CancellationToken token) => Context.ReadAsync(async () =>
     {
-        var result = await Context.Categories.ListAsync(token);
-        if (!token.IsCancellationRequested && !Context.IsDisposed)
-            Apply(result);
-    }, message =>
-    {
-        if (!token.IsCancellationRequested)
-            ListError = message;
-    });
+        try
+        {
+            var result = await Context.Categories.ListAsync(token);
+            if (!token.IsCancellationRequested && !Context.IsDisposed)
+                Apply(result);
+        }
+        catch (CategoryRequestException error)
+        {
+            token.ThrowIfCancellationRequested();
+            ApplyFailure(error);
+            throw;
+        }
+    }, token, message => ListError = message);
     public void Apply(CategoriesInfo info)
     {
         if (Context.IsDisposed)
@@ -156,7 +158,6 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
             Rows.Add(new(person));
         Selected = Rows.FirstOrDefault(p => p.Category.CategoryId == id);
         OnPropertyChanged(nameof(IsEmpty));
-        OnPropertyChanged(nameof(EmptyText));
         NotifyState();
     }
 
@@ -184,8 +185,6 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
         return EditorRequested?.Invoke() ?? Task.CompletedTask;
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
-    private Task SaveAsync() => SaveRequested?.Invoke() ?? Task.CompletedTask;
     public async Task<bool> SaveEditorAsync(DateOnly? from, DateOnly? to)
     {
         if (!CanSave)
@@ -472,7 +471,6 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
             nameof(Title),
             nameof(PrimaryText),
             nameof(DeleteNotice),
-            nameof(ConflictExplanation),
             nameof(LatestName),
             nameof(LatestIncome),
             nameof(LatestTax),
@@ -486,7 +484,6 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
         AddCommand.NotifyCanExecuteChanged();
         EditCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
-        SaveCommand.NotifyCanExecuteChanged();
         OrderCommand.NotifyCanExecuteChanged();
         MoveUpCommand.NotifyCanExecuteChanged();
         MoveDownCommand.NotifyCanExecuteChanged();
@@ -496,6 +493,6 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
     public void Dispose()
     {
         Context.PropertyChanged -= ContextChanged;
-        EditorRequested = SaveRequested = null;
+        EditorRequested = null;
     }
 }

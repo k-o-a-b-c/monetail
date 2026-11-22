@@ -16,7 +16,6 @@ public sealed partial class PaymentEditorDialog : ContentDialog
         InitializeComponent();
         PaymentFrom.IsCancellationTarget = PaymentTo.IsCancellationTarget = focused => focused is Button button && Equals(button.Content, CloseButtonText);
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync, PaymentName, PaymentFrom, PaymentTo);
-        model.SaveRequested += SaveShortcutAsync;
     }
 
     private void PaymentDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
@@ -88,7 +87,6 @@ public sealed partial class PaymentEditorDialog : ContentDialog
     public void Release()
     {
         Suspend();
-        ViewModel.SaveRequested -= SaveShortcutAsync;
         Bindings.StopTracking();
     }
 

@@ -52,7 +52,6 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
     public partial string? CancelError { get; private set; }
 
     public event Func<Task>? EditorRequested;
-    public event Func<Task>? SaveRequested;
     public ParticipantsManagementViewModel(ManagementContext context)
     {
         Context = context;
@@ -85,7 +84,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
     public Task LoadAsync(CancellationToken token)
     {
         readToken = token;
-        return Context.RunAsync(async () =>
+        return Context.ReadAsync(async () =>
         {
             try
             {
@@ -101,7 +100,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
                     ListError = Message(error);
                 }
             }
-        }, message =>
+        }, token, message =>
         {
             if (!token.IsCancellationRequested)
                 ListError = message;
@@ -127,7 +126,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
     private async Task EditAsync(MemberInfo? member)
     {
         MemberEditInfo? result = null;
-        await Context.RunAsync(async () =>
+        await Context.ReadAsync(async () =>
         {
             try
             {
@@ -135,10 +134,11 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
             }
             catch (ParticipantRequestException error)
             {
+                readToken.ThrowIfCancellationRequested();
                 ApplyFailure(error);
                 ListError = Message(error);
             }
-        }, message => ListError = message);
+        }, readToken, message => ListError = message);
         if (result is not null && Context.CanOperate && !readToken.IsCancellationRequested)
             await OpenEditorAsync(result, false);
     }
@@ -168,8 +168,6 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         SelectedPerson = PersonChoices.FirstOrDefault(p => p.PersonId == edit.Member.PersonId);
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
-    private Task SaveAsync() => SaveRequested?.Invoke() ?? Task.CompletedTask;
     public async Task<bool> SaveEditorAsync()
     {
         if (!CanSave || Editing is not { } edit || !IsExcluding && (Role is not ("Admin" or "Editor" or "Viewer") || SelectedPerson is not { IsSelectable: true }))
@@ -276,7 +274,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
             await LoadAsync(readToken);
     }
 
-    private Task LoadInvitationsAsync(CancellationToken token) => Context.RunAsync(async () =>
+    private Task LoadInvitationsAsync(CancellationToken token) => Context.ReadAsync(async () =>
     {
         try
         {
@@ -286,10 +284,11 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         }
         catch (ParticipantRequestException error)
         {
+            token.ThrowIfCancellationRequested();
             ApplyFailure(error);
             InvitationNotice = Message(error);
         }
-    }, message => InvitationNotice = message);
+    }, token, message => InvitationNotice = message);
     public void ApplyInvitations(LedgerInvitationsInfo info)
     {
         if (Context.IsDisposed)
@@ -440,7 +439,6 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
             OnPropertyChanged(property);
         EditCommand.NotifyCanExecuteChanged();
         ExcludeCommand.NotifyCanExecuteChanged();
-        SaveCommand.NotifyCanExecuteChanged();
         OpenInvitationsCommand.NotifyCanExecuteChanged();
         IssueCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
@@ -449,6 +447,6 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
     public void Dispose()
     {
         Context.PropertyChanged -= ContextChanged;
-        EditorRequested = SaveRequested = null;
+        EditorRequested = null;
     }
 }

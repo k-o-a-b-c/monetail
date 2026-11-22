@@ -16,7 +16,6 @@ public sealed partial class PersonEditorDialog : ContentDialog
         InitializeComponent();
         PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget = focused => focused is Button button && Equals(button.Content, CloseButtonText);
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync, PersonName, PersonValidFrom, PersonValidTo);
-        model.SaveRequested += SaveShortcutAsync;
     }
 
     private void PersonDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
@@ -88,7 +87,6 @@ public sealed partial class PersonEditorDialog : ContentDialog
     public void Release()
     {
         Suspend();
-        ViewModel.SaveRequested -= SaveShortcutAsync;
         Bindings.StopTracking();
     }
 

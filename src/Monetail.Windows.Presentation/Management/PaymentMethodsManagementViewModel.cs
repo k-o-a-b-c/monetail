@@ -74,11 +74,10 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     }
 
     public event Func<Task>? EditorRequested;
-    public event Func<Task>? SaveRequested;
     public bool IsAdmin => permission?.CurrentRole == "Admin";
     public PeopleInfo? People { get; private set; }
     public ObservableCollection<PaymentGroup> Groups { get; } = [];
-    public PersonRow[] Owners => (People?.People ?? []).Where(p => Info?.OwnerOrderRevisions.Any(o => o.PersonId == p.PersonId) == true).OrderBy(p => p.DisplayOrder).ThenBy(p => p.PersonId).Select(p => new PersonRow(p, p.PersonId == permission?.MyPersonId)).ToArray();
+    public PersonRow[] Owners { get; private set; } = [];
 
     [ObservableProperty]
     public partial PersonRow? SelectedOwner { get; set; }
@@ -100,11 +99,11 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     public bool HasLatest => Latest is not null;
     public bool CanRestoreAuthentication => IsOrdering || HasEditor && !IsDeleting;
     public bool IsEmpty => Groups.Count == 0;
-    public string EmptyText => Info is null ? "表示対象の支払方法はありません。" : "表示対象の支払方法はありません。";
+
     public string Title => IsDeleting ? "支払方法の削除" : Editing is null ? "支払方法の追加" : "支払方法の編集";
     public string PrimaryText => IsDeleting ? "削除" : Editing is null ? "登録" : "保存";
     public string DeleteNotice => $"「{OwnerLabel(Editing?.OwnerPersonId ?? Guid.Empty)}」の「{Editing?.Name}」を削除しますか。参照がある支払方法は削除できません。";
-    public string ConflictExplanation => IsDeleting ? "切り替えると、削除対象の確認内容を最新内容に置き換えます。確認してから削除してください。" : "切り替えると、現在の未保存の入力を最新内容に置き換えます。";
+
     public string LatestName => Latest?.Name ?? "";
     public string LatestFrom => DateTimeInput.FormatDate(Latest?.ValidFrom);
     public string LatestTo => DateTimeInput.FormatDate(Latest?.ValidTo);
@@ -124,12 +123,10 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     partial void OnSelectedOrderChanged(PaymentRow? value) => NotifyState();
     private void ContextChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (args.PropertyName == nameof(ManagementContext.Permissions))
-            RenderRows();
         NotifyState();
     }
 
-    public Task LoadAsync(CancellationToken token) => Context.RunAsync(async () =>
+    public Task LoadAsync(CancellationToken token) => Context.ReadAsync(async () =>
     {
         try
         {
@@ -144,9 +141,18 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         }
         catch (PeopleRequestException error)
         {
-            throw new PaymentMethodRequestException(error.StatusCode, error.Code, error.Field, permissions: error.Permissions);
+            token.ThrowIfCancellationRequested();
+            var failure = new PaymentMethodRequestException(error.StatusCode, error.Code, error.Field, permissions: error.Permissions);
+            ApplyFailure(failure);
+            throw failure;
         }
-    }, message =>
+        catch (PaymentMethodRequestException error)
+        {
+            token.ThrowIfCancellationRequested();
+            ApplyFailure(error);
+            throw;
+        }
+    }, token, message =>
     {
         if (!token.IsCancellationRequested)
             ListError = message;
@@ -178,8 +184,12 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         }
 
         OnPropertyChanged(nameof(IsEmpty));
-        OnPropertyChanged(nameof(EmptyText));
+        var selectedOwnerId = SelectedOwner?.Person.PersonId;
+        Owners = (People?.People ?? []).Where(p => Info?.OwnerOrderRevisions.Any(o => o.PersonId == p.PersonId) == true)
+            .OrderBy(p => p.DisplayOrder).ThenBy(p => p.PersonId)
+            .Select(p => new PersonRow(p, p.PersonId == permission?.MyPersonId)).ToArray();
         OnPropertyChanged(nameof(Owners));
+        SelectedOwner = Owners.FirstOrDefault(row => row.Person.PersonId == selectedOwnerId);
         NotifyState();
     }
 
@@ -206,8 +216,6 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         return EditorRequested?.Invoke() ?? Task.CompletedTask;
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
-    private Task SaveAsync() => SaveRequested?.Invoke() ?? Task.CompletedTask;
     public async Task<bool> SaveEditorAsync(DateOnly? from, DateOnly? to)
     {
         if (!CanSave)
@@ -506,7 +514,6 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
             nameof(Title),
             nameof(PrimaryText),
             nameof(DeleteNotice),
-            nameof(ConflictExplanation),
             nameof(LatestName),
             nameof(ChooseOwner),
             nameof(OwnerName),
@@ -522,7 +529,6 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
         AddCommand.NotifyCanExecuteChanged();
         EditCommand.NotifyCanExecuteChanged();
         DeleteCommand.NotifyCanExecuteChanged();
-        SaveCommand.NotifyCanExecuteChanged();
         OrderCommand.NotifyCanExecuteChanged();
         MoveUpCommand.NotifyCanExecuteChanged();
         MoveDownCommand.NotifyCanExecuteChanged();
@@ -532,6 +538,6 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
     public void Dispose()
     {
         Context.PropertyChanged -= ContextChanged;
-        EditorRequested = SaveRequested = null;
+        EditorRequested = null;
     }
 }

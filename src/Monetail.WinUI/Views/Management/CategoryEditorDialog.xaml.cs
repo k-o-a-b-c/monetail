@@ -16,7 +16,6 @@ public sealed partial class CategoryEditorDialog : ContentDialog
         InitializeComponent();
         CategoryFrom.IsCancellationTarget = CategoryTo.IsCancellationTarget = focused => focused is Button button && Equals(button.Content, CloseButtonText);
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync, CategoryName, CategoryFrom, CategoryTo);
-        model.SaveRequested += SaveShortcutAsync;
     }
 
     private void CategoryDialogOpened(ContentDialog sender, ContentDialogOpenedEventArgs args)
@@ -88,7 +87,6 @@ public sealed partial class CategoryEditorDialog : ContentDialog
     public void Release()
     {
         Suspend();
-        ViewModel.SaveRequested -= SaveShortcutAsync;
         Bindings.StopTracking();
     }
 

@@ -21,10 +21,10 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="AddCategoryButton" Content="追加" AutomationProperties.AutomationId="AddCategoryButton" Command="{x:Bind ViewModel.AddCommand}"/>
-                    <Button Grid.Column="1" x:Name="EditCategoryButton" Content="編集" AutomationProperties.AutomationId="EditCategoryButton" Command="{x:Bind ViewModel.EditCommand}"/>
-                    <Button Grid.Column="2" HorizontalAlignment="Left" x:Name="DeleteCategoryButton" Content="削除" AutomationProperties.AutomationId="DeleteCategoryButton" Command="{x:Bind ViewModel.DeleteCommand}"/>
-                    <Button x:Name="CategoryOrderButton" Grid.Column="3" Content="並び順変更" AutomationProperties.AutomationId="CategoryOrderButton" Command="{x:Bind ViewModel.OrderCommand}"/>
+                    <Button x:Name="AddCategoryButton" Content="追加" AutomationProperties.AutomationId="AddCategoryButton" Command="{x:Bind ViewModel.AddCommand, Mode=OneTime}"/>
+                    <Button Grid.Column="1" x:Name="EditCategoryButton" Content="編集" AutomationProperties.AutomationId="EditCategoryButton" Command="{x:Bind ViewModel.EditCommand, Mode=OneTime}"/>
+                    <Button Grid.Column="2" HorizontalAlignment="Left" x:Name="DeleteCategoryButton" Content="削除" AutomationProperties.AutomationId="DeleteCategoryButton" Command="{x:Bind ViewModel.DeleteCommand, Mode=OneTime}"/>
+                    <Button x:Name="CategoryOrderButton" Grid.Column="3" Content="並び順変更" AutomationProperties.AutomationId="CategoryOrderButton" Command="{x:Bind ViewModel.OrderCommand, Mode=OneTime}"/>
                 </Grid>
                 <CheckBox x:Name="IncludeInactiveCategories" Grid.Row="2" Content="有効期間外も表示" AutomationProperties.AutomationId="IncludeInactiveCategories" IsChecked="{x:Bind ViewModel.IncludeInactive, Mode=TwoWay}"/>
                 <Grid Grid.Row="3">
@@ -62,11 +62,11 @@
                                         <ColumnDefinition Width="112"/>
                                         <ColumnDefinition Width="112"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="1" Text="{x:Bind IncomeExpense}"/>
-                                    <TextBlock Grid.Column="2" Text="{x:Bind TaxCategory}"/>
-                                    <TextBlock Grid.Column="3" Text="{x:Bind ValidFrom}"/>
-                                    <TextBlock Grid.Column="4" Text="{x:Bind ValidTo}"/>
+                                    <TextBlock Text="{x:Bind Name, Mode=OneTime}" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" Text="{x:Bind IncomeExpense, Mode=OneTime}"/>
+                                    <TextBlock Grid.Column="2" Text="{x:Bind TaxCategory, Mode=OneTime}"/>
+                                    <TextBlock Grid.Column="3" Text="{x:Bind ValidFrom, Mode=OneTime}"/>
+                                    <TextBlock Grid.Column="4" Text="{x:Bind ValidTo, Mode=OneTime}"/>
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
@@ -87,19 +87,19 @@
                 <TextBlock Grid.Row="1" Text="有効期間外を含むすべての科目を並べ替えます。" Style="{StaticResource Description}" TextWrapping="Wrap"/>
                 <InfoBar x:Name="CategoryOrderNotice" Grid.Row="2" Visibility="{x:Bind Error(ViewModel.OrderNotice), Mode=OneWay, FallbackValue=Collapsed}" IsOpen="{x:Bind HasError(ViewModel.OrderNotice), Mode=OneWay, FallbackValue=False}" Closed="CloseError" Message="{x:Bind ViewModel.OrderNotice, Mode=OneWay}" Severity="{x:Bind Severity(ViewModel.OrderNoticeInformational), Mode=OneWay}"/>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="MoveCategoryUpButton" Content="上へ" AutomationProperties.AutomationId="MoveCategoryUpButton" Command="{x:Bind ViewModel.MoveUpCommand}"/>
-                    <Button x:Name="MoveCategoryDownButton" Content="下へ" AutomationProperties.AutomationId="MoveCategoryDownButton" Command="{x:Bind ViewModel.MoveDownCommand}"/>
+                    <Button x:Name="MoveCategoryUpButton" Content="上へ" AutomationProperties.AutomationId="MoveCategoryUpButton" Command="{x:Bind ViewModel.MoveUpCommand, Mode=OneTime}"/>
+                    <Button x:Name="MoveCategoryDownButton" Content="下へ" AutomationProperties.AutomationId="MoveCategoryDownButton" Command="{x:Bind ViewModel.MoveDownCommand, Mode=OneTime}"/>
                 </StackPanel>
                 <ListView x:Name="CategoryOrderList" Grid.Row="4" SelectionMode="Single" AutomationProperties.Name="有効期間外を含む全科目の順序" AutomationProperties.AutomationId="CategoryOrderList" ItemsSource="{x:Bind ViewModel.OrderRows, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedOrder, Mode=TwoWay}">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="vm:CategoryRow">
-                            <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/>
+                            <TextBlock Text="{x:Bind Name, Mode=OneTime}" TextWrapping="Wrap" Margin="8,12"/>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
                 <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
-                    <Button x:Name="SaveCategoryOrderButton" Content="保存" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SaveCategoryOrderButton" Command="{x:Bind ViewModel.SaveOrderCommand}"/>
-                    <Button x:Name="CancelCategoryOrderButton" Content="キャンセル" AutomationProperties.AutomationId="CancelCategoryOrderButton" Command="{x:Bind ViewModel.CancelOrderCommand}"/>
+                    <Button x:Name="SaveCategoryOrderButton" Content="保存" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SaveCategoryOrderButton" Command="{x:Bind ViewModel.SaveOrderCommand, Mode=OneTime}"/>
+                    <Button x:Name="CancelCategoryOrderButton" Content="キャンセル" AutomationProperties.AutomationId="CancelCategoryOrderButton" Command="{x:Bind ViewModel.CancelOrderCommand, Mode=OneTime}"/>
                 </StackPanel>
             </Grid>
         </Grid>

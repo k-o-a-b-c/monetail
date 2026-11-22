@@ -103,9 +103,17 @@ public sealed class ManagementFeatureViewModelTests
         Assert.False(await model.SaveEditorAsync(null, null));
         var creation = model.Creation;
         Assert.NotNull(creation);
+        model.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(model.Owners))
+                model.SelectedOwner = null; // ComboBoxのItemsSource差替えを模擬する。
+        };
+        await model.ResumeAsync(null, default);
+        Assert.Equal(mine, model.ChosenOwner);
+        Assert.Same(creation, model.Creation);
         Assert.True(await model.SaveEditorAsync(null, null));
         Assert.Same(creation, model.Creation);
-        Assert.Equal(fixture.Requests[^2].Body, fixture.Requests[^1].Body);
+        Assert.Equal(fixture.Requests.Where(r => r.Method == HttpMethod.Post).First().Body, fixture.Requests[^1].Body);
         model.CloseEditor();
         model.Apply(state with { CurrentRole = "Editor" });
         Assert.True(model.OrderCommand.CanExecute(mine));
@@ -138,6 +146,25 @@ public sealed class ManagementFeatureViewModelTests
         Assert.Same(adopted, model.Editing);
         Assert.Equal("Editor", model.Role);
         Assert.Equal(2, fixture.Requests.Count);
+    }
+
+    [Fact]
+    public async Task CancelledReadCannotStartAuthenticationOrApplyDataAndDisposeIsIdempotent()
+    {
+        using var fixture = new ManagementTestContext(_ => throw new InvalidOperationException());
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        var reported = false;
+        await fixture.Context.ReadAsync(() => throw new Monetail.Windows.Client.Authentication.AuthenticationRejectedException(),
+            cancelled.Token, _ => reported = true);
+        Assert.False(reported);
+        await Assert.ThrowsAsync<Monetail.Windows.Client.Authentication.AuthenticationRejectedException>(() =>
+            fixture.Context.ReadAsync(() => throw new Monetail.Windows.Client.Authentication.AuthenticationRejectedException(), default, _ => reported = true));
+        fixture.Context.Dispose();
+        fixture.Context.Dispose();
+        Assert.True(fixture.Context.IsDisposed);
+        Assert.True(fixture.Context.Token.IsCancellationRequested);
+        Assert.False(fixture.Context.CanOperate);
     }
 
     [Fact]

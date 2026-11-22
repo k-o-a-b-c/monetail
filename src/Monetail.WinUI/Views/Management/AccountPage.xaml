@@ -1,7 +1,7 @@
 <Page x:Class="Monetail.WinUI.Views.Management.AccountPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" NavigationCacheMode="Disabled" IsTabStop="False">
     <Border Style="{StaticResource Card}" Margin="16,0,0,0"><StackPanel x:Name="AccountContent" Spacing="24">
         <TextBlock Text="ログイン情報" Style="{ThemeResource TitleTextBlockStyle}"/>
-        <StackPanel Spacing="8"><TextBlock Text="表示名" Style="{StaticResource Description}"/><TextBlock x:Name="AccountName" TextWrapping="Wrap" Text="{x:Bind ViewModel.AccountName}"/></StackPanel>
-        <StackPanel Spacing="8"><TextBlock Text="接続先" Style="{StaticResource Description}"/><TextBlock x:Name="AccountServer" TextWrapping="Wrap" Text="{x:Bind ViewModel.Context.Origin}"/></StackPanel>
+        <StackPanel Spacing="8"><TextBlock Text="表示名" Style="{StaticResource Description}"/><TextBlock x:Name="AccountName" TextWrapping="Wrap" Text="{x:Bind ViewModel.AccountName, Mode=OneWay}"/></StackPanel>
+        <StackPanel Spacing="8"><TextBlock Text="接続先" Style="{StaticResource Description}"/><TextBlock x:Name="AccountServer" TextWrapping="Wrap" Text="{x:Bind ViewModel.Context.Origin, Mode=OneWay, FallbackValue=''}"/></StackPanel>
     </StackPanel></Border>
 </Page>

@@ -33,6 +33,7 @@ public partial class App
                 TraceInvocation($"participantRecoveryAttempt={attempt}; phase=passed");
             }
         }),
+        new("management-mvvm", "existing", CheckManagementMvvm),
         new("categories", "existing", CheckCategories),
         new("people-filter", "existing", CheckPeopleFilter),
         new("tax-rate-connection-cache", "existing", CheckTaxRateConnectionCache),

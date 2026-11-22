@@ -8,7 +8,7 @@ namespace Monetail.Windows.Presentation.Management;
 public sealed partial class ManagementContext : ObservableObject, IDisposable
 {
     private readonly Func<Func<Task>, Action<string>?, Task> execute;
-    private readonly CancellationTokenSource lifetime;
+    private CancellationTokenSource? lifetime;
     public ManagementContext(MonetailApiClient api, ClientSession session, LedgerMasterCache masters, LedgerInfo ledger, Guid accountId, string origin, Func<Func<Task>, Action<string>?, Task> execute, CancellationToken token = default)
     {
         Ledger = ledger;
@@ -32,8 +32,8 @@ public sealed partial class ManagementContext : ObservableObject, IDisposable
     public CategoriesWorkspace Categories { get; }
     public PaymentMethodsWorkspace Payments { get; }
     public ParticipantsWorkspace Participants { get; }
-    public CancellationToken Token => lifetime.Token;
-    public bool IsDisposed => lifetime.IsCancellationRequested;
+    public CancellationToken Token => lifetime?.Token ?? new CancellationToken(true);
+    public bool IsDisposed => lifetime is null;
     public bool CanOperate => !IsBusy && !IsSuspended && !IsDisposed;
 
     [ObservableProperty]
@@ -58,11 +58,26 @@ public sealed partial class ManagementContext : ObservableObject, IDisposable
         Permissions = new(ledger.Role, Permissions.MyPersonId);
     }
 
+    public Task ReadAsync(Func<Task> action, CancellationToken token, Action<string> failed) => RunAsync(async () =>
+    {
+        try
+        {
+            await action();
+        }
+        catch (Exception error)when (token.IsCancellationRequested && error is OperationCanceledException or AuthenticationRejectedException or AuthenticationContextChangedException)
+        {
+        // 通常の認証失効はWindowへ渡し、破棄済み読取の応答だけを無効化する。
+        }
+    }, message =>
+    {
+        if (!token.IsCancellationRequested)
+            failed(message);
+    });
     public void Dispose()
     {
-        if (IsDisposed)
-            return;
-        lifetime.Cancel();
-        lifetime.Dispose();
+        var current = lifetime;
+        lifetime = null;
+        current?.Cancel();
+        current?.Dispose();
     }
 }

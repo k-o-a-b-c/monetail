@@ -32,7 +32,7 @@ public partial class App
             await Settle();
             Check(All(list).OfType<TextBlock>().All(text => !text.Text.Contains(fixture.AccountId.ToString(), StringComparison.OrdinalIgnoreCase)), "一覧の同名アカウントに内部IDを表示しない");
             var own = (ParticipantRow)list.Items[1];
-            Check(own.ExcludeVisibility == Visibility.Collapsed, "本人の除外ボタンを表示しない");
+            Check(!own.CanExclude, "本人の除外ボタンを表示しない");
             await InvokeAsync(() => ParticipantActionButton(list, fixture.AccountId, "編集"));
             await Wait(() => ManagementDialogVisible(root, "ParticipantDialog"));
             await Settle();

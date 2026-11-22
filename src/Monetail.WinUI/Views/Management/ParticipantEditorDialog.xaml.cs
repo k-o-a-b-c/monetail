@@ -15,7 +15,6 @@ public sealed partial class ParticipantEditorDialog : ContentDialog
         ViewModel = model;
         InitializeComponent();
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync);
-        ViewModel.SaveRequested += SaveShortcutAsync;
     }
 
     private void ParticipantDialogClosing(ContentDialog sender, ContentDialogClosingEventArgs args) => args.Cancel = ViewModel.Context.IsBusy && !suspended;
@@ -50,7 +49,6 @@ public sealed partial class ParticipantEditorDialog : ContentDialog
     public void Release()
     {
         Suspend();
-        ViewModel.SaveRequested -= SaveShortcutAsync;
         Bindings.StopTracking();
     }
 
