@@ -400,7 +400,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
                 else
                     ApplyInvitations(await Context.Participants.InvitationsAsync(token));
             }
-            catch (ParticipantRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            catch (ParticipantRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 ApplyFailure(error);
                 denied = "現在の権限では保存できません。未保存の入力は残しています。";

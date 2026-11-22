@@ -1,3 +1,4 @@
+using Monetail.WinUI.Views.Management;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.WinUI.Input;
@@ -65,6 +66,7 @@ public partial class App
             var root = await OpenPersonWindow(fixture, server);
             await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
             await Settle();
+            var model = ((PeoplePage)ManagementFeature(root)!).ViewModel;
             Find<TextBox>(root, "PersonName").Text = "別サーバーへ渡さない入力";
             fixture.RejectSession = true;
             await WaitPersonEditorReady(root);
@@ -75,7 +77,7 @@ public partial class App
             // 別の起動が変更先でログイン済みの状態。IDが同じでも接続先を区別する。
             fixture.Tokens.Current = new("synthetic-access", "synthetic-refresh", DateTimeOffset.UtcNow.AddMinutes(10));
             await StartSyntheticAsync(reloadSettings: true);
-            Check(Visible(root, "HomePage") && Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0 &&
+            Check(Visible(root, "HomePage") && ManagementFeature(root) is null && model.Name == "" && !model.HasEditor && model.Creation is null && server.Writes.Count == 0 &&
                 !fixture.OtherServerRequests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
                 "同じアカウントIDでも別のAPI接続先へ入力を引き継がない");
         }
@@ -86,6 +88,7 @@ public partial class App
             var root = await OpenPersonWindow(fixture, server);
             await InvokeAsync(() => Find<Button>(root, "AddPersonButton"));
             await Settle();
+            var model = ((PeoplePage)ManagementFeature(root)!).ViewModel;
             Find<TextBox>(root, "PersonName").Text = "別アカウントへ渡さない入力";
             fixture.RejectSession = true;
             await WaitPersonEditorReady(root);
@@ -98,7 +101,7 @@ public partial class App
             await Wait(() => Visible(root, "HomePage"));
             await fixture.CallbackTask!;
             Check(!ManagementDialogVisible(root, "PersonDialog") &&
-                Find<TextBox>(root, "PersonName").Text == "" && server.Writes.Count == 0 &&
+                ManagementFeature(root) is null && model.Name == "" && !model.HasEditor && model.Creation is null && server.Writes.Count == 0 &&
                 !fixture.Requests.Any(path => path.EndsWith("/open", StringComparison.Ordinal)),
                 "別アカウントでは入力を引き継がず、元の編集家計簿も自動で開かない");
         }

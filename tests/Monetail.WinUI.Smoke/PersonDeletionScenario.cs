@@ -61,7 +61,7 @@ public partial class App
             server.ReleaseDelete = new();
             await InvokeAsync(() => Find<Button>(root, "SavePersonButton"));
             await Wait(() => server.DeleteStarted.Task.IsCompleted);
-            Check(!dialog.IsEnabled && !Find<Button>(root, "SavePersonButton").IsEnabled &&
+            Check(!Find<ContentDialog>(root, "PersonDialog").IsEnabled && !Find<Button>(root, "SavePersonButton").IsEnabled &&
                 !Find<Button>(root, "CancelPersonButton").IsEnabled,
                 "削除中は確認・キャンセルを無効にして重複操作を止める");
             server.ReleaseDelete.SetResult();

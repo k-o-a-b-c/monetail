@@ -63,7 +63,7 @@ public sealed partial class MainWindow
             ledger = await connection.Ledgers.OpenAsync(ledger.LedgerId, token);
             context.Reopened(ledger, connection.Api, connection.Session);
         }
-        catch (LedgerRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        catch (LedgerRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             context.ApplyPermissions(new(null, null));
             denied = "この家計簿を開く権限がありません。未保存の入力は残していますが、保存できません。";

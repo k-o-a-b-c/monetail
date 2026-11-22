@@ -399,7 +399,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
             {
                 Apply(await Context.People.ListAsync(token));
             }
-            catch (PeopleRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            catch (PeopleRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 ApplyFailure(error);
                 denied = "現在の権限ではこの編集を保存できません。未保存の入力は残しています。";

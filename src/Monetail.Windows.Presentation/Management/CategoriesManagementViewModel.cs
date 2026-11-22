@@ -407,7 +407,7 @@ public sealed partial class CategoriesManagementViewModel : ObservableObject, ID
             {
                 Apply(await Context.Categories.ListAsync(token));
             }
-            catch (CategoryRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            catch (CategoryRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 ApplyFailure(error);
                 denied = "現在の権限ではこの編集を保存できません。未保存の入力は残しています。";

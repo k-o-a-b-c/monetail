@@ -448,13 +448,13 @@ public sealed partial class PaymentMethodsManagementViewModel : ObservableObject
                 Context.Masters.UpdatePeople(Context.Ledger.LedgerId, People);
                 Apply(payments);
             }
-            catch (PeopleRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            catch (PeopleRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 permission = error.Permissions ?? new(null, null);
                 Context.ApplyPermissions(permission);
                 denied = "現在の権限では操作できません。未保存の入力は残しています。";
             }
-            catch (PaymentMethodRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            catch (PaymentMethodRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 ApplyFailure(error);
                 denied = "現在の権限ではこの編集を保存できません。未保存の入力は残しています。";

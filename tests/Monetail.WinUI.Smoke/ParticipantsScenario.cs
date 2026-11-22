@@ -202,6 +202,23 @@ public partial class App
             await Settle(); await fixture.CallbackTask!;
             Check(server.CreatedCount == 0 && Find<TextBlock>(root, "InvitationRetryNotice").Visibility == Visibility.Visible,
                 "招待発行の認証復帰は未完了要求を復元し自動発行しない");
+            var page = (Monetail.WinUI.Views.Management.ParticipantsPage)ManagementFeature(root)!;
+            var draft = page.ViewModel.InvitationDraft;
+            var invitations = Find<ListView>(root, "InvitationsList");
+            var invitation = ((LedgerInvitationRow)invitations.Items[0]).Invitation;
+            await InvokeInvitationActionButton(invitations, invitation.InvitationId, "取消");
+            await Wait(() => ManagementDialogVisible(root, "InvitationCancelDialog"));
+            fixture.RejectSession = true;
+            await InvokeAsync(() => ParticipantDialogAction(root, "InvitationCancelDialog", true));
+            await Wait(() => Visible(root, "LoginPage") && !page.HasDialog);
+            fixture.RejectSession = false;
+            fixture.CompleteLogin = true;
+            await InvokeAsync(() => Find<Button>(root, "LoginButton"));
+            await Wait(() => Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
+            await fixture.CallbackTask!;
+            Check(ReferenceEquals(page, ManagementFeature(root)) && !page.HasDialog && page.ViewModel.Cancelling is null &&
+                ReferenceEquals(draft, page.ViewModel.InvitationDraft) && server.CreatedCount == 0 && server.CancelCount == 0,
+                "未完了発行を保持した取消中の401は、取消確認だけ解放して発行・取消を自動実行しない");
             await InvokeAsync(() => Find<Button>(root, "IssueInvitationButton")); await Wait(() => server.CreatedCount == 1);
             Check(server.CreateRequests.Single() == original, "招待発行の認証復帰でも同じrequestIdを再使用");
         }

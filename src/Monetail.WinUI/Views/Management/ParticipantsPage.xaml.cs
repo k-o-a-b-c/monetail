@@ -71,8 +71,11 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
         reads?.Cancel();
         if (dialog is ParticipantEditorDialog participant)
             participant.Suspend();
-        else if (dialog is InvitationCancellationDialog invitation)
-            invitation.Release();
+        else if (dialog is InvitationCancellationDialog)
+        {
+            ReleaseDialog();
+            ViewModel.CloseCancellation();
+        }
     }
 
     public async Task ResumeAsync(string? denied, CancellationToken token)
@@ -119,7 +122,7 @@ public sealed partial class ParticipantsPage : Page, IManagementFeature
             Clipboard.SetContent(data);
             ViewModel.Copied(true);
         }
-        catch (Exception error)when (error is System.Runtime.InteropServices.COMException or InvalidOperationException)
+        catch (Exception error) when (error is System.Runtime.InteropServices.COMException or InvalidOperationException)
         {
             ViewModel.Copied(false);
         }
