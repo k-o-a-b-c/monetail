@@ -72,13 +72,17 @@ VMは未保存URLを正本として保持し、既存Clientへ渡す際だけ解
 
 WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 Frame/Page実例](https://learn.microsoft.com/en-us/windows/apps/develop/ui/navigation/navigate-between-two-pages)・[Frame.Navigate 1.8参照](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.frame.navigate?view=windows-app-sdk-1.8)・[WinUI 3データバインド](https://learn.microsoft.com/en-us/windows/apps/develop/data-binding/data-binding-in-depth)と製品ビルドでAPI/バインドを確認した。旧VB版はXML/SQLiteの接続設定を使い、APIのHTTPS URL/OAuth設定画面の直接対応はないため、新版の既存Client契約を優先する。検証結果と手動確認の限界は[tests/README](../tests/README.md)を参照する。
 
-## Shell・Page・MVVM統合の3PR計画（PR1 / Draft PR #231）
+<a id="shellpagemvvm統合の3pr計画pr1--draft-pr-231"></a>
+
+## Shell・Page・MVVM統合の3PR計画（PR1 #231マージ済み）
+
+PR1は[PR #231](https://github.com/k-o-a-b-c/monetail/pull/231)で実装・マージ済み。以下はPR2/PR3の未移管範囲も含む段階設計であり、3PR全体の完了を意味しない。
 
 最終構成はMainWindowを共通Shell（ナビゲーション許可、家計簿/本人/接続先、認証フロー、横断未保存確認、全体操作状態/通知、Window寿命）とし、主画面は標準Frame/Page、複雑な表示/CommandはPresentation、業務下書き/通信/版/再送はClientを正本とする。全面MVVM化のための基盤や独自ルーターは作らない。
 
 | 工程 | 境界と所有者 | 今回の状態 |
 | --- | --- | --- |
-| PR1 | WorkspaceHostのFrame、記録RecordHomePage/RecordHomeViewModel、管理ManagementPage/ManagementViewModel。共通ヘッダーはShell、検索/選択と表示用投影はVM、IME/フォーカス/表示位置はView。既存の2一覧VM/RecordSearchStateを再利用 | 実装・検証対象 |
+| PR1 | WorkspaceHostのFrame、記録RecordHomePage/RecordHomeViewModel、管理ManagementPage/ManagementViewModel。共通ヘッダーはShell、検索/選択と表示用投影はVM、IME/フォーカス/表示位置はView。既存の2一覧VM/RecordSearchStateを再利用 | **PR #231で実装・マージ済み** |
 | PR2 | 人物/科目/支払方法/参加者/招待と順序・ダイアログを機能View/VMへ移管。各取得寿命、権限投影、競合/401/再送と画面通知を維持し、Windowの管理詳細Grid・条件付きShowErrorを除去。ダイアログは必要時生成 | 未実装 |
 | PR3 | 既存レシート/振替EditorView/VMを各入力Pageへ統合。Windowの入力View所有とAPI調整を整理し、401の実コントロール保持・フォーカス/未確定入力/要求保持を維持して旧partial/ホストを撤去 | 未実装 |
 
@@ -114,25 +118,11 @@ flowchart LR
     Shell --> Legacy[管理詳細 / 入力内容：PR2・PR3で移管]
 ```
 
-比較基準はmain `e74c241`。手書きのMainWindow*.csをRoslynで計測し、生成コード・obj/binは含めない。フィールド数はFieldDeclarationで宣言した変数数で、プロパティ/生成backing fieldは除外する。直接参照は移管先のx:Name識別子のC#出現数で、宣言/文字列を含む一貫した集計。機能詳細や入力内部の未移管参照は別扱いとする。
+PR1のソース行数・フィールド数・直接参照数の比較値、検証結果と未検証の実機操作は[PR #231](https://github.com/k-o-a-b-c/monetail/pull/231)を参照する。行数やフィールド数の増減は責務分離の成否を単独では示さない。
 
-| 項目 | 変更前 | PR1 |
-| --- | ---: | ---: |
-| MainWindow.xaml行数 | 593 | 464 |
-| MainWindow*.cs行数 / メソッド数 | 3,870 / 304 | 3,726 / 286 |
-| MainWindowの明示フィールド / うちbool | 110 / 40 | 106 / 37 |
-| 共通検索・一覧内部・管理メニューへの直接依存（コントロール種類 / 参照箇所） | 32 / 108 | 0 / 0 |
-| WinUI + PresentationのC#/XAML総行数 | 9,052 | 9,431 |
+**現在の境界**：記録・管理の2Page/2VMと家計簿選択Pageを必要時生成する。記録ホームの行・選択・検索適用状態は既存の2一覧VM/`RecordSearchState`が正本で、Windowに別の状態を作らない。表示位置は一覧VMに保持し、`ListViewportController`がUIへの適用を担当する。記録/管理Pageは通常離脱時に購読・復帰要求・Frame参照を解放し、401での編集中に限って元Pageと入力を一時保持する。
 
-Windowの`receiptFiltersUpdating`、`receiptRestorePending`、`transferRestorePending`を撤去し、検索の別所有フィールドと個別一覧の設定/同期コードを除去した。`homeResume`と検索キーボードはPageへ移管し、取消はPage寿命、通信世代は既存一覧VMに限定する。表示位置は既存一覧VMへ保持し、Page再生成直後に既存ListViewportControllerで復元する。追加読込中も位置を維持し、遅延応答で再度位置を上書きしない。
-
-新規の2Page + 2VMは計13個の明示フィールド（bool 5個）。内訳は記録VMの選択肢2配列・読込開始通知2値・破棄済み1、管理VMの選択・家計簿名・表示可否4、Pageのキーボード/復帰取消2である。Windowと新規4クラスの合計だけではフィールド119/bool42となり、全体の状態数が減ったとは主張しない。表示用投影がXAMLの直接設定から通知可能なVM値へ変わった分を含み、検索・行・選択・業務下書き・requestIdの正本は増やしていない。総行数増379行はPage寿命/型付きバインディングと明示通知を含むコストであり、行数削減を成果とはしない。
-
-追加型は2Page・2VM・選択肢/読込通知/表示位置の3型・Shell内のprivate enumの計8型。旧ReceiptFilterChoiceを削除し、既存LedgerChoiceViewは型追加せずPageへ変更した。Service/DI/ルーターは0増である。
-
-記録VMの8Commandと管理VMの1Commandに既存操作を接続する。Pageの公開接続は記録がVM参照1・操作7・失敗イベント1、管理がVM参照1・操作2・戻るイベント1。Windowは子コントロールを触らず、VM/API調整と内容領域2つの受渡しだけを使う。管理VMの承認/選択コールバック2と記録VMの再試行通知2は、今回Windowに残すAPI/遷移責務の境界である。汎用Service・DI・イベントバス・新規インターフェイスは追加しない。型付き選択肢/読込通知/表示位置の小さな値オブジェクト以外の汎用モデルも追加しない。
-
-既存の管理詳細/入力業務・条件付きShowError・ダイアログ寿命はPR2/3へ残す。PR2では管理機能ごとに既存401/版競合/並び順テストを移設し、旧内容領域を機能Page/Viewへ置き換える。PR3では既存入力View/VMを再利用し、専用Pageの生成/破棄と401一時保持を移管してEditorContentsを撤去する。各PRでClient/業務状態を複製せず、未保存取消と結果不明の要求保持を先に検証する。
+共通検索・一覧内部・管理メニューへのWindow直接参照を除去した一方、**管理詳細とレシート/振替入力の移管はPR2/3に残る**。WindowのAPI/遷移・認証・結果不明/未保存の境界は維持し、Service・DI・独自ルーター・イベントバスは追加しない。従来の機能詳細エラー通知とダイアログ生成の課題は残り、全面MVVM化を完了としない。
 
 ## RunAsyncと認証失敗の責務（PR #230）
 
@@ -313,14 +303,7 @@ Page本体はXAML38行・C#77行。製品183行増には所属確認/ログア�
 
 MainWindowは内側のListView/ボタンに触れず、一覧設定とイベント受信だけを行う。元の標準コントロール・配置値・AutomationIdを維持し、余分なTab停止を追加しない。新しいViewModel・依存ライブラリ・ナビゲーション基盤は導入しない。家計簿作成/ホーム等は今回は分離しない。
 
-| 計測対象 | 基点main `0e246d2` | 分離後 |
-| --- | ---: | ---: |
-| MainWindow.xaml（空行込み） | 987行 | 980行 |
-| MainWindow*.cs全partial（空行込み、生成コード除外） | 4,504行 | 4,498行 |
-| 家計簿選択画面の内側コントロールへの直接参照（名前の種類） | 2 | 0 |
-| MainWindow.xamlのx:NameとMainWindow*.cs識別子の共通集合 | 298 | 296 |
-
-最後の行はソースの名前一致による指標で、意味解析/生成コードの集計ではない。画面自体の`LedgerChoicePage`参照は1つのまま維持する。新規ViewはXAML17行＋C#31行、既存MainWindowの13行減と合わせて製品コードは差引35行増。行数削減自体よりも、画面の選択/ボタン処理をMainWindowから切り離したことを成果とする。検証の正本は[tests/README.md](../tests/README.md)。
+移管時のXAML/C#行数・直接参照数は当時のGit差分を参照し、検証は[テスト記録](../tests/README.md)を参照。家計簿選択Viewが選択状態と［開く］通知を所有し、Windowは取得・認証・家計簿を開く操作・未保存保護を担当する。新しい汎用VM/DIは増やさず、旧版の選択・Tab・見た目の契約を維持する。
 
 ## 科目一覧の分離（一覧だけ）
 
@@ -328,19 +311,7 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 公開面は`Categories`（nullは従来の未取得/解除、空配列は取得済み0件）・`SelectedCategory`・`IncludeInactive`の3プロパティ、MainWindowが計算済みの2つの操作可否を渡す`SetActionsEnabled`、4操作＋選択変更の5イベント。9メンバー（コンストラクター除外）であり、イベント集約enum/ディスパッチャーや新ViewModel/DIはない。ViewからMainWindow/Workspace/他画面を参照しない。既存`CategoryRow`は順序画面とも共有するため移動しない。空一覧の表示属性は従来のDescriptionと同値でView内へ置き、MainWindowのローカルStyleに依存しない。
 
-| 集計対象 | 基点main `aeb1a18` | 分離後 |
-| --- | ---: | ---: |
-| 製品WinUIの手書きC#/XAML総行数（空行込み） | 5,970 | 6,036 |
-| MainWindow.xaml / 全partial C#行数 | 980 / 4,498 | 959 / 4,491 |
-| 一覧内部へのMainWindow直接参照（名前の種類 / 出現数） | 7 / 17 | 0 / 0 |
-| MainWindow科目関連の状態フィールド | 17 | 17 |
-| Viewの追加データ参照 / boolフラグ | 0 / 0 | 1 / 0 |
-| Viewの公開イベント / 公開API総数 | 0 / 0 | 5 / 9 |
-| 対象内のXAMLイベント購読（内部＋境界） | 7＋0 | 7＋5 |
-
-行数は`git ls-files src/Monetail.WinUI`の`.cs`/`.xaml`（生成物除外）。新ViewはXAML32＋C#62＝94行、MainWindowの28行減と合わせ差引66行増。直接参照は移管した7つのx:Nameの識別子一致数。状態はCategories/CategoryRecovery/CategoryOrderの明示フィールドを数え、生成コントロール参照とイベントdelegate backing fieldは除外する（追加delegateはイベント5件として明示）。選択/フィルターのNative状態は従来どおり各1つで複製しない。
-
-残る依存は、MainWindowからの一覧更新・選択/フィルター参照・操作可否の反映と5通知、および既存CategoryRow/CategoryInfoの共有。MainWindowの業務状態17個は今回削減しない。全件参照とイベント境界が増える代わりに、直接のコントロール操作をViewへ閉じ込める。取得/解除は既存DisplayCategories/ResetCategoriesから同期する。検証は[tests/README.md](../tests/README.md)を参照。
+移管時の行数・状態数・直接参照数の比較は当時のGit差分を、検証は[テスト記録](../tests/README.md)を参照。Windowから科目一覧の内部コントロールへの直接アクセスをやめ、一覧表示・選択・操作通知をViewに閉じた。Windowには既存の業務状態・権限・ダイアログ/競合・401復帰を残し、同じ状態を新しいVMやDIで複製しない。**科目画面全体をMVVMへ移管済みとは扱わない**。
 
 ## 振替一覧のMVVM移行（実装済み）
 
