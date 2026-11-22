@@ -60,6 +60,7 @@ public sealed partial class MainWindow
     {
         token.ThrowIfCancellationRequested();
         account = authenticated;
+        if (management is not null) management.AccountName = authenticated.DisplayName ?? "";
         if (EditorAwaitingLogin)
             authentication?.KeepRecoveryReadAlive();
         await OpenDestinationAsync(token);

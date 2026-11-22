@@ -56,7 +56,6 @@ public sealed partial class MainWindow
             return false;
         }
 
-        management.AccountName = account.DisplayName ?? "";
         var ledger = context.Ledger;
         string? denied = null;
         try

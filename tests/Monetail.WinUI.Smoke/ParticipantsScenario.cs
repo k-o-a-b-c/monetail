@@ -48,6 +48,12 @@ public partial class App
             await Wait(() => !ParticipantEditorClosed(root)); await Settle();
             ComboBox role() => Find<ComboBox>(root, "ParticipantRole"); ComboBox person() => Find<ComboBox>(root, "ParticipantPerson");
             Check(server.EditReads == 2 && person().Items.OfType<ParticipantPersonChoice>().Any(item => !item.IsSelectable), "編集開始の1要求で人物候補を取得し対応済み候補を無効化");
+            var unavailable = person().Items.OfType<ParticipantPersonChoice>().First(item => !item.IsSelectable);
+            person().IsDropDownOpen = true;
+            await Wait(() => person().ContainerFromItem(unavailable) is ComboBoxItem { IsLoaded: true });
+            Check(person().ContainerFromItem(unavailable) is ComboBoxItem { IsEnabled: false },
+                "対応済み人物は表示用データだけでなく実際のComboBoxItemも選択不可にする");
+            person().IsDropDownOpen = false;
             role().SelectedIndex = 2; person().SelectedIndex = 0;
             server.Conflict = true;
             var reads = server.ListReads;

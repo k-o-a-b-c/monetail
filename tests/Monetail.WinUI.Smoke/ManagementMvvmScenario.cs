@@ -51,6 +51,27 @@ public partial class App
         await Wait(() => Visible(root, "LoginPage") && EditorClosed(root));
         Check(ReferenceEquals(reopened, ManagementFeature(root)) && ReferenceEquals(model, reopened.ViewModel) && model.Name == nameInput.Text,
             "401は元の人物Page・ViewModel・実コントロールを破棄しない");
+        var creation = model.Creation;
+        Check(creation is not null, "401で未完了の人物作成要求を保持する");
+        var interruptedMaster = false;
+        fixture.PeopleHandler = async (request, token) =>
+        {
+            if (!interruptedMaster && request.Method == HttpMethod.Get)
+            {
+                interruptedMaster = true;
+                fixture.RejectSession = true;
+                return new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
+            }
+            return await server.HandleAsync(request, token);
+        };
+        fixture.RejectSession = false;
+        fixture.CompleteLogin = true;
+        await InvokeAsync(() => Find<Button>(root, "LoginButton"));
+        await Wait(() => interruptedMaster && Visible(root, "LoginPage") && Find<Button>(root, "LoginButton").IsEnabled);
+        await fixture.CallbackTask!;
+        Check(ReferenceEquals(reopened, ManagementFeature(root)) && ReferenceEquals(model, reopened.ViewModel) &&
+            ReferenceEquals(nameInput, Find<TextBox>(root, "PersonName")) && ReferenceEquals(creation, model.Creation) && nameInput.Text == "連続401でも保持" && server.Writes.Count == 0,
+            "マスタ取得中の連続401でも最初のPage・モデル・入力と作成要求を保持する");
         await LoginAgain(fixture, root);
         Check(ReferenceEquals(nameInput, Find<TextBox>(root, "PersonName")) && ReferenceEquals(reopened, ManagementFeature(root)) && server.Writes.Count == 0,
             "認証復帰は同じ入力コントロールを再利用し、自動保存・二重要求をしない");
