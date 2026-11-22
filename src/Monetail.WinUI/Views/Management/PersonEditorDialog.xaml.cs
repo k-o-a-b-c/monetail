@@ -4,19 +4,17 @@ using Monetail.Windows.Presentation.Management;
 using Monetail.WinUI.Input;
 
 namespace Monetail.WinUI.Views.Management;
-
 public sealed partial class PersonEditorDialog : ContentDialog
 {
     public PeopleManagementViewModel ViewModel { get; }
+
     private readonly FormKeyboard keyboard;
     private bool suspended;
-
     public PersonEditorDialog(PeopleManagementViewModel model)
     {
         ViewModel = model;
         InitializeComponent();
-        PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget =
-            focused => focused is Button button && Equals(button.Content, CloseButtonText);
+        PersonValidFrom.IsCancellationTarget = PersonValidTo.IsCancellationTarget = focused => focused is Button button && Equals(button.Content, CloseButtonText);
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync, PersonName, PersonValidFrom, PersonValidTo);
         model.SaveRequested += SaveShortcutAsync;
     }
@@ -60,9 +58,7 @@ public sealed partial class PersonEditorDialog : ContentDialog
     {
         if (keyboard.IsComposing || !ViewModel.CanSave)
             return false;
-        var saved = await ViewModel.SaveEditorAsync(
-            ViewModel.IncludesPeriod ? PersonValidFrom.Complete() : ViewModel.Editing?.ValidFrom,
-            ViewModel.IncludesPeriod ? PersonValidTo.Complete() : ViewModel.Editing?.ValidTo);
+        var saved = await ViewModel.SaveEditorAsync(ViewModel.IncludesPeriod ? PersonValidFrom.Complete() : ViewModel.Editing?.ValidFrom, ViewModel.IncludesPeriod ? PersonValidTo.Complete() : ViewModel.Editing?.ValidTo);
         if (!saved && !suspended)
         {
             if (ViewModel.NameError is not null)
@@ -70,6 +66,7 @@ public sealed partial class PersonEditorDialog : ContentDialog
             else if (ViewModel.PeriodError is not null)
                 PersonValidFrom.Focus(FocusState.Programmatic);
         }
+
         return saved;
     }
 

@@ -7,9 +7,7 @@ using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transport;
 
 namespace Monetail.Windows.Presentation.Management;
-
 public sealed record ParticipantPersonChoice(Guid? PersonId, string Name, bool IsSelectable);
-
 /// <summary>参加者の編集と招待要求を保持する。招待の再送下書きは通常の一覧移動でも失わない。</summary>
 public sealed partial class ParticipantsManagementViewModel : ObservableObject, IDisposable
 {
@@ -23,25 +21,44 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
     public ObservableCollection<ParticipantRow> Rows { get; } = [];
     public ObservableCollection<LedgerInvitationRow> InvitationRows { get; } = [];
     public ParticipantPersonChoice[] PersonChoices { get; private set; } = [];
+
     private bool editorDenied, accessDenied;
     private CancellationToken readToken;
-    [ObservableProperty] public partial bool IsInvitations { get; private set; }
-    [ObservableProperty] public partial bool IsExcluding { get; private set; }
-    [ObservableProperty] public partial string Role { get; set; } = "Viewer";
-    [ObservableProperty] public partial ParticipantPersonChoice? SelectedPerson { get; set; }
-    [ObservableProperty] public partial string? EditorError { get; private set; }
-    [ObservableProperty] public partial string? PersonError { get; private set; }
-    [ObservableProperty] public partial string? ListError { get; private set; }
-    [ObservableProperty] public partial string? InvitationNotice { get; private set; }
-    [ObservableProperty] public partial string? CancelError { get; private set; }
+    [ObservableProperty]
+    public partial bool IsInvitations { get; private set; }
+
+    [ObservableProperty]
+    public partial bool IsExcluding { get; private set; }
+
+    [ObservableProperty]
+    public partial string Role { get; set; } = "Viewer";
+
+    [ObservableProperty]
+    public partial ParticipantPersonChoice? SelectedPerson { get; set; }
+
+    [ObservableProperty]
+    public partial string? EditorError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? PersonError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? ListError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? InvitationNotice { get; private set; }
+
+    [ObservableProperty]
+    public partial string? CancelError { get; private set; }
+
     public event Func<Task>? EditorRequested;
     public event Func<Task>? SaveRequested;
-
     public ParticipantsManagementViewModel(ManagementContext context)
     {
         Context = context;
         context.PropertyChanged += ContextChanged;
     }
+
     public bool CanManage => !Context.IsDisposed && !accessDenied && Context.Permissions.CurrentRole == "Admin";
     public bool HasEditor => Editing is not null;
     public bool HasLatest => Latest is not null;
@@ -56,15 +73,14 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
     public string Name => Editing?.Member.DisplayName ?? "表示名未設定";
     public string OwnRole => $"家計簿内の役割：{ParticipantRow.RoleName(Editing?.Member.Role ?? "Viewer")}（本人の役割は変更できません）";
     public string ExcludeNotice => $"「{Name}」をこの家計簿から除外しますか。アカウント・人物・過去の記録は削除しません。";
-    public string LatestText => Latest is not { } latest ? "" :
-        $"アカウント：{latest.Member.DisplayName ?? "表示名未設定"}\n役割：{ParticipantRow.RoleName(latest.Member.Role)}\n対応する人物：{latest.Member.PersonName ?? "未設定"}\n参加日時：{latest.Member.JoinedAtUtc.ToLocalTime():yyyy/MM/dd HH:mm}\n人物候補：{string.Join("、", latest.PersonCandidates.Select(p => p.Name + (p.IsSelectable ? "" : "（設定不可）")))}";
+    public string LatestText => Latest is not { } latest ? "" : $"アカウント：{latest.Member.DisplayName ?? "表示名未設定"}\n役割：{ParticipantRow.RoleName(latest.Member.Role)}\n対応する人物：{latest.Member.PersonName ?? "未設定"}\n参加日時：{latest.Member.JoinedAtUtc.ToLocalTime():yyyy/MM/dd HH:mm}\n人物候補：{string.Join("、", latest.PersonCandidates.Select(p => p.Name + (p.IsSelectable ? "" : "（設定不可）")))}";
     public string CancelTarget => $"有効期限が{Cancelling?.ExpiresAtUtc.ToLocalTime():yyyy/MM/dd HH:mm}の招待リンクを取り消しますか。既に参加した人は除外されません。";
+
     private bool CanOperate() => Context.CanOperate && CanManage && !HasEditor && Cancelling is null;
     private bool CanEdit(MemberInfo? row) => row is not null && CanOperate();
     private bool CanExclude(MemberInfo? row) => CanEdit(row) && row!.AccountId != Context.AccountId;
     private bool CanUseInvitation(LedgerInvitationInfo? row) => row is not null && CanOperate();
     private void ContextChanged(object? sender, PropertyChangedEventArgs args) => NotifyState();
-
     public void ActivateReads(CancellationToken token) => readToken = token;
     public Task LoadAsync(CancellationToken token)
     {
@@ -85,8 +101,13 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
                     ListError = Message(error);
                 }
             }
-        }, message => { if (!token.IsCancellationRequested) ListError = message; });
+        }, message =>
+        {
+            if (!token.IsCancellationRequested)
+                ListError = message;
+        });
     }
+
     public void Apply(MembersInfo info)
     {
         if (Context.IsDisposed)
@@ -101,18 +122,27 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         ListError = null;
         NotifyState();
     }
+
     [RelayCommand(CanExecute = nameof(CanEdit))]
     private async Task EditAsync(MemberInfo? member)
     {
         MemberEditInfo? result = null;
         await Context.RunAsync(async () =>
         {
-            try { result = await Context.Participants.EditAsync(member!.AccountId, readToken); }
-            catch (ParticipantRequestException error) { ApplyFailure(error); ListError = Message(error); }
+            try
+            {
+                result = await Context.Participants.EditAsync(member!.AccountId, readToken);
+            }
+            catch (ParticipantRequestException error)
+            {
+                ApplyFailure(error);
+                ListError = Message(error);
+            }
         }, message => ListError = message);
         if (result is not null && Context.CanOperate && !readToken.IsCancellationRequested)
             await OpenEditorAsync(result, false);
     }
+
     [RelayCommand(CanExecute = nameof(CanExclude))]
     private Task ExcludeAsync(MemberInfo? member) => OpenEditorAsync(new(member!, []), true);
     private Task OpenEditorAsync(MemberEditInfo edit, bool excluding)
@@ -126,14 +156,18 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         NotifyState();
         return EditorRequested?.Invoke() ?? Task.CompletedTask;
     }
+
     private void FillFields(MemberEditInfo edit)
     {
         Role = edit.Member.Role;
-        PersonChoices = new[] { new ParticipantPersonChoice(null, "未設定", true) }
-            .Concat(edit.PersonCandidates.Select(p => new ParticipantPersonChoice(p.PersonId, p.Name, p.IsSelectable))).ToArray();
+        PersonChoices = new[]
+        {
+            new ParticipantPersonChoice(null, "未設定", true)
+        }.Concat(edit.PersonCandidates.Select(p => new ParticipantPersonChoice(p.PersonId, p.Name, p.IsSelectable))).ToArray();
         OnPropertyChanged(nameof(PersonChoices));
         SelectedPerson = PersonChoices.FirstOrDefault(p => p.PersonId == edit.Member.PersonId);
     }
+
     [RelayCommand(CanExecute = nameof(CanSave))]
     private Task SaveAsync() => SaveRequested?.Invoke() ?? Task.CompletedTask;
     public async Task<bool> SaveEditorAsync()
@@ -146,8 +180,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         {
             try
             {
-                var result = IsExcluding ? await Context.Participants.ExcludeAsync(edit.Member, Context.AccountId, Context.Token)
-                    : await Context.Participants.SaveAsync(edit.Member, IsSelf ? edit.Member.Role : Role, SelectedPerson?.PersonId, Context.AccountId, Context.Token);
+                var result = IsExcluding ? await Context.Participants.ExcludeAsync(edit.Member, Context.AccountId, Context.Token) : await Context.Participants.SaveAsync(edit.Member, IsSelf ? edit.Member.Role : Role, SelectedPerson?.PersonId, Context.AccountId, Context.Token);
                 Apply(result);
                 saved = !Context.IsDisposed;
             }
@@ -169,11 +202,13 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
                     else
                         EditorError = Message(error);
                 }
+
                 NotifyState();
             }
         }, message => EditorError = message);
         return saved;
     }
+
     [RelayCommand]
     private void AdoptLatest()
     {
@@ -185,6 +220,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         EditorError = PersonError = null;
         NotifyState();
     }
+
     public void CloseEditor()
     {
         Editing = Latest = null;
@@ -192,6 +228,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         EditorError = PersonError = null;
         NotifyState();
     }
+
     public void ApplyFailure(ParticipantRequestException error)
     {
         if (error.Permissions is { } permissions)
@@ -208,6 +245,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
             accessDenied = true;
         NotifyState();
     }
+
     private static string Message(ParticipantRequestException error) => error.StatusCode switch
     {
         HttpStatusCode.Forbidden => "この操作を行う権限がありません。入力内容は保存されていません。",
@@ -220,14 +258,14 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
             "request_conflict" => "この招待発行の要求を続けられません。内容を確認してください。",
             "invitation_expired" or "invitation_revoked" or "invitation_used" => "この招待リンクは期限切れ・取消済み・使用済みです。",
             _ => "操作を完了できませんでした。入力内容を確認して再試行してください。"
-        }
-    };
+        }};
     [RelayCommand(CanExecute = nameof(CanOperate))]
     private async Task OpenInvitationsAsync()
     {
         IsInvitations = true;
         await LoadInvitationsAsync(readToken);
     }
+
     [RelayCommand]
     private async Task BackAsync()
     {
@@ -237,6 +275,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         if (CanManage)
             await LoadAsync(readToken);
     }
+
     private Task LoadInvitationsAsync(CancellationToken token) => Context.RunAsync(async () =>
     {
         try
@@ -245,7 +284,11 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
             if (!token.IsCancellationRequested)
                 ApplyInvitations(result);
         }
-        catch (ParticipantRequestException error) { ApplyFailure(error); InvitationNotice = Message(error); }
+        catch (ParticipantRequestException error)
+        {
+            ApplyFailure(error);
+            InvitationNotice = Message(error);
+        }
     }, message => InvitationNotice = message);
     public void ApplyInvitations(LedgerInvitationsInfo info)
     {
@@ -254,14 +297,15 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         Invitations = info;
         RenderInvitations();
     }
+
     private void RenderInvitations()
     {
         InvitationRows.Clear();
-        foreach (var invitation in (Invitations?.Invitations ?? []).Where(i => i.ExpiresAtUtc > DateTimeOffset.UtcNow)
-            .OrderByDescending(i => i.CreatedAtUtc).ThenBy(i => i.InvitationId))
+        foreach (var invitation in (Invitations?.Invitations ?? []).Where(i => i.ExpiresAtUtc > DateTimeOffset.UtcNow).OrderByDescending(i => i.CreatedAtUtc).ThenBy(i => i.InvitationId))
             InvitationRows.Add(new(invitation));
         NotifyState();
     }
+
     [RelayCommand(CanExecute = nameof(CanOperate))]
     private async Task IssueAsync()
     {
@@ -276,10 +320,15 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
                 ApplyInvitations(result);
                 InvitationNotice = "招待リンクを発行しました。";
             }
-            catch (ParticipantRequestException error) { ApplyFailure(error); InvitationNotice = Message(error); }
+            catch (ParticipantRequestException error)
+            {
+                ApplyFailure(error);
+                InvitationNotice = Message(error);
+            }
         }, message => InvitationNotice = message);
         NotifyState();
     }
+
     public bool CanCopy(LedgerInvitationInfo invitation)
     {
         if (!CanUseInvitation(invitation))
@@ -290,6 +339,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         InvitationNotice = "この招待リンクは期限切れです。";
         return false;
     }
+
     public void Copied(bool success) => InvitationNotice = success ? "招待リンクをコピーしました。送付先を限定してください。" : "コピーできませんでした。クリップボードへのアクセスを確認してください。";
     [RelayCommand(CanExecute = nameof(CanUseInvitation))]
     private Task CancelAsync(LedgerInvitationInfo? invitation)
@@ -299,6 +349,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         NotifyState();
         return EditorRequested?.Invoke() ?? Task.CompletedTask;
     }
+
     public async Task<bool> CancelInvitationAsync()
     {
         if (!CanCancelInvitation || Cancelling is not { } invitation)
@@ -306,14 +357,35 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         var saved = false;
         await Context.RunAsync(async () =>
         {
-            try { ApplyInvitations(await Context.Participants.CancelInvitationAsync(invitation.InvitationId, Context.Token)); saved = !Context.IsDisposed; }
-            catch (ParticipantRequestException error) { ApplyFailure(error); CancelError = Message(error); }
+            try
+            {
+                ApplyInvitations(await Context.Participants.CancelInvitationAsync(invitation.InvitationId, Context.Token));
+                saved = !Context.IsDisposed;
+            }
+            catch (ParticipantRequestException error)
+            {
+                ApplyFailure(error);
+                CancelError = Message(error);
+            }
         }, message => CancelError = message);
         return saved;
     }
-    public void CloseCancellation() { Cancelling = null; CancelError = null; NotifyState(); }
+
+    public void CloseCancellation()
+    {
+        Cancelling = null;
+        CancelError = null;
+        NotifyState();
+    }
+
     public void ClearListError() => ListError = null;
-    public void Leave() { CloseEditor(); CloseCancellation(); IsInvitations = false; }
+    public void Leave()
+    {
+        CloseEditor();
+        CloseCancellation();
+        IsInvitations = false;
+    }
+
     public async Task ResumeAsync(string? denied, CancellationToken token)
     {
         if (denied is null && Context.Ledger.Role == "Admin")
@@ -325,7 +397,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
                 else
                     ApplyInvitations(await Context.Participants.InvitationsAsync(token));
             }
-            catch (ParticipantRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            catch (ParticipantRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 ApplyFailure(error);
                 denied = "現在の権限では保存できません。未保存の入力は残しています。";
@@ -341,10 +413,30 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
             InvitationNotice = "未完了の発行要求を復元しました。再試行には同じ要求IDを使います。";
         NotifyState();
     }
+
     private void NotifyState()
     {
-        foreach (var property in new[] { nameof(CanManage), nameof(HasEditor), nameof(HasLatest), nameof(IsSelf), nameof(CanSave), nameof(CanCancelInvitation),
-            nameof(CanRestoreAuthentication), nameof(HasInvitationDraft), nameof(EmptyInvitations), nameof(Title), nameof(PrimaryText), nameof(Name), nameof(OwnRole), nameof(ExcludeNotice), nameof(LatestText), nameof(CancelTarget) })
+        foreach (var property in new[]
+        {
+            nameof(CanManage),
+            nameof(HasEditor),
+            nameof(HasLatest),
+            nameof(IsSelf),
+            nameof(CanSave),
+            nameof(CanCancelInvitation),
+            nameof(CanRestoreAuthentication),
+            nameof(HasInvitationDraft),
+            nameof(EmptyInvitations),
+            nameof(Title),
+            nameof(PrimaryText),
+            nameof(Name),
+            nameof(OwnRole),
+            nameof(ExcludeNotice),
+            nameof(LatestText),
+            nameof(CancelTarget)
+        }
+
+        )
             OnPropertyChanged(property);
         EditCommand.NotifyCanExecuteChanged();
         ExcludeCommand.NotifyCanExecuteChanged();
@@ -353,6 +445,7 @@ public sealed partial class ParticipantsManagementViewModel : ObservableObject, 
         IssueCommand.NotifyCanExecuteChanged();
         CancelCommand.NotifyCanExecuteChanged();
     }
+
     public void Dispose()
     {
         Context.PropertyChanged -= ContextChanged;

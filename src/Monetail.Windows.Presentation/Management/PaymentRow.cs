@@ -2,7 +2,6 @@ using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Transport;
 
 namespace Monetail.Windows.Presentation.Management;
-
 public sealed class PaymentRow(PaymentMethodInfo payment)
 {
     public PaymentMethodInfo Payment { get; } = payment;

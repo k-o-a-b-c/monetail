@@ -4,16 +4,12 @@ using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transport;
 
 namespace Monetail.Windows.Presentation.Management;
-
 /// <summary>管理機能が共有する本人・家計簿とAPI権限の表示用コンテキスト。画面は保持しない。</summary>
 public sealed partial class ManagementContext : ObservableObject, IDisposable
 {
     private readonly Func<Func<Task>, Action<string>?, Task> execute;
     private readonly CancellationTokenSource lifetime;
-
-    public ManagementContext(MonetailApiClient api, ClientSession session, LedgerMasterCache masters,
-        LedgerInfo ledger, Guid accountId, string origin,
-        Func<Func<Task>, Action<string>?, Task> execute, CancellationToken token = default)
+    public ManagementContext(MonetailApiClient api, ClientSession session, LedgerMasterCache masters, LedgerInfo ledger, Guid accountId, string origin, Func<Func<Task>, Action<string>?, Task> execute, CancellationToken token = default)
     {
         Ledger = ledger;
         AccountId = accountId;
@@ -40,13 +36,16 @@ public sealed partial class ManagementContext : ObservableObject, IDisposable
     public bool IsDisposed => lifetime.IsCancellationRequested;
     public bool CanOperate => !IsBusy && !IsSuspended && !IsDisposed;
 
-    [ObservableProperty] public partial bool IsBusy { get; set; }
-    [ObservableProperty] public partial bool IsSuspended { get; set; }
-    [ObservableProperty] public partial PeoplePermissions Permissions { get; set; }
+    [ObservableProperty]
+    public partial bool IsBusy { get; set; }
 
-    public Task RunAsync(Func<Task> action, Action<string>? failed = null) =>
-        IsDisposed ? Task.CompletedTask : execute(action, failed);
+    [ObservableProperty]
+    public partial bool IsSuspended { get; set; }
 
+    [ObservableProperty]
+    public partial PeoplePermissions Permissions { get; set; }
+
+    public Task RunAsync(Func<Task> action, Action<string>? failed = null) => IsDisposed ? Task.CompletedTask : execute(action, failed);
     public void ApplyPermissions(PeoplePermissions? permission)
     {
         if (!IsDisposed && permission is not null)

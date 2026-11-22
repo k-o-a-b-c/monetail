@@ -6,7 +6,6 @@ using Monetail.Windows.Presentation.Workspace;
 using Monetail.WinUI.Views.Workspace;
 
 namespace Monetail.WinUI;
-
 public sealed partial class MainWindow
 {
     private ManagementPage? ManagementPage => WorkspaceHost.Content as ManagementPage;
@@ -16,8 +15,10 @@ public sealed partial class MainWindow
     {
         if (management is not null || account is null || currentLedger is null || connection.Endpoint is null)
             return;
-        var context = new ManagementContext(connection.Api, connection.Session, connection.Masters, currentLedger,
-            account.AuthUserId, connection.Endpoint.Value, RunAsync, lifetime.Token) { IsBusy = busy };
+        var context = new ManagementContext(connection.Api, connection.Session, connection.Masters, currentLedger, account.AuthUserId, connection.Endpoint.Value, RunAsync, lifetime.Token)
+        {
+            IsBusy = busy
+        };
         management = new(context, () => !busy && !ManagementDialogOpen, ConnectAsync, LogoutAsync, account.DisplayName ?? "");
     }
 
@@ -43,6 +44,7 @@ public sealed partial class MainWindow
             DiscardManagement();
             return false;
         }
+
         var ledger = context.Ledger;
         string? denied = null;
         try
@@ -50,11 +52,12 @@ public sealed partial class MainWindow
             ledger = await connection.Ledgers.OpenAsync(ledger.LedgerId, token);
             context.Reopened(ledger);
         }
-        catch (LedgerRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+        catch (LedgerRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
         {
             context.ApplyPermissions(new(null, null));
             denied = "この家計簿を開く権限がありません。未保存の入力は残していますが、保存できません。";
         }
+
         // DisplayLedgerは明示的な破棄を伴うため、保持したPageの復帰には使わない。
         DisplayLedgerHeader(ledger);
         await page.ResumeAsync(denied, token);

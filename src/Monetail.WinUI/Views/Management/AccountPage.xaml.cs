@@ -6,6 +6,7 @@ namespace Monetail.WinUI.Views.Management;
 public sealed partial class AccountPage : Page
 {
     public ManagementViewModel ViewModel { get; private set; } = null!;
+
     public AccountPage() => InitializeComponent();
     protected override void OnNavigatedTo(NavigationEventArgs args)
     {

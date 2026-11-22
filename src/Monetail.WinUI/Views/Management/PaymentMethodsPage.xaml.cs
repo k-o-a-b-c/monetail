@@ -6,15 +6,14 @@ using Monetail.Windows.Presentation.Management;
 using Monetail.WinUI.Input;
 
 namespace Monetail.WinUI.Views.Management;
-
 public sealed partial class PaymentMethodsPage : Page, IManagementFeature
 {
     public PaymentMethodsManagementViewModel ViewModel { get; private set; } = null!;
+
     private CancellationTokenSource? reads;
     private PaymentEditorDialog? dialog;
     private Task dialogTask = Task.CompletedTask;
     private bool suspended;
-
     public PaymentMethodsPage() => InitializeComponent();
     protected override void OnNavigatedTo(NavigationEventArgs args)
     {
@@ -30,9 +29,13 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
     public bool CanStay => ViewModel.CanView;
     public bool HasDialog => dialog is not null;
     public bool CanRestoreAuthentication => ViewModel.CanRestoreAuthentication;
+
     private async Task OpenEditorAsync()
     {
-        dialog ??= new(ViewModel) { XamlRoot = XamlRoot };
+        dialog ??= new(ViewModel)
+        {
+            XamlRoot = XamlRoot
+        };
         var current = dialog;
         dialogTask = ShowDialogAsync(current);
         await dialogTask;
@@ -83,8 +86,7 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
             ViewModel.OrderCommand.Execute(owner);
     }
 
-    private void OrderLoaded(object sender, RoutedEventArgs args) =>
-        _ = new FormKeyboard(PaymentOrderContent, SavePaymentOrderButton, () => ViewModel.SaveOrderCommand.ExecuteAsync(null));
+    private void OrderLoaded(object sender, RoutedEventArgs args) => _ = new FormKeyboard(PaymentOrderContent, SavePaymentOrderButton, () => ViewModel.SaveOrderCommand.ExecuteAsync(null));
     private void CloseNotice(InfoBar sender, InfoBarClosedEventArgs args) => ViewModel.ClearListError();
     private void CloseError(InfoBar sender, InfoBarClosedEventArgs args) => ViewModel.ClearOrderNotice();
     private Visibility Show(bool value) => value ? Visibility.Visible : Visibility.Collapsed;
@@ -93,7 +95,6 @@ public sealed partial class PaymentMethodsPage : Page, IManagementFeature
     private Visibility Error(string? value) => Show(HasError(value));
     private bool HasError(string? value) => !string.IsNullOrEmpty(value);
     private InfoBarSeverity Severity(bool informational) => informational ? InfoBarSeverity.Informational : InfoBarSeverity.Error;
-
     public void Release()
     {
         reads?.Cancel();

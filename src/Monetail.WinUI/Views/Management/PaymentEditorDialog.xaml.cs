@@ -4,19 +4,17 @@ using Monetail.Windows.Presentation.Management;
 using Monetail.WinUI.Input;
 
 namespace Monetail.WinUI.Views.Management;
-
 public sealed partial class PaymentEditorDialog : ContentDialog
 {
     public PaymentMethodsManagementViewModel ViewModel { get; }
+
     private readonly FormKeyboard keyboard;
     private bool suspended;
-
     public PaymentEditorDialog(PaymentMethodsManagementViewModel model)
     {
         ViewModel = model;
         InitializeComponent();
-        PaymentFrom.IsCancellationTarget = PaymentTo.IsCancellationTarget =
-            focused => focused is Button button && Equals(button.Content, CloseButtonText);
+        PaymentFrom.IsCancellationTarget = PaymentTo.IsCancellationTarget = focused => focused is Button button && Equals(button.Content, CloseButtonText);
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync, PaymentName, PaymentFrom, PaymentTo);
         model.SaveRequested += SaveShortcutAsync;
     }
@@ -60,9 +58,7 @@ public sealed partial class PaymentEditorDialog : ContentDialog
     {
         if (keyboard.IsComposing || !ViewModel.CanSave)
             return false;
-        var saved = await ViewModel.SaveEditorAsync(
-            PaymentFrom.Complete(),
-            PaymentTo.Complete());
+        var saved = await ViewModel.SaveEditorAsync(PaymentFrom.Complete(), PaymentTo.Complete());
         if (!saved && !suspended)
         {
             if (ViewModel.NameError is not null)
@@ -70,6 +66,7 @@ public sealed partial class PaymentEditorDialog : ContentDialog
             else if (ViewModel.PeriodError is not null)
                 PaymentFrom.Focus(FocusState.Programmatic);
         }
+
         return saved;
     }
 

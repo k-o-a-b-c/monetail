@@ -6,8 +6,16 @@ using Monetail.Windows.Presentation.Connection;
 using Monetail.Windows.Presentation.Management;
 
 namespace Monetail.Windows.Presentation.Workspace;
-
-public enum ManagementSection { People, Categories, Payments, Participants, Connection, Account, Logout }
+public enum ManagementSection
+{
+    People,
+    Categories,
+    Payments,
+    Participants,
+    Connection,
+    Account,
+    Logout
+}
 
 /// <summary>家計簿内の管理状態を所有する。Pageやダイアログの参照は持たない。</summary>
 public sealed partial class ManagementViewModel : ObservableObject, IDisposable
@@ -30,11 +38,12 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
     public CategoriesManagementViewModel Categories => categories ??= Observe(new CategoriesManagementViewModel(Context));
     public PaymentMethodsManagementViewModel Payments => payments ??= Observe(new PaymentMethodsManagementViewModel(Context));
     public ParticipantsManagementViewModel Participants => participants ??= Observe(new ParticipantsManagementViewModel(Context));
-    [ObservableProperty] public partial ManagementSection SelectedSection { get; set; }
-    public event Func<ManagementSection, Task>? NavigationRequested;
 
-    public ManagementViewModel(ManagementContext context, Func<bool> canNavigate,
-        Func<ApiEndpoint, CancellationToken, Task> connect, Func<Task> logout, string accountName)
+    [ObservableProperty]
+    public partial ManagementSection SelectedSection { get; set; }
+
+    public event Func<ManagementSection, Task>? NavigationRequested;
+    public ManagementViewModel(ManagementContext context, Func<bool> canNavigate, Func<ApiEndpoint, CancellationToken, Task> connect, Func<Task> logout, string accountName)
     {
         Context = context;
         this.canNavigate = canNavigate;
@@ -43,11 +52,14 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
         AccountName = accountName;
         Context.PropertyChanged += StateChanged;
     }
-    private T Observe<T>(T model) where T : ObservableObject
+
+    private T Observe<T>(T model)
+        where T : ObservableObject
     {
         model.PropertyChanged += StateChanged;
         return model;
     }
+
     private void StateChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (sender != Context && args.PropertyName is not ("CanView" or "CanManage"))
@@ -59,6 +71,7 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ParticipantsVisible));
         SelectCommand.NotifyCanExecuteChanged();
     }
+
     private bool CanSelect(ManagementSection section) => canNavigate();
     [RelayCommand(CanExecute = nameof(CanSelect))]
     private Task SelectAsync(ManagementSection section) => canNavigate() ? NavigationRequested?.Invoke(section) ?? Task.CompletedTask : Task.CompletedTask;
@@ -67,10 +80,14 @@ public sealed partial class ManagementViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Context.PropertyChanged -= StateChanged;
-        if (people is not null) people.PropertyChanged -= StateChanged;
-        if (payments is not null) payments.PropertyChanged -= StateChanged;
-        if (categories is not null) categories.PropertyChanged -= StateChanged;
-        if (participants is not null) participants.PropertyChanged -= StateChanged;
+        if (people is not null)
+            people.PropertyChanged -= StateChanged;
+        if (payments is not null)
+            payments.PropertyChanged -= StateChanged;
+        if (categories is not null)
+            categories.PropertyChanged -= StateChanged;
+        if (participants is not null)
+            participants.PropertyChanged -= StateChanged;
         people?.Dispose();
         categories?.Dispose();
         payments?.Dispose();

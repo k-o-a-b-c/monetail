@@ -4,19 +4,17 @@ using Monetail.Windows.Presentation.Management;
 using Monetail.WinUI.Input;
 
 namespace Monetail.WinUI.Views.Management;
-
 public sealed partial class CategoryEditorDialog : ContentDialog
 {
     public CategoriesManagementViewModel ViewModel { get; }
+
     private readonly FormKeyboard keyboard;
     private bool suspended;
-
     public CategoryEditorDialog(CategoriesManagementViewModel model)
     {
         ViewModel = model;
         InitializeComponent();
-        CategoryFrom.IsCancellationTarget = CategoryTo.IsCancellationTarget =
-            focused => focused is Button button && Equals(button.Content, CloseButtonText);
+        CategoryFrom.IsCancellationTarget = CategoryTo.IsCancellationTarget = focused => focused is Button button && Equals(button.Content, CloseButtonText);
         keyboard = FormKeyboard.ForDialog(this, SaveShortcutAsync, CategoryName, CategoryFrom, CategoryTo);
         model.SaveRequested += SaveShortcutAsync;
     }
@@ -60,9 +58,7 @@ public sealed partial class CategoryEditorDialog : ContentDialog
     {
         if (keyboard.IsComposing || !ViewModel.CanSave)
             return false;
-        var saved = await ViewModel.SaveEditorAsync(
-            CategoryFrom.Complete(),
-            CategoryTo.Complete());
+        var saved = await ViewModel.SaveEditorAsync(CategoryFrom.Complete(), CategoryTo.Complete());
         if (!saved && !suspended)
         {
             if (ViewModel.NameError is not null)
@@ -70,6 +66,7 @@ public sealed partial class CategoryEditorDialog : ContentDialog
             else if (ViewModel.PeriodError is not null)
                 CategoryFrom.Focus(FocusState.Programmatic);
         }
+
         return saved;
     }
 

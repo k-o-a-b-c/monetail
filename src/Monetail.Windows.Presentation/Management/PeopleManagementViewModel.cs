@@ -8,8 +8,13 @@ using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Transport;
 
 namespace Monetail.Windows.Presentation.Management;
-
-public enum ManagementEditorOperation { None, Create, Edit, Delete }
+public enum ManagementEditorOperation
+{
+    None,
+    Create,
+    Edit,
+    Delete
+}
 
 /// <summary>人物の表示・編集・順序の唯一の画面状態。保存値と要求IDは既存Clientの型をそのまま使う。</summary>
 public sealed partial class PeopleManagementViewModel : ObservableObject, IDisposable
@@ -18,29 +23,59 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     public PeopleInfo? Info { get; private set; }
     public ObservableCollection<PersonRow> Rows { get; } = [];
     public ObservableCollection<PersonRow> OrderRows { get; } = [];
+
     private readonly HashSet<Guid> missing = [];
     public PersonInfo? Editing { get; private set; }
     public PersonInfo? Latest { get; private set; }
     public PersonCreationDraft? Creation { get; private set; }
     public Guid OrderRevision { get; private set; }
     public bool IncludesPeriod { get; private set; }
-    private bool editorDenied, orderDenied;
 
-    [ObservableProperty] public partial bool IncludeInactive { get; set; }
-    [ObservableProperty] public partial PersonRow? Selected { get; set; }
-    [ObservableProperty] public partial PersonRow? SelectedOrder { get; set; }
-    [ObservableProperty] public partial bool IsOrdering { get; private set; }
-    [ObservableProperty] public partial ManagementEditorOperation Operation { get; private set; }
-    [ObservableProperty] public partial string Name { get; set; } = "";
-    [ObservableProperty] public partial string FromText { get; set; } = "";
-    [ObservableProperty] public partial string ToText { get; set; } = "";
-    [ObservableProperty] public partial string? NameError { get; private set; }
-    [ObservableProperty] public partial string? PeriodError { get; private set; }
-    [ObservableProperty] public partial string? SaveError { get; private set; }
-    [ObservableProperty] public partial string? ListError { get; private set; }
-    [ObservableProperty] public partial string? OrderNotice { get; private set; }
-    [ObservableProperty] public partial bool OrderNoticeInformational { get; private set; }
-    [ObservableProperty] public partial bool Restored { get; private set; }
+    private bool editorDenied, orderDenied;
+    [ObservableProperty]
+    public partial bool IncludeInactive { get; set; }
+
+    [ObservableProperty]
+    public partial PersonRow? Selected { get; set; }
+
+    [ObservableProperty]
+    public partial PersonRow? SelectedOrder { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsOrdering { get; private set; }
+
+    [ObservableProperty]
+    public partial ManagementEditorOperation Operation { get; private set; }
+
+    [ObservableProperty]
+    public partial string Name { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string FromText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string ToText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial string? NameError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? PeriodError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? SaveError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? ListError { get; private set; }
+
+    [ObservableProperty]
+    public partial string? OrderNotice { get; private set; }
+
+    [ObservableProperty]
+    public partial bool OrderNoticeInformational { get; private set; }
+
+    [ObservableProperty]
+    public partial bool Restored { get; private set; }
 
     public PeopleManagementViewModel(ManagementContext context)
     {
@@ -61,17 +96,13 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     public string Title => IsDeleting ? "人物の削除" : Editing is null ? "人物の追加" : "人物の編集";
     public string PrimaryText => IsDeleting ? "削除" : Editing is null ? "登録" : "保存";
     public string DeleteNotice => $"「{Editing?.Name}」を削除しますか。参照が残っている人物は削除できません。";
-    public string ConflictExplanation => IsDeleting
-        ? "切り替えると、削除対象の確認内容を最新内容に置き換えます。確認してから削除してください。"
-        : "切り替えると、現在の未保存の入力を最新内容に置き換えます。";
+    public string ConflictExplanation => IsDeleting ? "切り替えると、削除対象の確認内容を最新内容に置き換えます。確認してから削除してください。" : "切り替えると、現在の未保存の入力を最新内容に置き換えます。";
     public string LatestName => Latest?.Name ?? "";
     public string LatestFrom => DateTimeInput.FormatDate(Latest?.ValidFrom);
     public string LatestTo => DateTimeInput.FormatDate(Latest?.ValidTo);
-    public bool CanSave => Context.CanOperate && HasEditor && !editorDenied && Latest is null &&
-        (IsDeleting ? Editing is not null && CanDelete(Editing) :
-            Editing is null ? IsAdmin : CanEdit(Editing) && (!IncludesPeriod || IsAdmin));
-    private bool CanEdit(PersonInfo row) => CanView && !missing.Contains(row.PersonId) &&
-        (IsAdmin || Context.Permissions.MyPersonId == row.PersonId);
+    public bool CanSave => Context.CanOperate && HasEditor && !editorDenied && Latest is null && (IsDeleting ? Editing is not null && CanDelete(Editing) : Editing is null ? IsAdmin : CanEdit(Editing) && (!IncludesPeriod || IsAdmin));
+
+    private bool CanEdit(PersonInfo row) => CanView && !missing.Contains(row.PersonId) && (IsAdmin || Context.Permissions.MyPersonId == row.PersonId);
     private bool CanDelete(PersonInfo row) => IsAdmin && CanEdit(row);
     private bool CanAdd() => Context.CanOperate && IsAdmin && !HasEditor && !IsOrdering;
     private bool CanEditSelected() => Context.CanOperate && !HasEditor && !IsOrdering && Selected is { } row && CanEdit(row.Person);
@@ -80,7 +111,6 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     private bool CanSaveOrder() => Context.CanOperate && IsOrdering && !orderDenied && IsAdmin;
     private bool CanMoveUp() => CanSaveOrder() && SelectedOrder is not null && OrderRows.IndexOf(SelectedOrder) > 0;
     private bool CanMoveDown() => CanSaveOrder() && SelectedOrder is not null && OrderRows.IndexOf(SelectedOrder) < OrderRows.Count - 1;
-
     partial void OnIncludeInactiveChanged(bool value) => RenderRows();
     partial void OnSelectedChanged(PersonRow? value) => NotifyState();
     partial void OnSelectedOrderChanged(PersonRow? value) => NotifyState();
@@ -96,8 +126,11 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         var result = await Context.People.ListAsync(token);
         if (!token.IsCancellationRequested && !Context.IsDisposed)
             Apply(result);
-    }, message => { if (!token.IsCancellationRequested) ListError = message; });
-
+    }, message =>
+    {
+        if (!token.IsCancellationRequested)
+            ListError = message;
+    });
     public void Apply(PeopleInfo info)
     {
         if (Context.IsDisposed)
@@ -115,9 +148,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         var id = Selected?.Person.PersonId;
         Rows.Clear();
         var today = DateOnly.FromDateTime(DateTime.Now);
-        foreach (var person in (Info?.People ?? []).Where(p => IncludeInactive ||
-            (p.ValidFrom is null || p.ValidFrom <= today) && (p.ValidTo is null || p.ValidTo >= today))
-            .OrderByDescending(p => p.PersonId == Context.Permissions.MyPersonId).ThenBy(p => p.DisplayOrder))
+        foreach (var person in (Info?.People ?? []).Where(p => IncludeInactive || (p.ValidFrom is null || p.ValidFrom <= today) && (p.ValidTo is null || p.ValidTo >= today)).OrderByDescending(p => p.PersonId == Context.Permissions.MyPersonId).ThenBy(p => p.DisplayOrder))
             Rows.Add(new(person, person.PersonId == Context.Permissions.MyPersonId));
         Selected = Rows.FirstOrDefault(p => p.Person.PersonId == id);
         OnPropertyChanged(nameof(IsEmpty));
@@ -125,9 +156,12 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         NotifyState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanAdd))] private Task AddAsync() => OpenAsync(null, false);
-    [RelayCommand(CanExecute = nameof(CanEditSelected))] private Task EditAsync() => OpenAsync(Selected!.Person, false);
-    [RelayCommand(CanExecute = nameof(CanDeleteSelected))] private Task DeleteAsync() => OpenAsync(Selected!.Person, true);
+    [RelayCommand(CanExecute = nameof(CanAdd))]
+    private Task AddAsync() => OpenAsync(null, false);
+    [RelayCommand(CanExecute = nameof(CanEditSelected))]
+    private Task EditAsync() => OpenAsync(Selected!.Person, false);
+    [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
+    private Task DeleteAsync() => OpenAsync(Selected!.Person, true);
     private Task OpenAsync(PersonInfo? person, bool deletion)
     {
         Editing = person;
@@ -145,7 +179,8 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         return EditorRequested?.Invoke() ?? Task.CompletedTask;
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))] private Task SaveAsync() => SaveRequested?.Invoke() ?? Task.CompletedTask;
+    [RelayCommand(CanExecute = nameof(CanSave))]
+    private Task SaveAsync() => SaveRequested?.Invoke() ?? Task.CompletedTask;
     public async Task<bool> SaveEditorAsync(DateOnly? from, DateOnly? to)
     {
         if (!CanSave)
@@ -154,23 +189,33 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         PersonInput? input = null;
         if (!IsDeleting)
         {
-            try { input = new(Name, IncludesPeriod ? from : Editing?.ValidFrom, IncludesPeriod ? to : Editing?.ValidTo); }
-            catch (PersonInputException error) { ShowError(error.Field, error.Message); return false; }
+            try
+            {
+                input = new(Name, IncludesPeriod ? from : Editing?.ValidFrom, IncludesPeriod ? to : Editing?.ValidTo);
+            }
+            catch (PersonInputException error)
+            {
+                ShowError(error.Field, error.Message);
+                return false;
+            }
+
             if (Editing is null && Creation?.Input != input)
                 Creation = new(input);
         }
+
         var saved = false;
         await Context.RunAsync(async () =>
         {
             try
             {
-                var result = IsDeleting ? await Context.People.DeleteAsync(Editing!, Context.Token) :
-                    Editing is null ? await Context.People.CreateAsync(Creation!, Context.Token) :
-                    await Context.People.UpdateAsync(Editing, input!, IncludesPeriod, Context.Token);
+                var result = IsDeleting ? await Context.People.DeleteAsync(Editing!, Context.Token) : Editing is null ? await Context.People.CreateAsync(Creation!, Context.Token) : await Context.People.UpdateAsync(Editing, input!, IncludesPeriod, Context.Token);
                 Apply(result);
                 saved = !Context.IsDisposed;
             }
-            catch (PeopleRequestException error) { HandleFailure(error); }
+            catch (PeopleRequestException error)
+            {
+                HandleFailure(error);
+            }
         }, message => ShowError(null, message));
         return saved;
     }
@@ -206,13 +251,14 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
                     "invalid_input" when error.Field == "name" => "人物名を1〜100文字で入力してください。",
                     "invalid_input" when error.Field is "validFrom" or "validTo" => "有効開始日は有効終了日以前の日付にしてください。",
                     _ => IsDeleting ? "人物を削除できませんでした。内容を確認してください。" : "人物を保存できませんでした。入力内容を確認してください。"
-                }
-            });
+                }});
         }
+
         NotifyState();
     }
 
-    [RelayCommand] private void AdoptLatest()
+    [RelayCommand]
+    private void AdoptLatest()
     {
         if (!Context.CanOperate || Latest is not { } latest)
             return;
@@ -240,12 +286,16 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     public void ClearOrderNotice() => OrderNotice = null;
     public void ShowError(string? field, string message)
     {
-        if (field == "name") NameError = message;
-        else if (field is "validFrom" or "validTo") PeriodError = message;
-        else SaveError = message;
+        if (field == "name")
+            NameError = message;
+        else if (field is "validFrom" or "validTo")
+            PeriodError = message;
+        else
+            SaveError = message;
     }
 
-    [RelayCommand(CanExecute = nameof(CanOrder))] private void Order() => BeginOrder(Info!.People.OrderBy(p => p.DisplayOrder), Info.OrderRevision);
+    [RelayCommand(CanExecute = nameof(CanOrder))]
+    private void Order() => BeginOrder(Info!.People.OrderBy(p => p.DisplayOrder), Info.OrderRevision);
     private void BeginOrder(IEnumerable<PersonInfo> people, Guid revision)
     {
         OrderRevision = revision;
@@ -260,8 +310,10 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
         NotifyState();
     }
 
-    [RelayCommand(CanExecute = nameof(CanMoveUp))] private void MoveUp() => Move(-1);
-    [RelayCommand(CanExecute = nameof(CanMoveDown))] private void MoveDown() => Move(1);
+    [RelayCommand(CanExecute = nameof(CanMoveUp))]
+    private void MoveUp() => Move(-1);
+    [RelayCommand(CanExecute = nameof(CanMoveDown))]
+    private void MoveDown() => Move(1);
     private void Move(int delta)
     {
         if (!CanSaveOrder() || SelectedOrder is not { } row)
@@ -311,11 +363,16 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
                     };
                 }
             }
-        }, message => { OrderNoticeInformational = false; OrderNotice = message; });
+        }, message =>
+        {
+            OrderNoticeInformational = false;
+            OrderNotice = message;
+        });
         NotifyState();
     }
 
-    [RelayCommand] private void CancelOrder()
+    [RelayCommand]
+    private void CancelOrder()
     {
         if (Context.IsBusy)
             return;
@@ -347,13 +404,17 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
     {
         if (denied is null)
         {
-            try { Apply(await Context.People.ListAsync(token)); }
-            catch (PeopleRequestException error) when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
+            try
+            {
+                Apply(await Context.People.ListAsync(token));
+            }
+            catch (PeopleRequestException error)when (error.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.NotFound)
             {
                 ApplyFailure(error);
                 denied = "現在の権限ではこの編集を保存できません。未保存の入力は残しています。";
             }
         }
+
         Restored = true;
         if (IsOrdering)
         {
@@ -364,6 +425,7 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
                 var previous = OrderRows[i].Person;
                 OrderRows[i] = new(latest.GetValueOrDefault(previous.PersonId) ?? previous, previous.PersonId == Context.Permissions.MyPersonId);
             }
+
             SelectedOrder = OrderRows.FirstOrDefault(row => row.Person.PersonId == selectedId);
             orderDenied = denied is not null || !IsAdmin;
             OrderNoticeInformational = false;
@@ -377,14 +439,32 @@ public sealed partial class PeopleManagementViewModel : ObservableObject, IDispo
             if (editorDenied)
                 ShowError(null, denied ?? "現在の権限ではこの編集を保存できません。未保存の入力は残しています。");
         }
+
         NotifyState();
     }
 
     private void NotifyState()
     {
-        foreach (var name in new[] { nameof(IsAdmin), nameof(CanView), nameof(HasEditor), nameof(IsDeleting), nameof(HasLatest),
-            nameof(CanSave), nameof(IncludesPeriod), nameof(Title), nameof(PrimaryText), nameof(DeleteNotice), nameof(ConflictExplanation),
-            nameof(LatestName), nameof(LatestFrom), nameof(LatestTo), nameof(CanRestoreAuthentication) })
+        foreach (var name in new[]
+        {
+            nameof(IsAdmin),
+            nameof(CanView),
+            nameof(HasEditor),
+            nameof(IsDeleting),
+            nameof(HasLatest),
+            nameof(CanSave),
+            nameof(IncludesPeriod),
+            nameof(Title),
+            nameof(PrimaryText),
+            nameof(DeleteNotice),
+            nameof(ConflictExplanation),
+            nameof(LatestName),
+            nameof(LatestFrom),
+            nameof(LatestTo),
+            nameof(CanRestoreAuthentication)
+        }
+
+        )
             OnPropertyChanged(name);
         AddCommand.NotifyCanExecuteChanged();
         EditCommand.NotifyCanExecuteChanged();

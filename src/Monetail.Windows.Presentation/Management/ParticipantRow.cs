@@ -1,7 +1,6 @@
 using Monetail.Windows.Client.Transport;
 
 namespace Monetail.Windows.Presentation.Management;
-
 /// <summary>APIの順序と対象IDを保ち、識別用の内部IDを画面に出さない。</summary>
 public sealed class ParticipantRow(MemberInfo member, bool isMe)
 {
@@ -10,7 +9,13 @@ public sealed class ParticipantRow(MemberInfo member, bool isMe)
     public string Role { get; } = RoleName(member.Role);
     public string Person { get; } = member.PersonName ?? "未設定";
     public bool CanExclude { get; } = !isMe;
-    public static string RoleName(string role) => role switch { "Admin" => "管理者", "Editor" => "編集者", _ => "閲覧者" };
+
+    public static string RoleName(string role) => role switch
+    {
+        "Admin" => "管理者",
+        "Editor" => "編集者",
+        _ => "閲覧者"
+    };
 }
 
 public sealed class LedgerInvitationRow(LedgerInvitationInfo invitation)
