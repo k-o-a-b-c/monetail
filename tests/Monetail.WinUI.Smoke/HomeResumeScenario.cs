@@ -18,7 +18,7 @@ public partial class App
     {
         var show = typeof(MainWindow).GetMethod("NavigateWorkspace", BindingFlags.NonPublic | BindingFlags.Instance)
             ?? throw new InvalidOperationException("画面遷移がありません。");
-        show.Invoke(window, [Enum.Parse(show.GetParameters()[0].ParameterType, name)]);
+        show.Invoke(window, [Enum.Parse(show.GetParameters()[0].ParameterType, name), null]);
     }
 
     private async Task CheckHomeResumeLifetime(bool transfers)

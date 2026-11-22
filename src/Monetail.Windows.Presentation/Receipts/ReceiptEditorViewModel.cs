@@ -38,6 +38,7 @@ public sealed partial class ReceiptEditorViewModel : ObservableObject
         Func<Guid, string>? paymentName = null)
     {
         Editor = editor;
+        ConfirmedDate = editor.Header.TransactionAt is DateTime initialDate ? DateOnly.FromDateTime(initialDate) : null;
         ParentInput = new(editor.Header, editor.ReceiptId is not null);
         initialLocation = editor.Header.ShopLocation;
         memoInvalid = editor.Header.Memo is { Length: > 100 };
@@ -50,9 +51,16 @@ public sealed partial class ReceiptEditorViewModel : ObservableObject
     public string Title => Editor.ReceiptId is null ? "レシートの登録" : "レシートの編集";
     public bool IsNew => Editor.ReceiptId is null;
     public bool IsExisting => !IsNew;
-    public bool IsReadOnly => availability().ReadOnly;
-    public string RecoveryMessage => availability().Message;
-    public bool ShowRetryMasters => availability().RetryMasters;
+    public bool IsReadOnly => recovery != RecoveryPhase.None || availability().ReadOnly;
+    public string RecoveryMessage => recovery == RecoveryPhase.None ? availability().Message : recovery switch
+    {
+        RecoveryPhase.Login => "入力を保持しています。再ログインしてください。",
+        RecoveryPhase.Loading => "マスタ情報を読み込み中…",
+        RecoveryPhase.Failed => "マスタ情報を取得できませんでした",
+        RecoveryPhase.Forbidden => "編集権限がなくなったため、保存できません",
+        _ => "レシートが削除されたか、アクセスできなくなりました。"
+    };
+    public bool ShowRetryMasters => recovery == RecoveryPhase.Failed || availability().RetryMasters;
     [ObservableProperty] private bool memoInvalid;
     [ObservableProperty] private bool intervalInvalid;
     [ObservableProperty] private bool paymentInvalid;
@@ -74,6 +82,7 @@ public sealed partial class ReceiptEditorViewModel : ObservableObject
         var header = Editor.Header;
         var previousDate = header.TransactionAt?.Date;
         var previousPayment = header.PaymentMethodId;
+        ConfirmedDate = DateOnly.TryParseExact(dateText, "yyyy/MM/dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var confirmed) ? confirmed : null;
         if (DateOnly.TryParseExact(dateText, "yyyy/MM/dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) &&
             TimeOnly.TryParseExact(timeText, "HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time))
             header.TransactionAt = date.ToDateTime(time);

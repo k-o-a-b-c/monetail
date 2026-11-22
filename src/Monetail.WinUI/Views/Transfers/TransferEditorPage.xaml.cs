@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Navigation;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Input;
@@ -14,15 +15,32 @@ using Windows.System;
 using Windows.UI.Core;
 namespace Monetail.WinUI.Views.Transfers;
 
-public sealed partial class TransferEditorView : UserControl
+public sealed partial class TransferEditorPage : Page
 {
-    public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(
-        nameof(ViewModel), typeof(TransferEditorViewModel), typeof(TransferEditorView), new PropertyMetadata(null,
-            (owner, _) => ((TransferEditorView)owner).ChangeModel()));
     public TransferEditorViewModel? ViewModel
     {
-        get => (TransferEditorViewModel?)GetValue(ViewModelProperty);
-        set => SetValue(ViewModelProperty, value);
+        get; private set;
+    }
+    public event Func<Task>? ReturnRequested;
+    public event Func<TransferWriteCompletion, bool, Task>? Saved;
+    protected override void OnNavigatedTo(NavigationEventArgs args)
+    {
+        base.OnNavigatedTo(args);
+        ViewModel = (TransferEditorViewModel)args.Parameter;
+        ViewModel.ActionRequested += ExecuteActionAsync;
+        ChangeModel();
+        Loaded += InitialFocus;
+        Populate();
+    }
+    private void InitialFocus(object sender, RoutedEventArgs args)
+    {
+        Loaded -= InitialFocus;
+        FocusField("transactionAt");
+    }
+    protected override void OnNavigatedFrom(NavigationEventArgs args)
+    {
+        Release();
+        base.OnNavigatedFrom(args);
     }
     public Func<DependencyObject?, bool>? IsCancellationTarget
     {
@@ -43,7 +61,7 @@ public sealed partial class TransferEditorView : UserControl
                 model.SuggestionError = value;
         }
     }
-    public TransferEditorView()
+    public TransferEditorPage()
     {
         InitializeComponent();
         transferKeyboard = new FormKeyboard(this, TransferSave,
@@ -211,6 +229,8 @@ public sealed partial class TransferEditorView : UserControl
     }
     public void RememberPosition()
     {
+        if (ViewModel?.RecoveryBlocked == true && position is not null)
+            return;
         var focus = FocusManager.GetFocusedElement(XamlRoot) as Control;
         position = new(focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
             TransferInputScroller.VerticalOffset);

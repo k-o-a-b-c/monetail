@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Navigation;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Ledgers;
@@ -14,15 +15,30 @@ using Monetail.Windows.Presentation.Receipts;
 namespace Monetail.WinUI.Views.Receipts;
 
 /// <summary>レシート入力の実コントロール、描画、フォーカス、IMEを所有する。</summary>
-public sealed partial class ReceiptEditorView : UserControl
+public sealed partial class ReceiptEditorPage : Page
 {
-    public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(nameof(ViewModel),
-        typeof(ReceiptEditorViewModel), typeof(ReceiptEditorView), new PropertyMetadata(null,
-            (owner, args) => ((ReceiptEditorView)owner).ModelChanged(args.OldValue as ReceiptEditorViewModel, args.NewValue as ReceiptEditorViewModel)));
     public ReceiptEditorViewModel? ViewModel
     {
-        get => (ReceiptEditorViewModel?)GetValue(ViewModelProperty);
-        set => SetValue(ViewModelProperty, value);
+        get; private set;
+    }
+    protected override void OnNavigatedTo(NavigationEventArgs args)
+    {
+        base.OnNavigatedTo(args);
+        ViewModel = (ReceiptEditorViewModel)args.Parameter;
+        ModelChanged(null, ViewModel);
+        ViewModel.ConfirmationRequested += ConfirmAsync;
+        Loaded += InitialFocus;
+        Populate();
+    }
+    private void InitialFocus(object sender, RoutedEventArgs args)
+    {
+        Loaded -= InitialFocus;
+        ReceiptDate.Focus(FocusState.Programmatic);
+    }
+    protected override void OnNavigatedFrom(NavigationEventArgs args)
+    {
+        Release();
+        base.OnNavigatedFrom(args);
     }
     private void ModelChanged(ReceiptEditorViewModel? previous, ReceiptEditorViewModel? current)
     {
@@ -58,7 +74,7 @@ public sealed partial class ReceiptEditorView : UserControl
     private bool rendering;
     private readonly FormKeyboard receiptEditorKeyboard;
     private TextBox[] TextInputs => [ReceiptDate, ReceiptTime, ReceiptShopName, ReceiptShopLocation, ReceiptInterval, ReceiptMemo, ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo];
-    public ReceiptEditorView()
+    public ReceiptEditorPage()
     {
         InitializeComponent();
         receiptEditorKeyboard = new FormKeyboard(this, null, null, TextInputs);

@@ -102,7 +102,7 @@ public sealed partial class MainWindow
             await GetAuthentication().ConnectAsync(candidate, token);
     }
 
-    private bool EditorAwaitingLogin => transferAwaitingLogin || receiptRecoveryPhase == ReceiptRecoveryPhase.Login || management?.Context.IsSuspended == true;
+    private bool EditorAwaitingLogin => TransferPage?.ViewModel?.AwaitingLogin == true || ReceiptPage?.ViewModel?.AwaitingLogin == true || management?.Context.IsSuspended == true;
 
     // ログインへの移動準備。画面表示だけでは編集状態を破棄しない。
     private void NavigateToLogin(string? message = null)
@@ -142,14 +142,18 @@ public sealed partial class MainWindow
     // 例外分類・busy・認証退避は共通。認証側だけが失敗の表示先を渡す。
     private async Task RunAsync(Func<Task> action, Action<string>? failed = null)
     {
-        if (busy || closed) return;
+        if (busy || closed)
+            return;
         Action<string> report = failed ?? ShowError;
-        var receiptView = RememberReceiptAuthenticationView();
+        RememberReceiptAuthenticationView();
         busy = true;
         ErrorNotice.IsOpen = false;
         ErrorNotice.Visibility = Visibility.Collapsed;
         SetOperationsEnabled(false);
-        try { await action(); }
+        try
+        {
+            await action();
+        }
         catch (OperationCanceledException) when (closed) { }
         catch (ObjectDisposedException) when (closed) { }
         catch (AuthenticationRejectedException)
@@ -197,8 +201,10 @@ public sealed partial class MainWindow
         finally
         {
             busy = false;
-            if (receiptRecoveryPhase == ReceiptRecoveryPhase.None && ReferenceEquals(receiptAuthentication, receiptView)) receiptAuthentication = null;
-            if (!closed) SetOperationsEnabled(true);
+            if (ReceiptPage?.ViewModel?.IsReadOnly == false)
+                ReceiptPage.ForgetPosition();
+            if (!closed)
+                SetOperationsEnabled(true);
         }
     }
 
@@ -243,16 +249,10 @@ public sealed partial class MainWindow
         RecordPage?.Suspend();
         ReleaseAuthentication();
         ReleaseLedgerPage();
-        transferAuthentication = null;
-        transferEditor = null;
-        ResetRecordHome();
-        CancelTransferOpening();
-        var transferModel = TransferEntry.ViewModel;
-        TransferEntry.ViewModel = null;
-        transferModel?.DiscardWrite();
-        TransferEntry.CancelRequests();
-        ReleaseWorkspace();
+        ResetTransferEditor();
         ResetReceiptEditor();
+        ResetRecordHome();
+        ReleaseWorkspace();
         connection.Masters.Changed -= ReceiptMasterChanged;
         DiscardManagement();
         lifetime.Cancel();

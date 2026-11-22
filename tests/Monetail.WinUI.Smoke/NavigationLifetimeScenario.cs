@@ -18,25 +18,34 @@ public partial class App
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
         {
-            var masters = new PaymentServer(); var server = new TransferInputServer(masters); var saved = server.Add();
+            var masters = new PaymentServer();
+            var server = new TransferInputServer(masters);
+            var saved = server.Add();
             fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
-            fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
-            var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
-            var ledger = TransferRuntime("currentLedger"); var accountBefore = TransferRuntime("account");
+            fixture.PaymentsHandler = masters.HandleAsync;
+            fixture.TransfersHandler = server.HandleAsync;
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
+            var ledger = TransferRuntime("currentLedger");
+            var accountBefore = TransferRuntime("account");
             Call("ShowLogin", (object?)null);
             Check(Visible(root, "LoginPage") && ReferenceEquals(ledger, TransferRuntime("currentLedger")) &&
                 ReferenceEquals(accountBefore, TransferRuntime("account")), "ログインの表示だけでは家計簿や認証コンテキストを破棄しない");
             ShowHomeTestPage(root, "HomePage");
             await window!.OpenTransferEditorAsync(saved.TransferId);
+            var retainedTransfer = TransferView;
             var editor = TransferEditing ?? throw new InvalidOperationException("振替編集モデルがありません。");
-            var draft = editor.Draft; var amount = Find<TextBox>(root, "TransferAmount"); amount.Text = "12x";
-            var date = Find<DateInputBox>(root, "TransferDate"); date.Text = "2026/";
+            var draft = editor.Draft;
+            var amount = Find<TextBox>(root, "TransferAmount");
+            amount.Text = "12x";
+            var date = Find<DateInputBox>(root, "TransferDate");
+            date.Text = "2026/";
             var details = server.Details;
             ShowHomeTestPage(root, "ManagementPage");
-            Check(Visible(root, "HomePage") && ReferenceEquals(editor, TransferEditing) && amount.Text == "12x",
+            Check(Visible(root, "TransferEditorPage") && ReferenceEquals(editor, TransferEditing) && amount.Text == "12x",
                 "未承認の画面移動ガードは入力を保持して遷移を拒否する");
             Call("ResetRecordHome");
-            Check(Find<Monetail.WinUI.Views.Receipts.ReceiptListView>(root, "ReceiptsView").ViewModel is null && Find<Monetail.WinUI.Views.Transfers.TransferListView>(root, "TransfersView").ViewModel is null &&
+            Check(TransferRuntime("recordHome") is null && !Visible(root, "HomePage") &&
                 ReferenceEquals(editor, TransferEditing) && ReferenceEquals(draft, TransferEditing?.Draft) &&
                 ReferenceEquals(amount, Find<TextBox>(root, "TransferAmount")) && amount.Text == "12x" && date.Text == "2026/" && editor.Revision == saved.Revision,
                 "記録一覧のリセットは取得を終了しても振替のモデル・コントロール・未確定入力・旧版を破棄しない");
@@ -44,17 +53,22 @@ public partial class App
             Check(TransferRuntime("currentLedger") is null && ReferenceEquals(editor, TransferEditing) && amount.Text == "12x",
                 "家計簿コンテキストの解除だけでは振替編集を破棄しない");
             Call("DiscardLedgerContents");
-            Check(TransferEditing is null && TransferView.ViewModel?.PendingRequest is null && TransferRuntime("transferAuthentication") is null &&
+            Check(TransferEditing is null && retainedTransfer.ViewModel is null && TransferRecoveryPosition is null &&
                 !Visible(root, "TransferEditorPage") && server.Details == details && server.Writes.Count == 0,
                 "明示的な破棄でのみ編集を終了し、詳細GET・保存を実行しない");
         }
         using (var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true })
         {
-            var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
-            var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
+            var categories = new CategoryServer();
+            fixture.CategoriesHandler = categories.HandleAsync;
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
             await window!.OpenReceiptEditorAsync(null);
             var editor = ReceiptEditing ?? throw new InvalidOperationException("レシート編集モデルがありません。");
-            var input = ReceiptView.ViewModel?.ParentInput; var memo = Find<TextBox>(root, "ReceiptMemo"); memo.Text = "保持するメモ";
+            var retainedReceipt = ReceiptView;
+            var input = ReceiptView.ViewModel?.ParentInput;
+            var memo = Find<TextBox>(root, "ReceiptMemo");
+            memo.Text = "保持するメモ";
             Call("ResetRecordHome");
             Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, ReceiptView.ViewModel?.ParentInput) &&
                 ReferenceEquals(memo, Find<TextBox>(root, "ReceiptMemo")) && memo.Text == "保持するメモ",
@@ -62,7 +76,7 @@ public partial class App
             Call("ClearLedger");
             Check(ReferenceEquals(editor, ReceiptEditing) && memo.Text == "保持するメモ", "家計簿の解除とレシート編集破棄も独立する");
             Call("DiscardLedgerContents");
-            Check(ReceiptEditing is null && ReceiptView.ViewModel?.ParentInput is null && !Visible(root, "ReceiptEditorPage"),
+            Check(ReceiptEditing is null && retainedReceipt.ViewModel is null && !Visible(root, "ReceiptEditorPage"),
                 "明示的な破棄でレシート編集も終了するが401復帰機能は追加しない");
         }
     }

@@ -1,13 +1,14 @@
-<UserControl
-    x:Class="Monetail.WinUI.Views.Receipts.ReceiptEditorView"
+<Page
+    x:Class="Monetail.WinUI.Views.Receipts.ReceiptEditorPage" x:Name="ReceiptEditorRoot"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:input="using:Monetail.WinUI.Input"
     xmlns:presentation="using:Monetail.Windows.Presentation.Receipts"
     IsTabStop="False">
-<Grid RowSpacing="16" SizeChanged="ParentSizeChanged">
-    <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <ScrollViewer x:Name="ReceiptInputScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+<Grid Margin="32,0,32,32" RowSpacing="16" SizeChanged="ParentSizeChanged">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <Button x:Name="ReceiptBack" Content="← 戻る" Command="{x:Bind ViewModel.BackCommand, Mode=OneWay}" AutomationProperties.AutomationId="ReceiptBack"/>
+    <ScrollViewer Grid.Row="1" x:Name="ReceiptInputScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Spacing="16">
             <InfoBar x:Name="ReceiptRecoveryNotice" IsOpen="{x:Bind ViewModel.IsReadOnly, Mode=OneWay}" Message="{x:Bind ViewModel.RecoveryMessage, Mode=OneWay}" IsClosable="False" Severity="Error" AutomationProperties.LiveSetting="Polite"/>
             <Button x:Name="ReceiptMasterRetry" Content="再試行" Command="{x:Bind ViewModel.RetryMastersCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.ShowRetryMasters), Mode=OneWay, FallbackValue=Collapsed}"/>
@@ -151,7 +152,7 @@
 
         </StackPanel>
     </ScrollViewer>
-    <StackPanel Grid.Row="1" Spacing="8">
+    <StackPanel Grid.Row="2" Spacing="8">
         <TextBlock x:Name="ReceiptAccountingTotal" Text="{x:Bind ViewModel.AccountingTotal, Mode=OneWay}" TextWrapping="Wrap"/>
         <TextBlock x:Name="ReceiptCalculationNotice" Text="{x:Bind ViewModel.CalculationNotice, Mode=OneWay}" TextWrapping="Wrap" Visibility="{x:Bind Show(ViewModel.HasCalculationNotice), Mode=OneWay, FallbackValue=Collapsed}"/>
         <TextBlock Text="現在は保存できません。登録・更新・流用登録は後続工程で接続します。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
@@ -159,8 +160,8 @@
             <Button x:Name="ReceiptRegister" Visibility="{x:Bind Show(ViewModel.IsNew), Mode=OneWay, FallbackValue=Collapsed}" Content="登録" IsEnabled="False" AutomationProperties.AutomationId="ReceiptRegister"/>
             <Button x:Name="ReceiptUpdate" Visibility="{x:Bind Show(ViewModel.IsExisting), Mode=OneWay, FallbackValue=Collapsed}" Content="更新" IsEnabled="False" AutomationProperties.AutomationId="ReceiptUpdate"/>
             <Button x:Name="ReceiptReuse" Visibility="{x:Bind Show(ViewModel.IsExisting), Mode=OneWay, FallbackValue=Collapsed}" Content="流用登録" IsEnabled="False" AutomationProperties.AutomationId="ReceiptReuse"/>
-            <Button x:Name="ReceiptBack" Content="キャンセル／一覧に戻る" Command="{x:Bind ViewModel.BackCommand, Mode=OneWay}" AutomationProperties.AutomationId="ReceiptBack"/>
+
         </StackPanel>
     </StackPanel>
 </Grid>
-</UserControl>
+</Page>

@@ -102,6 +102,16 @@ PR1はRecordHomePageとManagementPageを必要時にFrame.Navigateで生成し�
 
 PR1実装時には管理詳細と入力Viewの業務移管をPR2/3へ残し、Windowが既存の2つの内容領域（管理詳細/入力）を所有してPageへ内容単位で接続していた。Page内部のコントロールをWindowへ公開する転送層は設けない。管理詳細と管理ダイアログの先行生成・Windowの管理固有エラー分岐はPR2で除去した。入力領域の移管はPR3へ残り、全画面のMVVM/必要時生成が完了したとは扱わない。ページ境界を作るだけの案より検索・選択/操作の正本をVMへ移す案を採用し、入力業務を同時に移す大規模案は後続へ分割する。
 
+### PR3：入力Pageへの移管（実装・検証中）
+
+承認済み設計に従い、既存のReceiptEditorView/TransferEditorViewをそれぞれReceiptEditorPage/TransferEditorPageへ直接置換する。入力Viewを包むだけのPageと新VMは増やさない。WorkspaceHostから必要時にFrame.Navigateし、RecordHomePageのEditorHost/ShowEditorとWindow常駐の入力Grid・確認ダイアログを撤去する。共通ヘッダーはShell、左上の戻る・IME/フォーカス/スクロール・必要時ContentDialogは各Pageへ置く。終了確認はWindowの一つの入口から現在のPageの離脱許可を確認する。
+
+既存EditorViewModelはClientのEditor/Draftと不変TransferWriteRequestを同じ参照で再利用する。保存要求の送信・型付きエラーの表示投影・復帰時のマスタ取得を既存VMへ移し、Clientの入力/競合/再送契約を複製しない。RecordEditorContextは既存Api/Session/Masters・本人/家計簿/接続先・Window寿命だけを渡す小さなデータ束で、業務入力や別の認証状態を持たない。汎用Service/DI/ルーターやEditor基底クラスは追加しない。
+
+通常離脱前の確認取消ではNavigateせず元のPageを維持する。離脱確定後に購読・Page・読取を解放し、一覧VM/検索条件/選択/位置を保持して新しいホームPageへ接続する。401ではWorkspaceHost内の入力PageをNavigateせず非表示にし、既存の認証Frameを前面に出す。同じ本人/家計簿/接続先だけ同じPage/VM/実コントロール/未完了要求へ復帰する。フォーカス/文字選択/スクロールだけPage内へ保持し、連続401で上書きしない。別コンテキスト・終了では解放する。Pageの読取取消を送信済み書込の失敗確定と混同しない。
+
+レシート全体保存・結果不明/409の未接続UIは実装せず、登録/更新/流用登録とCtrl+Enterの保存は無効のまま。振替の確認・保存/削除・409最新の明示採用・不変要求の明示再送・保存後の一覧条件調整/保存行探索を維持する。旧版RegisterForm/RegisterTransferFormとViewForm_Listの操作を照合し、別Window/旧保存方式は新版へ持ち込まない。検証結果・最終計測は本工程の完了時に追記する。
+
 ### PR1の依存・状態比較
 
 ```mermaid

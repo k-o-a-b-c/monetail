@@ -47,10 +47,8 @@ public sealed partial class MainWindow
     // 家計簿を離れることが確定した時だけ呼ぶ。401退避では振替の入力を保持する。
     private void DiscardLedgerContents()
     {
-        if (transferAuthentication is not null) DiscardTransferAuthentication();
-        else ResetTransferEditor();
-        if (receiptAuthentication is not null) DiscardReceiptAuthentication();
-        else ResetReceiptEditor();
+        ResetTransferEditor();
+        ResetReceiptEditor();
         ResetRecordHome();
         DiscardManagement();
     }

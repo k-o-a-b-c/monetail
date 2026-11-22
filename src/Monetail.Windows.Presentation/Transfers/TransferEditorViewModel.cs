@@ -65,22 +65,22 @@ public sealed partial class TransferEditorViewModel(
     {
         get; private set;
     }
-    public bool IsFrozen => Editor.IsReadOnly || availability().RecoveryBlocked || availability().DialogOpen ||
+    public bool IsFrozen => Editor.IsReadOnly || Availability.RecoveryBlocked || Availability.DialogOpen ||
         IsSending || PendingRequest is not null || IsStopped;
-    public bool CanAdoptLatest => !availability().RecoveryBlocked && !IsStopped && !IsUnknown && PendingRequest is null &&
+    public bool CanAdoptLatest => !Availability.RecoveryBlocked && !IsStopped && !IsUnknown && PendingRequest is null &&
         Editor is { ReadOnlyReason: TransferReadOnlyReason.Conflict, Latest: not null };
     public bool HasUnknownWrite => PendingRequest is not null && IsUnknown;
-    public bool CanRetryPendingWrite => !availability().RecoveryBlocked && !IsStopped && availability().HasAccount &&
+    public bool CanRetryPendingWrite => !Availability.RecoveryBlocked && !IsStopped && Availability.HasAccount &&
         !Editor.IsReadOnly && PendingRequest is not null && (IsUnknown || RetryAfterLogin);
     public bool ShowSave => !(Editor.IsReadOnly || IsStopped) || IsUnknown;
     public bool ShowExistingActions => Editor.IsExisting && !Editor.IsReadOnly && !IsStopped;
     public bool ShowRetryWrite => CanRetryPendingWrite;
-    public bool ShowRetryMasters => availability().MastersFailed;
+    public bool ShowRetryMasters => Availability.MastersFailed;
     public bool ShowLoadLatest => CanAdoptLatest;
     public bool CanDelete => Editor.IsExisting && !IsFrozen;
-    public bool CanRetryWrite => ShowRetryWrite && !IsSending && !availability().DialogOpen;
-    public bool CanRetryMasters => ShowRetryMasters && !availability().MastersLoading && !availability().DialogOpen;
-    public bool CanLoadLatest => ShowLoadLatest && !IsSending && !availability().DialogOpen;
+    public bool CanRetryWrite => ShowRetryWrite && !IsSending && !Availability.DialogOpen;
+    public bool CanRetryMasters => ShowRetryMasters && !Availability.MastersLoading && !Availability.DialogOpen;
+    public bool CanLoadLatest => ShowLoadLatest && !IsSending && !Availability.DialogOpen;
     public bool CanSave
     {
         get

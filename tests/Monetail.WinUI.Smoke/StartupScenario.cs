@@ -62,7 +62,7 @@ public partial class App
             await Wait(() => Visible(root, "HomePage") && Equals(TransferRuntime("busy"), false));
             Check(Visible(root, "HomePage") && Startup(root) is null && CurrentAuthentication is null && date.Text == "2026/" &&
                 ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing) &&
-                (receipt ? ReceiptView.ViewModel?.IsReadOnly == false : Equals(TransferRuntime("transferMastersFailed"), false)) &&
+                (receipt ? ReceiptView.ViewModel?.IsReadOnly == false : Equals((CurrentTransferPage?.ViewModel?.MastersFailed ?? false), false)) &&
                 fixture.Requests.Skip(reads).Any(path => path.EndsWith("/payment-methods", StringComparison.Ordinal)),
                 (receipt ? "レシート" : "振替") + "の保持中編集へ起動再試行から戻る場合も、Page解放でマスタ取得を中断しない");
             Check(!fixture.Requests.Skip(reads).Any(path => path.Contains("/receipts", StringComparison.Ordinal) ||

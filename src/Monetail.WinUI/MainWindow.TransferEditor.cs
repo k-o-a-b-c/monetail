@@ -11,40 +11,12 @@ namespace Monetail.WinUI;
 
 public sealed partial class MainWindow
 {
-    private TransferEditorState? transferEditor;
+    private TransferEditorState? transferEditor => TransferPage?.ViewModel?.Editor;
     private CancellationTokenSource? transferOpening;
     private Guid? transferOpenRetry;
-    private bool transferDialogOpen, transferLeaving, transferCloseApproved;
     private bool RecordEditorActive => receiptEditor is not null || transferEditor is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
     private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
-    private bool TransferRecoveryBlocked => transferAwaitingLogin || transferMastersLoading || transferMastersFailed;
-    private bool TransferFrozen => TransferEntry.ViewModel?.IsFrozen != false;
-    private bool TransferCanAdoptLatest => TransferEntry.ViewModel?.CanAdoptLatest == true;
-    private bool TransferCanRetryWrite => TransferEntry.ViewModel?.CanRetryPendingWrite == true;
-    private void InitializeTransferEditor()
-    {
-        WorkspaceRoot.Children.Remove(TransferConfirmationDialog);
-        TransferEntry.IsCancellationTarget = IsTransferLeaveTarget;
-        AppWindow.Closing += async (_, args) =>
-        {
-            if (transferAwaitingLogin)
-            {
-                DiscardTransferAuthentication();
-                return;
-            }
-            if (transferCloseApproved || transferEditor is null)
-                return;
-            args.Cancel = true;
-            if (await LeaveTransferEditorAsync())
-            {
-                transferCloseApproved = true;
-                Close();
-            }
-        };
-    }
-    private bool IsTransferLeaveTarget(DependencyObject? element) => ReferenceEquals(element, SettingsButton) ||
-        ReferenceEquals(element, RecordButton) || ReferenceEquals(element, LedgerSelector);
     private async Task<bool> LeaveRecordEditorAsync() => await LeaveTransferEditorAsync() && await LeaveReceiptEditorAsync();
     internal async Task OpenTransferEditorAsync(Guid? id)
     {
@@ -58,36 +30,31 @@ public sealed partial class MainWindow
         using var pending = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         transferOpening = pending;
         transferOpenRetry = id;
-        if (recordHome is not null) recordHome.TransferOpening = new("振替を読み込み中…", true, false);
+        if (recordHome is not null)
+            recordHome.TransferOpening = new("振替を読み込み中…", true, false);
         UpdateTransferActions();
         bool Current() => !closed && ReferenceEquals(transferOpening, pending) && !pending.IsCancellationRequested &&
             currentLedger?.LedgerId == ledger && account?.AuthUserId == person &&
             IsRecordPageVisible && !RecordEditorActive;
         try
         {
-            var saved = id is Guid value ? await new TransfersWorkspace(api, session, ledger).GetAsync(value, pending.Token) : null;
-            await connection.Masters.GetPeopleAsync(ledger, ct => new PeopleWorkspace(api, session, ledger).ListAsync(ct), pending.Token);
-            await connection.Masters.GetPaymentsAsync(ledger, ct => new PaymentMethodsWorkspace(api, session, ledger).ListAsync(ct), pending.Token);
-            if (!Current() || TransferMethods is not { } methods)
-                return;
-            if (saved is null && !TransferEditorRules.CanCreate(methods))
+            var model = await TransferEditorViewModel.OpenAsync(CreateRecordEditorContext(), id, pending.Token);
+            if (!Current())
             {
-                if (recordHome is not null) recordHome.TransferOpening = new("振替を登録する権限がありません。", false, false);
+                model?.Release();
                 return;
             }
-            transferEditor = saved is null ? TransferEditorState.Create(DateOnly.FromDateTime(DateTime.Now)) : TransferEditorState.Edit(saved);
-            if (saved is not null && (!TransferEditorRules.CanUse(methods, saved.FromPaymentMethodId) || !TransferEditorRules.CanUse(methods, saved.ToPaymentMethodId)))
-                transferEditor.EnterReadOnly(TransferReadOnlyReason.Forbidden);
-            var model = new TransferEditorViewModel(transferEditor, () => new(TransferRecoveryBlocked, transferMastersFailed, transferMastersLoading, transferDialogOpen, account is not null),
-                paymentId => connection.Masters.PaymentName(ledger, paymentId), LoadTransferSuggestionsAsync, LoadTransferAutofillAsync);
-            model.ActionRequested += ExecuteTransferActionAsync;
+            if (model is null)
+            {
+                if (recordHome is not null)
+                    recordHome.TransferOpening = new("振替を登録する権限がありません。", false, false);
+                return;
+            }
             model.AuthenticationRequired += StopTransferAuthentication;
-            TransferEntry.ViewModel = model;
             RecordPage?.RememberPositions();
-            RecordPage?.ShowEditor(EditorContents);
-            TransferEditorPage.Visibility = Visibility.Visible;
-            PopulateTransferEditor();
-            TransferEntry.FocusField("transactionAt");
+            if (recordHome is not null)
+                recordHome.TransferOpening = null;
+            NavigateWorkspace(WorkspaceScreen.TransferEditor, model);
         }
         catch (OperationCanceledException) when (pending.IsCancellationRequested)
         {
@@ -113,7 +80,8 @@ public sealed partial class MainWindow
             if (ReferenceEquals(transferOpening, pending))
             {
                 transferOpening = null;
-                if (recordHome is not null && transferEditor is not null) recordHome.TransferOpening = null;
+                if (recordHome is not null && transferEditor is not null)
+                    recordHome.TransferOpening = null;
                 UpdateTransferActions();
             }
         }
@@ -128,56 +96,32 @@ public sealed partial class MainWindow
     }
     private void ResetTransferEditor()
     {
-        transferAuthentication = null;
-        transferAwaitingLogin = transferMastersLoading = transferMastersFailed = transferRecoveryLedgerReady = false;
         CancelTransferOpening();
-        var transferModel = TransferEntry.ViewModel;
-        TransferEntry.ViewModel = null;
-        transferModel?.DiscardWrite();
-        TransferEntry.Discard();
-        transferEditor = null;
-        TransferEditorPage.Visibility = Visibility.Collapsed;
-        RecordPage?.ShowEditor(null);
+        TransferPage?.Release();
     }
-    private void PopulateTransferEditor()
-    {
-        TransferEntry.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
-        TransferEntry.Populate();
-    }
-    private void SyncTransferInput() => TransferEntry.SynchronizeInput();
     private void RefreshTransferEditorChoices()
     {
-        TransferEntry.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
-        TransferEntry.RefreshChoices();
+        if (TransferPage is not { } page)
+            return;
+        page.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
+        page.RefreshChoices();
     }
-    private TransferSavePreparation PrepareTransfer(bool reuse) => TransferEntry.ViewModel?.PrepareSave(reuse)
-        ?? throw new TransferInputException("master", "マスタ情報を取得してください。");
-    private void RenderTransferEditor() => TransferEntry.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
-    private void TransferNotice(string message, InfoBarSeverity severity = InfoBarSeverity.Error) =>
-        TransferEntry.ViewModel?.ShowNotice(message, severity switch
-        {
-            InfoBarSeverity.Informational => TransferNoticeLevel.Information,
-            InfoBarSeverity.Warning => TransferNoticeLevel.Warning,
-            _ => TransferNoticeLevel.Error
-        });
-    private Task ExecuteTransferActionAsync(TransferEditorAction action) => action switch
-    {
-        TransferEditorAction.Back => BackTransferAsync(),
-        TransferEditorAction.Save => SaveTransferAsync(false),
-        TransferEditorAction.Reuse => SaveTransferAsync(true),
-        TransferEditorAction.Delete => DeleteTransferAsync(),
-        TransferEditorAction.RetryWrite => RetryTransferWriteAsync(),
-        TransferEditorAction.RetryMasters => RetryTransferMastersAsync(),
-        TransferEditorAction.LoadLatest => LoadLatestTransferAsync(),
-        _ => Task.CompletedTask
-    };
     private async Task BackTransferAsync()
     {
         if (await LeaveTransferEditorAsync())
-        {
             NavigateWorkspace(WorkspaceScreen.HomePage);
-            RestoreTransferPosition();
-        }
     }
-    private void RestoreTransferPosition() => RecordPage?.RestorePositions();
+    private async Task<bool> LeaveTransferEditorAsync()
+    {
+        if (TransferPage is { } page)
+        {
+            if (!await page.TryLeaveAsync())
+                return false;
+            page.Release();
+            return true;
+        }
+        CancelTransferOpening();
+        return true;
+    }
+    private void StopTransferAuthentication() => NavigateToLogin("ログインを継続できません。入力を保持しています。もう一度ログインしてください。");
 }

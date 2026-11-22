@@ -142,7 +142,7 @@ public partial class App
             "家計簿取得中は共通busy制御で二重取得・別家計簿オープンを禁止する");
         var navigate = typeof(MainWindow).GetMethod("NavigateWorkspace", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var screen = typeof(MainWindow).GetNestedType("WorkspaceScreen", BindingFlags.NonPublic)!;
-        navigate.Invoke(window, [Enum.Parse(screen, "HomePage")]);
+        navigate.Invoke(window, [Enum.Parse(screen, "HomePage"), null]);
         fixture.LedgerListGate.SetResult(true);
         await Wait(() => Equals(TransferRuntime("busy"), false));
         Check(Visible(root, "HomePage") && TransferRuntime("ledgerMenu") is null,

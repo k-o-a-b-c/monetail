@@ -153,7 +153,13 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "NewReceiptButton"));
         await Wait(() => ReceiptEditing is not null);
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
-        await Wait(() => ReceiptEditing is null && Visible(root, "HomePage") && Math.Abs(scroll.VerticalOffset - vertical) < 1 && Math.Abs(scroll.HorizontalOffset - horizontal) < 1);
+        await Wait(() => ReceiptEditing is null && Visible(root, "HomePage"));
+        var oldView = view;
+        view = Find<Monetail.WinUI.Views.Receipts.ReceiptListView>(root, "ReceiptsView");
+        list = Find<ListView>(root, "ReceiptList");
+        scroll = All(list).OfType<ScrollViewer>().First();
+        await Wait(() => Math.Abs(scroll.VerticalOffset - vertical) < 1 && Math.Abs(scroll.HorizontalOffset - horizontal) < 1);
+        Check(!ReferenceEquals(oldView, view) && oldView.ViewModel is null, "入力からの復帰は旧ホームViewを解放し、新Pageで一覧位置を復元する");
         Check(ReferenceEquals(view.ViewModel, model) && ReferenceEquals(list.SelectedItem, selected) && model.Rows.Count == 500 && reads.Count == 5,
             "レシート新規編集の取消は同じVM/選択と縦横位置へ戻り、一覧を再取得しない");
     }

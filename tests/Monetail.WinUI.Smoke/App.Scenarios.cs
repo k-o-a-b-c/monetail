@@ -34,6 +34,7 @@ public partial class App
             }
         }),
         new("management-mvvm", "existing", CheckManagementMvvm),
+        new("editor-page-lifetime", "existing", CheckEditorPageLifetime),
         new("management-ledger-switch", "existing", CheckManagementLedgerSwitch),
         new("categories", "existing", CheckCategories),
         new("people-filter", "existing", CheckPeopleFilter),
