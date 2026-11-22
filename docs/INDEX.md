@@ -9,6 +9,7 @@
 | アカウント・パスキー・登録・全失効と復旧 | [認証・パスキー](auth-passkeys.md) |
 | セッション期限・Cookie・CSRF | [セッション保護](auth-session-security.md) |
 | WindowsのOAuth・DPAPI・トークン保存 | [Windows認証](auth-windows-oauth.md) |
+| API・業務契約の機能別分類・共通契約候補・正本移行状況 | [API仕様の移行台帳](specs/api/README.md) |
 | 認証・管理APIの入出力と再送 | [認証API](auth-api-contract.md) |
 | 家計簿設計の入口・旧リンク | [58 家計簿設計](58-ledger-foundation-design.md) |
 | 家計簿共通設計の入口・旧見出し | [共通仕様](ledger-foundation-core.md) |
