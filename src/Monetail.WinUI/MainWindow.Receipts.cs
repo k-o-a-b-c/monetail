@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Monetail.Windows.Client.Authentication;
+using Monetail.Windows.Client.Ledgers;
 using Monetail.Windows.Client.Receipts;
 using Monetail.Windows.Presentation.Receipts;
 using Monetail.Windows.Presentation.Transfers;
