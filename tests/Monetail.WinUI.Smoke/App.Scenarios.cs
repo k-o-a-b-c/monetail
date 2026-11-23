@@ -22,6 +22,8 @@ public partial class App
         new("transfer-opening", "transfer-editor", CheckTransferOpening),
         // 起動/接続の独立試験は先行プロセスへ配分し、全件と各120秒上限を維持する。
         new("connection-flow", "transfer-editor", () => CheckConnectionFlow(output, capture)),
+        // 入力Page化後も各120秒を維持するため、独立した入力試験を同じ前半プロセスへ配分する。
+        new("editor-page-lifetime", "transfer-editor", CheckEditorPageLifetime),
         new("shell", "existing", () => CheckShell(output, capture)),
         new("participant-authentication-recovery", "existing", async () =>
         {
@@ -34,7 +36,6 @@ public partial class App
             }
         }),
         new("management-mvvm", "existing", CheckManagementMvvm),
-        new("editor-page-lifetime", "existing", CheckEditorPageLifetime),
         new("management-ledger-switch", "existing", CheckManagementLedgerSwitch),
         new("categories", "existing", CheckCategories),
         new("people-filter", "existing", CheckPeopleFilter),
@@ -51,15 +52,15 @@ public partial class App
         new("transfer-list", "existing", CheckTransferList),
         new("transfer-navigation", "existing", CheckTransferNavigation),
         new("receipt-navigation", "existing", CheckReceiptNavigation),
-        new("receipt-editor", "existing", CheckReceiptEditor),
-        new("receipt-parent-selection", "existing", CheckReceiptParentSelection),
-        new("receipt-editor-operations", "existing", CheckReceiptEditorOperations),
-        new("receipt-editor-loading", "existing", CheckReceiptEditorLoading),
-        new("receipt-details", "existing", CheckReceiptDetails),
-        new("receipt-stored-details", "existing", CheckReceiptStoredDetails),
-        new("receipt-memos", "existing", CheckReceiptMemos),
-        new("receipt-tax-calculation", "existing", CheckReceiptTaxCalculation),
-        new("receipt-tax-loading", "existing", CheckReceiptTaxLoading),
+        new("receipt-editor", "transfer-editor", CheckReceiptEditor),
+        new("receipt-parent-selection", "transfer-editor", CheckReceiptParentSelection),
+        new("receipt-editor-operations", "transfer-editor", CheckReceiptEditorOperations),
+        new("receipt-editor-loading", "transfer-editor", CheckReceiptEditorLoading),
+        new("receipt-details", "transfer-editor", CheckReceiptDetails),
+        new("receipt-stored-details", "transfer-editor", CheckReceiptStoredDetails),
+        new("receipt-memos", "transfer-editor", CheckReceiptMemos),
+        new("receipt-tax-calculation", "transfer-editor", CheckReceiptTaxCalculation),
+        new("receipt-tax-loading", "transfer-editor", CheckReceiptTaxLoading),
     ];
 
     // 初期ホーム/管理画面と操作ヘルパーの確認は同じ初期画面に依存するため、一組で実行する。
