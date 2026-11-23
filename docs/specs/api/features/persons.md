@@ -4,6 +4,8 @@
 
 本書は人物リソースのAPI要求・応答と、認可・検証・整合性・競合・再送の保証を定める。
 
+**応答形式の変更は未実装。** 以下は確定した変更後の契約であり、現行API・Windows Clientはまだ`myPersonId`・`currentRole`を人物応答に含めている。実装時に両方を除外し、[家計簿API](../../../ledger-core-api.md)を取得元に統一する。
+
 ## 1. 対象・関連契約
 
 - 対象：家計簿に属する人物の一覧取得、作成、変更、削除、人物共通順の保存。全パスは `/ledgers/{ledgerId}` の下。
@@ -62,8 +64,8 @@
 | `PUT /people/order` | `200 OK`・人物一覧JSON |
 
 人物の作成・更新・削除・共通順保存の**成功時は、最新の人物一覧を同じ応答に含める**。変更後一覧は変更と同じサーバートランザクション内の状態を返す。
-- 人物一覧/変更後の共通JSON形式は、トップレベルに`people`配列、`myPersonId`（対応人物がなければ`null`）、`currentRole`、`orderRevision`。人物ID・更新版はUUIDの**N形式の文字列**で返す。
-- `people[]`の人物1件は`personId`、`name`、`validFrom`、`validTo`、`displayOrder`、`revision`。日付は形式文字列または`null`。本人の人物IDは`myPersonId`で伝え、他参加者とのアカウント対応一覧を一般参加者へ公開しない。
+- 人物一覧/変更後の共通JSON形式は、トップレベルに`people`配列と`orderRevision`のみを持つ。人物ID・更新版はUUIDの**N形式の文字列**で返す。操作者の`role`・`myPersonId`は[家計簿API](../../../ledger-core-api.md)で取得する。
+- `people[]`の人物1件は`personId`、`name`、`validFrom`、`validTo`、`displayOrder`、`revision`。日付は形式文字列または`null`。本人判定は家計簿APIで得た`myPersonId`を用い、人物一覧から他参加者のアカウント対応を公開しない。
 - `GET /people`は、有効期間外の人物を含む全人物を、家計簿共通の`displayOrder`に基づく順序で返す。新規人物は共通順の末尾へ追加する。
 - **共通順PUTが現在の人物ID順と同一の場合は無変更成功（200）**とし、人物0件の空配列を含めて`displayOrder`・`orderRevision`を変更しない。
 - 人物ID順が実際に変わる場合だけ`orderRevision`を更新する。人物の追加・削除時も全体順序版を更新する。
@@ -72,7 +74,7 @@
 
 ## 6. 競合・失敗応答
 
-- 人物APIの業務エラー本文は`code`・`message`・`field`・`latest`・`permissions`を含み、該当しない情報は`null`とする。例外的な追加項目は共通エラー境界に従う。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない（[人物・参加者API](../../../ledger-person-api-contract.md)）。
+- 人物APIの業務エラー本文は`code`・`message`を基本とし、該当する場合のみ`field`・`latest`を含める。操作者の`permissions`・`currentRole`・`myPersonId`は人物APIの成功・失敗応答に含めない。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない。現在の参加状態を更新する方法は[家計簿API](../../../ledger-core-api.md)に従う。
 - 400 `invalid_input`：名前・日付・JSON本文・不正な順序ID集合等の入力不備。開始日・終了日の前後関係が不正な場合も400。
 - 401：未認証・認証失効等。共通の認証契約に従う。
 - 403 `forbidden`：権限不足。404 `not_found`：家計簿不在・未参加・対象人物不在等（業務処理内）。
@@ -82,9 +84,9 @@
 ### 更新版競合
 
 - PATCH・DELETEは**対象人物の`revision`**、PUT /people/orderは**共通順全体の`orderRevision`**を必須として原子的に照合する。
-- 409 `revision_conflict`の`latest`には、PATCH/DELETEなら最新の人物1件（`people[]`と同じ6項目）、共通順PUTなら最新の人物一覧応答（`people`・`myPersonId`・`currentRole`・`orderRevision`）を返す。いずれも現在の権限で閲覧可能な情報に限る（[競合・権限喪失](../../../ledger-person-conflicts.md)）。
+- 409 `revision_conflict`の`latest`には、PATCH/DELETEなら最新の人物1件（`people[]`と同じ6項目）、共通順PUTなら最新の人物一覧応答（`people`・`orderRevision`）を返す。いずれも現在の権限で閲覧可能な情報に限る（[競合・権限喪失](../../../ledger-person-conflicts.md)）。
 - 409の`latest`に情報を返す前にも現在の権限を検証し、権限喪失時は403/404等を優先する。閲覧できない他参加者の情報・過去の閲覧権限による情報を返さない。
-- 403/404の業務応答は`permissions`に**操作者自身の`currentRole`と`myPersonId`**を含める。未参加・家計簿不在なら両方`null`、家計簿へ参加中で人物だけが不在なら現在の役割は保持する。受付前の共通拒否にこの拡張を一律要求しない。
+- 403/404で人物APIの応答から操作者の現在権限を推定しない。Clientは[家計簿API](../../../ledger-core-api.md)を再取得し、参加中なら`role`・`myPersonId`を更新し、未参加・家計簿不在なら当該家計簿の権限情報を破棄する。
 
 ## 7. 作成の再送・整合性
 
