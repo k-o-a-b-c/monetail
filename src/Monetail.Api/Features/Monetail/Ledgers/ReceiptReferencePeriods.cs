@@ -8,9 +8,9 @@ public sealed partial class LedgerManagementService
     private async Task CheckReceiptPeriodAsync(IQueryable<LedgerReceipt> receipts, DateOnly? from, DateOnly? to, CancellationToken token)
     {
         if (from is DateOnly first && await receipts.AnyAsync(row => row.TransactionAt < first.ToDateTime(TimeOnly.MinValue), token))
-            throw LedgerPayload.Bad("既存のレシートが期間外になるため変更できません。", "validFrom");
+            throw new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", "validFrom");
         if (to is DateOnly last && await receipts.AnyAsync(row => row.TransactionAt > last.ToDateTime(new TimeOnly(23, 59, 59)), token))
-            throw LedgerPayload.Bad("既存のレシートが期間外になるため変更できません。", "validTo");
+            throw new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", "validTo");
     }
     private Task CheckPersonReceiptsAsync(string ledger, string person, DateOnly? from, DateOnly? to, CancellationToken token)
     {
