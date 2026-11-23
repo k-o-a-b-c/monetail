@@ -4,15 +4,13 @@
 
 本書は人物リソースのAPI要求・応答と、認可・検証・整合性・競合・再送の保証を定める。
 
-**応答形式の変更は未実装。** 以下は確定した変更後の契約であり、現行API・Windows Clientはまだ`myPersonId`・`currentRole`を人物一覧応答に含め、業務エラーの`permissions`を使用している。実装時にこれらの操作者情報を除外し、[家計簿API](../../../ledger-core-api.md)を取得元に統一する。
-
 ## 1. 対象・関連契約
 
 - 対象：家計簿に属する人物の一覧取得、作成、変更、削除、人物共通順の保存。全パスは `/ledgers/{ledgerId}` の下。
-- 対象外：参加者の役割と人物IDの対応付け（[参加者APIの移行元](../../../ledger-person-api-contract.md)、[参加者仕様](../../../ledger-participants.md)）、認証アカウント自体、科目・支払方法・レシートの固有操作。
+- 対象外：参加者の役割と人物IDの対応付け（[参加者API](../../../ledger-person-api-contract.md)、[参加者仕様](../../../ledger-participants.md)）、認証アカウント自体、科目・支払方法・レシートの固有操作。
 - 共有の認証・HTTP境界は[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、作成要求の記録・保持は[共通再送](../../../ledger-operation-retries.md)。物理DBは[人物DB](../../../ledger-person-db.md)を正本とする。
 
-## 2. エンドポイントと権限（既存確定契約）
+## 2. エンドポイントと権限
 
 | メソッド・パス（家計簿相対） | 動作 | 権限 |
 | --- | --- | --- |
@@ -37,7 +35,7 @@
 | 既存データとの整合 | 既存の人物参照を範囲外にする期間変更は拒否。新規の業務記録の保存側でも各業務の対象日・所有者を検証する |
 | 削除 | 人物への参照が1件でも残れば拒否。参加者の人物対応、支払方法の所有、取引などを自動解除・連鎖削除しない |
 
-各業務に関する参照・期間検証の**実装範囲**は[人物業務ルール](../../../ledger-persons.md)と各業務API正本で確認し、未実装の後続業務まで実装済みとみなさない。
+対象となる人物参照・基準日は[人物業務ルール](../../../ledger-persons.md)と各業務APIの契約に従う。
 
 ## 4. リクエスト本文
 
@@ -73,7 +71,7 @@
 
 ## 6. 競合・失敗応答
 
-- 人物APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし、該当しない`field`・`latest`は`null`とする。操作者の`permissions`は含めない。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない。
+- 人物APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし、該当しない`field`・`latest`は`null`とする。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない。
 
 | HTTP | `code` | 内容 |
 | --- | --- | --- |
@@ -83,11 +81,11 @@
 | 404 | `not_found` | 家計簿不在・未参加・対象人物不在等（業務処理内） |
 | 409 | `duplicate_person_name` | 同名人物の登録・更新 |
 | 409 | `person_referenced` | 参照が残る人物の削除 |
-| 409 | `person_period_conflict` | 既存レシート・振替等が期間外になる人物期間変更（実装範囲は第3節）。`field`は`validFrom`または`validTo`、`latest`は`null` |
+| 409 | `person_period_conflict` | 既存の人物参照を期間外にする人物の期間変更。`field`は`validFrom`または`validTo`、`latest`は`null` |
 | 409 | `revision_conflict` | 更新版の不一致 |
 | 409 | `request_conflict` | 要求IDを異なる内容で再利用 |
 | 409 | `created_result_deleted` | 作成済み人物の削除後に同じ要求を再送 |
-| 429 | — | 既存の共有回数制限 |
+| 429 | — | 共通の回数制限 |
 | 503 | `store_unavailable` | 保存障害等 |
 
 
@@ -101,4 +99,4 @@
 
 - POST /peopleでは`requestId`で同一作成要求を識別する。人物IDはサーバーで採番し、要求IDは人物IDとは別。要求内容の同一性を照合する。
 - [共通再送](../../../ledger-operation-retries.md)の`operation_requests`記録を利用し、人物作成は`person.create`として扱う。**同じ成功要求の再送で重複作成しない**。操作者・操作種類・家計簿・正規化入力等が異なる要求IDの再利用は拒否する。
-- 作成記録は業務行と同じトランザクション内で成功時だけ確定し、自動削除せず保持する。元の作成人物が後で削除されていても同じ要求で再作成せず、`created_result_deleted`で削除済みを伝える（[共通再送](../../../ledger-operation-retries.md)、[競合と後続](../../../ledger-person-conflicts.md)）。
+- 作成記録は業務行と同じトランザクション内で成功時だけ確定し、自動削除せず保持する。元の作成人物が後で削除されていても同じ要求で再作成せず、`created_result_deleted`で削除済みを伝える（[共通再送](../../../ledger-operation-retries.md)、[競合・権限喪失](../../../ledger-person-conflicts.md)）。
