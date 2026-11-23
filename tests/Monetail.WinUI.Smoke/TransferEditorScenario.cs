@@ -55,7 +55,7 @@ public partial class App
     }
     private async Task ConfirmTransfer(FrameworkElement root, ContentDialogResult action)
     {
-        await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded && TransferDialogFooter(root, action).IsLoaded);
+        await Wait(() => EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true } && TransferDialogFooter(root, action).IsLoaded);
         await InvokeAsync(() => TransferDialogFooter(root, action));
         await Wait(() => !(CurrentTransferPage?.HasDialog ?? false));
     }
@@ -104,22 +104,31 @@ public partial class App
     }
     private async Task CheckTransferReview()
     {
-        using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true }; var masters = new PaymentServer(); var server = new TransferInputServer(masters);
-        fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People())); fixture.PaymentsHandler = masters.HandleAsync; fixture.TransfersHandler = server.HandleAsync;
-        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
+        using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
+        var masters = new PaymentServer();
+        var server = new TransferInputServer(masters);
+        fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
+        fixture.PaymentsHandler = masters.HandleAsync;
+        fixture.TransfersHandler = server.HandleAsync;
+        var root = await OpenSyntheticWindow(fixture);
+        await StartSyntheticAsync();
         var editorWindow = window ?? throw new InvalidOperationException("振替入力のWindowがありません。");
-        await editorWindow.OpenTransferEditorAsync(null); await FillTransfer(root, masters);
+        await editorWindow.OpenTransferEditorAsync(null);
+        await FillTransfer(root, masters);
         var editor = TransferEditing ?? throw new InvalidOperationException("振替の編集状態がありません。");
         var to = Find<ComboBox>(root, "TransferTo");
         to.SelectedItem = to.Items.Cast<Monetail.Windows.Presentation.Transfers.TransferPaymentChoice>().Single(c => c.Id == masters.ActiveId);
-        var error = Find<TextBlock>(root, "TransferToError"); var amount = Find<TextBox>(root, "TransferAmount");
+        var error = Find<TextBlock>(root, "TransferToError");
+        var amount = Find<TextBox>(root, "TransferAmount");
         await Wait(() => error.Visibility == Visibility.Visible && error.ActualHeight > 0);
         Check(editor.Draft.From.PaymentMethodId == masters.ActiveId && editor.Draft.To.PaymentMethodId == masters.ActiveId &&
             error.Text == "振替元と振替先は異なる支払方法を選択してください。" && Find<TextBlock>(root, "TransferValidity").Text == "", "同一支払方法は選択を保持し、専用の振替先エラーだけを表示");
         var errorTop = error.TransformToVisual(root).TransformPoint(new(0, 0)).Y;
         Check(errorTop >= to.TransformToVisual(root).TransformPoint(new(0, to.ActualHeight)).Y && errorTop < amount.TransformToVisual(root).TransformPoint(new(0, 0)).Y, "同一支払方法のエラーを振替先の直下・金額より前に配置");
-        await FocusTransferControl(amount); await PressReceiptKey(0x0D, 0x11); await Settle();
-        Check(!Find<Button>(root, "TransferSave").IsEnabled && server.Writes.Count == 0 && !Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded, "同一支払方法は保存ボタンとCtrl+Enterから送信できない");
+        await FocusTransferControl(amount);
+        await PressReceiptKey(0x0D, 0x11);
+        await Settle();
+        Check(!Find<Button>(root, "TransferSave").IsEnabled && server.Writes.Count == 0 && EditorDialog(root, "TransferConfirmationDialog") is not { IsLoaded: true }, "同一支払方法は保存ボタンとCtrl+Enterから送信できない");
         to.SelectedItem = to.Items.Cast<Monetail.Windows.Presentation.Transfers.TransferPaymentChoice>().Single(c => c.Id == masters.OtherActiveId);
         await Wait(() => error.Visibility == Visibility.Collapsed && Find<Button>(root, "TransferSave").IsEnabled);
         Check(editor.Draft.From.PaymentMethodId == masters.ActiveId && editor.Draft.To.PaymentMethodId == masters.OtherActiveId && error.Text == "", "振替先の修正で専用エラーを消し、両選択と保存可否を反映");
@@ -128,19 +137,26 @@ public partial class App
         {
             foreach (var raw in new[] { "前\r後", "前\n後", "前\r\n後" })
             {
-                memo.Text = ""; await Wait(() => editor.Draft.Memo is null);
-                var data = new DataPackage(); data.SetText(raw); Clipboard.SetContent(data);
-                await FocusTransferControl(memo); await PressReceiptKey(0x56, 0x11); await Settle();
+                memo.Text = "";
+                await Wait(() => editor.Draft.Memo is null);
+                var data = new DataPackage();
+                data.SetText(raw);
+                Clipboard.SetContent(data);
+                await FocusTransferControl(memo);
+                await PressReceiptKey(0x56, 0x11);
+                await Settle();
                 await Wait(() => memo.Text == "前" && editor.Draft.Memo == "前");
                 Check(memo.Text == "前" && editor.Draft.Memo == "前" && editor.HasUnsavedChanges && !memo.AcceptsReturn && memo.TextWrapping == TextWrapping.NoWrap, "CR/LF貼り付けは承認済みの標準1行TextBox動作で1行目を反映");
                 Check(Find<Button>(root, "TransferSave").IsEnabled && Find<TextBlock>(root, "TransferValidity").Visibility == Visibility.Collapsed && server.Writes.Count == 0 && await Clipboard.GetContent().GetTextAsync() == raw, "標準貼り付け後の1行は保存可能・自動送信なし、クリップボードの元文字列は変更しない");
-                memo.Text = ""; await Wait(() => editor.Draft.Memo is null);
+                memo.Text = "";
+                await Wait(() => editor.Draft.Memo is null);
                 Check(Find<Button>(root, "TransferSave").IsEnabled && Find<TextBlock>(root, "TransferValidity").Visibility == Visibility.Collapsed, "貼り付け後の全削除は従来どおりメモnullとして扱う");
             }
         }
         finally { Clipboard.Clear(); }
         // 次の合成Windowを開く前に離脱を完了し、旧Windowの閉鎖確認を持ち越さない。
-        await InvokeAsync(() => Find<Button>(root, "TransferBack")); await ConfirmTransfer(root, ContentDialogResult.Secondary);
+        await InvokeAsync(() => Find<Button>(root, "TransferBack"));
+        await ConfirmTransfer(root, ContentDialogResult.Secondary);
         await Wait(() => TransferEditing is null);
         Check(server.Writes.Count == 0, "貼り付け試験の未保存入力は明示破棄し、次の画面試験へ確認ダイアログを持ち越さない");
     }
@@ -209,7 +225,7 @@ public partial class App
         Find<TimeInputBox>(root, "TransferTime").Text = "00:00:00";
         await Wait(() => TransferEditing is { HasSavedDateChanged: true, IsMidnight: true } && Find<Button>(root, "TransferSave").IsEnabled);
         await InvokeAsync(() => Find<Button>(root, "TransferSave"));
-        await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded);
+        await Wait(() => EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true });
         var confirmation = Find<ContentDialog>(root, "TransferConfirmationDialog").Content.ToString()!;
         Check(confirmation.Contains("00:00:00") && confirmation.Contains("日付"), "更新・日付変更・0時の警告は同じ確認ダイアログへ統合");
         await ConfirmTransfer(root, ContentDialogResult.None);

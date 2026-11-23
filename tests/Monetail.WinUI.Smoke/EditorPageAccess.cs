@@ -15,13 +15,16 @@ public partial class App
         ? CurrentReceiptPage?.GetType().GetField("position", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(CurrentReceiptPage) : null;
     private object? TransferRecoveryPosition => CurrentTransferPage?.ViewModel?.RecoveryBlocked == true
         ? CurrentTransferPage.GetType().GetField("position", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(CurrentTransferPage) : null;
+    private static ContentDialog? EditorConfirmation(FrameworkElement page) => page.GetType()
+        .GetField("confirmation", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(page) as ContentDialog;
+    private static ContentDialog? EditorDialog(FrameworkElement root, string name) => FindEditorElement(root, name) as ContentDialog;
     private static object? FindEditorElement(FrameworkElement root, string name)
     {
         var page = (root.FindName("WorkspaceHost") as Frame)?.Content as FrameworkElement;
         var dialog = page switch
         {
-            ReceiptEditorPage receipt => receipt.Confirmation,
-            TransferEditorPage transfer => transfer.Confirmation,
+            ReceiptEditorPage receipt => EditorConfirmation(receipt),
+            TransferEditorPage transfer => EditorConfirmation(transfer),
             _ => null
         };
         if (dialog is not null)

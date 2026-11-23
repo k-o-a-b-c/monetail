@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:input="using:Monetail.WinUI.Input"
     xmlns:presentation="using:Monetail.Windows.Presentation.Transfers"
-    IsTabStop="False" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    IsTabStop="False" TabFocusNavigation="Local" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
     <Grid Margin="32,0,32,32" RowSpacing="16">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal" Spacing="16">

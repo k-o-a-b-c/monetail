@@ -44,11 +44,11 @@ public partial class App
             "レシートは標準Frameの専用Pageで共通ヘッダーと左上戻るを持ち、ホームのViewを解放する");
         Find<TextBox>(root, "ReceiptMemo").Text = "終了前の入力";
         RequestEditorWindowClose();
-        await Wait(() => receipt.Confirmation?.IsLoaded == true);
-        var dialog = receipt.Confirmation;
+        await Wait(() => EditorConfirmation(receipt)?.IsLoaded == true);
+        var dialog = EditorConfirmation(receipt);
         RequestEditorWindowClose();
         await Settle();
-        Check(ReferenceEquals(dialog, receipt.Confirmation) && receipt.Confirmation?.Title?.ToString() == "未保存の内容があります",
+        Check(ReferenceEquals(dialog, EditorConfirmation(receipt)) && EditorConfirmation(receipt)?.Title?.ToString() == "未保存の内容があります",
             "Window終了確認は一経路だけで、二重終了要求でも確認を重複生成しない");
         await ConfirmReceipt(root, false);
         Check(ReferenceEquals(host.Content, receipt) && ReferenceEquals(receiptModel, receipt.ViewModel) &&
@@ -71,11 +71,11 @@ public partial class App
         await Wait(() => transfer.IsLoaded);
         Find<TextBox>(root, "TransferAmount").Text = "1x";
         RequestEditorWindowClose();
-        await Wait(() => transfer.Confirmation?.IsLoaded == true);
-        var transferDialog = transfer.Confirmation;
+        await Wait(() => EditorConfirmation(transfer)?.IsLoaded == true);
+        var transferDialog = EditorConfirmation(transfer);
         RequestEditorWindowClose();
         await Settle();
-        Check(ReferenceEquals(transferDialog, transfer.Confirmation) && ReferenceEquals(host.Content, transfer),
+        Check(ReferenceEquals(transferDialog, EditorConfirmation(transfer)) && ReferenceEquals(host.Content, transfer),
             "振替も同じWindow終了確認入口で重複を防ぎ、入力Pageを保持する");
         await ConfirmTransfer(root, ContentDialogResult.None);
         Check(Find<TextBox>(root, "TransferAmount").Text == "1x" && ReferenceEquals(transferModel, transfer.ViewModel),

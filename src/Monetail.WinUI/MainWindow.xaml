@@ -1,4 +1,4 @@
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Monetail.WinUI" xmlns:views="using:Monetail.WinUI.Views" xmlns:receipts="using:Monetail.WinUI.Views.Receipts" xmlns:transfers="using:Monetail.WinUI.Views.Transfers" xmlns:input="using:Monetail.WinUI.Input" x:Class="Monetail.WinUI.MainWindow">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Monetail.WinUI.MainWindow">
     <Grid x:Name="WorkspaceRoot" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
 

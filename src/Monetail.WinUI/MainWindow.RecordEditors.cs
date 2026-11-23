@@ -28,13 +28,8 @@ public sealed partial class MainWindow
             Close();
         }
     }
-    private bool IsEditorLeaveTarget(DependencyObject? element)
-    {
-        for (; element is not null; element = VisualTreeHelper.GetParent(element))
-            if (ReferenceEquals(element, SettingsButton) || ReferenceEquals(element, RecordButton) || ReferenceEquals(element, LedgerSelector))
-                return true;
-        return false;
-    }
+    private bool IsEditorLeaveTarget(DependencyObject? element) => ReferenceEquals(element, SettingsButton) ||
+        ReferenceEquals(element, RecordButton) || ReferenceEquals(element, LedgerSelector);
     private RecordEditorContext CreateRecordEditorContext() => new(connection.Api, connection.Session, connection.Masters,
         currentLedger!.LedgerId, account!.AuthUserId, connection.Endpoint!.Value, lifetime.Token);
     private bool EditorContextMatches(RecordEditorContext context) => account?.AuthUserId == context.AccountId &&
@@ -135,11 +130,6 @@ public sealed partial class MainWindow
         CancelReceiptOpening();
         ReceiptPage?.Release();
     }
-    private void RefreshReceiptEditorChoices()
-    {
-        if (ReceiptPage is { ViewModel.IsReadOnly: false } page)
-            page.RefreshMasters(false);
-    }
     private Task ReportReceiptCategoryErrorAsync()
     {
         ShowError("科目情報を確認できないため切り替えできません。入力は保持しています。");
@@ -194,23 +184,19 @@ public sealed partial class MainWindow
     }
     private async Task ReloadReceiptMastersAsync(Monetail.WinUI.Views.Receipts.ReceiptEditorPage page, CancellationToken token)
     {
-        var ledger = await page.ViewModel!.LoadRecoveryMastersAsync(token);
+        var ledger = await page.ResumeAsync(token);
         if (closed || !ReferenceEquals(ReceiptPage, page) || page.ViewModel?.AwaitingLogin == true)
             return;
         if (ledger is not null)
+        {
             DisplayLedgerHeader(ledger);
-        page.RefreshMasters(true);
-        page.RefreshRecovery();
-        page.RestorePosition(() => !closed && ReferenceEquals(ReceiptPage, page) && page.ViewModel is { AwaitingLogin: false, Context: { } context } &&
-            IsEditorPageVisible && EditorContextMatches(context));
-        if (page.ViewModel?.ShowRetryMasters == false)
-            page.ForgetPosition();
+        }
     }
+
     private CancellationTokenSource? transferOpening;
     private Guid? transferOpenRetry;
     private bool RecordEditorActive => ReceiptPage?.ViewModel is not null || TransferPage?.ViewModel is not null;
     private PaymentMethodsInfo? TransferMethods => currentLedger is { } ledger ? connection.Masters.Payments(ledger.LedgerId) : null;
-    private PeopleInfo? TransferPeople => currentLedger is { } ledger ? connection.Masters.People(ledger.LedgerId) : null;
     private async Task<bool> LeaveRecordEditorAsync() => await LeaveTransferEditorAsync() && await LeaveReceiptEditorAsync();
     internal async Task OpenTransferEditorAsync(Guid? id)
     {
@@ -292,13 +278,6 @@ public sealed partial class MainWindow
         CancelTransferOpening();
         TransferPage?.Release();
     }
-    private void RefreshTransferEditorChoices()
-    {
-        if (TransferPage is not { } page)
-            return;
-        page.ViewModel?.UpdateMasters(TransferPeople, TransferMethods);
-        page.RefreshChoices();
-    }
     private async Task BackTransferAsync()
     {
         if (await LeaveTransferEditorAsync())
@@ -347,7 +326,7 @@ public sealed partial class MainWindow
     }
     private async Task ReloadTransferMastersAsync(Monetail.WinUI.Views.Transfers.TransferEditorPage page, CancellationToken token)
     {
-        var ledger = await page.ViewModel!.LoadRecoveryMastersAsync(token);
+        var ledger = await page.ResumeAsync(token);
         if (closed || !ReferenceEquals(TransferPage, page) || page.ViewModel?.AwaitingLogin == true)
             return;
         if (ledger is not null)
@@ -355,10 +334,8 @@ public sealed partial class MainWindow
             DisplayLedgerHeader(ledger);
             management?.Context.ApplyPermissions(new(ledger.Role, connection.Masters.MyPersonId(ledger.LedgerId)));
         }
-        page.RefreshChoices();
-        page.RestorePosition(() => !closed && ReferenceEquals(TransferPage, page) && page.ViewModel is { AwaitingLogin: false, Context: { } context } &&
-            IsEditorPageVisible && EditorContextMatches(context));
     }
+
     private async Task TransferSavedAsync(TransferWriteCompletion completion, bool returnToList)
     {
         var request = completion.Request;

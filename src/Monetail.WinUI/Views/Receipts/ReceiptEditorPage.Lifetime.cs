@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Monetail.Windows.Client.Receipts;
+using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Presentation.Receipts;
 
 namespace Monetail.WinUI.Views.Receipts;
@@ -14,7 +15,6 @@ public sealed partial class ReceiptEditorPage
     private sealed record EditPosition(Control? Focus, int SelectionStart, int SelectionLength, (ScrollViewer Viewer, double X, double Y)[] Scrolls);
     private EditPosition? position;
     public bool HasDialog => confirmation is not null;
-    internal ContentDialog? Confirmation => confirmation;
 
     private async Task<ContentDialogResult> ShowConfirmationAsync(ContentDialog dialog)
     {
@@ -118,10 +118,30 @@ public sealed partial class ReceiptEditorPage
         ViewModel?.SuspendForAuthentication();
         RefreshRecovery();
     }
-    public void RestorePosition(Func<bool> current)
+    private void RestorePosition(Func<bool> current)
     {
         if (position is { } saved)
             RestorePosition(saved.Focus, saved.SelectionStart, saved.SelectionLength, saved.Scrolls, current);
+    }
+    public void MastersChanged()
+    {
+        if (ViewModel?.IsReadOnly == false)
+            RefreshMasters(false);
+    }
+    public async Task<LedgerInfo?> ResumeAsync(CancellationToken token)
+    {
+        if (ViewModel is not { } model)
+            return null;
+        var ledger = await model.LoadRecoveryMastersAsync(token);
+        if (!ReferenceEquals(ViewModel, model) || model.AwaitingLogin)
+            return null;
+        if (ledger is not null)
+            RefreshMasters(true);
+        RefreshRecovery();
+        RestorePosition(() => ReferenceEquals(ViewModel, model) && !model.AwaitingLogin && IsLoaded && Visibility == Visibility.Visible);
+        if (!model.ShowRetryMasters)
+            ForgetPosition();
+        return ledger;
     }
     public void Release()
     {

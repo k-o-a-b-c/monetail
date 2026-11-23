@@ -128,7 +128,7 @@ public sealed partial class TransferEditorPage : Page
         TransferNoticeLevel.Warning => InfoBarSeverity.Warning,
         _ => InfoBarSeverity.Error
     };
-    public void Populate()
+    private void Populate()
     {
         if (ViewModel is not { } model)
             return;
@@ -144,18 +144,18 @@ public sealed partial class TransferEditorPage : Page
         RefreshChoices();
         RefreshPresentation();
     }
-    public void SynchronizeInput()
+    private void SynchronizeInput()
     {
         if (!transferRendering && ViewModel is { } model)
             model.UpdateInput(TransferDate.Text, TransferTime.Text, TransferAmount.Text, TransferMemo.Text);
     }
-    public void CompleteInput()
+    private void CompleteInput()
     {
         TransferDate.Complete();
         TransferTime.Complete();
         SynchronizeInput();
     }
-    public void RefreshChoices()
+    private void RefreshChoices()
     {
         if (ViewModel is not { } model || model.PaymentChoices() is not { } choices)
             return;
@@ -196,7 +196,7 @@ public sealed partial class TransferEditorPage : Page
         if (ReferenceEquals(sender, TransferFrom))
             _ = AutofillTransferAsync();
     }
-    public void SetDialogOpen(bool open)
+    private void SetDialogOpen(bool open)
     {
         TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = open;
         if (open)
@@ -205,12 +205,12 @@ public sealed partial class TransferEditorPage : Page
             RestoreTransferTypedName();
         }
     }
-    public void CancelRequests()
+    private void CancelRequests()
     {
         CancelTransferSuggestions();
         transferAutofillCancellation?.Cancel();
     }
-    public void Suspend()
+    private void Suspend()
     {
         SetDialogOpen(true);
         transferSuggestions.Clear();
@@ -218,7 +218,7 @@ public sealed partial class TransferEditorPage : Page
         transferAutofillCancellation?.Cancel();
         transferAutofillKey = null;
     }
-    public void Discard()
+    private void Discard()
     {
         SetDialogOpen(false);
         ResetTransferSuggestions();
@@ -233,7 +233,7 @@ public sealed partial class TransferEditorPage : Page
         TransferInputScroller.ChangeView(null, 0, null, true);
         position = null;
     }
-    public void RememberPosition()
+    private void RememberPosition()
     {
         if (ViewModel?.RecoveryBlocked == true && position is not null)
             return;
@@ -241,7 +241,7 @@ public sealed partial class TransferEditorPage : Page
         position = new(focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
             TransferInputScroller.VerticalOffset);
     }
-    public void RestorePosition(Func<bool> current)
+    private void RestorePosition(Func<bool> current)
     {
         var model = ViewModel;
         var saved = position;
@@ -268,7 +268,7 @@ public sealed partial class TransferEditorPage : Page
             }
         });
     }
-    public void FocusField(string field)
+    private void FocusField(string field)
     {
         Control target = field switch
         {

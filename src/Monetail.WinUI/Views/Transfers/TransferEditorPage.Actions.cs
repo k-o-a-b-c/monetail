@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Monetail.Windows.Client.Transfers;
 using Monetail.Windows.Client.Ledgers;
+using Monetail.Windows.Client.Transport;
 using Monetail.Windows.Presentation.Transfers;
 
 namespace Monetail.WinUI.Views.Transfers;
@@ -12,7 +13,6 @@ public sealed partial class TransferEditorPage
     private ContentDialog? confirmation;
     private bool transferLeaving;
     public bool HasDialog => confirmation is not null;
-    internal ContentDialog? Confirmation => confirmation;
     private Task ExecuteActionAsync(TransferEditorAction action) => action switch
     {
         TransferEditorAction.Back => ReturnRequested?.Invoke() ?? Task.CompletedTask,
@@ -200,6 +200,24 @@ public sealed partial class TransferEditorPage
         ViewModel?.SuspendForAuthentication();
         confirmation?.Hide();
         Suspend();
+    }
+    public void MastersChanged()
+    {
+        if (ViewModel is not { Context: { } context } model)
+            return;
+        model.UpdateMasters(context.Masters.People(context.LedgerId), context.Masters.Payments(context.LedgerId));
+        RefreshChoices();
+    }
+    public async Task<LedgerInfo?> ResumeAsync(CancellationToken token)
+    {
+        if (ViewModel is not { } model)
+            return null;
+        var ledger = await model.LoadRecoveryMastersAsync(token);
+        if (!ReferenceEquals(ViewModel, model) || model.AwaitingLogin)
+            return null;
+        RefreshChoices();
+        RestorePosition(() => ReferenceEquals(ViewModel, model) && !model.AwaitingLogin && IsLoaded && Visibility == Visibility.Visible);
+        return ledger;
     }
     public void Release()
     {

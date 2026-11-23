@@ -86,13 +86,13 @@ public sealed partial class ReceiptEditorPage : Page
             return false;
         };
     }
-    public DateOnly? ConfirmedDay => DateOnly.TryParseExact(ReceiptDate.Text, "yyyy/MM/dd", CultureInfo.InvariantCulture,
+    private DateOnly? ConfirmedDay => DateOnly.TryParseExact(ReceiptDate.Text, "yyyy/MM/dd", CultureInfo.InvariantCulture,
         DateTimeStyles.None, out var day) ? day : null;
     private bool IsHeaderConfirmed => ConfirmedDay is not null && TimeOnly.TryParseExact(ReceiptTime.Text, "HH:mm:ss",
         CultureInfo.InvariantCulture, DateTimeStyles.None, out _) && ReceiptRecurrenceInput.Parse(ReceiptInterval.Text, Choice(ReceiptUnit)).IsValid;
     private bool HasUnresolvedInput => ViewModel?.HasUnresolvedInput(ReceiptDate.Text, ReceiptTime.Text, ReceiptInterval.Text, Choice(ReceiptUnit)) == true;
     public bool NeedsLeaveConfirmation => ViewModel is { } model && (model.Editor.NeedsLeaveConfirmation || model.HasUnappliedInput || HasUnresolvedInput);
-    public void Populate()
+    private void Populate()
     {
         if (ViewModel is not { } model)
             return;
@@ -158,7 +158,7 @@ public sealed partial class ReceiptEditorPage : Page
         }
         finally { rendering = previous; }
     }
-    public void RefreshRecovery()
+    private void RefreshRecovery()
     {
         ViewModel?.Refresh();
         var readOnly = ViewModel?.IsReadOnly == true;
@@ -171,8 +171,8 @@ public sealed partial class ReceiptEditorPage : Page
         UpdateReceiptCategoryActions();
         RenderReceiptDetailList();
     }
-    public void SuppressCompletion(bool suppress) => ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = suppress;
-    public void Clear()
+    private void SuppressCompletion(bool suppress) => ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = suppress;
+    private void Clear()
     {
         rendering = true;
         try
@@ -186,7 +186,7 @@ public sealed partial class ReceiptEditorPage : Page
         }
         finally { rendering = false; }
     }
-    public void RestorePosition(Control? focus, int start, int length, (ScrollViewer Viewer, double X, double Y)[] scrolls, Func<bool> current)
+    private void RestorePosition(Control? focus, int start, int length, (ScrollViewer Viewer, double X, double Y)[] scrolls, Func<bool> current)
     {
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {

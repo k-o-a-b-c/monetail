@@ -94,8 +94,8 @@ public sealed partial class MainWindow
     {
         if (currentLedger?.LedgerId != ledger || closed)
             return;
-        RefreshReceiptEditorChoices();
-        RefreshTransferEditorChoices();
+        ReceiptPage?.MastersChanged();
+        TransferPage?.MastersChanged();
         RefreshReceiptChoices();
         ReceiptListModel?.RefreshNames();
         TransferListModel?.RefreshNames();

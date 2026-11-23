@@ -23,7 +23,7 @@ public partial class App
         {
             if (ReceiptEditing is null)
                 throw new InvalidOperationException("未保存確認の前に編集モデルが破棄されました。");
-            return Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded && ReceiptConfirmationFooter(root, accept).IsLoaded && ReceiptConfirmationFooter(root, accept).ActualWidth > 0;
+            return EditorDialog(root, "ReceiptConfirmationDialog") is { IsLoaded: true } && ReceiptConfirmationFooter(root, accept).IsLoaded && ReceiptConfirmationFooter(root, accept).ActualWidth > 0;
         });
         await InvokeAsync(() => ReceiptConfirmationFooter(root, accept));
         await Wait(() => !(CurrentReceiptPage?.HasDialog ?? false));

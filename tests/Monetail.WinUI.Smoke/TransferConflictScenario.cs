@@ -15,7 +15,7 @@ namespace Monetail.WinUI.Smoke;
 public partial class App
 {
     private static Task WaitTransferDialog(FrameworkElement root, string title) => Wait(() =>
-        Find<ContentDialog>(root, "TransferConfirmationDialog") is { IsLoaded: true } dialog && Equals(dialog.Title, title));
+        EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true } dialog && Equals(dialog.Title, title));
 
     private static bool TransferControlHasFocus(FrameworkElement root, Control target)
     {

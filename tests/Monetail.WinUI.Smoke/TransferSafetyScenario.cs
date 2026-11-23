@@ -24,7 +24,7 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "TransferSave"));
             try
             {
-                await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible || Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded || Find<InfoBar>(root, "TransferEditorNotice").IsOpen || TransferEditing is null);
+                await Wait(() => Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible || EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true } || Find<InfoBar>(root, "TransferEditorNotice").IsOpen || TransferEditing is null);
             }
             catch (TaskCanceledException error)
             {
@@ -64,7 +64,7 @@ public partial class App
             await InvokeAsync(() => Find<Button>(root, "TransferSave"));
             if (error == HttpStatusCode.Conflict)
             {
-                await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded);
+                await Wait(() => EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true });
                 await InvokeAsync(() => TransferDialogFooter(root, ContentDialogResult.Primary));
                 await Wait(() => Equals(Find<ContentDialog>(root, "TransferConfirmationDialog").Title, "振替が更新されています"));
                 await ConfirmTransfer(root, ContentDialogResult.None);
@@ -84,7 +84,7 @@ public partial class App
             Check(Find<Monetail.WinUI.Views.Transfers.TransferEditorPage>(root, "TransferEditorPage").Visibility == Visibility.Visible && (Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Visible) == (error == HttpStatusCode.Unauthorized), $"確定した{(int)error}を結果不明の再送や自動ログインと混同しない");
             Check((Find<Button>(root, "TransferLoadLatest").Visibility == Visibility.Visible) == (error == HttpStatusCode.Conflict), "最新版の採用はrevision_conflictだけに提示する");
             await InvokeAsync(() => Find<Button>(root, "TransferBack"));
-            await Wait(() => Find<ContentDialog>(root, "TransferConfirmationDialog").IsLoaded);
+            await Wait(() => EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true });
             Check(Find<ContentDialog>(root, "TransferConfirmationDialog").SecondaryButtonText == "" && Find<ContentDialog>(root, "TransferConfirmationDialog").PrimaryButtonText == "破棄して閉じる", "停止後の離脱では保存して移動を提示しない");
             await ConfirmTransfer(root, ContentDialogResult.Primary);
             await Wait(() => TransferEditing is null);

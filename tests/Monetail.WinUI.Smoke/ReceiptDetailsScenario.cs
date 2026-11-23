@@ -79,7 +79,7 @@ public partial class App
         Check(name.Text == "B" && group.Details[1].Values.Name == "更新A", "破棄して移動は未反映入力だけを破棄し登録済み明細を維持");
         list.SelectedIndex = 0;
         await Settle();
-        Check(!Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded && !editor.HasUnappliedChanges, "フォーム未変更の再選択では確認を出さない");
+        Check(EditorDialog(root, "ReceiptConfirmationDialog") is not { IsLoaded: true } && !editor.HasUnappliedChanges, "フォーム未変更の再選択では確認を出さない");
         name.Text = "B更新";
         list.SelectedIndex = 1;
         await ChooseReceiptDetailDraft(root, ContentDialogResult.Primary);
@@ -119,7 +119,7 @@ public partial class App
         price.Text = "途中";
         await InvokeAsync(() => Find<Button>(root, "ReceiptCategoryRemove"));
         await ChooseReceiptDetailDraft(root, ContentDialogResult.Secondary);
-        await Wait(() => Find<ContentDialog>(root, "ReceiptConfirmationDialog").Title?.ToString() == "科目を削除");
+        await Wait(() => EditorDialog(root, "ReceiptConfirmationDialog")?.Title?.ToString() == "科目を削除");
         await ConfirmReceipt(root, false);
         Check(editor.Groups.Count == 2 && editor.SelectedGroupKey == second.Key && name.Text == "", "科目削除は下書き解決後に別の削除確認、取消では科目を保持");
         ReceiptView.ActivateReceiptCategory(group.Key);
@@ -143,12 +143,13 @@ public partial class App
     }
     private async Task ChooseReceiptDetailDraft(FrameworkElement root, ContentDialogResult choice)
     {
+        await Wait(() => EditorDialog(root, "ReceiptConfirmationDialog") is { IsLoaded: true });
         var dialog = Find<ContentDialog>(root, "ReceiptConfirmationDialog");
         string Label() => choice == ContentDialogResult.Primary ? dialog.PrimaryButtonText : choice == ContentDialogResult.Secondary ? dialog.SecondaryButtonText : dialog.CloseButtonText;
         Button Footer() => All(dialog).OfType<Button>().First(b => Equals(b.Content, Label()) && b.IsLoaded && b.ActualWidth > 0);
         await Wait(() => dialog.IsLoaded && dialog.Title?.ToString() == "未反映の明細があります" && All(dialog).OfType<Button>().Any(b => Equals(b.Content, Label()) && b.IsLoaded && b.ActualWidth > 0));
         await InvokeAsync(Footer);
-        await Wait(() => !(CurrentReceiptPage?.HasDialog ?? false) || dialog.Title?.ToString() != "未反映の明細があります");
+        await Wait(() => CurrentReceiptPage?.ViewModel?.IsTransitioning != true || EditorDialog(root, "ReceiptConfirmationDialog") is { } next && !ReferenceEquals(next, dialog));
     }
 
 }
