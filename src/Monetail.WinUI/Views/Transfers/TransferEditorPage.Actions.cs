@@ -31,7 +31,7 @@ public sealed partial class TransferEditorPage
     private void TransferNotice(string message) => ViewModel?.ShowNotice(message);
     private async Task<ContentDialogResult> ConfirmTransferAsync(string title, string message, string primary, string secondary = "", string close = "キャンセル")
     {
-        if (HasDialog || ViewModel is not { } model)
+        if (HasDialog || ViewModel is not { } model || XamlRoot is null)
             return ContentDialogResult.None;
         var dialog = new ContentDialog
         {

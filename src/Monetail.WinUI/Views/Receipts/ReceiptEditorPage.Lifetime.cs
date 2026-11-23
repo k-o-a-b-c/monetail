@@ -18,7 +18,7 @@ public sealed partial class ReceiptEditorPage
 
     private async Task<ContentDialogResult> ShowConfirmationAsync(ContentDialog dialog)
     {
-        if (HasDialog || ViewModel is null)
+        if (HasDialog || ViewModel is null || XamlRoot is null)
             return ContentDialogResult.None;
         confirmation = dialog;
         ViewModel.SetDialogOpen(true);

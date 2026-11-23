@@ -130,6 +130,8 @@ public partial class App
             var root = await OpenSyntheticWindow(fixture);
             await StartSyntheticAsync();
             await window!.OpenTransferEditorAsync(saved.TransferId);
+            TraceInvocation($"savedNavigation: leave={leave}; loaded={TransferView.IsLoaded}; rootPresent={TransferView.XamlRoot is not null}; phase=before-ready");
+            await Wait(() => TransferView.IsLoaded && TransferView.XamlRoot is not null);
             Find<TextBox>(root, "TransferAmount").Text = "2000";
             if (leave)
             {
