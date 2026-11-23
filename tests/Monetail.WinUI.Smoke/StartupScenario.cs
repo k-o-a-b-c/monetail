@@ -24,6 +24,12 @@ public partial class App
             else
                 await window!.OpenTransferEditorAsync(null);
             var editor = receipt ? (object?)ReceiptEditing : TransferEditing;
+            var home = TransferRuntime("recordHome") as Monetail.Windows.Presentation.Workspace.RecordHomeViewModel
+                ?? throw new InvalidOperationException("保持対象の記録ホームがありません。");
+            var connection = TransferRuntime("connection") as ClientConnection
+                ?? throw new InvalidOperationException("接続がありません。");
+            var previousApi = connection.Api;
+            var previousSession = connection.Session;
             var date = Find<DateInputBox>(root, receipt ? "ReceiptDate" : "TransferDate");
             await Wait(() => date.IsLoaded && date.XamlRoot is not null);
             date.Text = "2026/";
@@ -68,6 +74,17 @@ public partial class App
             Check(!fixture.Requests.Skip(reads).Any(path => path.Contains("/receipts", StringComparison.Ordinal) ||
                 path.Contains("/transfers", StringComparison.Ordinal) || path is "/ledgers/open-last" or "/ledgers"),
                 "起動再試行による編集復帰は通常の家計簿取得より優先し、詳細GET・自動保存を行わない");
+            Check(ReferenceEquals(home, TransferRuntime("recordHome")) &&
+                !ReferenceEquals(previousApi, connection.Api) && !ReferenceEquals(previousSession, connection.Session),
+                "同一本人の設定再読込後も元のホームを保持し、APIとセッションは再構成する");
+            var refreshed = fixture.Requests.Count;
+            await home.ReloadAsync();
+            Check(home.Receipts.Failure is null && home.Transfers.Failure is null &&
+                fixture.Requests.Skip(refreshed).Count(path => path.EndsWith("/receipts", StringComparison.Ordinal)) == 1 &&
+                fixture.Requests.Skip(refreshed).Count(path => path.EndsWith("/transfers", StringComparison.Ordinal)) == 1 &&
+                !fixture.Requests.Skip(refreshed).Any(path => path.EndsWith("/people", StringComparison.Ordinal) || path.EndsWith("/payment-methods", StringComparison.Ordinal)) &&
+                date.Text == "2026/" && ReferenceEquals(editor, receipt ? (object?)ReceiptEditing : TransferEditing),
+                "復帰後の明示一覧取得は現在のAPI/セッションと共有済みマスタを使い、編集入力を書き換えない");
         }
     }
 
