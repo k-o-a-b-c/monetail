@@ -2,7 +2,9 @@
 
 **対象：サーバーAPIの外部契約。** 本台帳では、既存のAPI仕様を機能単位に整理するための参照元、重複、移行状態を管理する。
 
-**状態：人物APIは正本化済み、他機能は移行準備。** 本書は移行台帳でありAPI外部契約の正本ではない。人物APIは[features/persons.md](features/persons.md)、他機能は下表の既存正本を参照する。文書整理でHTTP状態・業務条件・認可・再送保証は変更しない。
+**状態：人物APIは正本化済み、他機能は移行準備。** 本書は移行台帳でありAPI外部契約の正本ではない。人物APIは[features/persons.md](features/persons.md)、他機能は下表の既存正本を参照する。
+
+**新たに確定した応答責務の変更は未実装。** 操作者の`role`・`myPersonId`を[家計簿API](../../ledger-core-api.md)に集約し、人物・科目・支払方法の成功応答・版競合の`latest`から`currentRole`・`myPersonId`を除く。これらのマスタAPIは403/404業務エラーでも操作者の`permissions`を返さず、Clientは家計簿APIで状態を再取得する。HTTP成功コード、業務制約、サーバー側の認可、再送・更新版・保存の原子性は維持する。実装とAPIテスト・Windows Clientの切替が完了するまでは、新しいJSON契約と現行実装を混同しない。
 
 ## 1. API仕様書の記載範囲
 
@@ -35,12 +37,12 @@ docs/specs/api/
 | API機能 | 既存の契約・業務条件の参照元 | 移行時の確認対象 | 状態 |
 | --- | --- | --- | --- |
 | 認証・セッション・全体アカウント | [認証API](../../auth-api-contract.md)、[セッション](../../auth-session-security.md)、[パスキー](../../auth-passkeys.md) | HTTP要求・認証・セッション・本人確認・アカウント管理 | 既存正本維持 |
-| 家計簿 | [家計簿API](../../ledger-core-api.md)、[共通前提](../../ledger-core-principles.md) | 作成・取得・権限・要求ID・回数制限 | 未移行 |
-| 人物 | [人物の業務条件・画面](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | GET・POST・PATCH・DELETE・順序PUT、制約・権限・更新版・再送 | **[正本](features/persons.md)**（現行API・テストと照合済み） |
+| 家計簿 | [家計簿API](../../ledger-core-api.md)、[共通前提](../../ledger-core-principles.md) | 作成・取得・権限・要求ID・回数制限 | 未移行。`myPersonId`の応答追加は未実装 |
+| 人物 | [人物の業務条件・画面](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | GET・POST・PATCH・DELETE・順序PUT、制約・権限・更新版・再送 | **[正本](features/persons.md)**。操作者情報の除去は未実装 |
 | 参加者・人物対応 | [参加者API](../../ledger-person-api-contract.md)、[参加者の業務条件](../../ledger-participants.md)、[競合・画面](../../ledger-person-conflicts.md) | 参加者取得・更新・除外、役割・人物対応・権限 | **既存正本維持**（人物APIを分離） |
 | 招待・参加受諾 | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 発行・取得・取消・受諾・認可・再送 | 未移行 |
-| 科目 | [家計簿DB・モデル](../../ledger-core-schema.md) | マスタのCRUD・順序API、入力制約・競合・再送 | 未移行 |
-| 支払方法 | [家計簿DB・モデル](../../ledger-core-schema.md) | 所有者・CRUD・順序・有効期間・評価額の確定/実装状態 | 未移行 |
+| 科目 | [家計簿DB・モデル](../../ledger-core-schema.md) | マスタのCRUD・順序API、入力制約・競合・再送 | 未移行。`currentRole`の除去は未実装 |
+| 支払方法 | [家計簿DB・モデル](../../ledger-core-schema.md) | 所有者・CRUD・順序・有効期間・評価額の確定/実装状態 | 未移行。`myPersonId`・`currentRole`の除去は未実装 |
 | 共通税区分・税率履歴 | [家計簿DB・モデル](../../ledger-core-schema.md) | 税率履歴全件GETの要求/応答と税区分・履歴の業務条件 | 未移行 |
 | レシート | [レシートAPI](../../ledger-receipt-api.md)、[履歴候補API](../../ledger-receipt-suggestions.md) | 一覧/詳細・書込・計算・検索候補・再送・エラー | 未移行 |
 | 振替 | [振替API](../../ledger-transfer-api.md)、[振替業務条件](../../ledger-transfer-db.md) | CRUD・カーソル・候補・補完・権限・再送 | 未移行 |
@@ -68,7 +70,7 @@ docs/specs/api/
 | --- | --- |
 | [参加者API](../../ledger-person-api-contract.md) | 人物5操作は[正本](features/persons.md)へ移行済み。参加者4操作の契約は本書に維持 |
 | [人物の業務条件](../../ledger-persons.md) | APIの名前・期間・削除制限・権限は[正本](features/persons.md)を参照し、本書は画面・後続業務の判断を維持 |
-| [人物の競合](../../ledger-person-conflicts.md) | `revision`、403/404の`permissions`、409の`latest`、再送保証 |
+| [人物の競合](../../ledger-person-conflicts.md) | `revision`、403/404からの家計簿コンテキスト再取得、409の`latest`、再送保証 |
 | [家計簿DB・モデル](../../ledger-core-schema.md) | 科目・支払方法・税率履歴のAPI契約。物理DB契約はその正本に残す |
 | [レシートAPI](../../ledger-receipt-api.md) | HTTP契約・金額計算・検証・検索。工程記録と区別 |
 | [履歴候補API](../../ledger-receipt-suggestions.md) | 検索・正規化・重複判定・取得権限・応答 |
