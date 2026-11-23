@@ -34,7 +34,8 @@
 | 人物仕様・人物画面 | [人物管理](ledger-persons.md) |
 | 参加者・人物対応 | [参加者管理](ledger-participants.md) |
 | 人物管理API・DBの入口・旧リンク | [人物API](ledger-person-api.md) |
-| 人物・参加者のAPIとJSON契約 | [API契約](ledger-person-api-contract.md) |
+| 人物5操作のHTTP・JSON・業務契約 | [人物API](specs/api/features/persons.md) |
+| 参加者4操作のAPI・JSON契約 | [参加者API](ledger-person-api-contract.md) |
 | 人物・参加者のテーブルと更新版 | [人物DB](ledger-person-db.md) |
 | 作成要求の再送と保持条件 | [共通再送](ledger-operation-retries.md) |
 | 人物・参加者の競合・権限喪失・後続画面 | [競合と後続](ledger-person-conflicts.md) |
