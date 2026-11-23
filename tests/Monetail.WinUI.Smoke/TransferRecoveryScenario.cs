@@ -329,7 +329,7 @@ public partial class App
                 masters.Mapped = role != "Unmapped";
             }
             server.WriteError = null;
-            await CompleteTransferLogin(fixture, root, editorRetained: false);
+            await CompleteTransferLogin(fixture, root);
             Check(ReferenceEquals(editor, TransferEditing) && editor.IsReadOnly && editor.Revision == saved.Revision && editor.Draft.Amount == 2000 &&
                 Find<Button>(root, "TransferSave").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferWriteRetry").Visibility == Visibility.Collapsed && Find<Button>(root, "TransferMasterRetry").Visibility == Visibility.Collapsed && server.Writes.Count == 1,
                 $"再認証後の{role}では現在の参加・権限を検証して入力/旧版を保持し、保存・再送を禁止する");
@@ -367,7 +367,7 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "TransferWriteRetry"));
         await Wait(() => Visible(root, "LoginPage"));
         server.WriteError = null;
-        await CompleteTransferLogin(fixture, root, editorRetained: false);
+        await CompleteTransferLogin(fixture, root);
         Check(Equals(TransferView.ViewModel?.IsUnknown, true) && ReferenceEquals(pending, TransferView.ViewModel?.PendingRequest) && server.Rows.Count == 1 && server.Writes.Count == 2 && server.Details == 0,
             "結果不明の再送中に401となっても結果不明と同じ元要求を保持し、再認証だけでは再送・詳細GETしない");
         await InvokeAsync(() => Find<Button>(root, "TransferWriteRetry"));

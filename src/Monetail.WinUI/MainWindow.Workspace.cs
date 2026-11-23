@@ -20,7 +20,6 @@ public sealed partial class MainWindow
 
     private Monetail.WinUI.Views.Receipts.ReceiptEditorPage? ReceiptPage => WorkspaceHost.Content as Monetail.WinUI.Views.Receipts.ReceiptEditorPage;
     private Monetail.WinUI.Views.Transfers.TransferEditorPage? TransferPage => WorkspaceHost.Content as Monetail.WinUI.Views.Transfers.TransferEditorPage;
-    private bool IsEditorPageVisible => WorkspaceHost.Visibility == Visibility.Visible && (ReceiptPage is not null || TransferPage is not null);
 
     private ManagementViewModel? management;
     private bool IsRecordPageVisible => WorkspaceHost.Visibility == Visibility.Visible && RecordPage is not null;
