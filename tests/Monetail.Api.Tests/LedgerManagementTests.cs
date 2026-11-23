@@ -180,7 +180,7 @@ public sealed class LedgerManagementTests
         var current = await Call(owner, "GET", $"/ledgers/{id}/people");
         var revision = current.GetProperty("orderRevision").GetString();
         var ids = new[] { first.GetProperty("personId").GetString(), last.GetProperty("personId").GetString() };
-        Assert.Equal(2, current.GetProperty("people").GetLength());
+        Assert.Equal(2, current.GetProperty("people").GetArrayLength());
         Assert.Equal(2, current.GetProperty("people")[1].GetProperty("displayOrder").GetInt32());
         Assert.NotEqual(beforeDelete.GetProperty("orderRevision").GetString(), revision);
 
