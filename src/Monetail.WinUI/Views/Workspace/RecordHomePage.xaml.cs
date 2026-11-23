@@ -9,6 +9,7 @@ using Windows.System;
 using Windows.UI.Core;
 
 namespace Monetail.WinUI.Views.Workspace;
+
 public sealed partial class RecordHomePage : Page
 {
     public RecordHomeViewModel? ViewModel { get; private set; }
@@ -53,16 +54,6 @@ public sealed partial class RecordHomePage : Page
         }
     }
 
-    public void ShowEditor(UIElement? editor)
-    {
-        if (editor is not null)
-            Suspend();
-        EditorHost.Content = editor;
-        RecordContent.Visibility = editor is null ? Visibility.Visible : Visibility.Collapsed;
-        if (editor is null)
-            Resume();
-    }
-
     public void RememberPositions()
     {
         ReceiptsView.RememberPosition();
@@ -77,14 +68,14 @@ public sealed partial class RecordHomePage : Page
 
     public void Resume()
     {
-        if (homeResume is not null || !IsLoaded || ViewModel is null || EditorHost.Content is not null)
+        if (homeResume is not null || !IsLoaded || ViewModel is null)
             return;
         var pending = new CancellationTokenSource();
         homeResume = pending;
         _ = ResumeAsync(pending);
     }
 
-    private bool Current(CancellationTokenSource pending) => !pending.IsCancellationRequested && IsLoaded && EditorHost.Content is null && ViewModel is not null && Visible();
+    private bool Current(CancellationTokenSource pending) => !pending.IsCancellationRequested && IsLoaded && ViewModel is not null && Visible();
     private bool Visible()
     {
         for (DependencyObject? element = this; element is not null; element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element))
@@ -139,7 +130,6 @@ public sealed partial class RecordHomePage : Page
         Bindings.StopTracking();
         ReceiptsView.ViewModel = null;
         TransfersView.ViewModel = null;
-        EditorHost.Content = null;
         ViewModel = null;
         Failed = null;
     }

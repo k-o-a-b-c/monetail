@@ -1,21 +1,12 @@
-<Window
-    x:Class="Monetail.WinUI.MainWindow"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Monetail.WinUI"
-    xmlns:views="using:Monetail.WinUI.Views"
-    xmlns:receipts="using:Monetail.WinUI.Views.Receipts"
-    xmlns:transfers="using:Monetail.WinUI.Views.Transfers"
-    xmlns:input="using:Monetail.WinUI.Input">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Monetail.WinUI.MainWindow">
     <Grid x:Name="WorkspaceRoot" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <InfoBar x:Name="ErrorNotice" IsOpen="False" Visibility="Collapsed" Closed="CloseError" Severity="Error" IsClosable="True" Margin="24,16,24,0"
-                 AutomationProperties.LiveSetting="Polite" />
+        <InfoBar x:Name="ErrorNotice" IsOpen="False" Visibility="Collapsed" Closed="CloseError" Severity="Error" IsClosable="True" Margin="24,16,24,0" AutomationProperties.LiveSetting="Polite"/>
         <ContentControl x:Name="Operations" Grid.Row="1" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -23,442 +14,42 @@
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="1"/></Grid.RowDefinitions>
 <Grid ColumnSpacing="24">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="LedgerSelector" Click="ShowLedgerMenu" IsEnabled="False" Style="{StaticResource HeaderButton}"
-                        HorizontalAlignment="Left" HorizontalContentAlignment="Stretch" MaxWidth="320" MinWidth="0"
-                        AutomationProperties.Name="家計簿の切替" AutomationProperties.AutomationId="LedgerSelector">
+                <Button x:Name="LedgerSelector" Click="ShowLedgerMenu" IsEnabled="False" Style="{StaticResource HeaderButton}" HorizontalAlignment="Left" HorizontalContentAlignment="Stretch" MaxWidth="320" MinWidth="0" AutomationProperties.Name="家計簿の切替" AutomationProperties.AutomationId="LedgerSelector">
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="LedgerName" Text="家計簿を選択" TextTrimming="CharacterEllipsis"
-                                   TextWrapping="NoWrap" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                        <FontIcon Grid.Column="1" Glyph="&#xE70D;" FontSize="12" />
+                        <TextBlock x:Name="LedgerName" Text="家計簿を選択" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <FontIcon Grid.Column="1" Glyph="" FontSize="12"/>
                     </Grid>
                 </Button>
                 <Grid Grid.Column="1">
-                    <Button x:Name="RecordButton" Content="記録" Style="{StaticResource HeaderButton}" FontWeight="SemiBold"
-                            AutomationProperties.ItemStatus="選択中" Click="ShowRecord"  AutomationProperties.AutomationId="RecordButton"/>
-                    <Border x:Name="RecordSelectionIndicator" Height="3" Width="32" CornerRadius="2" HorizontalAlignment="Center"
-                            VerticalAlignment="Bottom" IsHitTestVisible="False"
-                            Background="{ThemeResource AccentFillColorDefaultBrush}" />
+                    <Button x:Name="RecordButton" Content="記録" Style="{StaticResource HeaderButton}" FontWeight="SemiBold" AutomationProperties.ItemStatus="選択中" Click="ShowRecord" AutomationProperties.AutomationId="RecordButton"/>
+                    <Border x:Name="RecordSelectionIndicator" Height="3" Width="32" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Bottom" IsHitTestVisible="False" Background="{ThemeResource AccentFillColorDefaultBrush}"/>
                 </Grid>
-                <Button Grid.Column="2" Content="集計・分析" IsEnabled="False" AutomationProperties.AutomationId="AnalyticsPlaceholder"
-                        Style="{StaticResource HeaderButton}" HorizontalAlignment="Left" />
-                <Button x:Name="SettingsButton" Grid.Column="3" Click="ShowManagement"
-                        Style="{StaticResource HeaderButton}" Padding="12,12" AutomationProperties.AutomationId="SettingsButton">
+                <Button Grid.Column="2" Content="集計・分析" IsEnabled="False" AutomationProperties.AutomationId="AnalyticsPlaceholder" Style="{StaticResource HeaderButton}" HorizontalAlignment="Left"/>
+                <Button x:Name="SettingsButton" Grid.Column="3" Click="ShowManagement" Style="{StaticResource HeaderButton}" Padding="12,12" AutomationProperties.AutomationId="SettingsButton">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <FontIcon Glyph="&#xE713;" FontSize="16" />
-                        <TextBlock Text="管理・設定" FontSize="16" />
+                        <FontIcon Glyph="" FontSize="16"/>
+                        <TextBlock Text="管理・設定" FontSize="16"/>
                     </StackPanel>
                 </Button>
             </Grid>
-            <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}" />
+            <Border Grid.Row="1" Background="{ThemeResource ControlStrokeColorDefaultBrush}"/>
 
                 </Grid>
                 <Frame x:Name="WorkspaceHost" Grid.Row="1" IsNavigationStackEnabled="False" Visibility="Collapsed"/>
             </Grid>
         </ContentControl>
-<Border x:Name="ManagementContents" Style="{StaticResource Card}" Margin="16,0,0,0">
-                    <Grid>
-                    <ContentControl x:Name="ConnectionSettingsContent" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Top" IsTabStop="False"/>
-                    <StackPanel x:Name="AccountContent" Visibility="Collapsed" Spacing="24">
-                        <TextBlock Text="ログイン情報" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="表示名" Style="{StaticResource Description}" />
-                            <TextBlock x:Name="AccountName" TextWrapping="Wrap" />
-                        </StackPanel>
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="接続先" Style="{StaticResource Description}" />
-                            <TextBlock x:Name="AccountServer" TextWrapping="Wrap" />
-                        </StackPanel>
-                    </StackPanel>
-                    <Grid x:Name="ParticipantsContent" Visibility="Collapsed" RowSpacing="16">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <StackPanel Spacing="8"><TextBlock Text="参加者管理" Style="{ThemeResource TitleTextBlockStyle}"/>
-                            <TextBlock Text="家計簿の参加者と対応する人物を管理します。" Style="{StaticResource Description}" TextWrapping="Wrap"/></StackPanel>
-                        <Button x:Name="OpenInvitationsButton" Grid.Row="1" Content="招待" Click="OpenInvitations" AutomationProperties.AutomationId="OpenInvitationsButton"/>
-                        <Grid Grid.Row="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                            <Grid ColumnSpacing="12" Padding="12,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="アカウント"/><TextBlock Grid.Column="1" Text="役割"/><TextBlock Grid.Column="2" Text="対応する人物"/>
-                            </Grid>
-                            <ListView x:Name="ParticipantsList" Grid.Row="1" SelectionMode="None" AutomationProperties.Name="参加者一覧" HorizontalContentAlignment="Stretch" AutomationProperties.AutomationId="ParticipantsList">
-                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
-                                <ListView.ItemTemplate><DataTemplate x:DataType="local:ParticipantRow">
-                                    <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="160"/></Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind Role}" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="{x:Bind Person}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
-                                            <Button Content="編集" Tag="{x:Bind Member}" Click="EditParticipant" AutomationProperties.Name="参加者を編集"/>
-                                            <Button Content="除外" Tag="{x:Bind Member}" Click="ExcludeParticipant" Visibility="{x:Bind ExcludeVisibility}" AutomationProperties.Name="参加者を除外"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </DataTemplate></ListView.ItemTemplate>
-                            </ListView>
-                        </Grid>
-                    </Grid>
-                    <Grid x:Name="InvitationsContent" Visibility="Collapsed" RowSpacing="16">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <Button x:Name="BackToParticipantsButton" Content="← 参加者一覧に戻る" Click="BackToParticipants" AutomationProperties.AutomationId="BackToParticipantsButton"/>
-                        <StackPanel Grid.Row="1" Spacing="8"><TextBlock Text="招待管理" Style="{ThemeResource TitleTextBlockStyle}"/>
-                            <TextBlock Text="招待リンクは7日間有効です。参加時の役割は閲覧者です。リンクの送付先を限定してください。" TextWrapping="Wrap" Style="{StaticResource Description}"/></StackPanel>
-                        <StackPanel Grid.Row="2" Spacing="8"><Button x:Name="IssueInvitationButton" Content="新しい招待リンクを発行" Click="IssueInvitation" AutomationProperties.AutomationId="IssueInvitationButton"/>
-                            <TextBlock x:Name="InvitationRetryNotice" Visibility="Collapsed" Text="結果を確認できません。同じ要求IDで招待の発行を再試行します。" TextWrapping="Wrap" Style="{StaticResource Description}"/>
-                            <TextBlock x:Name="InvitationNotice" Visibility="Collapsed" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                        </StackPanel>
-                        <Grid Grid.Row="3">
-                            <ListView x:Name="InvitationsList" SelectionMode="None" HorizontalContentAlignment="Stretch" AutomationProperties.Name="有効な招待リンク一覧" AutomationProperties.AutomationId="InvitationsList">
-                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
-                                <ListView.ItemTemplate><DataTemplate x:DataType="local:LedgerInvitationRow">
-                                    <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <StackPanel Spacing="4"><TextBlock Text="有効期限" Style="{StaticResource Description}"/><TextBlock Text="{x:Bind Expires}" TextWrapping="Wrap"/></StackPanel>
-                                        <Button Grid.Column="1" Content="コピー" Tag="{x:Bind Invitation}" Click="CopyInvitation" AutomationProperties.Name="招待リンクをコピー"/>
-                                        <Button Grid.Column="2" Content="取消" Tag="{x:Bind Invitation}" Click="CancelInvitation" AutomationProperties.Name="招待リンクを取り消す"/>
-                                    </Grid>
-                                </DataTemplate></ListView.ItemTemplate>
-                            </ListView>
-                            <TextBlock x:Name="EmptyInvitations" Text="有効な招待リンクはありません。" Visibility="Collapsed" Style="{StaticResource Description}"/>
-                        </Grid>
-                    </Grid>
-                    <Grid x:Name="CategoriesContent" Visibility="Collapsed" RowSpacing="16">
-                        <views:CategoryListView x:Name="CategoryList" SelectionChanged="SelectCategory"
-                                                AddRequested="AddCategory" EditRequested="EditCategory" DeleteRequested="DeleteCategory" OrderRequested="OpenCategoryOrder"/>
-                    </Grid>
-                    <Grid x:Name="CategoryOrderContent" Visibility="Collapsed" RowSpacing="16">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                        <TextBlock Text="科目の並び順" Style="{ThemeResource TitleTextBlockStyle}"/>
-                        <TextBlock Grid.Row="1" Text="有効期間外を含むすべての科目を並べ替えます。" Style="{StaticResource Description}" TextWrapping="Wrap"/>
-                        <InfoBar x:Name="CategoryOrderNotice" Grid.Row="2" Visibility="Collapsed" IsOpen="False" Closed="CloseError"/>
-                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="MoveCategoryUpButton" Content="上へ" Click="MoveCategoryUp" AutomationProperties.AutomationId="MoveCategoryUpButton"/>
-                            <Button x:Name="MoveCategoryDownButton" Content="下へ" Click="MoveCategoryDown" AutomationProperties.AutomationId="MoveCategoryDownButton"/>
-                        </StackPanel>
-                        <ListView x:Name="CategoryOrderList" Grid.Row="4" SelectionMode="Single" SelectionChanged="SelectCategoryOrder" AutomationProperties.Name="有効期間外を含む全科目の順序" AutomationProperties.AutomationId="CategoryOrderList">
-                            <ListView.ItemTemplate><DataTemplate x:DataType="local:CategoryRow"><TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/></DataTemplate></ListView.ItemTemplate>
-                        </ListView>
-                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="SaveCategoryOrderButton" Content="保存" Click="SaveCategoryOrder" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SaveCategoryOrderButton"/>
-                            <Button x:Name="CancelCategoryOrderButton" Content="キャンセル" Click="CancelCategoryOrder" AutomationProperties.AutomationId="CancelCategoryOrderButton"/>
-                        </StackPanel>
-                    </Grid>
-                    <Grid x:Name="PaymentsContent" Visibility="Collapsed" RowSpacing="16">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                        <TextBlock Text="支払方法管理" Style="{ThemeResource TitleTextBlockStyle}"/>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="AddPaymentButton" Content="追加" Click="AddPayment" AutomationProperties.AutomationId="AddPaymentButton"/>
-                            <Button x:Name="EditPaymentButton" Content="編集" Click="EditPayment" AutomationProperties.AutomationId="EditPaymentButton"/>
-                            <Button x:Name="DeletePaymentButton" Content="削除" Click="DeletePayment" AutomationProperties.AutomationId="DeletePaymentButton"/>
-                        </StackPanel>
-                        <CheckBox x:Name="IncludeInactivePayments" Grid.Row="2" Content="有効期間外も表示" Checked="FilterPayments" Unchecked="FilterPayments" AutomationProperties.AutomationId="IncludeInactivePayments"/>
-                        <Grid Grid.Row="3"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                            <Grid ColumnSpacing="12" Padding="12,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
-                                <TextBlock Text="支払方法名"/><TextBlock Grid.Column="1" Text="有効開始日"/><TextBlock Grid.Column="2" Text="有効終了日"/>
-                            </Grid>
-                            <ListView x:Name="PaymentsList" Grid.Row="1" SelectionMode="Single" SelectionChanged="SelectPayment" HorizontalContentAlignment="Stretch" AutomationProperties.Name="人物別の支払方法一覧" AutomationProperties.AutomationId="PaymentsList">
-                                <ListView.ItemContainerStyle><Style TargetType="ListViewItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListView.ItemContainerStyle>
-                                <ListView.GroupStyle><GroupStyle HidesIfEmpty="True"><GroupStyle.HeaderTemplate><DataTemplate x:DataType="local:PaymentGroup">
-                                    <Grid ColumnSpacing="12" Margin="0,12,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="1" Content="並び順変更" Tag="{x:Bind OwnerId}" Visibility="{x:Bind OrderVisibility}" Click="OpenPaymentOrder"/>
-                                    </Grid>
-                                </DataTemplate></GroupStyle.HeaderTemplate></GroupStyle></ListView.GroupStyle>
-                                <ListView.ItemTemplate><DataTemplate x:DataType="local:PaymentRow">
-                                    <Grid ColumnSpacing="12" Padding="0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="120"/><ColumnDefinition Width="120"/></Grid.ColumnDefinitions>
-                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap"/><TextBlock Grid.Column="1" Text="{x:Bind ValidFrom}"/><TextBlock Grid.Column="2" Text="{x:Bind ValidTo}"/>
-                                    </Grid>
-                                </DataTemplate></ListView.ItemTemplate>
-                            </ListView>
-                            <TextBlock x:Name="EmptyPayments" Grid.Row="1" Text="表示対象の支払方法はありません。" Visibility="Collapsed" Style="{StaticResource Description}"/>
-                        </Grid>
-                    </Grid>
-                    <Grid x:Name="PaymentOrderContent" Visibility="Collapsed" RowSpacing="16">
-                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                        <TextBlock Text="支払方法の並び順" Style="{ThemeResource TitleTextBlockStyle}"/>
-                        <TextBlock x:Name="PaymentOrderOwner" Grid.Row="1" TextWrapping="Wrap" FontWeight="SemiBold"/>
-                        <InfoBar x:Name="PaymentOrderNotice" Grid.Row="2" Visibility="Collapsed" IsOpen="False" Closed="CloseError"/>
-                        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="MovePaymentUpButton" Content="上へ" Click="MovePaymentUp" AutomationProperties.AutomationId="MovePaymentUpButton"/>
-                            <Button x:Name="MovePaymentDownButton" Content="下へ" Click="MovePaymentDown" AutomationProperties.AutomationId="MovePaymentDownButton"/>
-                        </StackPanel>
-                        <ListView x:Name="PaymentOrderList" Grid.Row="4" SelectionMode="Single" SelectionChanged="SelectPaymentOrder" AutomationProperties.Name="有効期間外を含む全支払方法の順序" AutomationProperties.AutomationId="PaymentOrderList">
-                            <ListView.ItemTemplate><DataTemplate x:DataType="local:PaymentRow"><TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12"/></DataTemplate></ListView.ItemTemplate>
-                        </ListView>
-                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="SavePaymentOrderButton" Content="保存" Click="SavePaymentOrder" Style="{ThemeResource AccentButtonStyle}" AutomationProperties.AutomationId="SavePaymentOrderButton"/>
-                            <Button x:Name="CancelPaymentOrderButton" Content="キャンセル" Click="CancelPaymentOrder" AutomationProperties.AutomationId="CancelPaymentOrderButton"/>
-                        </StackPanel>
-                    </Grid>
-                    <Grid x:Name="PersonOrderContent" Visibility="Collapsed" RowSpacing="16">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="人物の並び順" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <TextBlock Grid.Row="1" Text="全員で使う並び順を設定します。この画面では本人を先頭に移しません。"
-                                   Style="{StaticResource Description}" />
-                        <TextBlock x:Name="PersonOrderRestoredNotice" Grid.Row="2" Visibility="Collapsed"
-                                   Text="未保存の並び順を復元しました。内容を確認してください。" Style="{StaticResource Description}" />
-                        <InfoBar x:Name="PersonOrderNotice" Grid.Row="3" Visibility="Collapsed" IsOpen="False"
-                                 IsClosable="True" Closed="CloseError" />
-                        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="MovePersonUpButton" Content="上へ" IsEnabled="False" Click="MovePersonUp"  AutomationProperties.AutomationId="MovePersonUpButton"/>
-                            <Button x:Name="MovePersonDownButton" Content="下へ" IsEnabled="False" Click="MovePersonDown"  AutomationProperties.AutomationId="MovePersonDownButton"/>
-                        </StackPanel>
-                        <Grid Grid.Row="5">
-                            <ListView x:Name="PersonOrderList" SelectionMode="Single" SelectionChanged="SelectPersonOrder"
-                                      AutomationProperties.Name="共通の人物順" AutomationProperties.AutomationId="PersonOrderList">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="local:PersonRow">
-                                        <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" Margin="8,12" />
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                            <TextBlock x:Name="EmptyPersonOrder" Text="人物は登録されていません。" Visibility="Collapsed"
-                                       Style="{StaticResource Description}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Grid>
-                        <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="12">
-                            <Button x:Name="SavePersonOrderButton" Content="保存" Click="SavePersonOrder" Style="{ThemeResource AccentButtonStyle}"  AutomationProperties.AutomationId="SavePersonOrderButton"/>
-                            <Button x:Name="CancelPersonOrderButton" Content="キャンセル" Click="CancelPersonOrder"  AutomationProperties.AutomationId="CancelPersonOrderButton"/>
-                        </StackPanel>
-                    </Grid>
-                    <Grid x:Name="PeopleContent" RowSpacing="20">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBlock Text="人物管理" Style="{ThemeResource TitleTextBlockStyle}" />
-                        <TextBlock Grid.Row="1" Text="家計簿で使用する人物と有効期間を管理します。"
-                                   Style="{StaticResource Description}" />
-                        <Grid Grid.Row="2" ColumnSpacing="12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Button x:Name="AddPersonButton" Content="追加" IsEnabled="False" Click="AddPerson"  AutomationProperties.AutomationId="AddPersonButton"/>
-                            <Button x:Name="EditPersonButton" Grid.Column="1" Content="編集" IsEnabled="False" Click="EditPerson"  AutomationProperties.AutomationId="EditPersonButton"/>
-                            <Button x:Name="DeletePersonButton" Grid.Column="2" Content="削除" IsEnabled="False" HorizontalAlignment="Left" Click="DeletePerson"  AutomationProperties.AutomationId="DeletePersonButton"/>
-                            <Button x:Name="PersonOrderButton" Grid.Column="3" Content="並び順変更" IsEnabled="False" Click="OpenPersonOrder"  AutomationProperties.AutomationId="PersonOrderButton"/>
-                        </Grid>
-                        <CheckBox x:Name="IncludeInactivePeople" Grid.Row="3" Content="有効期間外も表示" Checked="FilterPeople" Unchecked="FilterPeople" AutomationProperties.AutomationId="IncludeInactivePeople"/>
-                        <Border Grid.Row="4" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                BorderThickness="0,0,0,1" Padding="12,8,12,16">
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="136" />
-                                    <ColumnDefinition Width="136" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="人物名" FontSize="16" />
-                                <TextBlock Grid.Column="1" Text="有効開始日" FontSize="16" />
-                                <TextBlock Grid.Column="2" Text="有効終了日" FontSize="16" />
-                            </Grid>
-                        </Border>
-                        <Grid Grid.Row="5">
-                            <ListView x:Name="PeopleList" SelectionMode="Single" SelectionChanged="SelectPerson" AutomationProperties.Name="人物一覧" AutomationProperties.AutomationId="PeopleList">
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                        <Setter Property="Padding" Value="0" />
-                                        <Setter Property="Margin" Value="0" />
-                                    </Style>
-                                </ListView.ItemContainerStyle>
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="local:PersonRow">
-                                        <Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                                BorderThickness="0,0,0,1" Padding="12,16">
-                                            <Grid ColumnSpacing="12">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="136" />
-                                                    <ColumnDefinition Width="136" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{x:Bind Name}" TextWrapping="Wrap" FontSize="16" />
-                                                <TextBlock Grid.Column="1" Text="{x:Bind ValidFrom}" FontSize="16" />
-                                                <TextBlock Grid.Column="2" Text="{x:Bind ValidTo}" FontSize="16" />
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                            <TextBlock x:Name="EmptyPeople" Text="家計簿を開くと、人物が表示されます。"
-                                       Style="{StaticResource Description}" TextAlignment="Center"
-                                       VerticalAlignment="Center" HorizontalAlignment="Center" />
-                        </Grid>
-                        <TextBlock Grid.Row="6" Text="空欄は期間の制限なし" Style="{StaticResource Description}" />
-                    </Grid>
-                    </Grid>
-                </Border>
-        <Grid x:Name="EditorContents">
-<Grid x:Name="TransferEditorPage" TabFocusNavigation="Local" Visibility="Collapsed">
-                <transfers:TransferEditorView x:Name="TransferEntry"/>
-            </Grid>
-<Grid x:Name="ReceiptEditorPage" Visibility="Collapsed">
-                <receipts:ReceiptEditorView x:Name="ReceiptEntry"/>
-            </Grid>
-        </Grid>
-        <ContentDialog x:Name="PersonDialog" Title="人物の追加" PrimaryButtonText="登録" CloseButtonText="キャンセル"
-                       DefaultButton="None" Opened="PersonDialogOpened" Closing="PersonDialogClosing"
-                       PrimaryButtonClick="SavePerson" HorizontalContentAlignment="Stretch">
-            <ScrollViewer x:Name="PersonEditorContent" Visibility="Collapsed"
-                          HorizontalContentAlignment="Stretch" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel HorizontalAlignment="Stretch" Spacing="16">
-                    <TextBlock x:Name="PersonRestoredNotice" Visibility="Collapsed" Text="未保存の入力を復元しました。内容を確認してください。"
-                               Style="{StaticResource Description}" />
-                    <TextBlock x:Name="PersonDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap" />
-                    <StackPanel x:Name="PersonFields" Spacing="16">
-                        <TextBox x:Name="PersonName" Header="人物名"  AutomationProperties.AutomationId="PersonName"/>
-                        <TextBlock x:Name="PersonNameError" Visibility="Collapsed" TextWrapping="Wrap"
-                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
-                        <input:DateInputBox x:Name="PersonValidFrom" Header="有効開始日" AllowEmpty="True"  AutomationProperties.AutomationId="PersonValidFrom"/>
-                        <input:DateInputBox x:Name="PersonValidTo" Header="有効終了日" AllowEmpty="True"  AutomationProperties.AutomationId="PersonValidTo"/>
-                        <TextBlock x:Name="PersonPeriodError" Visibility="Collapsed" TextWrapping="Wrap"
-                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
-                        <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}" />
-                        <TextBlock x:Name="PersonPeriodPermission" Visibility="Collapsed" Text="有効期間は管理者のみ変更できます。" Style="{StaticResource Description}" />
-                    </StackPanel>
-                    <Border x:Name="PersonConflict" Visibility="Collapsed" Padding="16" CornerRadius="8"
-                            BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="ほかの操作で変更されています。" TextWrapping="Wrap" FontWeight="SemiBold" />
-                            <TextBlock Text="最新の保存内容" TextWrapping="Wrap" />
-                            <TextBlock Text="人物名" Style="{StaticResource Description}" />
-                            <TextBlock x:Name="LatestPersonName" TextWrapping="Wrap" />
-                            <TextBlock Text="有効開始日" Style="{StaticResource Description}" />
-                            <TextBlock x:Name="LatestPersonFrom" />
-                            <TextBlock Text="有効終了日" Style="{StaticResource Description}" />
-                            <TextBlock x:Name="LatestPersonTo" />
-                            <TextBlock x:Name="PersonConflictExplanation" Text="切り替えると、現在の未保存の入力を最新内容に置き換えます。" TextWrapping="Wrap" />
-                            <Button x:Name="UseLatestPersonButton" Content="最新内容に切り替える" Click="UseLatestPerson"  AutomationProperties.AutomationId="UseLatestPersonButton"/>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock x:Name="PersonSaveError" Visibility="Collapsed" TextWrapping="Wrap"
-                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" />
-                </StackPanel>
-            </ScrollViewer>
-        </ContentDialog>
-        <ContentDialog x:Name="CategoryDialog" Title="科目の追加" PrimaryButtonText="登録" CloseButtonText="キャンセル" DefaultButton="None"
-                       PrimaryButtonClick="SaveCategory" Opened="CategoryDialogOpened" Closing="CategoryDialogClosing" HorizontalContentAlignment="Stretch">
-            <ScrollViewer x:Name="CategoryEditorContent" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16">
-                    <TextBlock x:Name="CategoryRestoredNotice" Text="未保存の入力を復元しました。内容を確認してください。" Visibility="Collapsed" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="CategoryDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
-                    <StackPanel x:Name="CategoryFields" Spacing="16">
-                        <TextBox x:Name="CategoryName" Header="科目名" AutomationProperties.AutomationId="CategoryName"/>
-                        <TextBlock x:Name="CategoryNameError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <ComboBox x:Name="CategoryIncome" Header="収支区分" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="CategoryIncome">
-                            <ComboBoxItem Content="収入" Tag="Income"/><ComboBoxItem Content="支出" Tag="Expense"/>
-                        </ComboBox>
-                        <ComboBox x:Name="CategoryTax" Header="初期税区分" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="CategoryTax">
-                            <ComboBoxItem Content="標準" Tag="Standard"/><ComboBoxItem Content="食品軽減" Tag="ReducedFood"/>
-                            <ComboBoxItem Content="新聞軽減" Tag="ReducedNewspaper"/><ComboBoxItem Content="非課税" Tag="Exempt"/>
-                        </ComboBox>
-                        <TextBlock x:Name="CategoryChoiceError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <input:DateInputBox x:Name="CategoryFrom" Header="有効開始日" AllowEmpty="True" AutomationProperties.AutomationId="CategoryFrom"/>
-                        <input:DateInputBox x:Name="CategoryTo" Header="有効終了日" AllowEmpty="True" AutomationProperties.AutomationId="CategoryTo"/>
-                        <TextBlock x:Name="CategoryPeriodError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}"/>
-                    </StackPanel>
-                    <Border x:Name="CategoryConflict" Visibility="Collapsed" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
-                        <StackPanel Spacing="8"><TextBlock Text="ほかの操作で変更されています。最新の保存内容" TextWrapping="Wrap" FontWeight="SemiBold"/>
-                            <TextBlock Text="科目名" Style="{StaticResource Description}"/><TextBlock x:Name="LatestCategoryName" TextWrapping="Wrap"/>
-                            <TextBlock Text="収支区分" Style="{StaticResource Description}"/><TextBlock x:Name="LatestCategoryIncome"/>
-                            <TextBlock Text="初期税区分" Style="{StaticResource Description}"/><TextBlock x:Name="LatestCategoryTax"/>
-                            <TextBlock Text="有効開始日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestCategoryFrom"/>
-                            <TextBlock Text="有効終了日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestCategoryTo"/>
-                            <TextBlock Text="切り替えると、未保存の入力や削除対象の確認内容を最新内容に置き換えます。" TextWrapping="Wrap"/>
-                            <Button Content="最新内容に切り替える" Click="UseLatestCategory" AutomationProperties.AutomationId="UseLatestCategoryButton"/>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock x:Name="CategorySaveError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                </StackPanel>
-            </ScrollViewer>
-        </ContentDialog>
-        <ContentDialog x:Name="PaymentDialog" Title="支払方法の追加" PrimaryButtonText="登録" CloseButtonText="キャンセル" DefaultButton="None"
-                       PrimaryButtonClick="SavePayment" Opened="PaymentDialogOpened" Closing="PaymentDialogClosing" HorizontalContentAlignment="Stretch">
-            <ScrollViewer x:Name="PaymentEditorContent" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16">
-                    <TextBlock x:Name="PaymentRestoredNotice" Text="未保存の入力を復元しました。内容を確認してください。" Visibility="Collapsed" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="PaymentDeleteNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
-                    <StackPanel x:Name="PaymentFields" Spacing="16">
-                        <ComboBox x:Name="PaymentOwnerChoice" Header="所有者" DisplayMemberPath="Name" SelectionChanged="SelectPaymentOwner" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="PaymentOwnerChoice"/>
-                        <StackPanel x:Name="PaymentOwnerFixed"><TextBlock Text="所有者" Style="{StaticResource Description}"/><TextBlock x:Name="PaymentOwnerName" TextWrapping="Wrap"/></StackPanel>
-                        <TextBox x:Name="PaymentName" Header="支払方法名" AutomationProperties.AutomationId="PaymentName"/>
-                        <TextBlock x:Name="PaymentNameError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <input:DateInputBox x:Name="PaymentFrom" Header="有効開始日" AllowEmpty="True" AutomationProperties.AutomationId="PaymentFrom"/>
-                        <input:DateInputBox x:Name="PaymentTo" Header="有効終了日" AllowEmpty="True" AutomationProperties.AutomationId="PaymentTo"/>
-                        <TextBlock x:Name="PaymentPeriodError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                        <TextBlock Text="空欄は期間の制限なし" Style="{StaticResource Description}"/>
-                    </StackPanel>
-                    <Border x:Name="PaymentConflict" Visibility="Collapsed" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
-                        <StackPanel Spacing="8"><TextBlock Text="ほかの操作で変更されています。最新の保存内容" TextWrapping="Wrap" FontWeight="SemiBold"/>
-                            <TextBlock Text="所有者" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentOwner" TextWrapping="Wrap"/>
-                            <TextBlock Text="支払方法名" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentName" TextWrapping="Wrap"/>
-                            <TextBlock Text="有効開始日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentFrom"/>
-                            <TextBlock Text="有効終了日" Style="{StaticResource Description}"/><TextBlock x:Name="LatestPaymentTo"/>
-                            <TextBlock Text="切り替えると、未保存の入力や削除対象の確認内容を最新内容に置き換えます。" TextWrapping="Wrap"/>
-                            <Button Content="最新内容に切り替える" Click="UseLatestPayment" AutomationProperties.AutomationId="UseLatestPaymentButton"/>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock x:Name="PaymentSaveError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                </StackPanel>
-            </ScrollViewer>
-        </ContentDialog>
-        <ContentDialog x:Name="ParticipantDialog" Title="参加者の編集" PrimaryButtonText="保存" CloseButtonText="キャンセル" DefaultButton="None"
-                       PrimaryButtonClick="SaveParticipant" Closing="ParticipantDialogClosing" HorizontalContentAlignment="Stretch">
-            <ScrollViewer x:Name="ParticipantEditorContent" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="16">
-                    <TextBlock x:Name="ParticipantName" TextWrapping="Wrap" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="ParticipantExcludeNotice" Visibility="Collapsed" TextWrapping="Wrap"/>
-                    <StackPanel x:Name="ParticipantFields" Spacing="16">
-                        <ComboBox x:Name="ParticipantRole" Header="家計簿内の役割" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ParticipantRole">
-                            <ComboBoxItem Content="閲覧者" Tag="Viewer"/><ComboBoxItem Content="編集者" Tag="Editor"/><ComboBoxItem Content="管理者" Tag="Admin"/>
-                        </ComboBox>
-                        <TextBlock x:Name="ParticipantOwnRole" Visibility="Collapsed" TextWrapping="Wrap"/>
-                        <ComboBox x:Name="ParticipantPerson" Header="対応する人物" HorizontalAlignment="Stretch" AutomationProperties.AutomationId="ParticipantPerson"/>
-                        <TextBlock x:Name="ParticipantPersonError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                    </StackPanel>
-                    <Border x:Name="ParticipantConflict" Visibility="Collapsed" Padding="16" CornerRadius="8" BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
-                        <StackPanel Spacing="12"><TextBlock Text="ほかの操作で変更されています。最新の保存内容" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                            <TextBlock x:Name="LatestParticipant" TextWrapping="Wrap"/>
-                            <TextBlock Text="読み込むと、未保存の入力・更新版を最新の内容に置き換えます。" TextWrapping="Wrap"/>
-                            <Button x:Name="UseLatestParticipantButton" Content="最新の内容を読み込む" Click="UseLatestParticipant" AutomationProperties.AutomationId="UseLatestParticipantButton"/>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock x:Name="ParticipantError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-                </StackPanel>
-            </ScrollViewer>
-        </ContentDialog>
-        <ContentDialog x:Name="InvitationCancelDialog" Title="招待の取消" PrimaryButtonText="取消する" CloseButtonText="キャンセル" DefaultButton="Close"
-                       PrimaryButtonClick="ConfirmCancelInvitation" Closing="InvitationDialogClosing" HorizontalContentAlignment="Stretch">
-            <StackPanel x:Name="InvitationCancelContent" Visibility="Collapsed" Spacing="16"><TextBlock x:Name="InvitationCancelTarget" TextWrapping="Wrap"/>
-                <TextBlock x:Name="InvitationCancelError" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite"/>
-            </StackPanel>
-        </ContentDialog>
-        <ContentDialog x:Name="ReceiptConfirmationDialog" DefaultButton="Close"/>
         <ContentControl x:Name="AuthenticationHost" Grid.Row="1" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" IsTabStop="False"/>
-        <ContentControl x:Name="LedgerPageHost" Grid.Row="1" IsTabStop="False" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
-        <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False"
-                      Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top"
-                      IsHitTestVisible="False" AutomationProperties.Name="処理中" />
-        <ContentDialog x:Name="TransferConfirmationDialog" Title="確認" PrimaryButtonText="続行" CloseButtonText="キャンセル" DefaultButton="Close"/>
+        <ContentControl x:Name="LedgerPageHost" Grid.Row="1" IsTabStop="False" Visibility="Collapsed" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
+        <ProgressRing x:Name="BusyProgress" Grid.RowSpan="2" Visibility="Collapsed" IsActive="False" Width="24" Height="24" Margin="16" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False" AutomationProperties.Name="処理中"/>
+
     </Grid>
 </Window>

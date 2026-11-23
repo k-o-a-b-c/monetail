@@ -4,32 +4,37 @@ using Monetail.WinUI.Views;
 using Monetail.WinUI.Views.Workspace;
 
 namespace Monetail.WinUI;
+
 public sealed partial class MainWindow
 {
     private enum WorkspaceScreen
     {
         HomePage,
+        ReceiptEditor,
+        TransferEditor,
         ManagementPage,
         LedgerChoicePage
     }
 
     private RecordHomePage? RecordPage => WorkspaceHost.Content as RecordHomePage;
 
+    private Monetail.WinUI.Views.Receipts.ReceiptEditorPage? ReceiptPage => WorkspaceHost.Content as Monetail.WinUI.Views.Receipts.ReceiptEditorPage;
+    private Monetail.WinUI.Views.Transfers.TransferEditorPage? TransferPage => WorkspaceHost.Content as Monetail.WinUI.Views.Transfers.TransferEditorPage;
+
     private ManagementViewModel? management;
     private bool IsRecordPageVisible => WorkspaceHost.Visibility == Visibility.Visible && RecordPage is not null;
 
-    private void NavigateWorkspace(WorkspaceScreen screen)
+    private void NavigateWorkspace(WorkspaceScreen screen, object? parameter = null)
     {
-        if (closed || RecordEditorActive && screen != WorkspaceScreen.HomePage || EditorAwaitingLogin && screen == WorkspaceScreen.HomePage)
+        if (closed || RecordEditorActive || EditorAwaitingLogin && screen == WorkspaceScreen.HomePage)
             return;
         ReleaseAuthentication();
         ReleaseLedgerPage();
-        ReleaseConnectionSettings();
         WorkspaceHost.Visibility = Visibility.Visible;
         WorkspaceHeader.Visibility = screen == WorkspaceScreen.LedgerChoicePage || currentLedger is null ? Visibility.Collapsed : Visibility.Visible;
-        RecordSelectionIndicator.Visibility = screen == WorkspaceScreen.HomePage ? Visibility.Visible : Visibility.Collapsed;
+        RecordSelectionIndicator.Visibility = screen is WorkspaceScreen.HomePage or WorkspaceScreen.ReceiptEditor or WorkspaceScreen.TransferEditor ? Visibility.Visible : Visibility.Collapsed;
         RecordButton.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.ItemStatusProperty,
-            screen == WorkspaceScreen.HomePage ? "選択中" : "");
+            screen is WorkspaceScreen.HomePage or WorkspaceScreen.ReceiptEditor or WorkspaceScreen.TransferEditor ? "選択中" : "");
         SettingsButton.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.ItemStatusProperty,
             screen == WorkspaceScreen.ManagementPage ? "選択中" : "");
         ErrorNotice.IsOpen = false;
@@ -43,6 +48,9 @@ public sealed partial class MainWindow
             return;
         }
 
+        if (screen == WorkspaceScreen.ManagementPage && ManagementPage is not null)
+            return;
+
         SuspendRecordReads();
         ReleaseWorkspace();
         WorkspaceHost.Visibility = Visibility.Visible;
@@ -53,18 +61,21 @@ public sealed partial class MainWindow
                 WorkspaceHost.Navigate(typeof(RecordHomePage), recordHome);
                 ((RecordHomePage)WorkspaceHost.Content).Failed += WorkspaceFailed;
                 break;
+            case WorkspaceScreen.ReceiptEditor:
+                WorkspaceHost.Navigate(typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorPage), parameter);
+                ReceiptPage!.IsCancellationTarget = IsEditorLeaveTarget;
+                break;
+            case WorkspaceScreen.TransferEditor:
+                WorkspaceHost.Navigate(typeof(Monetail.WinUI.Views.Transfers.TransferEditorPage), parameter);
+                TransferPage!.IsCancellationTarget = IsEditorLeaveTarget;
+                TransferPage.ReturnRequested += BackTransferAsync;
+                TransferPage.RetryMastersRequested += RetryTransferMastersAsync;
+                TransferPage.Saved += TransferSavedAsync;
+                break;
             case WorkspaceScreen.ManagementPage:
-                management = new(() => !busy && !ManagementDialogOpen, SelectManagementAsync)
-                {
-                    LedgerName = currentLedger?.Name ?? "家計簿が開かれていません",
-                    HasAccount = account is not null,
-                    PeopleEnabled = CanViewPeople,
-                    CategoriesEnabled = CanViewCategories,
-                    ParticipantsVisible = CanManageParticipants
-                };
+                EnsureManagement();
                 WorkspaceHost.Navigate(typeof(ManagementPage), management);
-                var page = (ManagementPage)WorkspaceHost.Content;
-                page.SetDetails(ManagementContents);
+                ((ManagementPage)WorkspaceHost.Content).ReturnRequested += ReturnFromManagement;
                 break;
             case WorkspaceScreen.LedgerChoicePage:
                 WorkspaceHost.Navigate(typeof(LedgerChoiceView));
@@ -86,17 +97,21 @@ public sealed partial class MainWindow
         if (WorkspaceHost.Content is RecordHomePage records)
             records.Release();
         if (WorkspaceHost.Content is ManagementPage settings)
+        {
+            settings.ReturnRequested -= ReturnFromManagement;
             settings.Release();
+        }
         if (WorkspaceHost.Content is LedgerChoiceView choices)
             choices.OpenRequested -= OpenSelectedLedger;
+        ReceiptPage?.Release();
+        TransferPage?.Release();
         WorkspaceHost.Content = null;
-        management = null;
     }
 
     private void HideWorkspace()
     {
         SuspendRecordReads();
-        if (!RecordEditorActive || !EditorAwaitingLogin)
+        if ((!RecordEditorActive || !EditorAwaitingLogin) && management?.Context.IsSuspended != true)
             ReleaseWorkspace();
         WorkspaceHost.Visibility = WorkspaceHeader.Visibility = Visibility.Collapsed;
     }

@@ -19,12 +19,8 @@ public sealed partial class MainWindow : Window
         Title = "Monetail";
         SizeInitialWindow();
         Closed += CloseConnection;
-        InitializeInput();
-        WorkspaceRoot.Children.Remove(ManagementContents);
-        WorkspaceRoot.Children.Remove(EditorContents);
         InitializeReceipts();
-        InitializeReceiptEditor();
-        InitializeTransferEditor();
+        AppWindow.Closing += ConfirmWindowClosing;
         ShowAuthentication()?.PrepareInitialDestination();
     }
 
@@ -45,13 +41,6 @@ public sealed partial class MainWindow : Window
             Math.Min((int)Math.Round(780 * scale), workArea.Height)));
     }
 
-    /// <summary>APIから受け取った表示用データを反映する。サンプルを通常起動へ埋め込まない。</summary>
-    public void DisplayWorkspace(LedgerInfo ledger, PeopleInfo people)
-    {
-        DisplayLedger(ledger);
-        DisplayPeople(people);
-    }
-
     private void DisplayLedger(LedgerInfo ledger)
     {
         DiscardLedgerContents();
@@ -65,61 +54,22 @@ public sealed partial class MainWindow : Window
         LedgerName.Text = ledger.Name;
         LedgerSelector.SetValue(Microsoft.UI.Xaml.Automation.AutomationProperties.NameProperty, ledger.Name);
         Microsoft.UI.Xaml.Controls.ToolTipService.SetToolTip(LedgerSelector, ledger.Name);
-        if (management is not null) management.LedgerName = ledger.Name;
         LedgerSelector.IsEnabled = account is not null;
-        if (management is not null) management.HasAccount = account is not null;
-        UpdatePeopleActions();
-    }
 
-    private void DisplayPeople(PeopleInfo people)
-    {
-        if (currentLedger is { } ledger) connection.Masters.UpdatePeople(ledger.LedgerId, people);
-        peopleInfo = people;
-        peoplePermissions = new(people.CurrentRole, people.MyPersonId);
-        missingPeople.Clear();
-        RenderPeopleRows();
-        UpdatePeopleActions();
     }
-
-    private void RenderPeopleRows()
-    {
-        if (peopleInfo is null) return;
-        var selectedId = (PeopleList.SelectedItem as PersonRow)?.Person.PersonId;
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        var rows = peopleInfo.People.Where(person => IncludeInactivePeople.IsChecked == true ||
-                (person.ValidFrom is null || person.ValidFrom <= today) && (person.ValidTo is null || person.ValidTo >= today))
-            .OrderByDescending(person => person.PersonId == peoplePermissions?.MyPersonId)
-            .ThenBy(person => person.DisplayOrder)
-            .Select(person => new PersonRow(person, person.PersonId == peoplePermissions?.MyPersonId)).ToArray();
-        PeopleList.ItemsSource = rows;
-        PeopleList.SelectedItem = rows.FirstOrDefault(row => row.Person.PersonId == selectedId);
-        EmptyPeople.Text = "表示対象の人物はありません。";
-        EmptyPeople.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-        UpdatePeopleActions();
-    }
-
-    private void FilterPeople(object sender, RoutedEventArgs args) => RenderPeopleRows();
 
     private async void ShowRecord(object sender, RoutedEventArgs e)
     {
         if (busy || ManagementDialogOpen || !await LeaveRecordEditorAsync()) return;
-        DropPendingCategoryEdit(); DiscardCategoryEditor(); DiscardCategoryOrder();
-        DropPendingPaymentEdit(); DiscardPaymentEditor(); DiscardPaymentOrder();
-        DropPendingPersonEdit();
-        DiscardPersonEditor();
-        DiscardPersonOrder();
         NavigateWorkspace(WorkspaceScreen.HomePage);
     }
 
     private async void ShowManagement(object sender, RoutedEventArgs e)
     {
         if (busy || ManagementDialogOpen || !await LeaveRecordEditorAsync()) return;
-        DiscardCategoryOrder(); CategoriesContent.Visibility = Visibility.Collapsed;
-        DiscardPaymentOrder(); PaymentsContent.Visibility = Visibility.Collapsed;
-        DiscardPersonOrder();
-        ParticipantsContent.Visibility = InvitationsContent.Visibility = Visibility.Collapsed;
         NavigateWorkspace(WorkspaceScreen.ManagementPage);
-        await SelectManagementAsync(CanViewPeople ? Monetail.Windows.Presentation.Workspace.ManagementSection.People
-            : Monetail.Windows.Presentation.Workspace.ManagementSection.Account);
+        if (ManagementPage is { } page)
+            await page.OpenSectionAsync(management!.PeopleEnabled ? Monetail.Windows.Presentation.Workspace.ManagementSection.People
+                : Monetail.Windows.Presentation.Workspace.ManagementSection.Account);
     }
 }

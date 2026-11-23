@@ -76,17 +76,17 @@ WinApp CLIは実行環境にないため未実行。Microsoft Learnの[WinUI 3 F
 
 ## Shell・Page・MVVM統合の3PR計画（PR1 #231マージ済み）
 
-PR1は[PR #231](https://github.com/k-o-a-b-c/monetail/pull/231)で実装・マージ済み。以下はPR2/PR3の未移管範囲も含む段階設計であり、3PR全体の完了を意味しない。
+PR1は[PR #231](https://github.com/k-o-a-b-c/monetail/pull/231)でマージ済み。PR2は[PR #244](https://github.com/k-o-a-b-c/monetail/pull/244)で管理機能を移管・マージ済み。PR3は[Draft PR #246](https://github.com/k-o-a-b-c/monetail/pull/246)で入力Page化を実装・検証済み（レビュー待ち）。レシート全体保存などの未実装業務はこの3PRの完了対象に含めない。
 
 最終構成はMainWindowを共通Shell（ナビゲーション許可、家計簿/本人/接続先、認証フロー、横断未保存確認、全体操作状態/通知、Window寿命）とし、主画面は標準Frame/Page、複雑な表示/CommandはPresentation、業務下書き/通信/版/再送はClientを正本とする。全面MVVM化のための基盤や独自ルーターは作らない。
 
 | 工程 | 境界と所有者 | 今回の状態 |
 | --- | --- | --- |
 | PR1 | WorkspaceHostのFrame、記録RecordHomePage/RecordHomeViewModel、管理ManagementPage/ManagementViewModel。共通ヘッダーはShell、検索/選択と表示用投影はVM、IME/フォーカス/表示位置はView。既存の2一覧VM/RecordSearchStateを再利用 | **PR #231で実装・マージ済み** |
-| PR2 | 人物/科目/支払方法/参加者/招待と順序・ダイアログを機能View/VMへ移管。各取得寿命、権限投影、競合/401/再送と画面通知を維持し、Windowの管理詳細Grid・条件付きShowErrorを除去。ダイアログは必要時生成 | 未実装 |
-| PR3 | 既存レシート/振替EditorView/VMを各入力Pageへ統合。Windowの入力View所有とAPI調整を整理し、401の実コントロール保持・フォーカス/未確定入力/要求保持を維持して旧partial/ホストを撤去 | 未実装 |
+| PR2 | 人物/科目/支払方法/参加者/招待と順序・ダイアログを機能View/VMへ移管。各取得寿命、権限投影、競合/401/再送と画面通知を維持し、Windowの管理詳細Grid・条件付きShowErrorを除去。ダイアログは必要時生成 | **PR #244で実装・マージ済み** |
+| PR3 | 既存レシート/振替EditorView/VMを各入力Pageへ統合。Windowの入力View所有とAPI調整を整理し、401の実コントロール保持・フォーカス/未確定入力/要求保持を維持して旧partial/ホストを撤去 | **Draft PR #246で実装・検証済み** |
 
-最終の主遷移はShellのWorkspaceHostとし、記録ホーム・管理コンテナー・家計簿選択・レシート入力・振替入力を標準Pageとして必要時に開く。既に必要時Pageである家計簿作成と認証前画面は、それぞれ既存のLedgerPageHost/AuthenticationFlowのFrameを再利用する。管理コンテナー内の人物/科目/支払方法/参加者・招待は機能単位のPage/Viewと既存PresentationのVMへ分け、標準Frame/NavigationViewで選択する。単純な家計簿選択/作成と認証前Pageには専用VMを増やさない。PR2の機能内部の一覧/順序/ダイアログの型は、各仕様と既存モデルを確認して最小限にする。
+最終の主遷移はShellのWorkspaceHostとし、記録ホーム・管理コンテナー・家計簿選択・レシート入力・振替入力を標準Pageとして必要時に開く。既に必要時Pageである家計簿作成と認証前画面は、それぞれ既存のLedgerPageHost/AuthenticationFlowのFrameを再利用する。管理コンテナー内の人物/科目/支払方法/参加者・招待は機能単位のPage/Viewと既存PresentationのVMへ分け、標準Frame/NavigationViewで選択する。単純な家計簿選択/作成と認証前Pageには専用VMを増やさない。PR2の機能内部の所有者は次節に示す。
 
 最終構成では、各VMが表示投影/Command/画面読取の世代・取消を、Clientが下書き/権限/版/不変要求と結果不明を、ViewがIME/フォーカス/スクロールと必要時生成のダイアログを所有する。Shellは現在コンテキストと遷移承認を渡し、入力コントロールや選択を読まない。RunAsyncの例外分類は再利用し、機能分離に合わせてfailed通知を当該Viewへ接続してShowErrorの機能分岐を減らす。新しい共通エラーServiceは作らない。
 
@@ -100,7 +100,54 @@ PR1はRecordHomePageとManagementPageを必要時にFrame.Navigateで生成し�
 
 旧Windows版のViewForm_List.vb（登録/編集後の選択行復元）とViewForm.vb（年月/設定への操作）、MasterMaintenanceFormの対応部分を照合した。選択保持は継承し、別WindowのShowDialogや旧ショートカットを新設せず、新版の同一Window・共通検索/キー仕様を維持する。今回の構造変更による操作仕様の追加はない。
 
-管理詳細と入力Viewの業務移管はPR2/3であり、PR1ではWindowが既存の2つの内容領域（管理詳細/入力）を所有してPageへ内容単位で接続する。Page内部のコントロールをWindowへ公開する転送層は設けない。この未移管領域と既存ダイアログの先行生成・Windowの機能固有エラー分岐は残存事項で、全画面のMVVM/必要時生成が完了したとは扱わない。ページ境界を作るだけの案より検索・選択/操作の正本をVMへ移す案を採用し、入力業務を同時に移す大規模案は後続へ分割する。
+PR1実装時には管理詳細と入力Viewの業務移管をPR2/3へ残し、Windowが既存の2つの内容領域（管理詳細/入力）を所有してPageへ内容単位で接続していた。Page内部のコントロールをWindowへ公開する転送層は設けない。管理詳細と管理ダイアログの先行生成・Windowの管理固有エラー分岐はPR2で除去した。入力領域はPR3で下記のPageへ移管する。ページ境界を作るだけの案より検索・選択/操作の正本をVMへ移す案を採用し、入力業務を同時に移す大規模案は後続へ分割する。
+
+### PR3：入力Pageへの移管
+
+承認済み設計に従い、既存のReceiptEditorView/TransferEditorViewをそれぞれReceiptEditorPage/TransferEditorPageへ直接置換する。入力Viewを包むだけのPageと新VMは増やさない。WorkspaceHostから必要時にFrame.Navigateし、RecordHomePageのEditorHost/ShowEditorとWindow常駐の入力Grid・確認ダイアログを撤去する。共通ヘッダーはShell、左上の戻る・IME/フォーカス/スクロール・必要時ContentDialogは各Pageへ置く。終了確認はWindowの一つの入口から現在のPageの離脱許可を確認する。
+
+既存EditorViewModelはClientのEditor/Draftと不変TransferWriteRequestを同じ参照で再利用する。保存要求の送信・型付きエラーの表示投影・復帰時のマスタ取得を既存VMへ移し、Clientの入力/競合/再送契約を複製しない。RecordEditorContextは既存Api/Session/Masters・本人/家計簿/接続先・Window寿命だけを渡す小さなデータ束で、業務入力や別の認証状態を持たない。汎用Service/DI/ルーターやEditor基底クラスは追加しない。
+
+通常離脱前の確認取消ではNavigateせず元のPageを維持する。離脱確定後に購読・Page・読取を解放し、一覧VM/検索条件/選択/位置を保持して新しいホームPageへ接続する。401ではWorkspaceHost内の入力PageをNavigateせず非表示にし、既存の認証Frameを前面に出す。同じ本人/家計簿/接続先だけ同じPage/VM/実コントロール/未完了要求へ復帰する。フォーカス/文字選択/スクロールだけPage内へ保持し、連続401で上書きしない。別コンテキスト・終了では解放する。Pageの読取取消を送信済み書込の失敗確定と混同しない。
+
+保存完了後は既存一覧VMへ条件/保存行を渡し、再取得中に認証・コンテキストを失った場合はShellが後続遷移を許可しない。旧入力領域解除で一覧へ戻っていた動作を新しいホームPageで維持するため、独立したreturnToList分岐は持たない。
+
+レシート全体保存・結果不明/409の未接続UIは実装せず、登録/更新/流用登録とCtrl+Enterの保存は無効のまま。振替の確認・保存/削除・409最新の明示採用・不変要求の明示再送・保存後の一覧条件調整/保存行探索を維持する。旧版RegisterForm/RegisterTransferFormとViewForm_Listの操作を照合し、別Window/旧保存方式は新版へ持ち込まない。最終計測は次節、検証結果と既知の断続失敗は[テスト記録](../tests/README.md)を参照する。
+
+```mermaid
+flowchart LR
+    Shell[MainWindow / コンテキストと横断遷移] --> Frame[既存WorkspaceHost]
+    Frame --> Receipt[ReceiptEditorPage / UIと必要時ダイアログ]
+    Frame --> Transfer[TransferEditorPage / UIと必要時ダイアログ]
+    Receipt --> ReceiptVM[既存ReceiptEditorViewModel]
+    Transfer --> TransferVM[既存TransferEditorViewModel]
+    ReceiptVM --> Client[既存Client / Editor・Draft・不変要求・通信]
+    TransferVM --> Client
+    Shell --> Auth[既存AuthenticationFlow / 別Frame]
+```
+
+401ではWorkspaceHostのContentを交換せず一時非表示にする。通常離脱では現在Pageの許可後に解放し、新しいホームPageへ同じ一覧VMを渡す。Frameの既存IsNavigationStackEnabled=Falseを維持し、戻る履歴に入力VMを残さない。
+
+### PR3の責務・保持状態の比較
+
+基点はPR #244マージ後の`cfeeca5`。空行込みのC#/XAML、bin/objとテストを除外して数える。MainWindowは同名partial全体。直接参照は旧入力領域7名称のC#参照箇所（Pageの型名は除外）。生成コード・フレームワーク内部状態・オブジェクトのメモリ数とは区別する。
+
+| 指標 | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow XAML | 64 | 55 |
+| MainWindow C# / メソッド | 1,905 / 120 | 1,358 / 94 |
+| MainWindow明示フィールド / bool | 39 / 12 | 24 / 3 |
+| MainWindow入力内部への直接参照 | 78 | 0 |
+| MainWindow認証位置recordの引数 | 10 | 0（Page/Contextへ移管） |
+| WinUI＋Presentation明示フィールド / bool | 198 / 55 | 194 / 49 |
+| 同Observable部分プロパティ / bool | 55 / 13 | 55 / 13 |
+| 同その他auto-property / bool | 139 / 27 | 151 / 27 |
+| 同record引数 / イベント | 45 / 34 | 45 / 38 |
+| 製品src全体の保持宣言 / うちbool | 867 / 101 | 875 / 95 |
+
+製品src全体（API/Client/計算を含む）のC#/XAMLは21,271→21,594行（+323）。WinUI＋Presentationは10,898→11,221行（+323）で、他の製品プロジェクトは不変。C#/XAMLファイルは262→265。MainWindowは計1,969→1,413行（-556）、メソッドはコンストラクターを除く宣言数で数える。
+
+明示フィールド＋Observable部分プロパティ＋その他auto-propertyの宣言数は392→400（+8）、うちboolは95→89（-6）。製品src全体でも同じ定義で867→875（うちbool 101→95）。record引数は全体538のまま。DTOも含むソース上の保持宣言数であり、独立した論理状態数やメモリ量ではない。総保持状態が減ったとは扱わない。追加auto-propertyの主因は既存Clientとコンテキストを渡す7項目、既存VMのContext参照、未確定日時を最後の有効Header日時で代用しないための確定日付、PageのVM参照であり、入力値のスナップショットは作らない。追加イベント4本は振替Pageの戻る/マスタ再試行/保存完了とレシートVMの認証要求で、画面境界に限定する。旧6入力partialを削除し、Shell調停は`MainWindow.RecordEditors.cs`へ集約した。Page化の必要時生成・必要時ダイアログ・購読解放・読取寿命の明示により、製品全体コード量は増える。最終行数と検証結果は[テスト記録](../tests/README.md)に記載する。
 
 ### PR1の依存・状態比較
 
@@ -120,21 +167,94 @@ flowchart LR
 
 PR1のソース行数・フィールド数・直接参照数の比較値、検証結果と未検証の実機操作は[PR #231](https://github.com/k-o-a-b-c/monetail/pull/231)を参照する。行数やフィールド数の増減は責務分離の成否を単独では示さない。
 
-**現在の境界**：記録・管理の2Page/2VMと家計簿選択Pageを必要時生成する。記録ホームの行・選択・検索適用状態は既存の2一覧VM/`RecordSearchState`が正本で、Windowに別の状態を作らない。表示位置は一覧VMに保持し、`ListViewportController`がUIへの適用を担当する。記録/管理Pageは通常離脱時に購読・復帰要求・Frame参照を解放し、401での編集中に限って元Pageと入力を一時保持する。
+**現在の境界**：記録・管理コンテナーの2Page/2VMと家計簿選択Pageを必要時生成する。管理内の機能Page/VMは次節のとおり分離した。記録ホームの行・選択・検索適用状態は既存の2一覧VM/`RecordSearchState`が正本で、Windowに別の状態を作らない。表示位置は一覧VMに保持し、`ListViewportController`がUIへの適用を担当する。記録/管理Pageは通常離脱時に購読・復帰要求・Frame参照を解放し、401での編集中に限って元Pageと入力を一時保持する。
 
-共通検索・一覧内部・管理メニューへのWindow直接参照を除去した一方、**管理詳細とレシート/振替入力の移管はPR2/3に残る**。WindowのAPI/遷移・認証・結果不明/未保存の境界は維持し、Service・DI・独自ルーター・イベントバスは追加しない。従来の機能詳細エラー通知とダイアログ生成の課題は残り、全面MVVM化を完了としない。
+共通検索・一覧内部・管理メニューへのWindow直接参照をPR1で除去し、管理詳細はPR2で次の境界へ移した。**レシート/振替入力のPage化は下記のPR3で移管する**。Windowの横断遷移・認証・未保存保護は維持し、Service・DI・独自ルーター・イベントバスは追加しない。
+
+### 記録ホームの取得・マスタ更新の所有者
+
+`RecordHomeViewModel`が`RecordSearchState`と両一覧VMを生成し、既存Clientの4 Workspace（人物・支払方法・レシート・振替）を接続する。共有マスタの取得寿命もホームVMが所有する。一覧ごとの取消は共有取得の待機だけを中断し、もう一方が使う取得を取り消さない。通常のPage離脱はSuspendで行・選択・検索・表示位置を保持し、家計簿文脈の破棄ではDisposeで取得・両一覧を終了する。共有キャッシュの全消去は引き続きShell/Clientのコンテキスト破棄が担当し、ホーム単体のDisposeでは他画面のキャッシュを消さない。
+
+`LedgerMasterCache.Changed`の購読はShellの1か所を維持する。Shellは現在の家計簿/Window寿命を確認して、ホームの`MastersChanged`と編集中Pageへ通知する。人物・支払方法の選択肢と一覧名称の再投影はホームが担当し、検索下書き・適用条件・行選択・表示位置を変更しない。ホームに新しい購読や中継イベントを作らず、破棄済み/他家計簿の通知は無視する。登録可否・認証エラーの遷移・画面間の通知はShellに残す。
+
+401で入力PageとホームVMを保持したまま接続設定を再読込すると、API/セッションが同じ接続先でも再生成される。Shellが本人・家計簿・接続先の一致を確認した後、ホームにも`Rebind`で現在のAPI/セッションを渡す。変更前の共有取得を中断し、既存一覧の取得世代で遅延応答を無効化する。行・選択・検索は作り直さず、再接続だけでは一覧GET/書込を始めない。入力Pageが復帰時に再取得したマスタを、後続の明示的な一覧取得でも共有する。別本人/接続先では従来どおり破棄する。
+
+| 比較（基点main `b61b773`、生成物除外・空行込み） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow XAML / C# | 55 / 1,358行 | 55 / 1,321行 |
+| MainWindow メソッド / 明示フィールド / boolフィールド | 94 / 24 / 3 | 92 / 23 / 3 |
+| MainWindow.Receipts.cs | 132行 | 94行 |
+| RecordHomeViewModel | 182行 | 270行 |
+| Windowから上記4 Workspaceへの生成依存 | 4 | 0 |
+| 共有マスタCTSの所有者 | Window | ホームVM |
+| WinUI＋Presentation 明示フィールド / boolフィールド / イベント | 194 / 49 / 38 | 197 / 49 / 38 |
+| 製品src C# / XAML / 合計 | 20,288 / 1,306 / 21,594行 | 20,339 / 1,306 / 21,645行 |
+
+製品コードは51行増える。通信構成と寿命をVMへ移し、401時の明示的な再接続を加えるためで、総行数・全状態数の削減とは扱わない。Homeの明示フィールドは5→9（家計簿ID、共有キャッシュ参照、API/セッションの組、移管CTSを追加）、WindowはCTSを1つ削減する。従来の主コンストラクターが捕捉していた検索/両一覧の3参照はget専用自動プロパティへ置換したため、自動プロパティ数も3増えるが正本は各1つのまま。旧Windowのローダーが捕捉していたAPI/セッション等を明示したもので、フィールド宣言数だけで実行時状態の増減は評価しない。既存の一覧注入用コンストラクターは純粋な検索/ページング試験に残す。新しいクラス・Service・DI・イベント・boolは追加しない。検証と実Windows手動確認の限界は[テスト記録](../tests/README.md#record-home-ownership)を参照する。
+
+<a id="pr2管理機能のpageviewmodel境界"></a>
+
+### PR2：管理機能のPage・ViewModel境界
+
+管理内の遷移は`ManagementPage`の内側Frameが担当する。Shellは共通ナビゲーション、画面横断の未保存確認、認証/家計簿/接続先、共通busyと例外分類、Window寿命だけを調停する。管理内のコントロールや各編集値をWindowへ転送しない。
+
+| 機能 | View | Presentationの所有者 | 維持するClient契約 |
+| --- | --- | --- | --- |
+| 人物・共通順 | `PeoplePage`・`PersonEditorDialog` | `PeopleManagementViewModel` | 本人の名前とAdminの期間/削除/順序、行版と全体順序版、`PersonCreationDraft` |
+| 科目・共通順 | `CategoriesPage`・`CategoryEditorDialog` | `CategoriesManagementViewModel` | 収支/税区分/全期間、Admin操作、行競合の明示採用と順序409の最新切替、`CategoryCreationDraft` |
+| 支払方法・所有者別順 | `PaymentMethodsPage`・`PaymentEditorDialog` | `PaymentMethodsManagementViewModel` | 所有者固定、Admin/本人Editor、所有者別の全件順序と版、`PaymentMethodCreationDraft` |
+| 参加者・招待 | `ParticipantsPage`・`ParticipantEditorDialog`・`InvitationCancellationDialog` | `ParticipantsManagementViewModel` | 本人役割の固定、人物候補、明示的な最新採用、`LedgerInvitationDraft`と同じrequestIdによる再送 |
+
+一覧行・選択・フィルター・操作可否・通知/検証結果・Commandは各VM、フォーカス/IME・ダイアログの生成/deferral/表示/解放はViewに置く。対応人物の候補可否はVMの値を正本とし、Viewで標準ComboBoxItemのIsEnabledへ反映する。候補の作り直し中は選択イベントを外し、UI再生成で選択値を消さない。保存値・旧revision・作成要求は既存Client DTO/Draftの**同じ参照**を用い、業務編集モデルやHTTPエラー分類を複製しない。名前/期間/選択値の生入力はUI用の値として保持し、正規化・検証は既存Clientへ委ねる。検証のfield/メッセージは一組から各近傍表示へ投影し、元の入力欄へフォーカスを戻す。
+
+`ManagementContext`は現在の本人/家計簿/接続先、共有の現在権限、既存Workspace、Windowの操作実行コールバックをまとめる。busyはWindowの表示用投影であり、別の保存処理を開始する状態機械にはしない。401再試行でClientが再構成されても、本人/接続先を照合した後にWorkspaceだけを再接続し、入力・版・作成要求を置き換えない。`IManagementFeature`はViewの読取/ダイアログ寿命を管理Pageへ渡す小さな契約に限定する。CRUDの認可・競合形式・順序保存が異なるため、汎用CRUD基底VMやService/DI/イベントバスは設けない。
+
+通常の管理内移動と記録への復帰ではPage・購読・読取取消元を解放する。家計簿を開いている間はVMの一覧設定と必要な再送Draftを保持し、家計簿/本人/接続先の破棄時にまとめて解放する。**招待の未完了発行Draftは通常の一覧移動だけで消さない**。ダイアログの通常終了は入力と対象/要求参照を解放し、並び順のキャンセルは未保存順だけを破棄する。401では元の管理Page・実ダイアログ・VMを一時非表示で保持し、4種類の全入力Snapshotを作らない。初回の退避で従来どおり記録一覧とマスタを解除し、連続401では保持中の管理入力を上書きしない。
+
+復帰はWindowが同じ本人/家計簿/接続先を確認して元の家計簿を開き、当該VMが現在の一覧/権限を取得する。旧revision・入力・未保存順・requestIdは維持し、自動保存・自動再送をしない。参加解除時に権限のない最新情報を追加取得しない。編集行の409は明示採用まで別保持し、共通順/所有者順の409は既存仕様どおりその順序だけを最新へ切り替える。削除・除外・招待取消の確認を自動再開しない。未完了の招待発行を保持した取消中の401でも、取消ダイアログだけを解放し、発行Draftは同じ参照で保持する。通常の通信失敗はViewへ渡したfailed通知先に表示し、Windowの`ShowError`は管理詳細の分岐を持たない。
+
+`ContentDialog.Hide()`時の401処理内では、PrimaryButtonのdeferralが待っている`ShowAsync`の完了を待たない。次回の復帰で閉じたTaskの完了を確認してから同じダイアログを表示する。画面を外した読取の取消/遅延401は新画面へ適用せず、書込には読取用の取消元を流用しない。Popupが非表示になった時点と、Task/参照の通常解放が終わる時点を区別する。
+
+管理内の接続設定は`ConnectionSettingsPage`から既存の共通`ConnectionSettingsView`/VMを使用する。ログイン情報は単純な`AccountPage`で表示し、専用VMは増やさない。管理/記録の共通ヘッダー、レシート/振替入力の既存View・保存/競合/401は維持する。入力専用Page化と残るWindow所有の入力領域・確認ダイアログはPR3の範囲であり、本PRの完了対象に含めない。
+
+
+共有ヘッダーの家計簿メニューは記録/管理の双方で利用する。別家計簿への切替前の未保存並び順確認はWindowが所有し、各機能VMの`HasOrderChanges`を管理VMから参照する。人物/科目/支払方法の開始時ID配列を基準に比較し、画面を開いただけ・元の順序へ戻した場合は未変更とする。認証復帰の最新マスタ取得で基準を置き換えない。メニューを開く/閉じる・現家計簿の選択では確認せず、確認取消・切替API失敗では元のPage/並び順/選択を保持する。成功時だけ既存の破棄経路へ進む。確認文言・操作の正本は[DEC-348](../UI_DESIGN.md)を参照する。新規VM/Service/汎用遷移基盤は追加しない。
+
+### PR2の責務・状態比較
+
+基点`e54a1c3`とPR2の製品WinUI/Presentationを比較する。空行込み、生成物・テストを除外。C#のメソッド/明示フィールドはRoslyn構文で数え、auto-property/record位置引数の生成フィールドは含めない。内部参照は基点の管理130個のx:Nameを照合し、同名のMasters.PaymentNameメソッド呼出しと移管先VMのAccountNameプロパティを除外する。
+
+| 指標 | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow XAML | 464行 | 64行 |
+| MainWindow C# / メソッド | 3,729行 / 286 | 1,905行 / 120 |
+| MainWindow 明示フィールド / うちbool | 106 / 37 | 39 / 12 |
+| 管理内部のx:Name直接参照（異なる名前 / 出現回数） | 126 / 524 | 0 / 0 |
+| WinUI＋Presentation製品総行数（C#＋XAML） | 9,421 | 10,898 |
+| 同C#明示フィールド / うちbool | 221 / 67 | 198 / 55 |
+| 同ObservableProperty / うちbool | 2 / 0 | 55 / 13 |
+| 明示フィールド＋ObservablePropertyのbool宣言 | 67 | 68 |
+| 同C#メソッド / C#＋XAMLファイル | 668 / 82 | 804 / 100 |
+| 管理の具象型に宣言する操作/寿命通知event | 5 | 10 |
+| 管理VM/Contextが保持する協力Func | 2 | 4 |
+
+製品総量は1,477行増えた。レビュー対応の家計簿切替保護は91行・明示フィールド4個（開始順序3配列と表示中ContentDialog1個）を含み、bool・イベント・Serviceを増やさない。XAMLバインディング、4機能VMの通知/Command、Pageとダイアログの寿命接続が増分であり、コード量や全体状態数を減らしたとは扱わない。Windowの管理9partial（1,788行）と4種類の復帰Snapshotを削除し、元のDTO/Draft・実Viewを保持する方式へ統一した。4Pageの退避boolを共有状態から導出する追加案は、最終CIの未変更候補試験の失敗との因果関係を特定できず、今回から取り下げた。検証済みのPage/ダイアログ寿命の判定を残し、全体boolの削減は達成したと扱わない。3機能のIsOrderingは版から導出し、入力エラーはfield/message一組から投影する。未使用の4保存Command/4保存通知は設けず、ダイアログの標準PrimaryButton/deferralを利用する。
+
+追加した主要な境界は6機能/単純Page、4機能VM、共有ManagementContext、UI寿命用の小さなIManagementFeature契約と5必要時ダイアログ。Commandが完了済みViewのTaskを直接保持しないようVMのawait境界を置き、通常離脱ではViewのイベント接続を解除する。操作/寿命通知eventは旧科目Viewの5個から、メニュー1・編集開始4・機能からの復帰4・Shellへの復帰1の10個へ増えた（標準UI/PropertyChanged通知とinterface上の重複宣言を除く）。管理VM/Contextの協力Funcは遷移許可/内部遷移の2個から、遷移許可/接続設定/ログアウト/共通実行の4個へ変わる。各購読は通常離脱時に解除し、Window全体や内部コントロールをViewへ渡さないための境界に限定する。新規Service/DI/外部ライブラリ、共通CRUD基底クラスはない。共通コンテキストと寿命契約は、Windowから機能内部を参照せず、共通busy・認証・取消を既存実行へ接続するために限定した。
+
+旧Windows版MasterMaintenanceFormは空の設定フォームで、ViewFormはShowDialog後に一覧を更新する。新版の管理入力/401に相当する旧実装があるとは扱わず、新版正本の同一Window・権限/入力/順序/再送契約を維持する。検証結果と未実施項目は[テスト記録](../tests/README.md#management-mvvm-pr2)を参照する。
 
 ## RunAsyncと認証失敗の責務（PR #230）
 
 | 区分 | 所有者と契約 |
 | --- | --- |
 | 共通 | WindowのRunAsyncがbusy/closed、処理中UI、既存例外分類・安全なメッセージ、401/認証コンテキスト変更時の退避、権限情報反映、finallyでの復帰を所有する |
-| 通常業務 | 失敗の受渡先を指定せず、既存ShowErrorで現在の画面の通知先へ表示する。自動再送・FailurePage遷移を追加しない |
+| 通常業務 | 管理機能は操作ごとのfailed通知先を渡し、各Viewへ表示する。他の業務の既定通知先は共有ShowError。自動再送・FailurePage遷移は追加しない |
 | 起動・OAuth・接続設定 | AuthenticationFlowが分類済み失敗を受け取り、内部のShowFailureとretryで専用Page・再試行を所有する。起動/OAuth後の失敗は設定/保存認証から再開し、接続変更は失敗した候補を再検証する |
 | Window境界 | RunAuthenticationAsyncは共通実行を借用し、失敗時に既存ShowAuthenticationの遷移許可/ホスト接続を確認してフローの通知先を呼ぶ。再試行先の選定やFailurePageの型を扱わない |
 | 認証成功後 | AuthenticatedAsync/OpenDestinationAsync・家計簿取得・編集復帰の順序はWindowに残す。家計簿取得失敗も同じ認証操作の失敗として再試行できる |
 
-RunAsyncの第2引数は再試行Func<Task>ではなく省略可能なAction<string>。省略時はShowError、認証操作はフローの失敗通知先を使用する。旧WindowのRestartAuthenticationAsync/ReportFailureを削除し、RestartAsync/ShowFailureをフローのprivateメソッドへ限定した。7つの協力コールバックのうちexecuteの契約だけを変更し、接続先候補や再試行をWindowへ往復させない。executeの第2引数は候補データから失敗通知Actionへ置き換わるため、明示的な通知コールバックは1つ増える。これは共通分類からフローへ戻すための操作単位の引数で、購読・保持フィールド・中継クラスは増やさない。
+RunAsyncの第2引数は再試行Func<Task>ではなく省略可能なAction<string>。省略時はShowError、認証操作はフロー、管理操作は当該VMの失敗通知先を使用する。旧WindowのRestartAuthenticationAsync/ReportFailureを削除し、RestartAsync/ShowFailureをフローのprivateメソッドへ限定した。7つの協力コールバックのうちexecuteの契約だけを変更し、接続先候補や再試行をWindowへ往復させない。executeの第2引数は候補データから失敗通知Actionへ置き換わるため、明示的な通知コールバックは1つ増える。これは共通分類からフローへ戻すための操作単位の引数で、購読・保持フィールド・中継クラスは増やさない。
 
 フロー側ですべての例外分類を行う案は、通常業務の認可反映・401退避と同じcatch/メッセージの重複を招くため採用しない。共通実行を残し、表示先を渡す構成を採用する。Windowの実行境界は、管理画面の接続確認失敗時には認証Frameを接続し、未承認の編集中遷移やWindow終了時には表示を拒否するため残す。汎用Service/新規クラス・状態フラグ・例外分類器は追加しない。
 
@@ -258,9 +378,9 @@ WindowはActivate前に接続先・保存認証の有無を通信なしで判定
 
 PR #225の[家計簿選定仕様](ledger-onboarding.md#所属1件以上で開く家計簿)を実装済み。`open-last`が有効ならそのまま開き、nullなら所属一覧を取得してWindowが0件は作成・1件以上は既存の選択Viewへ進める。所属1件の自動オープンと専用の404再取得は廃止した。選択Viewは未選択・開く無効で開始し、選択だけではAPIを呼ばず、明示的な「開く」で既存APIを使用する。新しいService/VM/状態はなく、401復帰・通常の開く処理・API/DB契約は変更しない。
 
-`OpenDestinationAsync`は振替→レシート→科目→支払方法→参加者→人物の既存復帰順を調停する。復帰がない場合だけ`OpenInitialLedgerAsync`でWorkspaceの結果を表示する。通常の家計簿表示から6画面の復帰判定を分離したが、復帰順を持つWindowの横断依存は必要なため残す。401でのモデル/実コントロール保持、起動Pageを解放してから続けるマスタ再取得、10秒期限・Window終了・遅延応答の拒否は既存処理を維持する。
+`OpenDestinationAsync`は振替→レシート→管理機能の復帰を調停する。管理機能は保持したPage内の機能だけを復帰し、旧4管理機能の個別Window復帰Snapshotは使用しない。復帰がない場合だけ`OpenInitialLedgerAsync`でWorkspaceの結果を表示する。通常の家計簿表示から復帰判定を分離し、管理内の判定は当該Pageへ委ねるが、入力2画面と管理の間を調停するWindowの横断依存は必要なため残す。401でのモデル/実コントロール保持、起動Pageを解放してから続けるマスタ再取得、10秒期限・Window終了・遅延応答の拒否は既存処理を維持する。
 
-現在の`RunAsync(action, failed: ...)`は認証操作にだけ分類済み失敗の通知先を受け取り、通常業務は`RunAsync(action)`で既存の共有通知を使う。認証フローが再試行先とFailurePageを所有する。旧`connectionFailure`と再試行先の組合せを廃止し、通常業務から実際には使われない20個のコールバックを除いた。通常業務の処理本体、権限反映、例外種別/メッセージ、認証退避・busy/finallyは変えない。例外分類は共有の一か所を維持し、起動専用の例外処理を複製しない。通常業務画面の変更はこの未使用引数の除去だけとする。
+`RunAsync(action, failed: ...)`は認証/管理操作の分類済み失敗を指定先へ返し、その他の通常業務は`RunAsync(action)`で既存の共有通知を使う。以下の比較はPR #224当時の変更である。認証フローが再試行先とFailurePageを所有する。旧`connectionFailure`と再試行先の組合せを廃止し、通常業務から実際には使われない20個のコールバックを除いた。通常業務の処理本体、権限反映、例外種別/メッセージ、認証退避・busy/finallyは変えない。例外分類は共有の一か所を維持し、起動専用の例外処理を複製しない。通常業務画面の変更はこの未使用引数の除去だけとする。
 
 | 境界整理の比較（基点main 5afcee1、空行込み・生成物除外） | 前 | 後 |
 | --- | ---: | ---: |
@@ -307,11 +427,7 @@ MainWindowは内側のListView/ボタンに触れず、一覧設定とイベン�
 
 ## 科目一覧の分離（一覧だけ）
 
-`CategoriesContent`は従来のGrid/表示境界のまま、その内側の一覧・フィルター・操作列を`Views/CategoryListView`へ移す。`CategoryDialog`・`CategoryOrderContent`・API・権限判定・競合/401復帰はMainWindow側に残す。Viewは全件データを同じ参照で受け取り、従来と同じ本日/両端含む期間判定と選択復元を行う。業務版・要求ID・権限・復帰情報は複製しない。
-
-公開面は`Categories`（nullは従来の未取得/解除、空配列は取得済み0件）・`SelectedCategory`・`IncludeInactive`の3プロパティ、MainWindowが計算済みの2つの操作可否を渡す`SetActionsEnabled`、4操作＋選択変更の5イベント。9メンバー（コンストラクター除外）であり、イベント集約enum/ディスパッチャーや新ViewModel/DIはない。ViewからMainWindow/Workspace/他画面を参照しない。既存`CategoryRow`は順序画面とも共有するため移動しない。空一覧の表示属性は従来のDescriptionと同値でView内へ置き、MainWindowのローカルStyleに依存しない。
-
-移管時の行数・状態数・直接参照数の比較は当時のGit差分を、検証は[テスト記録](../tests/README.md)を参照。Windowから科目一覧の内部コントロールへの直接アクセスをやめ、一覧表示・選択・操作通知をViewに閉じた。Windowには既存の業務状態・権限・ダイアログ/競合・401復帰を残し、同じ状態を新しいVMやDIで複製しない。**科目画面全体をMVVMへ移管済みとは扱わない**。
+従来の一覧のみの`CategoryListView`はPR2で`Views/Management/CategoriesPage`へ置き換えた。一覧/フィルター/選択・順序/権限/競合/復帰は`CategoriesManagementViewModel`、フォーカス/IMEと必要時の`CategoryEditorDialog`はPageが所有し、MainWindowは科目内部を参照しない。現在の寿命・所有者は[PR2の境界](#pr2管理機能のpageviewmodel境界)、過去の一覧のみの検証は[テスト記録](../tests/README.md)を参照する。
 
 ## 振替一覧のMVVM移行（実装済み）
 
@@ -398,7 +514,8 @@ PR #202の振替一覧と同じ責務境界へ移行し、旧`ReceiptListState`�
 | `Views/Receipts/ReceiptListView.xaml/.cs` | 既存6列・見出し・登録・focus時の先頭復帰・読込/空/失敗/再試行/続行、可視範囲と実スクロール・フォーカス・縦横位置の記憶/復元 |
 | `Presentation/Receipts/ReceiptListViewModel` | 唯一の表示行コレクション・選択、取得世代/カーソル、100件取得・300件補充・20行先読み、中断/再開・1回カーソル復旧、通知と5 Command |
 | `Presentation/Receipts/ReceiptListItem` | 保存済み応答の表示用投影。ローカル秒精度・NULL・保存済み合計額を保持し、マスタ名称だけ再表示。独自ソート/再計算なし |
-| `MainWindow.Receipts.cs`等 | `RecordSearchState`、共通年月/人物/支払方法、検索確定、共有マスタ取得、Workspace接続、登録可否・編集遷移・認証/Window寿命 |
+| `Presentation/Workspace/RecordHomeViewModel` | 両一覧VM/`RecordSearchState`の生成、共通検索確定、共有マスタ取得の寿命・Workspace接続、マスタ名称/選択肢の更新 |
+| `MainWindow.Receipts.cs`等 | 登録可否・編集遷移・認証/Window寿命、共有マスタ通知の画面間調停 |
 | `Windows.Client` | `ReceiptsWorkspace`・Transport・DTO・検索契約・認証/書込。`ReceiptSearchState`は共通`RecordSearchState.Receipts`のまま |
 
 Viewは`ViewModel`/`OpeningContent`の2プロパティと`RememberPosition`/`RestorePosition`/`ObserveViewport`の3操作だけを公開する。WindowやClientSession、一覧内コントロールは渡さない。編集開始待ちUIはWindowの名前スコープ/所有権を維持した内容スロットに置き、そのVisibilityにラッパーも追従して従来の間隔を維持する。
@@ -473,8 +590,8 @@ Viewの保存行選択通知は`ListViewportController.ShowSavedSelection`へ集
 | --- | --- | --- | --- |
 | 完了 | `MainWindow.Ledgers.cs`内の家計簿選択操作 | `Views/LedgerChoiceView` | 一覧選択・開く操作をViewへ、家計簿Open/認証をWindowに保持 |
 | 1 | `MainWindow.Ledgers.cs`の作成フォームと`MainWindow.xaml` | 家計簿作成フォームの表示・入力をViewへ | `LedgerCreationDraft`の再試行、実際のCreate/画面遷移、取消時の行き先はWindow/Clientの契約を維持 |
-| 2 | `MainWindow.xaml.cs`/`MainWindow.Persons.cs`の人物一覧 | 一覧・フィルター・選択をViewへ | 権限、編集ダイアログ、並び順、401復帰のガードは動作を確認しながら別工程 |
-| 3（一部完了） | `MainWindow.Categories.cs`/`MainWindow.Payments.cs` | 科目一覧はCategoryListViewへ分離済み。支払方法一覧は後続 | グループ順、権限、削除、競合、並び替え/復帰を同時に再設計しない |
+| 2（完了） | 人物管理 | PeoplePage / PeopleManagementViewModelへ移管 | 権限、編集、順序、401復帰の既存契約を維持 |
+| 3（完了） | 科目・支払方法管理 | CategoriesPage / PaymentMethodsPageと各VMへ移管 | グループ順、権限、削除、競合、順序/復帰の既存契約を維持 |
 | 完了 | 振替一覧 | TransferListView・TransferListViewModelへ移行（前節） | 初回/追加読込・401・画面往復・保存行探索を維持 |
 | 完了 | レシート一覧 | ReceiptListView・ReceiptListViewModelへ移行（前節） | 検索/ページング・画面往復・401・入力保護を維持 |
 | 後段 | `MainWindow.ReceiptEditor.cs`／`MainWindow.TransferEditor.cs` | レシート専用入力画面・振替専用入力画面の機能別分離 | 未確定入力、保存結果不明、401復帰、未保存確認、画面往復の状態を壊さない |
@@ -508,7 +625,7 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 - 行版と順序版を使い分け、並び替え配列は認証更新前にコピーする。`ClientSession`の認証更新・再ログイン・外部認証変更検知を共用し、成功一覧を使って追加GETしない。`CanManage`は現在の家計簿ロールによる表示用判定で、権限・重複・全IDの整合性はAPIが最終検証する。
 - `CategoryRequestException`はコード・field・403/404の権限と、409の形に応じた`LatestCategory`/`LatestCategories`を保持する。最新行の対象IDも照合し、更新された収支・期間も受信する。自動取得・適用・保存はしない。401/403/404の非公開latestは読まない。429/503も型付き。既存Client操作の503処理は変更しない。
 
-`MainWindow.Categories`・`CategoryOrder`・`CategoryRecovery`と`CategoryRow`で管理画面を接続済み。画面の表示・保存・競合・認証復帰は[科目管理画面](ledger-core-schema.md#科目管理画面)、人物の期間フィルターは[人物仕様](ledger-persons.md)を正本とする。レシートの親情報・科目入力は工程6-D2、明細編集は工程6-D3。税率履歴のClient取得/キャッシュは工程6-D4-Aで実装済み。計算表示と税率候補は工程6-D4-Cで接続済み。保存の画面接続は後続。
+`CategoriesPage`・`CategoriesManagementViewModel`とPresentationの`CategoryRow`で管理画面を接続済み。画面の表示・保存・競合・認証復帰は[科目管理画面](ledger-core-schema.md#科目管理画面)、人物の期間フィルターは[人物仕様](ledger-persons.md)を正本とする。レシートの親情報・科目入力は工程6-D2、明細編集は工程6-D3。税率履歴のClient取得/キャッシュは工程6-D4-Aで実装済み。計算表示と税率候補は工程6-D4-Cで接続済み。保存の画面接続は後続。
 
 ## 振替のClient読取接続
 
@@ -523,7 +640,7 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 `RecordSearchState`が既存`ReceiptSearchState`を保持し、年月・全期間・人物・支払方法を両一覧へ共通適用する。上部のキーワード入力1つを検索確定時に店名と振替名の両方へ適用する。共通年月だけの確定ではキーワード下書きを適用しない。表示・操作の正本は[ホーム3一覧](ledger-transfer-ui.md#3つの一覧と共通フィルター確定範囲)と[共通UI](../UI_DESIGN.md)。
 
-`MainWindow.Transfers.cs`が既存`TransfersWorkspace.ListAsync`をPresentationへ接続し、UI非依存の`TransferListViewModel`で取得世代・ページング・中断／再開を管理する。`TransferListItem`はAPI順と保存金額を維持し、支払方法名を既存マスタキャッシュから表示する。レシートと振替はそれぞれ読込・失敗・再試行を管理し、共通条件変更時は両一覧の旧世代を破棄する。マスタ取得はホーム文脈のCancellationTokenで共有し、片方の検索中断だけでは他方のマスタ待機を失敗させない。
+`RecordHomeViewModel`が既存`TransfersWorkspace.ListAsync`を一覧VMへ接続し、UI非依存の`TransferListViewModel`で取得世代・ページング・中断／再開を管理する。`TransferListItem`はAPI順と保存金額を維持し、支払方法名を既存マスタキャッシュから表示する。レシートと振替はそれぞれ読込・失敗・再試行を管理し、共通条件変更時は両一覧の旧世代を破棄する。マスタ取得はホーム文脈のCancellationTokenで共有し、片方の検索中断だけでは他方のマスタ待機を失敗させない。
 
 年月・人物・支払方法と共通キーワードは標準`ScrollViewer`内の横1行にまとめ、幅不足は同領域の横スクロールで扱う。各一覧は見出し・登録（必要時の［先頭に戻る］）の1行の下に`ListView`を持ち、編集開始通知は一覧に重ねる。各一覧のスクロールは独立する。初期の上下60:40・下段左右2:1を実装済み。振替入力・保存後focusは下記の第3工程で接続。残高データ・スプリッター・比率保存は後続。
 
@@ -539,13 +656,13 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 ## 振替の専用入力・保存（第3工程）
 
-`Views/Transfers/TransferEditorView`が`TransferEditorState`／`TransferDraft`を表示し、共通の日付・時刻と`FormKeyboard`を利用する。標準`AutoSuggestBox`の入力・プレビュー・確定、画面内候補キャッシュ、デバウンス、IME保護、旧応答破棄、モデルの入力由来に従った補完をViewが扱う。既存内部TextBoxにも共通IME監視を登録する。API実行と家計簿/本人の照合は`MainWindow.TransferSuggestions.cs`の読取delegateへ残す。
+`Views/Transfers/TransferEditorPage`が`TransferEditorState`／`TransferDraft`を表示し、共通の日付・時刻と`FormKeyboard`を利用する。標準`AutoSuggestBox`の入力・プレビュー・確定、画面内候補キャッシュ、デバウンス、IME保護、旧応答破棄、モデルの入力由来に従った補完をViewが扱う。既存内部TextBoxにも共通IME監視を登録する。候補/補完の既存API呼出しは同じVMが既存Clientを利用し、Shellはコンテキストを渡す。
 
-`MainWindow.TransferSave.cs`は確認後にVMへ不変要求の準備を依頼し、同じ`TransferWriteRequest`をAPIへ渡す。結果不明時はVMが同じオブジェクトを保持する。保存後の共通条件調整は`RecordSearchState.ApplySavedTransfer`、最大300件の探索とフォーカス開始／404の1回復旧は`TransferListViewModel`で管理する。API保存と一覧再取得は区別し、保存後の一覧取得失敗で再度保存しない。新規と既存に応じた確認・保存不可時の離脱保護を共通ナビゲーションに接続する。
+`TransferEditorPage.Actions.cs`は確認後にVMへ不変要求の準備を依頼し、VMの`SendPendingAsync`が同じ`TransferWriteRequest`を既存Clientへ渡す。結果不明時はVMが同じオブジェクトを保持する。保存後の共通条件調整は`RecordSearchState.ApplySavedTransfer`、最大300件の探索とフォーカス開始／404の1回復旧は`TransferListViewModel`で管理する。API保存と一覧再取得は区別し、保存後の一覧取得失敗で再度保存しない。新規と既存に応じた確認・保存不可時の離脱保護を共通ナビゲーションに接続する。
 
-第4-Aでは`MainWindow.TransferSave.cs`が409 `revision_conflict`の2択を表示し、破棄確認後の`TransferEditorState.AdoptLatest(true)`で通常編集へ戻す。`RenderTransferEditor`はViewModelへ表示更新を通知し、Viewが競合中のコピー可能な読み取り専用表示と［最新を読み込む］を維持する。応答latestを使い、採用時の詳細GET・自動再保存は行わない。`request_conflict`やアクセス喪失・結果不明を採用対象にしない。
+第4-Aの動作を維持し、現在は`TransferEditorPage.Actions.cs`が409 `revision_conflict`の2択を表示し、破棄確認後の`TransferEditorState.AdoptLatest(true)`で通常編集へ戻す。ViewModelの変更通知によりPageが競合中のコピー可能な読み取り専用表示と［最新を読み込む］を維持する。応答latestを使い、採用時の詳細GET・自動再保存は行わない。`request_conflict`やアクセス喪失・結果不明を採用対象にしない。
 
-第4-Bの`MainWindow.TransferRecovery.cs`は入力値のスナップショットを作らず、元のWindow/コントロール/編集モデル/不変要求をそのまま保持する。`NavigateToLogin`で編集破棄を行わない再認証経路と、Windowの識別子とViewのフォーカス/表示位置だけの復帰情報を使う。同じ本人/接続先で元家計簿へ復帰し、人物/支払方法を再取得する。マスタ失敗の一時読み取り専用はモデルの恒久的な権限拒否と分け、再試行後に保存済み両側のID（既存baselineの読み取り専用参照）も使って権限を再評価する。別本人/接続先・終了時は保持状態を破棄し、ディスク保存しない。
+第4-Bの保持契約は現在Page/VMの復帰処理へ移管した。入力値のスナップショットを作らず、元のWindow/コントロール/編集モデル/不変要求をそのまま保持する。`NavigateToLogin`で編集破棄を行わない再認証経路と、Windowの識別子とViewのフォーカス/表示位置だけの復帰情報を使う。同じ本人/接続先で元家計簿へ復帰し、人物/支払方法を再取得する。マスタ失敗の一時読み取り専用はモデルの恒久的な権限拒否と分け、再試行後に保存済み両側のID（既存baselineの読み取り専用参照）も使って権限を再評価する。別本人/接続先・終了時は保持状態を破棄し、ディスク保存しない。
 
 業務・復旧の正本と、残高連動で未完成の範囲は[第3工程の実装境界](ledger-transfer-ui.md#第3工程の実装境界)。API／DB契約、既存レシートの保存機能は変更していない。
 
@@ -555,14 +672,16 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 | 所有者 | 責務 |
 | --- | --- |
-| `Views/Transfers/TransferEditorView.xaml/.cs` | XAML、実コントロール/生文字列、IME/Enter、候補プレビュー/確定・表示キャッシュ/デバウンス/世代、フォーカス/文字選択/スクロール位置 |
+| `Views/Transfers/TransferEditorPage.xaml/.cs` | XAML、実コントロール/生文字列、IME/Enter、候補プレビュー/確定・表示キャッシュ/デバウンス/世代、フォーカス/文字選択/スクロール位置 |
 | `Presentation/Transfers/TransferEditorViewModel` | 同じEditor/Draftを読む表示/検証、支払方法候補/名称の投影、7 Command/操作通知、保留要求/保存後調整用スナップショット、送信中/結果不明/書込停止/再認証後再試行/保存準備中 |
 | `Windows.Client/Transfers/TransferEditorState`・`TransferDraft` | 入力値・未確定値・入力由来・ID/revision・変更判定・保存準備・競合latestの正本。複製しない |
-| `MainWindow.Transfer*.cs`・終了処理 | 画面遷移、本人/家計簿/接続先・権限検証、API実行と結果の分類、Window所有ダイアログ、401の復帰先/マスタ再取得、保存成功後の一覧復帰 |
+| `MainWindow.RecordEditors.cs`・終了処理 | 画面遷移、本人/家計簿/接続先の照合、401の退避/復帰調停、保存成功後の共通条件調整と一覧復帰 |
 
-同じWindow内の`TransferEditorPage` Grid境界とViewの24コントロールを維持する。x:Bind/INotifyPropertyChangedと既存CommunityToolkit.Mvvmを使い、Windowから内部コントロールを直接操作しない。Viewの公開面は第1段階と同じ2プロパティ+11操作で、新しいViewModel/Service/DI/汎用状態機構は追加しない。
+同じWindowのWorkspaceHostで`TransferEditorPage`を必要時に生成し、既存コントロールを維持する。x:Bind/INotifyPropertyChangedと既存CommunityToolkit.Mvvmを使い、Windowから内部コントロールを直接操作しない。Pageは離脱/認証退避/復帰/マスタ更新/解放などの画面境界だけを公開し、新しいViewModel/Service/DI/汎用状態機構は追加しない。
 
 ### 第2段階：書込状態の単一所有
+
+以下はPR #212当時の比較。現在のPage/VM/Shellの所有者は上表とPR3の節を参照する。
 
 Windowにあった`transferPending`/`transferPendingSnapshot`と5 bool（送信中、結果不明、書込停止、再認証後再試行、保存準備中）をVMへ移す。読み取り専用プロパティと名前付き状態変更操作を通し、状態通知・Commandの実行可否も同じVMから更新する。Windowの`TransferFrozen`等はVMの判定への参照だけで、別の書込状態や同じ判定式を保持しない。
 
@@ -590,28 +709,28 @@ Windowにあった`transferPending`/`transferPendingSnapshot`と5 bool（送信�
 
 ## レシート親情報のMVVM分離
 
-第1段階（PR #213）の親情報・画面枠に続き、第2段階で科目・明細を**同じ**View/VMへ統合した。節名は既存リンクを維持する。保存API・履歴候補・左上［戻る］へのUI変更は含めない。
+第1段階（PR #213）の親情報・画面枠に続き、第2段階で科目・明細を**同じ**View/VMへ統合した。節名は既存リンクを維持する。PR3では同じViewをPageへ直接置換し、承認済みの左上［← 戻る］を反映する。保存API・履歴候補は追加しない。
 
 | 所有者 | 現在の責務 |
 | --- | --- |
-| `Views/Receipts/ReceiptEditorView.xaml/.cs`・`.Details.cs` | 親・科目・明細の全XAML、実コントロール/生文字列、描画、選択イベント、フォーカス、狭幅配置、IME/Enter/Alt+Enter、表示位置復元 |
+| `Views/Receipts/ReceiptEditorPage.xaml/.cs`・`.Details.cs` | 親・科目・明細の全XAML、実コントロール/生文字列、描画、選択イベント、フォーカス、狭幅配置、IME/Enter/Alt+Enter、表示位置復元 |
 | `Presentation/Receipts/ReceiptEditorViewModel`・`.Details.cs` | 同じEditor/Header/ParentInput/DetailInput、科目・明細の表示行、Editorのキーから導出する選択とボタン可否、入力検証、税率警告/共通計算の表示、画面内操作と切替Command |
-| `MainWindow.ReceiptEditor/Recovery` | API/マスタ取得、家計簿/本人/接続先・権限、画面遷移、Window所有の未反映3択・科目削除・全体離脱ダイアログ、401復帰の調整 |
+| `MainWindow.RecordEditors.cs` | 家計簿/本人/接続先、画面遷移、横断離脱・401復帰の調停。取得は既存VM、ダイアログと位置保持はPage |
 | 既存Clientの`ReceiptEditorState`/Header/明細Draft・`ReceiptDetailInput` | 入力/ID/revision/未反映入力/変更判定・検証の正本。コピー/再構築しない |
 
 `ReceiptEditorPage`境界と同じWindowを維持し、`DetailsContent`を廃止した。Windowは内部の名前付きコントロールを参照しない。Viewの単一`rendering`だけで親・科目・明細の描画再入を抑止する。FormKeyboardは同じView内の全入力を所有し、親から明細へのTab/Enter・IME中の抑止を維持する。保存3ボタンとCtrl+Enterは引き続きAPIを書き込まない。
 
-VMはマスタDTOを複製保持せず、Windowから渡したデータ取得delegateで既存キャッシュを読む（HTTP呼出しはしない）。税率履歴参照と既存DetailInputをWindowから移す。表示行はVMの配列をListViewがそのまま参照し、科目/明細の選択キー・保留中の切替先を別フィールドへ保存しない。切替先は既存`ReceiptEditTransition`をCommand引数に渡し、3択の解決後だけEditorを操作する。遷移中は既存AsyncRelayCommandの`IsRunning`を使い、独立した切替boolは置かない。確定時にDetailInput参照が変わった場合だけINotifyPropertyChangedでViewへ同期通知し、選択キー更新とフォーム反映の間に非同期の隙間を作らない。Viewはこのプロパティだけを監視し、全プロパティ変更で描画しない。ダイアログの実行とWindowの有効性照合はWindowに残す。 Windowへの確認通知1本とAvailabilityのDialogOpen読取1項目は、標準ダイアログの所有者を変えず操作の再入を防ぐために追加する。Commandは切替用1本だけ増やし、明細操作ごとのCommand群や保留先の状態コピーは追加しない。
+VMはマスタDTOを複製保持せず、Contextが参照する既存Clientキャッシュを読む。初回/復帰のHTTP取得は既存VMのLoading/Recoveryへ移管する。税率履歴参照と既存DetailInputをWindowから移す。表示行はVMの配列をListViewがそのまま参照し、科目/明細の選択キー・保留中の切替先を別フィールドへ保存しない。切替先は既存`ReceiptEditTransition`をCommand引数に渡し、3択の解決後だけEditorを操作する。遷移中は既存AsyncRelayCommandの`IsRunning`を使い、独立した切替boolは置かない。確定時にDetailInput参照が変わった場合だけINotifyPropertyChangedでViewへ同期通知し、選択キー更新とフォーム反映の間に非同期の隙間を作らない。Viewはこのプロパティだけを監視し、全プロパティ変更で描画しない。確認通知は同じVMから現在のPageへ渡し、Pageが必要時ContentDialogを表示する。現在のVM/読み取り専用状態と既存のダイアログ状態で再入を防ぐ。Commandは切替用1本だけ増やし、明細操作ごとのCommand群や保留先の状態コピーは追加しない。
 
 親の不正日時/周期は以前の解析値を消さず実テキストを保護する。明細の数値文字列は既存DetailInputに保持し、検証失敗・3択取消で選択/入力を変えない。並べ替え・流用は同じInputを維持し、適用/削除/確定した選択移動だけで次のフォームを作る。表示再計算は既存ReceiptCalculationDisplayを使い、税率警告と数値入力エラーを分ける。計算結果から入力・ID/revision・未保存判定を書き換えない。
 
-401は元View/VM/ParentInput/DetailInput/Editor/実コントロールを保持する。Windowがマスタをすべて再取得し権限を確認するまで読み取り専用を維持し、Viewは候補・名称だけを更新する。追加詳細GETや自動送信は行わない。復元位置は元の実コントロール参照を使用し、入力全体のスナップショットを追加しない。
+401は元View/VM/ParentInput/DetailInput/Editor/実コントロールを保持する。Shellが本人/家計簿/接続先を照合し、同じVMがマスタをすべて再取得して権限を確認するまで読み取り専用を維持する。Pageは候補・名称だけを更新する。追加詳細GETや自動送信は行わない。復元位置は元の実コントロール参照を使用し、入力全体のスナップショットを追加しない。
 
 親・科目・明細を単一View/VMへ移した際の行数・状態数・View公開面の計測値は当時の差分を、検証結果は[テスト記録](../tests/README.md)を参照する。状態の正本は既存ClientのEditor/Inputで、表示行だけをVMに投影する。旧版の科目選択・明細初期化/削除を照合し、新版で確定済みの3択・削除後選択解除を優先する。新たな汎用Service/DIは増やさない。
 
 ## レシート編集の401復帰
 
-`MainWindow.ReceiptRecovery.cs`は元の`ReceiptEditorState`/親入力/明細下書き/コントロールを保持し、本人・家計簿・接続先と最初のフォーカス/文字選択/スクロール位置だけを記録する。共通操作が画面を無効化する前に位置を取得し、通常離脱と同じ既存同期関数で未通知の入力も既存バッファへ取り込む（明細の追加/更新はしない）。一つの復帰段階でログイン待ち・取得中・失敗・権限喪失を区別し、入力全体のコピーやディスク保存をしない。保護/消去はView内の名前付きTextBoxへ適用し、非表示時のVisualTree実体化に依存しない。`NavigateToLogin`/`DiscardLedgerContents`に接続し、未承認遷移ガードはレシートにも適用する。
+現在のReceiptEditorPage/既存VMは元の`ReceiptEditorState`/親入力/明細下書き/コントロールを保持し、本人・家計簿・接続先と最初のフォーカス/文字選択/スクロール位置だけを記録する。共通操作が画面を無効化する前に位置を取得し、通常離脱と同じ既存同期関数で未通知の入力も既存バッファへ取り込む（明細の追加/更新はしない）。一つの復帰段階でログイン待ち・取得中・失敗・権限喪失を区別し、入力全体のコピーやディスク保存をしない。保護/消去はView内の名前付きTextBoxへ適用し、非表示時のVisualTree実体化に依存しない。`NavigateToLogin`/`DiscardLedgerContents`に接続し、未承認遷移ガードはレシートにも適用する。
 
 同じ本人への復帰時は人物・科目・税率・支払方法を再取得し、最後の支払方法応答の現在ロール/本人対応と既存編集の保存基準支払方法から権限を確認する。Clientの`SavedPaymentMethodId`は既存baselineへの読み取り専用参照で、現在の入力値とは独立する。再取得中/失敗時は入力を保持した読み取り専用、失敗時だけ明示再試行。既存の科目行・人物CheckBoxを再利用して表示名を更新し、フォームの再読込や下書き反映を行わない。税率初期値も再取得した履歴を参照する。
 
@@ -674,7 +793,7 @@ WinUIの入力・認証復帰は上記の実装状態を参照。保存結果不
 
 ## レシート明細フォーム・一覧（工程6-D3）
 
-`ReceiptEditorView.Details.cs`はUI操作を既存`ReceiptEditorViewModel`へ通知し、VMが既存`ReceiptEditorState`へ画面内操作を接続する。`ReceiptDetailInput`は未確定の数値文字列を可変下書きから分け、全数値の解析後だけ下書きを同期する。単価・単価値引の整数式は旧版と同じ+/-/*の優先順位・途中Int32範囲とし、解析失敗を0へ置き換えない。更新済み行と未反映フォームは別に保持する。
+`ReceiptEditorPage.Details.cs`はUI操作を既存`ReceiptEditorViewModel`へ通知し、VMが既存`ReceiptEditorState`へ画面内操作を接続する。`ReceiptDetailInput`は未確定の数値文字列を可変下書きから分け、全数値の解析後だけ下書きを同期する。単価・単価値引の整数式は旧版と同じ+/-/*の優先順位・途中Int32範囲とし、解析失敗を0へ置き換えない。更新済み行と未反映フォームは別に保持する。
 
 一覧表示は`ReceiptDetailRow`、人物選択は標準CheckBoxと単一のTab停止位置・上下フォーカス移動を使用する。選択変更を一度元へ戻し、標準ContentDialogで未反映下書きを解決した後だけ新しい対象へ移動する。共通`FormKeyboard`に明細のIME追跡を含め、明細領域のPreviewKeyDownでAlt+Enterを扱う。業務仕様と未接続部分は[UI正本](ledger-receipt-ui.md#工程6-d3の実装境界)を参照。
 

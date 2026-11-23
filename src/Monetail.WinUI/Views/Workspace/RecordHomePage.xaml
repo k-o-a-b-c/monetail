@@ -86,6 +86,5 @@
                 </Grid>
             </Border>
         </Grid>
-        <ContentControl x:Name="EditorHost" IsTabStop="False" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
     </Grid>
 </Page>

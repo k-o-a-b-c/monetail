@@ -338,7 +338,7 @@ WinUIの一覧GETで`400`かつ`code="invalid_cursor"`を受けた場合、**現
 
 ## 工程6-D2の実装境界
 
-基本入力・科目・明細の`ReceiptEditorView`とPresentation ViewModelへの分離は実装済み。業務入力は`ReceiptEditorState`、表示・フォーカスはView、未反映下書き/削除/離脱のダイアログ・認証/画面遷移はWindowが担当する。詳細は[WinUI構成](architecture-winui.md#レシート親情報のmvvm分離)を参照する。
+基本入力・科目・明細を`ReceiptEditorPage`と既存Presentation ViewModelへ分離した（Draft PR #246）。業務入力は`ReceiptEditorState`を再利用し、表示・フォーカスと必要時の未反映下書き/削除/離脱ダイアログはPage、認証/横断画面遷移はShellが担当する。401では同じPage/VM/実コントロールを保持し、通常離脱では解放する。全体保存は引き続き未接続とする。詳細は[WinUI構成](architecture-winui.md#レシート親情報のmvvm分離)を参照する。
 
 - ［＋ 登録］・行ダブルクリックで同じWindowの専用入力へ切り替え、単一選択では詳細GETしない。取得中の二重起動・古い応答を防ぎ、画面離脱時は中断。失敗時は一覧とエラーを残し、401では既存認証処理へ戻す。
 - 日時などの未確定文字列も保持して勝手に補正しない。科目矢印キーはフォーカス移動、クリック/Enterは表示対象の確定。支払方法の期間不一致でも現在値を自動消去せず、保存時に検証する。

@@ -6,8 +6,6 @@
   <ItemGroup>
     <!-- 実画面と同じXAML・コードを検証し、製品Appに検証用の起動引数を追加しない。 -->
     <Page Include="../../src/Monetail.WinUI/MainWindow.xaml" Link="MainWindow.xaml" />
-    <Page Include="../../src/Monetail.WinUI/Views/CategoryListView.xaml" Link="Views/CategoryListView.xaml" />
-    <Compile Include="../../src/Monetail.WinUI/Views/CategoryListView.xaml.cs" Link="Views/CategoryListView.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/LedgerChoiceView.xaml" Link="Views/LedgerChoiceView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/LedgerChoiceView.xaml.cs" Link="Views/LedgerChoiceView.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />
@@ -18,10 +16,6 @@
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Connection.cs" Link="MainWindow.Connection.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Ledgers.cs" Link="MainWindow.Ledgers.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Activation.cs" Link="MainWindow.Activation.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.Persons.cs" Link="MainWindow.Persons.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.Participants.cs" Link="MainWindow.Participants.cs" />
-    <Compile Include="../../src/Monetail.WinUI/ParticipantRow.cs" Link="ParticipantRow.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.PersonOrder.cs" Link="MainWindow.PersonOrder.cs" />
     <Compile Include="../../src/Monetail.WinUI/Authentication/*.cs" Link="Authentication/%(Filename)%(Extension)" />
     <Compile Include="../../src/Monetail.WinUI/Input/*.cs" Link="Input/%(Filename)%(Extension)" />
     <Page Include="../../src/Monetail.WinUI/Views/Authentication/LoginPage.xaml" Link="Views/Authentication/LoginPage.xaml" />
@@ -37,7 +31,6 @@
     <Page Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSetupPage.xaml" Link="Views/Connection/ConnectionSetupPage.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Connection/ConnectionSetupPage.xaml.cs" Link="Views/Connection/ConnectionSetupPage.xaml.cs" />
     <Compile Include="../../src/Monetail.WinUI/ClientConnection.cs" Link="ClientConnection.cs" />
-    <Compile Include="../../src/Monetail.WinUI/PersonRow.cs" Link="PersonRow.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/RecordListPanel.xaml" Link="Views/RecordListPanel.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/RecordListPanel.xaml.cs" Link="Views/RecordListPanel.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/RecordListFooter.xaml" Link="Views/RecordListFooter.xaml" />
@@ -47,28 +40,20 @@
     <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml.cs" Link="Views/Receipts/ReceiptListView.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml" Link="Views/Transfers/TransferListView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs" Link="Views/Transfers/TransferListView.xaml.cs" />
-    <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml" Link="Views/Transfers/TransferEditorView.xaml" />
-    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml.cs" Link="Views/Transfers/TransferEditorView.xaml.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferEditor.cs" Link="MainWindow.TransferEditor.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSave.cs" Link="MainWindow.TransferSave.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferRecovery.cs" Link="MainWindow.TransferRecovery.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSuggestions.cs" Link="MainWindow.TransferSuggestions.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorPage.xaml" Link="Views/Transfers/TransferEditorPage.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorPage.xaml.cs" Link="Views/Transfers/TransferEditorPage.xaml.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorPage.Actions.cs" Link="Views/Transfers/TransferEditorPage.Actions.cs" />
 
-    <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.xaml" Link="Views/Receipts/ReceiptEditorView.xaml" />
-    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.Details.cs" Link="Views/Receipts/ReceiptEditorView.Details.cs" />
-    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.xaml.cs" Link="Views/Receipts/ReceiptEditorView.xaml.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptRecovery.cs" Link="MainWindow.ReceiptRecovery.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptEditor.cs" Link="MainWindow.ReceiptEditor.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.xaml" Link="Views/Receipts/ReceiptEditorPage.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.Details.cs" Link="Views/Receipts/ReceiptEditorPage.Details.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.xaml.cs" Link="Views/Receipts/ReceiptEditorPage.xaml.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.Lifetime.cs" Link="Views/Receipts/ReceiptEditorPage.Lifetime.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.RecordEditors.cs" Link="MainWindow.RecordEditors.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Receipts.cs" Link="MainWindow.Receipts.cs" />
-    <Compile Include="../../src/Monetail.WinUI/PaymentRow.cs" Link="PaymentRow.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.Payments.cs" Link="MainWindow.Payments.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.PaymentOrder.cs" Link="MainWindow.PaymentOrder.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.PaymentRecovery.cs" Link="MainWindow.PaymentRecovery.cs" />
-    <Compile Include="../../src/Monetail.WinUI/CategoryRow.cs" Link="CategoryRow.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.Categories.cs" Link="MainWindow.Categories.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.CategoryOrder.cs" Link="MainWindow.CategoryOrder.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.CategoryRecovery.cs" Link="MainWindow.CategoryRecovery.cs" />
 
+    <Page Include="../../src/Monetail.WinUI/Views/Management/*.xaml" Link="Views/Management/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Management/*.cs" Link="Views/Management/%(Filename)%(Extension)" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.Management.cs" Link="MainWindow.Management.cs" />
     <ProjectReference Include="../../src/Monetail.Windows.Client/Monetail.Windows.Client.csproj" />
     <Content Update="Assets/PreviewFont.otf" Condition="Exists('Assets/PreviewFont.otf')" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../../src/Monetail.Windows.Presentation/Monetail.Windows.Presentation.csproj" />

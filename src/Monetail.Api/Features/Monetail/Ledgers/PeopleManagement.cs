@@ -56,7 +56,9 @@ public sealed partial class LedgerManagementService
             var to = input.Has("validTo") ? input.Date("validTo") : person.ValidTo;
             Period(from, to);
             await UniqueNameAsync(id, personId, name, token);
-            await CheckPersonReceiptsAsync(id, personId, from, to, token);
+            var invalidField = await FindPersonReceiptPeriodViolationAsync(id, personId, from, to, token);
+            if (invalidField is not null)
+                throw new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", invalidField);
             if (person.Name != name || person.ValidFrom != from || person.ValidTo != to)
             {
                 person.Name = name; person.ValidFrom = from; person.ValidTo = to; person.Revision = Version();
@@ -100,6 +102,10 @@ public sealed partial class LedgerManagementService
             if (ids.Count != people.Length || ids.Distinct(StringComparer.Ordinal).Count() != ids.Count ||
                 !ids.ToHashSet(StringComparer.Ordinal).SetEquals(people.Select(row => row.Id)))
                 throw LedgerPayload.Bad("現在の全人物を重複なく指定してください。", "personIds");
+            if (ids.SequenceEqual(people.OrderBy(person => person.DisplayOrder)
+                .ThenBy(person => person.Id, StringComparer.Ordinal).Select(person => person.Id)))
+                return await PeopleAsync(id, actor, token);
+
             var positions = ids.Select((key, index) => (key, index)).ToDictionary(value => value.key, value => value.index);
             foreach (var person in people) person.DisplayOrder = positions[person.Id];
             ledger.PeopleOrderRevision = Version();

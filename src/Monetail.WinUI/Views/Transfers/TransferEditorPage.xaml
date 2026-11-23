@@ -1,0 +1,51 @@
+<Page
+    x:Class="Monetail.WinUI.Views.Transfers.TransferEditorPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:input="using:Monetail.WinUI.Input"
+    xmlns:presentation="using:Monetail.Windows.Presentation.Transfers"
+    IsTabStop="False" TabFocusNavigation="Local" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    <Grid Margin="32,0,32,32" RowSpacing="16">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Spacing="16">
+            <Button x:Name="TransferBack" TabIndex="0" Content="← 戻る" Command="{x:Bind ViewModel.BackCommand, Mode=OneWay}" AutomationProperties.Name="振替一覧に戻る"/>
+            <TextBlock x:Name="TransferEditorTitle" Style="{ThemeResource TitleTextBlockStyle}" AutomationProperties.HeadingLevel="Level1" VerticalAlignment="Center" Text="{x:Bind ViewModel.Title, Mode=OneWay}"/>
+        </StackPanel>
+        <ScrollViewer x:Name="TransferInputScroller" TabIndex="1" IsTabStop="False" TabFocusNavigation="Local" Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12" MaxWidth="720" HorizontalAlignment="Stretch">
+                <InfoBar x:Name="TransferEditorNotice" IsOpen="{x:Bind ViewModel.NoticeOpen, Mode=OneWay}" IsClosable="False" Severity="{x:Bind NoticeSeverity(ViewModel.NoticeLevel), Mode=OneWay}" AutomationProperties.LiveSetting="Polite" Message="{x:Bind ViewModel.NoticeMessage, Mode=OneWay}"/>
+                <Button x:Name="TransferLoadLatest" TabIndex="0" Content="最新を読み込む" Command="{x:Bind ViewModel.LoadLatestCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.ShowLoadLatest), Mode=OneWay, FallbackValue=Collapsed}" AutomationProperties.AutomationId="TransferLoadLatest"/>
+                <Button x:Name="TransferMasterRetry" TabIndex="0" Content="再試行" Command="{x:Bind ViewModel.RetryMastersCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.ShowRetryMasters), Mode=OneWay, FallbackValue=Collapsed}" AutomationProperties.AutomationId="TransferMasterRetry"/>
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <input:DateInputBox x:Name="TransferDate" TabIndex="1" Header="日付" AllowEmpty="False" TextChanged="TransferTextChanged" LostFocus="TransferDateConfirmed" AutomationProperties.AutomationId="TransferDate" IsReadOnly="{x:Bind ViewModel.IsFrozen, Mode=OneWay}"/>
+                    <input:TimeInputBox x:Name="TransferTime" TabIndex="2" Grid.Column="1" Header="時刻" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferTime" IsReadOnly="{x:Bind ViewModel.IsFrozen, Mode=OneWay}"/>
+                </Grid>
+                <AutoSuggestBox x:Name="TransferName" TabIndex="3" Header="振替名" TextChanged="TransferNameChanged" SuggestionChosen="TransferSuggestionChosen" QuerySubmitted="TransferNameQuerySubmitted"
+                                GotFocus="TransferNameFocused" LostFocus="TransferNameLostFocus" PreviewKeyDown="TransferNamePreviewKeyDown" KeyUp="TransferNameKeyUp" MaxSuggestionListHeight="320" AutomationProperties.AutomationId="TransferName" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}"/>
+                <TextBox x:Name="TransferNameReadOnly" TabIndex="3" Header="振替名" IsReadOnly="True" Visibility="{x:Bind Show(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}" Text="{x:Bind ViewModel.Name, Mode=OneWay}"/>
+                <TextBlock x:Name="TransferSuggestionError" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.SuggestionError, Mode=OneWay}"/>
+                <ComboBox x:Name="TransferFrom" TabIndex="4" Header="振替元" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferFrom" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}">
+                    <ComboBox.ItemTemplate><DataTemplate x:DataType="presentation:TransferPaymentChoice"><TextBlock Text="{x:Bind Name, Mode=OneTime}"/></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBox x:Name="TransferFromReadOnly" TabIndex="4" Header="振替元" IsReadOnly="True" Visibility="{x:Bind Show(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}" Text="{x:Bind ViewModel.FromName, Mode=OneWay}"/>
+                <ComboBox x:Name="TransferTo" TabIndex="5" Header="振替先" HorizontalAlignment="Stretch" SelectionChanged="TransferPaymentChanged" AutomationProperties.AutomationId="TransferTo" Visibility="{x:Bind Editable(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}">
+                    <ComboBox.ItemTemplate><DataTemplate x:DataType="presentation:TransferPaymentChoice"><TextBlock Text="{x:Bind Name, Mode=OneTime}"/></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBox x:Name="TransferToReadOnly" TabIndex="5" Header="振替先" IsReadOnly="True" Visibility="{x:Bind Show(ViewModel.IsFrozen), Mode=OneWay, FallbackValue=Collapsed}" Text="{x:Bind ViewModel.ToName, Mode=OneWay}"/>
+                <TextBlock x:Name="TransferToError" Visibility="{x:Bind HasText(ViewModel.ToError), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.ToError, Mode=OneWay}"/>
+                <TextBox x:Name="TransferAmount" TabIndex="6" Header="金額" InputScope="Number" TextAlignment="Right" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferAmount" IsReadOnly="{x:Bind ViewModel.IsFrozen, Mode=OneWay}"/>
+                <TextBox x:Name="TransferMemo" TabIndex="7" Header="メモ" AcceptsReturn="False" TextWrapping="NoWrap" TextChanged="TransferTextChanged" AutomationProperties.AutomationId="TransferMemo" IsReadOnly="{x:Bind ViewModel.IsFrozen, Mode=OneWay}"/>
+                <TextBlock x:Name="TransferValidity" Visibility="{x:Bind HasText(ViewModel.ValidationMessage), Mode=OneWay, FallbackValue=Collapsed}" TextWrapping="Wrap" Foreground="{ThemeResource SystemFillColorCriticalBrush}" AutomationProperties.LiveSetting="Polite" Text="{x:Bind ViewModel.ValidationMessage, Mode=OneWay}"/>
+            </StackPanel>
+        </ScrollViewer>
+        <Grid Grid.Row="2" ColumnSpacing="12">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Button x:Name="TransferDelete" TabIndex="10" Content="削除" Command="{x:Bind ViewModel.DeleteCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.ShowExistingActions), Mode=OneWay, FallbackValue=Collapsed}"/>
+            <ProgressRing x:Name="TransferWriteProgress" Grid.Column="1" IsActive="{x:Bind ViewModel.IsSending, Mode=OneWay, FallbackValue=False}" Visibility="{x:Bind Show(ViewModel.IsSending), Mode=OneWay, FallbackValue=Collapsed}" Width="24" Height="24" HorizontalAlignment="Right" AutomationProperties.Name="振替を保存中"/>
+            <Button x:Name="TransferWriteRetry" TabIndex="8" Grid.Column="2" Content="再試行" Command="{x:Bind ViewModel.RetryWriteCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.ShowRetryWrite), Mode=OneWay, FallbackValue=Collapsed}"/>
+            <Button x:Name="TransferReuse" TabIndex="9" Grid.Column="3" Content="流用登録" Command="{x:Bind ViewModel.ReuseCommand, Mode=OneWay}" Visibility="{x:Bind Show(ViewModel.ShowExistingActions), Mode=OneWay, FallbackValue=Collapsed}"/>
+            <Button x:Name="TransferSave" TabIndex="8" Grid.Column="4" Content="{x:Bind ViewModel.SaveText, Mode=OneWay}" Command="{x:Bind ViewModel.SaveCommand, Mode=OneWay}" Style="{StaticResource AccentButtonStyle}" Visibility="{x:Bind Show(ViewModel.ShowSave), Mode=OneWay, FallbackValue=Collapsed}"/>
+        </Grid>
+    </Grid>
+</Page>

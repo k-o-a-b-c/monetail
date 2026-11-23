@@ -93,11 +93,13 @@ public sealed class WorkspaceViewModelTests
     {
         var allowed = true;
         var requests = new List<ManagementSection>();
-        var model = new ManagementViewModel(() => allowed, section =>
+        using var fixture = new ManagementTestContext(_ => throw new InvalidOperationException());
+        using var model = new ManagementViewModel(fixture.Context, () => allowed, (_, _) => Task.CompletedTask, () => Task.CompletedTask, "本人");
+        model.NavigationRequested += section =>
         {
             requests.Add(section);
             return Task.CompletedTask;
-        });
+        };
         model.SelectedSection = ManagementSection.Account;
         Assert.Empty(requests);
         await model.SelectCommand.ExecuteAsync(ManagementSection.People);

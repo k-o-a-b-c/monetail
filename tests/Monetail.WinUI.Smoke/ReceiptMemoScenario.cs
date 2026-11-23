@@ -15,29 +15,61 @@ public partial class App
     private async Task CheckReceiptMemos()
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
-        var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
-        var payments = new PaymentServer(); fixture.PaymentsHandler = payments.HandleAsync;
+        var categories = new CategoryServer();
+        fixture.CategoriesHandler = categories.HandleAsync;
+        var payments = new PaymentServer();
+        fixture.PaymentsHandler = payments.HandleAsync;
         fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(payments.People()));
-        var id = Guid.NewGuid(); var groupId = Guid.NewGuid(); var detailId = Guid.NewGuid(); var revision = Guid.NewGuid(); var writes = 0;
+        var id = Guid.NewGuid();
+        var groupId = Guid.NewGuid();
+        var detailId = Guid.NewGuid();
+        var revision = Guid.NewGuid();
+        var writes = 0;
         const string parentMemo = "親メモ", groupMemo = "科目メモ", detailMemo = "明細メモ";
         fixture.ReceiptsHandler = (request, _) =>
         {
-            if (request.Method != HttpMethod.Get) { writes++; throw new InvalidOperationException("全体保存不可"); }
-            if (request.RequestUri!.AbsolutePath.EndsWith("/receipts")) return Task.FromResult(PaymentServer.Json(new { receipts = Array.Empty<object>(), nextCursor = (string?)null }));
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new {
-                receiptId = id, transactionAt = DateTime.Today.ToString("yyyy-MM-dd") + "T00:00:00", shopName = "メモの確認", shopLocation = (string?)null,
-                paymentMethodId = payments.ActiveId, taxInclusionMode = 0, taxRoundingMode = "floor", recurrenceInterval = (int?)null, recurrenceUnit = (string?)null,
-                memo = parentMemo, revision, groups = new[] { new { groupId, categoryId = categories.Rows[0].CategoryId, memo = groupMemo, details = new[] {
+            if (request.Method != HttpMethod.Get)
+            {
+                writes++;
+                throw new InvalidOperationException("全体保存不可");
+            }
+            if (request.RequestUri!.AbsolutePath.EndsWith("/receipts"))
+                return Task.FromResult(PaymentServer.Json(new
+                {
+                    receipts = Array.Empty<object>(),
+                    nextCursor = (string?)null
+                }));
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new
+                {
+                    receiptId = id,
+                    transactionAt = DateTime.Today.ToString("yyyy-MM-dd") + "T00:00:00",
+                    shopName = "メモの確認",
+                    shopLocation = (string?)null,
+                    paymentMethodId = payments.ActiveId,
+                    taxInclusionMode = 0,
+                    taxRoundingMode = "floor",
+                    recurrenceInterval = (int?)null,
+                    recurrenceUnit = (string?)null,
+                    memo = parentMemo,
+                    revision,
+                    groups = new[] { new { groupId, categoryId = categories.Rows[0].CategoryId, memo = groupMemo, details = new[] {
                     new { detailId, displayOrder = 0, name = "明細", unitPrice = 100, quantity = 1, unitDiscountAmount = 0, discountRate = "0", taxRate = (string?)null,
                         expenseType = "Variable", occurrenceType = "Irregular", memo = detailMemo, personIds = Array.Empty<Guid>() }
                 } } }
-            }) });
+                })
+            });
         };
-        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync(); await window!.OpenReceiptEditorAsync(id);
-        var editor = ReceiptEditing!; var group = editor.Groups.Single(); ReceiptView.ActivateReceiptCategory(group.Key);
+        var root = await OpenSyntheticWindow(fixture);
+        await StartSyntheticAsync();
+        await window!.OpenReceiptEditorAsync(id);
+        var editor = ReceiptEditing!;
+        var group = editor.Groups.Single();
+        ReceiptView.ActivateReceiptCategory(group.Key);
         Find<ListView>(root, "ReceiptDetailsList").SelectedIndex = 0;
         await Wait(() => editor.SelectedDetailKey == group.Details[0].Key);
-        var keyboard = (FormKeyboard)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ReceiptView)!;
+        var keyboard = (FormKeyboard)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorPage).GetField("receiptEditorKeyboard", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(ReceiptView)!;
         var composing = (HashSet<TextBox>)typeof(FormKeyboard).GetField("composing", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(keyboard)!;
         bool Dirty() => ReceiptView.NeedsLeaveConfirmation;
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
@@ -47,23 +79,29 @@ public partial class App
         var next = new Control[] { Find<ComboBox>(root, "ReceiptCategoryChoice"), Find<Button>(root, "ReceiptCategoryRemove"), Find<Button>(root, "ReceiptDetailApply") };
         for (var index = 0; index < memos.Length; index++)
         {
-            var memo = memos[index]; var initialText = memo.Text;
+            var memo = memos[index];
+            var initialText = memo.Text;
             Check(!memo.AcceptsReturn && memo.TextWrapping == TextWrapping.NoWrap && memo.ReadLocalValue(FrameworkElement.MinHeightProperty) == DependencyProperty.UnsetValue,
                 $"{memo.Name}は複数行用の高さを持たない標準1行TextBox");
-            await ActivateReceiptInputWindowAsync(); memo.Focus(FocusState.Keyboard);
+            await ActivateReceiptInputWindowAsync();
+            memo.Focus(FocusState.Keyboard);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
             memo.Text = "入力" + index;
             await WaitForReceiptInput(root, memo.Name, () => (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == "入力" + index);
             Check(Dirty() && (index == 0 ? editor.Header.Memo : index == 1 ? group.Memo : editor.Draft!.Memo) == "入力" + index,
                 $"{memo.Name}の入力を対応するモデルと未保存判定へ反映");
-            await ActivateReceiptInputWindowAsync(); memo.Focus(FocusState.Keyboard);
+            await ActivateReceiptInputWindowAsync();
+            memo.Focus(FocusState.Keyboard);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
             var options = new FindNextElementOptions { SearchRoot = root.XamlRoot.Content };
             var previous = FocusManager.FindNextElement(FocusNavigationDirection.Previous, options);
             await PressReceiptKey(0x0D, 0x10);
             await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), previous));
-            memo.Focus(FocusState.Keyboard); await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
-            composing.Add(memo); await PressReceiptKey(0x0D); await Settle();
+            memo.Focus(FocusState.Keyboard);
+            await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo));
+            composing.Add(memo);
+            await PressReceiptKey(0x0D);
+            await Settle();
             Check(ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memo) && group.Details.Count == 1 && group.Details[0].Values.Memo == detailMemo,
                 $"{memo.Name}のIME変換確定Enterはフォーカス移動も明細反映もしない: focus={(FocusManager.GetFocusedElement(root.XamlRoot) as FrameworkElement)?.Name}; composing={keyboard.IsComposing}; details={group.Details.Count}; savedMemoUnchanged={group.Details.Count == 1 && group.Details[0].Values.Memo == detailMemo}; active={GetForegroundWindow() == WinRT.Interop.WindowNative.GetWindowHandle(window!)}");
             composing.Clear();
@@ -96,31 +134,47 @@ public partial class App
         await Wait(() => editor.Header.Memo == parentMemo && parentError.Visibility == Visibility.Collapsed);
         Check(!Dirty(), "親メモを元の値へ戻すとエラーと未保存変更が消える");
         // 他項目のイベント・再描画ではメモの値を変更しない。
-        var shop = Find<TextBox>(root, "ReceiptShopName"); shop.Text = "一時変更"; await Wait(() => editor.Header.ShopName == "一時変更");
-        shop.Text = "メモの確認"; await Wait(() => editor.Header.ShopName == "メモの確認");
+        var shop = Find<TextBox>(root, "ReceiptShopName");
+        shop.Text = "一時変更";
+        await Wait(() => editor.Header.ShopName == "一時変更");
+        shop.Text = "メモの確認";
+        await Wait(() => editor.Header.ShopName == "メモの確認");
         ReceiptView.RenderTaxValues();
         Check(!Dirty() && editor.Header.Memo == parentMemo && group.Memo == groupMemo && editor.Draft!.Memo == detailMemo,
             "他項目変更/再描画では元のメモと未変更状態を維持");
-        memos[2].Text = "ショートカット更新"; memos[2].Focus(FocusState.Keyboard);
+        memos[2].Text = "ショートカット更新";
+        memos[2].Focus(FocusState.Keyboard);
         await Wait(() => ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), memos[2]));
         await PressReceiptKey(0x0D, 0x12);
         await Wait(() => editor.SelectedDetailKey is null && group.Details[0].Values.Memo == "ショートカット更新");
         Check(group.Details.Count == 1 && group.Details[0].DetailId == detailId && editor.Revision == revision && writes == 0 &&
             ReferenceEquals(FocusManager.GetFocusedElement(root.XamlRoot), Find<TextBox>(root, "ReceiptItemName")),
             "明細メモのAlt+Enterは既存の画面内更新だけ実行し、ID/版と全体保存禁止を維持");
-        await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, true);
+        await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
+        await ConfirmReceipt(root, true);
         await Wait(() => ReceiptEditing is null);
     }
     private async Task WaitForReceiptInput(FrameworkElement root, string name, Func<bool> ready)
     {
-        try { await Wait(ready); }
+        try
+        {
+            await Wait(ready);
+        }
         catch (OperationCanceledException error)
         {
             var flags = BindingFlags.NonPublic | BindingFlags.Instance;
             var input = ReceiptView.ViewModel?.DetailInput;
-            var rendering = (bool)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorView).GetField("rendering", flags)!.GetValue(ReceiptView)!;
-            var box = Find<TextBox>(root, name); var parsed = "none";
-            try { if (input is not null) { input.Read(); parsed = "valid"; } }
+            var rendering = (bool)typeof(Monetail.WinUI.Views.Receipts.ReceiptEditorPage).GetField("rendering", flags)!.GetValue(ReceiptView)!;
+            var box = Find<TextBox>(root, name);
+            var parsed = "none";
+            try
+            {
+                if (input is not null)
+                {
+                    input.Read();
+                    parsed = "valid";
+                }
+            }
             catch (ReceiptInputException invalid) { parsed = invalid.Field; }
             // 操作状態だけを記録し、入力文字列やアカウント/家計簿情報は出力しない。
             throw new InvalidOperationException($"Receipt input not reflected: control={name}; loaded={box.IsLoaded}; enabled={box.IsEnabled}; rendering={rendering}; parsing={parsed}", error);

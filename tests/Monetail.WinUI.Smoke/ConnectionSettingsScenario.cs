@@ -12,7 +12,7 @@ public partial class App
         {
             var root = await OpenSyntheticWindow(fixture, (_, initial) =>
                 Check(Startup(initial) is not null && fixture.Requests.Count == 0 &&
-                    Find<ContentControl>(initial, "ConnectionSettingsContent").Content is null,
+                    initial.FindName("ConnectionSettingsContent") is null && ManagementFeature(initial) is null,
                     "設定済み起動はActivate前に行き先を決め、初回設定Viewや通信を先行生成しない"));
             await StartSyntheticAsync();
             await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
@@ -38,7 +38,7 @@ public partial class App
                 "管理の不正URLは近傍検証で入力/設定/認証を保持しネットワークへ送らない");
             navigation.SelectedItem = Find<NavigationViewItem>(root, "AccountNavigation");
             await Settle();
-            Check(Find<ContentControl>(root, "ConnectionSettingsContent").Content is null && !model.ConnectCommand.CanExecute(null),
+            Check(FindManagementElement(root, "ConnectionSettingsContent") is null && !model.ConnectCommand.CanExecute(null),
                 "通常離脱で共通Viewを解放し古いVMの操作を停止する");
             navigation.SelectedItem = Find<NavigationViewItem>(root, "ConnectionNavigation");
             await Settle();

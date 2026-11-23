@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Management;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
@@ -31,10 +32,10 @@ public partial class App
         Check(server.Reads == 1 && server.Writes.Count == 0, "科目一覧のTab/Shift+Tabは追加→編集→削除→並び順→期間外表示→一覧の順で移動し、通信しない");
         await FocusTransferControl(Find<CheckBox>(view, "IncludeInactiveCategories"));
         await PressReceiptKey(0x20);
-        await Wait(() => view.IncludeInactive && Find<ListView>(view, "CategoriesList").Items.Count == server.Rows.Count);
+        await Wait(() => view.ViewModel.IncludeInactive && Find<ListView>(view, "CategoriesList").Items.Count == server.Rows.Count);
         await PressReceiptKey(0x20);
-        await Wait(() => !view.IncludeInactive && Find<ListView>(view, "CategoriesList").Items.Count == 2);
-        Check(view.SelectedCategory?.CategoryId == server.Rows[0].CategoryId && server.Reads == 1 && server.Writes.Count == 0,
+        await Wait(() => !view.ViewModel.IncludeInactive && Find<ListView>(view, "CategoriesList").Items.Count == 2);
+        Check(view.ViewModel.Selected?.Category.CategoryId == server.Rows[0].CategoryId && server.Reads == 1 && server.Writes.Count == 0,
             "ViewのSpace操作による期間フィルターも選択を保持し追加GETや書込を行わない");
     }
 }

@@ -73,12 +73,12 @@ public partial class App : Application
     {
         if (name is "SavePersonButton" or "CancelPersonButton")
         {
-            var dialog = (ContentDialog)root.FindName("PersonDialog");
+            var dialog = (ContentDialog)FindManagementElement(root, "PersonDialog")!;
             var text = name == "SavePersonButton" ? dialog.PrimaryButtonText : dialog.CloseButtonText;
             return All(dialog).OfType<T>().Where(element => element is Button button && Equals(button.Content, text)).OrderByDescending(element => element.IsLoaded).FirstOrDefault()
                 ?? throw new InvalidOperationException("ダイアログのボタンが見つかりません: " + name);
         }
-        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? (root.FindName("TransferEntry") as Monetail.WinUI.Views.Transfers.TransferEditorView)?.FindName(name) ?? (root.FindName("ReceiptEntry") as Monetail.WinUI.Views.Receipts.ReceiptEditorView)?.FindName(name) ?? FindWorkspaceElement(root, name) ?? FindSharedRecordElement(root, name) ?? FindAuthenticationElement(root, name) ?? FindLedgerPageElement(root, name) ?? FindConnectionElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
+        return (root.FindName(name) ?? (root.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name) ?? (root.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name) ?? FindEditorElement(root, name) ?? FindManagementElement(root, name) ?? FindWorkspaceElement(root, name) ?? FindSharedRecordElement(root, name) ?? FindAuthenticationElement(root, name) ?? FindLedgerPageElement(root, name) ?? FindConnectionElement(root, name)) as T ?? throw new InvalidOperationException("コントロールが見つかりません: " + name);
     }
     private static object? FindWorkspaceElement(FrameworkElement root, string name)
     {
@@ -90,6 +90,27 @@ public partial class App : Application
             ?? (page?.FindName("ReceiptsView") as Monetail.WinUI.Views.Receipts.ReceiptListView)?.FindName(name)
             ?? (page?.FindName("TransfersView") as Monetail.WinUI.Views.Transfers.TransferListView)?.FindName(name);
     }
+    private static FrameworkElement? ManagementFeature(FrameworkElement root) =>
+        (((root.FindName("WorkspaceHost") as Frame)?.Content as FrameworkElement)?.FindName("DetailsHost") as Frame)?.Content as FrameworkElement;
+    private static object? FindManagementElement(FrameworkElement root, string name)
+    {
+        var page = ManagementFeature(root);
+        if (page is null)
+            return null;
+        var dialog = page.GetType().GetField("dialog", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(page) as ContentDialog;
+        if (dialog is not null)
+            ObserveDialog(dialog);
+        return page.FindName(name) ?? (dialog?.Name == name ? dialog : dialog?.FindName(name));
+    }
+    private static bool ManagementVisible(FrameworkElement root, string name) =>
+        FindManagementElement(root, name) is FrameworkElement { Visibility: Visibility.Visible };
+    private static bool ManagementDialogVisible(FrameworkElement root, string name) =>
+        FindManagementElement(root, name) is ContentDialog { IsLoaded: true };
+
+    private static bool ManagementDialogClosed(FrameworkElement root, string name) =>
+        FindManagementElement(root, name) is not ContentDialog dialog || !dialog.IsLoaded &&
+        ((root.FindName("WorkspaceHost") as Frame)?.Content as Monetail.WinUI.Views.Workspace.ManagementPage)?.ViewModel.Context.IsSuspended == true;
+
     private static object? FindLedgerPageElement(FrameworkElement root, string name) =>
         ((root.FindName("LedgerPageHost") as ContentControl)?.Content as Frame)?.Content is FrameworkElement page ? page.FindName(name) : null;
 
@@ -105,7 +126,7 @@ public partial class App : Application
     {
         if (((root.FindName("AuthenticationHost") as ContentControl)?.Content as Frame)?.Content is Monetail.WinUI.Views.Connection.ConnectionSetupPage setup)
             return (Monetail.WinUI.Views.Connection.ConnectionSettingsView)((ContentControl)setup.FindName("SettingsHost")).Content;
-        return (Monetail.WinUI.Views.Connection.ConnectionSettingsView)((ContentControl)root.FindName("ConnectionSettingsContent")).Content;
+        return (Monetail.WinUI.Views.Connection.ConnectionSettingsView)((ContentControl)FindManagementElement(root, "ConnectionSettingsContent")!).Content;
     }
     private static object? FindConnectionElement(FrameworkElement root, string name)
     {
@@ -131,7 +152,7 @@ public partial class App : Application
         return null;
     }
     private static bool EditorClosed(FrameworkElement root) =>
-        Find<ScrollViewer>(root, "PersonEditorContent").Visibility == Visibility.Collapsed;
+        ManagementDialogClosed(root, "PersonDialog");
     private static IEnumerable<DependencyObject> All(DependencyObject root)
     {
         for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)

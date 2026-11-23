@@ -1,3 +1,4 @@
+using Monetail.Windows.Presentation.Management;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -31,9 +32,9 @@ public partial class App
             await Settle();
             Check(All(list).OfType<TextBlock>().All(text => !text.Text.Contains(fixture.AccountId.ToString(), StringComparison.OrdinalIgnoreCase)), "一覧の同名アカウントに内部IDを表示しない");
             var own = (ParticipantRow)list.Items[1];
-            Check(own.ExcludeVisibility == Visibility.Collapsed, "本人の除外ボタンを表示しない");
+            Check(!own.CanExclude, "本人の除外ボタンを表示しない");
             await InvokeAsync(() => ParticipantActionButton(list, fixture.AccountId, "編集"));
-            await Wait(() => Find<ScrollViewer>(root, "ParticipantEditorContent").Visibility == Visibility.Visible);
+            await Wait(() => ManagementDialogVisible(root, "ParticipantDialog"));
             await Settle();
             Check(Find<ComboBox>(root, "ParticipantRole").Visibility == Visibility.Collapsed && Find<TextBlock>(root, "ParticipantOwnRole").Text.Contains("管理者"), "本人の役割は読み取り専用");
             await InvokeAsync(() => Find<Button>(root, "RecordButton"));
@@ -45,18 +46,24 @@ public partial class App
 
             await InvokeAsync(() => ParticipantActionButton(list, server.Other.AccountId, "編集"));
             await Wait(() => !ParticipantEditorClosed(root)); await Settle();
-            var role = Find<ComboBox>(root, "ParticipantRole"); var person = Find<ComboBox>(root, "ParticipantPerson");
-            Check(server.EditReads == 2 && person.Items.OfType<ComboBoxItem>().Any(item => !item.IsEnabled), "編集開始の1要求で人物候補を取得し対応済み候補を無効化");
-            role.SelectedIndex = 2; person.SelectedIndex = 0;
+            ComboBox role() => Find<ComboBox>(root, "ParticipantRole"); ComboBox person() => Find<ComboBox>(root, "ParticipantPerson");
+            Check(server.EditReads == 2 && person().Items.OfType<ComboBoxItem>().Any(item => item.Tag is ParticipantPersonChoice { IsSelectable: false }), "編集開始の1要求で人物候補を取得し対応済み候補を無効化");
+            var unavailable = person().Items.OfType<ComboBoxItem>().First(item => item.Tag is ParticipantPersonChoice { IsSelectable: false });
+            person().IsDropDownOpen = true;
+            await Wait(() => person().ContainerFromItem(unavailable) is ComboBoxItem { IsLoaded: true });
+            Check(person().ContainerFromItem(unavailable) is ComboBoxItem { IsEnabled: false },
+                "対応済み人物は表示用データだけでなく実際のComboBoxItemも選択不可にする");
+            person().IsDropDownOpen = false;
+            role().SelectedIndex = 2; person().SelectedIndex = 0;
             server.Conflict = true;
             var reads = server.ListReads;
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", true));
             await Wait(() => Find<Border>(root, "ParticipantConflict").Visibility == Visibility.Visible);
-            Check(role.SelectedIndex == 2 && person.SelectedIndex == 0 && !ParticipantDialogAction(root, "ParticipantDialog", true).IsEnabled && server.ListReads == reads,
+            Check(role().SelectedIndex == 2 && person().SelectedIndex == 0 && !ParticipantDialogAction(root, "ParticipantDialog", true).IsEnabled && server.ListReads == reads,
                 "更新版競合は未保存入力と元の版を保持し、追加GETや自動上書きをしない");
             Check(Find<TextBlock>(root, "LatestParticipant").Text.Contains("編集者") && Find<TextBlock>(root, "LatestParticipant").Text.Contains("未使用の人物"), "競合の最新役割・人物・候補を読み取り専用で表示");
             await InvokeAsync(() => Find<Button>(root, "UseLatestParticipantButton"));
-            Check(role.SelectedIndex == 1 && person.SelectedIndex == 2, "明示的な最新読込だけで入力と更新版を切替");
+            Check(role().SelectedIndex == 1 && person().SelectedIndex == 2, "明示的な最新読込だけで入力と更新版を切替");
             var latestRevision = server.Other.Revision;
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", true));
             await Wait(() => ParticipantEditorClosed(root));
@@ -64,15 +71,15 @@ public partial class App
 
             await InvokeAsync(() => ParticipantActionButton(list, server.Other.AccountId, "編集"));
             await Wait(() => !ParticipantEditorClosed(root)); await Settle();
-            role.SelectedIndex = 2; person.SelectedIndex = 0;
+            role().SelectedIndex = 2; person().SelectedIndex = 0;
             server.AssignConflict = true;
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", true));
             await Wait(() => Find<TextBlock>(root, "ParticipantPersonError").Visibility == Visibility.Visible);
-            Check(role.SelectedIndex == 2 && person.SelectedIndex == 0, "人物対応の重複は欄エラーで入力保持");
+            Check(role().SelectedIndex == 2 && person().SelectedIndex == 0, "人物対応の重複は欄エラーで入力保持");
             server.FailWrite = true;
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", true));
             await Wait(() => Find<TextBlock>(root, "ParticipantError").Visibility == Visibility.Visible);
-            Check(role.SelectedIndex == 2 && !ParticipantEditorClosed(root), "通信失敗はダイアログに表示し入力を保持");
+            Check(role().SelectedIndex == 2 && !ParticipantEditorClosed(root), "通信失敗はダイアログに表示し入力を保持");
             server.FailWrite = false;
             await InvokeAsync(() => ParticipantDialogAction(root, "ParticipantDialog", false)); await Wait(() => ParticipantEditorClosed(root));
 
@@ -109,7 +116,7 @@ public partial class App
             await Wait(() => Find<StackPanel>(root, "InvitationCancelContent").Visibility == Visibility.Visible); await Settle();
             Check(server.CancelCount == 0, "招待取消は確認するまでAPIを呼ばない");
             await InvokeAsync(() => ParticipantDialogAction(root, "InvitationCancelDialog", true));
-            await Wait(() => Find<StackPanel>(root, "InvitationCancelContent").Visibility == Visibility.Collapsed);
+            await Wait(() => !ManagementDialogVisible(root, "InvitationCancelDialog"));
             Check(invitations.Items.Count == 3 && server.CancelCount == 1 && server.InvitationReads == inviteReads, "招待取消は成功応答の一覧を反映");
             await InvokeAsync(() => Find<Button>(root, "BackToParticipantsButton")); await Wait(() => Find<Grid>(root, "ParticipantsContent").Visibility == Visibility.Visible);
         }
@@ -195,11 +202,28 @@ public partial class App
             await Settle(); await fixture.CallbackTask!;
             Check(server.CreatedCount == 0 && Find<TextBlock>(root, "InvitationRetryNotice").Visibility == Visibility.Visible,
                 "招待発行の認証復帰は未完了要求を復元し自動発行しない");
+            var page = (Monetail.WinUI.Views.Management.ParticipantsPage)ManagementFeature(root)!;
+            var draft = page.ViewModel.InvitationDraft;
+            var invitations = Find<ListView>(root, "InvitationsList");
+            var invitation = ((LedgerInvitationRow)invitations.Items[0]).Invitation;
+            await InvokeInvitationActionButton(invitations, invitation.InvitationId, "取消");
+            await Wait(() => ManagementDialogVisible(root, "InvitationCancelDialog"));
+            fixture.RejectSession = true;
+            await InvokeAsync(() => ParticipantDialogAction(root, "InvitationCancelDialog", true));
+            await Wait(() => Visible(root, "LoginPage") && !page.HasDialog);
+            fixture.RejectSession = false;
+            fixture.CompleteLogin = true;
+            await InvokeAsync(() => Find<Button>(root, "LoginButton"));
+            await Wait(() => Visible(root, "ManagementPage") && Find<ContentControl>(root, "Operations").IsEnabled);
+            await fixture.CallbackTask!;
+            Check(ReferenceEquals(page, ManagementFeature(root)) && !page.HasDialog && page.ViewModel.Cancelling is null &&
+                ReferenceEquals(draft, page.ViewModel.InvitationDraft) && server.CreatedCount == 0 && server.CancelCount == 0,
+                "未完了発行を保持した取消中の401は、取消確認だけ解放して発行・取消を自動実行しない");
             await InvokeAsync(() => Find<Button>(root, "IssueInvitationButton")); await Wait(() => server.CreatedCount == 1);
             Check(server.CreateRequests.Single() == original, "招待発行の認証復帰でも同じrequestIdを再使用");
         }
     }
-    private static bool ParticipantEditorClosed(FrameworkElement root) => Find<ScrollViewer>(root, "ParticipantEditorContent").Visibility == Visibility.Collapsed;
+    private static bool ParticipantEditorClosed(FrameworkElement root) => ManagementDialogClosed(root, "ParticipantDialog");
     private static async Task WaitParticipantDialogReady(FrameworkElement root) => await Wait(() => !ParticipantEditorClosed(root) &&
         Find<ContentDialog>(root, "ParticipantDialog").IsLoaded && Find<ContentControl>(root, "Operations").IsEnabled &&
         All(Find<ContentDialog>(root, "ParticipantDialog")).OfType<Button>().Any(b => InvokeTargetReady(b) &&
