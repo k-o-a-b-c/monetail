@@ -6,9 +6,6 @@ namespace Monetail.Api.Features.Monetail.Ledgers;
 
 public sealed partial class LedgerManagementService
 {
-    private Task<string?> FindReceiptPeriodViolationAsync(IQueryable<LedgerReceipt> receipts, DateOnly? from, DateOnly? to, CancellationToken token) =>
-        FindPeriodViolationAsync(receipts.Select(row => row.TransactionAt), from, to, token);
-
     private async Task<string?> FindPeriodViolationAsync(IQueryable<DateTime> dates, DateOnly? from, DateOnly? to, CancellationToken token)
     {
         if (from is DateOnly first && await dates.AnyAsync(day => day < first.ToDateTime(TimeOnly.MinValue), token))
@@ -16,6 +13,17 @@ public sealed partial class LedgerManagementService
         if (to is DateOnly last && await dates.AnyAsync(day => day > last.ToDateTime(new TimeOnly(23, 59, 59)), token))
             return "validTo";
         return null;
+    }
+
+    private Task<string?> FindPaymentMethodPeriodViolationAsync(string ledger, string paymentMethod, DateOnly? from, DateOnly? to, CancellationToken token)
+    {
+        var receipts = context.Set<LedgerReceipt>()
+            .Where(row => row.LedgerId == ledger && row.PaymentMethodId == paymentMethod)
+            .Select(row => row.TransactionAt);
+        var transfers = context.Set<LedgerTransfer>()
+            .Where(row => row.LedgerId == ledger && (row.FromPaymentMethodId == paymentMethod || row.ToPaymentMethodId == paymentMethod))
+            .Select(row => row.TransactionAt);
+        return FindPeriodViolationAsync(receipts.Union(transfers), from, to, token);
     }
 
     private Task<string?> FindPersonPeriodViolationAsync(string ledger, string person, DateOnly? from, DateOnly? to, CancellationToken token)
