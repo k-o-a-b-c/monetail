@@ -19,10 +19,8 @@ public sealed partial class MainWindow : Window
         Title = "Monetail";
         SizeInitialWindow();
         Closed += CloseConnection;
-        WorkspaceRoot.Children.Remove(EditorContents);
         InitializeReceipts();
-        InitializeReceiptEditor();
-        InitializeTransferEditor();
+        AppWindow.Closing += ConfirmWindowClosing;
         ShowAuthentication()?.PrepareInitialDestination();
     }
 

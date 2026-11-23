@@ -40,18 +40,15 @@
     <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptListView.xaml.cs" Link="Views/Receipts/ReceiptListView.xaml.cs" />
     <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml" Link="Views/Transfers/TransferListView.xaml" />
     <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferListView.xaml.cs" Link="Views/Transfers/TransferListView.xaml.cs" />
-    <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml" Link="Views/Transfers/TransferEditorView.xaml" />
-    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorView.xaml.cs" Link="Views/Transfers/TransferEditorView.xaml.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferEditor.cs" Link="MainWindow.TransferEditor.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSave.cs" Link="MainWindow.TransferSave.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferRecovery.cs" Link="MainWindow.TransferRecovery.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.TransferSuggestions.cs" Link="MainWindow.TransferSuggestions.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorPage.xaml" Link="Views/Transfers/TransferEditorPage.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorPage.xaml.cs" Link="Views/Transfers/TransferEditorPage.xaml.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Transfers/TransferEditorPage.Actions.cs" Link="Views/Transfers/TransferEditorPage.Actions.cs" />
 
-    <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.xaml" Link="Views/Receipts/ReceiptEditorView.xaml" />
-    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.Details.cs" Link="Views/Receipts/ReceiptEditorView.Details.cs" />
-    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorView.xaml.cs" Link="Views/Receipts/ReceiptEditorView.xaml.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptRecovery.cs" Link="MainWindow.ReceiptRecovery.cs" />
-    <Compile Include="../../src/Monetail.WinUI/MainWindow.ReceiptEditor.cs" Link="MainWindow.ReceiptEditor.cs" />
+    <Page Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.xaml" Link="Views/Receipts/ReceiptEditorPage.xaml" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.Details.cs" Link="Views/Receipts/ReceiptEditorPage.Details.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.xaml.cs" Link="Views/Receipts/ReceiptEditorPage.xaml.cs" />
+    <Compile Include="../../src/Monetail.WinUI/Views/Receipts/ReceiptEditorPage.Lifetime.cs" Link="Views/Receipts/ReceiptEditorPage.Lifetime.cs" />
+    <Compile Include="../../src/Monetail.WinUI/MainWindow.RecordEditors.cs" Link="MainWindow.RecordEditors.cs" />
     <Compile Include="../../src/Monetail.WinUI/MainWindow.Receipts.cs" Link="MainWindow.Receipts.cs" />
 
     <Page Include="../../src/Monetail.WinUI/Views/Management/*.xaml" Link="Views/Management/%(Filename)%(Extension)" />

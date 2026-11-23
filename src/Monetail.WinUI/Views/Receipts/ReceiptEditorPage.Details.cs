@@ -13,16 +13,16 @@ using Windows.UI.Core;
 
 namespace Monetail.WinUI.Views.Receipts;
 
-public sealed partial class ReceiptEditorView
+public sealed partial class ReceiptEditorPage
 {
     private bool ReadOnly => ViewModel?.IsReadOnly != false;
-    public void Synchronize()
+    private void Synchronize()
     {
         SynchronizeParent();
         SyncReceiptGroupMemo();
         SyncReceiptDetailInput();
     }
-    public void RefreshMasters(bool preserveCategoryChoice)
+    private void RefreshMasters(bool preserveCategoryChoice)
     {
         if (rendering || ViewModel is not { } model)
             return;

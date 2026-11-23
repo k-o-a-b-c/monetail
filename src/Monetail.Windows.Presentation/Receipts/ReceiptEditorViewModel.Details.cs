@@ -25,7 +25,7 @@ public sealed partial class ReceiptEditorViewModel
     public ReceiptDetailRow[] Details { get; private set; } = [];
     private bool validationRequested;
     private (PeopleInfo? People, PaymentMethodsInfo? Payments, CategoriesInfo? Categories, Guid? Mine) Masters => masters?.Invoke() ?? default;
-    public bool IsDialogOpen => availability().DialogOpen;
+    public bool IsDialogOpen => dialogOpen || availability().DialogOpen;
     public bool IsTransitioning => TransitionCommand.IsRunning;
     public bool HasUnappliedInput => DetailInput?.HasChanges == true || Editor.HasUnappliedChanges;
     public ReceiptCategoryRow? SelectedGroup => Groups.FirstOrDefault(g => g.Key == Editor.SelectedGroupKey);
@@ -68,6 +68,11 @@ public sealed partial class ReceiptEditorViewModel
     public void RebuildDetails() => Details = Editor.SelectedGroup?.Details.Select(d => new ReceiptDetailRow(d)).ToArray() ?? [];
     public void Discard()
     {
+        recoveryLoading?.Cancel();
+        Context = null;
+        ActionRequested = null;
+        ConfirmationRequested = null;
+        AuthenticationRequired = null;
         DetailInput = null;
         TaxHistory = null;
         Groups = [];

@@ -9,6 +9,7 @@ using Monetail.Windows.Presentation.Transfers;
 using Monetail.Windows.Presentation.Workspace;
 
 namespace Monetail.WinUI;
+
 public sealed partial class MainWindow
 {
     private RecordHomeViewModel? recordHome;
@@ -93,9 +94,8 @@ public sealed partial class MainWindow
     {
         if (currentLedger?.LedgerId != ledger || closed)
             return;
-        RefreshReceiptEditorChoices();
-        RefreshTransferEditorChoices();
-        RenderTransferEditor();
+        ReceiptPage?.MastersChanged();
+        TransferPage?.MastersChanged();
         RefreshReceiptChoices();
         ReceiptListModel?.RefreshNames();
         TransferListModel?.RefreshNames();

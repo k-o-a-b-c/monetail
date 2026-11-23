@@ -9,9 +9,9 @@ namespace Monetail.WinUI.Smoke;
 
 public partial class App
 {
-    private Monetail.WinUI.Views.Receipts.ReceiptEditorView ReceiptView => ((FrameworkElement)window!.Content).FindName("ReceiptEntry")
-        as Monetail.WinUI.Views.Receipts.ReceiptEditorView ?? throw new InvalidOperationException("レシート親情報Viewがありません。");
-    private ReceiptEditorState? ReceiptEditing => (ReceiptEditorState?)typeof(MainWindow).GetField("receiptEditor", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window);
+    private Monetail.WinUI.Views.Receipts.ReceiptEditorPage ReceiptView => CurrentReceiptPage
+        ?? throw new InvalidOperationException("レシート入力Pageがありません。");
+    private ReceiptEditorState? ReceiptEditing => CurrentReceiptPage?.ViewModel?.Editor;
     private static Button ReceiptConfirmationFooter(FrameworkElement root, bool accept)
     {
         var dialog = Find<ContentDialog>(root, "ReceiptConfirmationDialog");
@@ -19,23 +19,28 @@ public partial class App
     }
     private async Task ConfirmReceipt(FrameworkElement root, bool accept)
     {
-        await Wait(() => {
-            if (ReceiptEditing is null) throw new InvalidOperationException("未保存確認の前に編集モデルが破棄されました。");
-            return Find<ContentDialog>(root, "ReceiptConfirmationDialog").IsLoaded && ReceiptConfirmationFooter(root, accept).IsLoaded && ReceiptConfirmationFooter(root, accept).ActualWidth > 0;
+        await Wait(() =>
+        {
+            if (ReceiptEditing is null)
+                throw new InvalidOperationException("未保存確認の前に編集モデルが破棄されました。");
+            return EditorDialog(root, "ReceiptConfirmationDialog") is { IsLoaded: true } && ReceiptConfirmationFooter(root, accept).IsLoaded && ReceiptConfirmationFooter(root, accept).ActualWidth > 0;
         });
         await InvokeAsync(() => ReceiptConfirmationFooter(root, accept));
-        await Wait(() => !(bool)typeof(MainWindow).GetField("receiptDialogOpen", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!);
+        await Wait(() => !(CurrentReceiptPage?.HasDialog ?? false));
     }
     private async Task CheckReceiptEditor()
     {
         using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
-        var categories = new CategoryServer(); fixture.CategoriesHandler = categories.HandleAsync;
-        var root = await OpenSyntheticWindow(fixture); await StartSyntheticAsync();
+        var categories = new CategoryServer();
+        fixture.CategoriesHandler = categories.HandleAsync;
+        var root = await OpenSyntheticWindow(fixture);
+        await StartSyntheticAsync();
         var list = Find<ListView>(root, "ReceiptList");
         await Wait(() => Find<Button>(root, "NewReceiptButton").ActualWidth > 0);
         await InvokeAsync(() => Find<Button>(root, "NewReceiptButton"));
         await Wait(() => ReceiptEditing is not null && Find<Button>(root, "ReceiptBack").ActualWidth > 0);
-        var editor = ReceiptEditing!; var today = DateTime.Today;
+        var editor = ReceiptEditing!;
+        var today = DateTime.Today;
         Check(ReceiptView.ViewModel is { } model && ReferenceEquals(model.Editor, editor) && !ReceiptView.IsTabStop &&
             ReferenceEquals(Find<TextBox>(root, "ReceiptShopName"), ReceiptView.FindName("ReceiptShopName")) &&
             ReferenceEquals(Find<Grid>(root, "ReceiptCategoryArea"), ReceiptView.FindName("ReceiptCategoryArea")),
@@ -48,13 +53,15 @@ public partial class App
         Check(!editor.NeedsLeaveConfirmation && editor.Header.PaymentMethodId is null && editor.Header.TaxInclusionMode == 0 && editor.Header.TaxRoundingMode == "floor" &&
             editor.Header.RecurrenceInterval is null && editor.Header.RecurrenceUnit is null && editor.Header.ShopName == "" && editor.Header.ShopLocation == "" && editor.Header.Memo is null,
             "新規親情報の空欄・支払未選択・税込/切り捨て・周期なしは未保存変更にしない");
-        Check(Visible(root, "HomePage") && Visible(root, "ReceiptEditorPage") && !Visible(root, "RecordContent") && Find<Button>(root, "LedgerSelector").IsLoaded &&
+        Check(!Visible(root, "HomePage") && Visible(root, "ReceiptEditorPage") && !Visible(root, "RecordContent") && Find<Button>(root, "LedgerSelector").IsLoaded &&
             !Find<Button>(root, "ReceiptRegister").IsEnabled && Find<Button>(root, "ReceiptUpdate").Visibility == Visibility.Collapsed, "共通ヘッダーを残しメイン領域全体を新規入力へ切替、保存は無効");
         Find<TextBox>(root, "ReceiptShopName").Text = "未保存店";
-        await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, false);
+        await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
+        await ConfirmReceipt(root, false);
         Check(ReferenceEquals(editor, ReceiptEditing) && editor.Header.ShopName == "未保存店" && Visible(root, "ReceiptEditorPage"), "離脱取消は同じ編集モデルと入力を保持");
-        await InvokeAsync(() => Find<Button>(root, "ReceiptBack")); await ConfirmReceipt(root, true);
+        await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
+        await ConfirmReceipt(root, true);
         await Wait(() => ReceiptEditing is null && Visible(root, "RecordContent"));
-        Check(list.Items.Count == 0 && Visible(root, "HomePage"), "明示破棄した後だけ元の一覧へ戻る");
+        Check(Find<ListView>(root, "ReceiptList").Items.Count == 0 && Visible(root, "HomePage"), "明示破棄した後だけ元の一覧へ戻る");
     }
 }

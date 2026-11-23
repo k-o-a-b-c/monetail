@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Navigation;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Authentication;
 using Monetail.Windows.Client.Input;
@@ -14,15 +15,32 @@ using Windows.System;
 using Windows.UI.Core;
 namespace Monetail.WinUI.Views.Transfers;
 
-public sealed partial class TransferEditorView : UserControl
+public sealed partial class TransferEditorPage : Page
 {
-    public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(
-        nameof(ViewModel), typeof(TransferEditorViewModel), typeof(TransferEditorView), new PropertyMetadata(null,
-            (owner, _) => ((TransferEditorView)owner).ChangeModel()));
     public TransferEditorViewModel? ViewModel
     {
-        get => (TransferEditorViewModel?)GetValue(ViewModelProperty);
-        set => SetValue(ViewModelProperty, value);
+        get; private set;
+    }
+    public event Func<Task>? ReturnRequested;
+    public event Func<TransferWriteCompletion, Task<bool>>? Saved;
+    protected override void OnNavigatedTo(NavigationEventArgs args)
+    {
+        base.OnNavigatedTo(args);
+        ViewModel = (TransferEditorViewModel)args.Parameter;
+        ViewModel.ActionRequested += ExecuteActionAsync;
+        ChangeModel();
+        Loaded += InitialFocus;
+        Populate();
+    }
+    private void InitialFocus(object sender, RoutedEventArgs args)
+    {
+        Loaded -= InitialFocus;
+        FocusField("transactionAt");
+    }
+    protected override void OnNavigatedFrom(NavigationEventArgs args)
+    {
+        Release();
+        base.OnNavigatedFrom(args);
     }
     public Func<DependencyObject?, bool>? IsCancellationTarget
     {
@@ -43,35 +61,13 @@ public sealed partial class TransferEditorView : UserControl
                 model.SuggestionError = value;
         }
     }
-    public TransferEditorView()
+    public TransferEditorPage()
     {
         InitializeComponent();
         transferKeyboard = new FormKeyboard(this, TransferSave,
             () => ViewModel?.SaveCommand.ExecuteAsync(null) ?? Task.CompletedTask, TransferDate, TransferTime, TransferAmount, TransferMemo);
-        TransferName.Loaded += (_, _) =>
-        {
-            if (transferNameInputObserved || Descendant<TextBox>(TransferName) is not { } input)
-                return;
-            transferNameInputObserved = true;
-            transferKeyboard.ObserveInput(input);
-            input.TextCompositionStarted += (_, _) => transferNameCompositionPending = true;
-            input.TextCompositionEnded += (_, _) => DispatcherQueue.TryEnqueue(() =>
-            {
-                if (!transferKeyboard.IsComposing && transferNameCompositionPending)
-                {
-                    transferNameCompositionPending = false;
-                    _ = SearchTransferNamesAsync(true);
-                }
-            });
-        };
-        TransferName.RegisterPropertyChangedCallback(AutoSuggestBox.IsSuggestionListOpenProperty, (_, _) =>
-        {
-            if (TransferName.IsSuggestionListOpen || transferClosingSuggestions || transferRendering || transferEditor is null)
-                return;
-            RestoreTransferTypedName();
-            transferSuggestionsSuppressed = true;
-            CancelTransferSuggestions();
-        });
+        TransferName.Loaded += ObserveNameInput;
+        suggestionCallback = TransferName.RegisterPropertyChangedCallback(AutoSuggestBox.IsSuggestionListOpenProperty, SuggestionsClosed);
         TransferDate.IsCancellationTarget = TransferTime.IsCancellationTarget = element =>
         {
             for (; element is not null; element = VisualTreeHelper.GetParent(element))
@@ -79,6 +75,34 @@ public sealed partial class TransferEditorView : UserControl
                     return true;
             return false;
         };
+    }
+    private readonly long suggestionCallback;
+    private TextBox? nameInput;
+    private void ObserveNameInput(object sender, RoutedEventArgs args)
+    {
+        if (nameInput is not null || Descendant<TextBox>(TransferName) is not { } input)
+            return;
+        nameInput = input;
+        transferKeyboard.ObserveInput(input);
+        input.TextCompositionStarted += NameCompositionStarted;
+        input.TextCompositionEnded += NameCompositionEnded;
+    }
+    private void NameCompositionStarted(object sender, object args) => transferNameCompositionPending = true;
+    private void NameCompositionEnded(object sender, object args) => DispatcherQueue.TryEnqueue(() =>
+    {
+        if (ViewModel is not null && !transferKeyboard.IsComposing && transferNameCompositionPending)
+        {
+            transferNameCompositionPending = false;
+            _ = SearchTransferNamesAsync(true);
+        }
+    });
+    private void SuggestionsClosed(DependencyObject sender, DependencyProperty property)
+    {
+        if (TransferName.IsSuggestionListOpen || transferClosingSuggestions || transferRendering || transferEditor is null)
+            return;
+        RestoreTransferTypedName();
+        transferSuggestionsSuppressed = true;
+        CancelTransferSuggestions();
     }
     private static T? Descendant<T>(DependencyObject root) where T : DependencyObject
     {
@@ -104,7 +128,7 @@ public sealed partial class TransferEditorView : UserControl
         TransferNoticeLevel.Warning => InfoBarSeverity.Warning,
         _ => InfoBarSeverity.Error
     };
-    public void Populate()
+    private void Populate()
     {
         if (ViewModel is not { } model)
             return;
@@ -120,18 +144,18 @@ public sealed partial class TransferEditorView : UserControl
         RefreshChoices();
         RefreshPresentation();
     }
-    public void SynchronizeInput()
+    private void SynchronizeInput()
     {
         if (!transferRendering && ViewModel is { } model)
             model.UpdateInput(TransferDate.Text, TransferTime.Text, TransferAmount.Text, TransferMemo.Text);
     }
-    public void CompleteInput()
+    private void CompleteInput()
     {
         TransferDate.Complete();
         TransferTime.Complete();
         SynchronizeInput();
     }
-    public void RefreshChoices()
+    private void RefreshChoices()
     {
         if (ViewModel is not { } model || model.PaymentChoices() is not { } choices)
             return;
@@ -172,7 +196,7 @@ public sealed partial class TransferEditorView : UserControl
         if (ReferenceEquals(sender, TransferFrom))
             _ = AutofillTransferAsync();
     }
-    public void SetDialogOpen(bool open)
+    private void SetDialogOpen(bool open)
     {
         TransferDate.SuppressCompletion = TransferTime.SuppressCompletion = open;
         if (open)
@@ -181,12 +205,12 @@ public sealed partial class TransferEditorView : UserControl
             RestoreTransferTypedName();
         }
     }
-    public void CancelRequests()
+    private void CancelRequests()
     {
         CancelTransferSuggestions();
         transferAutofillCancellation?.Cancel();
     }
-    public void Suspend()
+    private void Suspend()
     {
         SetDialogOpen(true);
         transferSuggestions.Clear();
@@ -194,7 +218,7 @@ public sealed partial class TransferEditorView : UserControl
         transferAutofillCancellation?.Cancel();
         transferAutofillKey = null;
     }
-    public void Discard()
+    private void Discard()
     {
         SetDialogOpen(false);
         ResetTransferSuggestions();
@@ -209,13 +233,15 @@ public sealed partial class TransferEditorView : UserControl
         TransferInputScroller.ChangeView(null, 0, null, true);
         position = null;
     }
-    public void RememberPosition()
+    private void RememberPosition()
     {
-        var focus = FocusManager.GetFocusedElement(XamlRoot) as Control;
+        if (ViewModel?.RecoveryBlocked == true && position is not null)
+            return;
+        var focus = XamlRoot is { } root ? FocusManager.GetFocusedElement(root) as Control : null;
         position = new(focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
             TransferInputScroller.VerticalOffset);
     }
-    public void RestorePosition(Func<bool> current)
+    private void RestorePosition(Func<bool> current)
     {
         var model = ViewModel;
         var saved = position;
@@ -242,7 +268,7 @@ public sealed partial class TransferEditorView : UserControl
             }
         });
     }
-    public void FocusField(string field)
+    private void FocusField(string field)
     {
         Control target = field switch
         {
@@ -259,7 +285,7 @@ public sealed partial class TransferEditorView : UserControl
     private readonly Dictionary<string, TransferSuggestionsInfo> transferSuggestions = new(StringComparer.Ordinal);
     private CancellationTokenSource? transferSuggestionCancellation, transferAutofillCancellation;
     private long transferSuggestionGeneration;
-    private bool transferClosingSuggestions, transferSuggestionsSuppressed, transferNameFocusTransition, transferNameInputObserved, transferNameCompositionPending, transferNameKeyboardSubmit, transferNameKeyboardHadSuggestions;
+    private bool transferClosingSuggestions, transferSuggestionsSuppressed, transferNameFocusTransition, transferNameCompositionPending, transferNameKeyboardSubmit, transferNameKeyboardHadSuggestions;
     private string? transferNamePreview;
     private (string Name, DateOnly Day, Guid? From)? transferAutofillKey;
     private static bool TransferKeyDown(VirtualKey key) => InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(CoreVirtualKeyStates.Down);

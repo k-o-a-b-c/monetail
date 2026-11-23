@@ -6,10 +6,11 @@ using Monetail.Windows.Presentation.Workspace;
 using Monetail.WinUI.Views.Workspace;
 
 namespace Monetail.WinUI;
+
 public sealed partial class MainWindow
 {
     private ManagementPage? ManagementPage => WorkspaceHost.Content as ManagementPage;
-    private bool ManagementDialogOpen => ledgerSwitchDialog is not null || transferDialogOpen || receiptDialogOpen || ManagementPage?.HasDialog == true;
+    private bool ManagementDialogOpen => ledgerSwitchDialog is not null || TransferPage?.HasDialog == true || ReceiptPage?.HasDialog == true || ManagementPage?.HasDialog == true;
 
     private void EnsureManagement()
     {

@@ -258,6 +258,8 @@ public partial class App
         "LoginPage" => LoginScreen(root) is { } login && VisibleAncestors((FrameworkElement)login.FindName("LoginContent")),
         "FailurePage" => FailureScreen(root) is { } failure && VisibleAncestors(failure),
         "LedgerCreatePage" => CreationScreen(root) is { } creation && VisibleAncestors(creation),
+        "ReceiptEditorPage" or "TransferEditorPage" => FindEditorElement(root, name) is FrameworkElement editor && VisibleAncestors(editor),
+        "RecordContent" => FindWorkspaceElement(root, name) is FrameworkElement record && VisibleAncestors(record),
         "HomePage" or "ManagementPage" or "LedgerChoicePage" => FindWorkspaceElement(root, name) is FrameworkElement page && VisibleAncestors(page),
         _ => VisibleAncestors(Find<FrameworkElement>(root, name))
     };

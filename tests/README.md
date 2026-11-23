@@ -10,13 +10,31 @@
 | ASP.NET Core API | 2175 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1210 |
-| Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・管理4機能VM・投影・Command・共通ページング・復帰） | 189 |
+| Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・管理4機能VM・投影・Command・共通ページング・復帰） | 197 |
 | Windowsの実DPAPI・保存 | 3 |
-| WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・38シナリオ） | 2 |
+| WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・39シナリオ） | 2 |
 | CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3874 |
+| 合計 | 3882 |
 
 <a id="management-mvvm-pr2"></a>
+
+## 入力画面の標準Page化（Draft PR #246 / PR3）
+
+既存EditorViewをReceiptEditorPage/TransferEditorPageへ直接置換し、同じVM/Client編集状態を利用する。レシート全体保存は引き続き無効。責務・状態・行数の比較は[構成正本](../docs/architecture-winui.md#pr3入力pageへの移管)を参照する。
+
+[RecordEditorLifecycleTests](Monetail.Windows.Presentation.Tests/RecordEditorLifecycleTests.cs)の追加8件で、既存ClientによるPOST/PUT/DELETE、不変要求と送信内容の明示再試行、409の区別・入力/旧revision保持、認証後の同じDraft/要求、レシートのマスタ失敗/再試行と未反映入力の保持、追加詳細GET/自動書込なし、二重解放を確認する。ローカルPresentation全197件と追加8件が成功し、Windowsの[Tests 45085891146](https://github.com/k-o-a-b-c/monetail/actions/runs/45085891146)でもClient全1,210件・Presentation197件が成功した。以降の同一入力はCIの成功fingerprintを再利用する。変更前はPR #244採用の[45021485046](https://github.com/k-o-a-b-c/monetail/actions/runs/45021485046)の成功結果を用いる。API/DB/Docker/旧Windows等の非変更対象も同じ既存CI選択に従い、構成合計3,882件を今回同時に全件実行した意味ではない。
+
+[EditorPageLifetimeScenario](Monetail.WinUI.Smoke/EditorPageLifetimeScenario.cs)を`editor-page-lifetime`（9確認）として追加した。未訪問Page未生成、標準Frame/共通ヘッダー/左上戻る、通常離脱のPage/VM接続解除・空の遷移履歴、新しいホームPageと同じ一覧VM、再訪の新Page、実WM_CLOSEの連続要求と一つの確認・取消時の同じ入力を確認する。既存38シナリオを維持し、旧Window NameScope/常駐ダイアログ待機を現在のPage/必要時ダイアログへ変更した。ReceiptViewportScenarioは再生成ホームの実ListViewで同じVM/選択と縦横位置を、TransferSafetyScenarioの追加2ケース（4確認）は通常更新/保存して移動の成功後に一覧401となった場合のログイン維持・再保存/詳細GETなしを検証する。401/連続401/競合/結果不明/保存行探索/キーボード/IMEの期待値・タイムアウトは緩和しない。
+
+最終製品/テストソース`896767d`の[Tests 45113343298・attempt 3](https://github.com/k-o-a-b-c/monetail/actions/runs/45113343298/attempts/3)が成功した。製品/検証用WinUI x64 Release・製品実起動、全39シナリオ/995確認、個別3シナリオ（input-controls/transfer-reauthentication/shell）、全件登録順照合、不正指定拒否、計測と4 PNG生成の検証が成功。前半14シナリオ/454確認は82.281秒、後半25/541は94.718秒で、各120秒上限を維持した。既存WUI2011は両ビルド各5件（移管したReceiptEditorPageの安定した操作バインド）で、新規警告/エラーなし。git diff --check（基点との差分全体）、C#構文・4 XML・構造検査・ローカル文書パス検査も成功。製品C#/XAMLは21,271→21,594行（+323）、MainWindowは1,969→1,413行（-556）。後続は検証文書だけを更新し、同一入力の成功fingerprintを再利用する。文書更新後の最終CIは[PR #246](https://github.com/k-o-a-b-c/monetail/pull/246)に記録する。
+
+[45112685316](https://github.com/k-o-a-b-c/monetail/actions/runs/45112685316)では製品/検証用Release・起動と全39シナリオ/995確認（前半454/77.673秒、後半541/86.172秒）が成功し、末尾の登録順照合だけが失敗した。カタログを既存のプロセス順へ配置し直し、各プロセス内の実行順と検証条件は変えていない。先行[45090341402](https://github.com/k-o-a-b-c/monetail/actions/runs/45090341402)は38件まで進行後に120秒へ達したため、新設Page寿命と独立した人物削除/順序/順序再認証を前半へ配分した。2プロセス/各120秒、全件で各1回、個別指定と参加者復帰の反復対象を維持する。実IME試験は元のプロセスに残す。
+
+途中の移管時失敗は、名前空間不足、解放済みホーム/未生成ダイアログへの参照、権限変更時の移設期待先ミス、Page接続前のXamlRootなしでのフォーカス取得だった。現在の所有者とLoadedを確認し、位置未成立を扱う。未確定日付の保持不一致は401前に発生しており、新たに追加していたLoaded時のフォーカス操作を撤去し、試験のFrame初回フォーカス確定を待ってから入力するよう修正した。共通busy前の補完抑止を増やす試行は取り下げ、製品のDateInputBoxの補完契約は変更しない。初回の追加単体試験ではfixtureの家計簿JSON/revision・所有者順序が不正で失敗し、実Clientの検証に合う架空データへ修正した。
+
+[45111416352](https://github.com/k-o-a-b-c/monetail/actions/runs/45111416352)は明細メモの合成IME確定Enterでフォーカスが移る確認に失敗した（composing=False、保存済みメモ/明細は不変）。直前の同じ製品コードでは当該26確認が通過しており、原因未特定。期待値・製品FormKeyboardは変更しない。[45112089973](https://github.com/k-o-a-b-c/monetail/actions/runs/45112089973)は追加した保存後401試験のSettings操作直後に0xC000027Bで停止した。管理例外の詳細は残らず、既知の停止と同一原因とは断定しない。Page接続前にダイアログを開かないガードと入力前のLoaded待機を追加し、次の成功実行の記録では両ケースとも待機前はloaded=False/rootPresent=Falseだった。登録順修正後の[45113343298・attempt 1](https://github.com/k-o-a-b-c/monetail/actions/runs/45113343298/attempts/1)は親レシートメモの合成IME確定Enter（composing=False）で失敗し、同一ソースの[attempt 2](https://github.com/k-o-a-b-c/monetail/actions/runs/45113343298/attempts/2)は振替候補のTabで自由入力/候補キャッシュを保持する確認が失敗した。直前の全件成功と製品コード・プロセス内実行順は同一で、いずれも原因未特定。失敗ジョブだけを同条件で再実行し、成功/失敗を分けて記録する。これらの再実行成功を0xC000027B/0xC0000005・IMEの断続失敗の根本解消とは扱わない。
+
+WinApp CLIはLinux環境にないため未実行。Windows CIのRelease/実起動/自動操作と既存Analyzer/構造検査で確認する。実Windows手動の物理IME・タッチ・高DPI/文字拡大・支援技術、実API/OAuth、ヒープによるGC回収計測は未実施。参照解除を実GC回収と同一視しない。
 
 ## 管理機能Page/MVVM分離（Draft PR #244 / PR2）
 

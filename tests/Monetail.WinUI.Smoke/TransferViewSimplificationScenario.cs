@@ -239,7 +239,7 @@ public partial class App
             await opening;
             var editor = TransferEditing;
             await model.RegisterCommand.ExecuteAsync(null);
-            Check(editor is not null && ReferenceEquals(editor, TransferEditing) && Find<Grid>(root, "RecordContent").Visibility == Visibility.Collapsed && server.Details == 1,
+            Check(editor is not null && ReferenceEquals(editor, TransferEditing) && !Visible(root, "RecordContent") && server.Details == 1,
                 "編集中は既存の一覧非表示と起動ガードを維持し、追加画面を二重起動しない");
             await InvokeAsync(() => Find<Button>(root, "TransferBack"));
             await Wait(() => TransferEditing is null && Find<Button>(root, "TransferRegisterPlaceholder").IsEnabled);

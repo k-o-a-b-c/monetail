@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Navigation;
 using Monetail.WinUI.Input;
 using Monetail.Windows.Client.Input;
 using Monetail.Windows.Client.Ledgers;
@@ -14,15 +15,24 @@ using Monetail.Windows.Presentation.Receipts;
 namespace Monetail.WinUI.Views.Receipts;
 
 /// <summary>レシート入力の実コントロール、描画、フォーカス、IMEを所有する。</summary>
-public sealed partial class ReceiptEditorView : UserControl
+public sealed partial class ReceiptEditorPage : Page
 {
-    public static readonly DependencyProperty ViewModelProperty = DependencyProperty.Register(nameof(ViewModel),
-        typeof(ReceiptEditorViewModel), typeof(ReceiptEditorView), new PropertyMetadata(null,
-            (owner, args) => ((ReceiptEditorView)owner).ModelChanged(args.OldValue as ReceiptEditorViewModel, args.NewValue as ReceiptEditorViewModel)));
     public ReceiptEditorViewModel? ViewModel
     {
-        get => (ReceiptEditorViewModel?)GetValue(ViewModelProperty);
-        set => SetValue(ViewModelProperty, value);
+        get; private set;
+    }
+    protected override void OnNavigatedTo(NavigationEventArgs args)
+    {
+        base.OnNavigatedTo(args);
+        ViewModel = (ReceiptEditorViewModel)args.Parameter;
+        ModelChanged(null, ViewModel);
+        ViewModel.ConfirmationRequested += ConfirmAsync;
+        Populate();
+    }
+    protected override void OnNavigatedFrom(NavigationEventArgs args)
+    {
+        Release();
+        base.OnNavigatedFrom(args);
     }
     private void ModelChanged(ReceiptEditorViewModel? previous, ReceiptEditorViewModel? current)
     {
@@ -58,7 +68,7 @@ public sealed partial class ReceiptEditorView : UserControl
     private bool rendering;
     private readonly FormKeyboard receiptEditorKeyboard;
     private TextBox[] TextInputs => [ReceiptDate, ReceiptTime, ReceiptShopName, ReceiptShopLocation, ReceiptInterval, ReceiptMemo, ReceiptCategoryMemo, ReceiptItemName, ReceiptItemPrice, ReceiptItemQuantity, ReceiptItemDiscount, ReceiptItemRateDiscount, ReceiptItemMemo];
-    public ReceiptEditorView()
+    public ReceiptEditorPage()
     {
         InitializeComponent();
         receiptEditorKeyboard = new FormKeyboard(this, null, null, TextInputs);
@@ -70,13 +80,13 @@ public sealed partial class ReceiptEditorView : UserControl
             return false;
         };
     }
-    public DateOnly? ConfirmedDay => DateOnly.TryParseExact(ReceiptDate.Text, "yyyy/MM/dd", CultureInfo.InvariantCulture,
+    private DateOnly? ConfirmedDay => DateOnly.TryParseExact(ReceiptDate.Text, "yyyy/MM/dd", CultureInfo.InvariantCulture,
         DateTimeStyles.None, out var day) ? day : null;
     private bool IsHeaderConfirmed => ConfirmedDay is not null && TimeOnly.TryParseExact(ReceiptTime.Text, "HH:mm:ss",
         CultureInfo.InvariantCulture, DateTimeStyles.None, out _) && ReceiptRecurrenceInput.Parse(ReceiptInterval.Text, Choice(ReceiptUnit)).IsValid;
     private bool HasUnresolvedInput => ViewModel?.HasUnresolvedInput(ReceiptDate.Text, ReceiptTime.Text, ReceiptInterval.Text, Choice(ReceiptUnit)) == true;
     public bool NeedsLeaveConfirmation => ViewModel is { } model && (model.Editor.NeedsLeaveConfirmation || model.HasUnappliedInput || HasUnresolvedInput);
-    public void Populate()
+    private void Populate()
     {
         if (ViewModel is not { } model)
             return;
@@ -142,7 +152,7 @@ public sealed partial class ReceiptEditorView : UserControl
         }
         finally { rendering = previous; }
     }
-    public void RefreshRecovery()
+    private void RefreshRecovery()
     {
         ViewModel?.Refresh();
         var readOnly = ViewModel?.IsReadOnly == true;
@@ -155,8 +165,8 @@ public sealed partial class ReceiptEditorView : UserControl
         UpdateReceiptCategoryActions();
         RenderReceiptDetailList();
     }
-    public void SuppressCompletion(bool suppress) => ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = suppress;
-    public void Clear()
+    private void SuppressCompletion(bool suppress) => ReceiptDate.SuppressCompletion = ReceiptTime.SuppressCompletion = suppress;
+    private void Clear()
     {
         rendering = true;
         try
@@ -170,7 +180,7 @@ public sealed partial class ReceiptEditorView : UserControl
         }
         finally { rendering = false; }
     }
-    public void RestorePosition(Control? focus, int start, int length, (ScrollViewer Viewer, double X, double Y)[] scrolls, Func<bool> current)
+    private void RestorePosition(Control? focus, int start, int length, (ScrollViewer Viewer, double X, double Y)[] scrolls, Func<bool> current)
     {
         DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
         {
