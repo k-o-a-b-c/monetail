@@ -157,6 +157,7 @@ public partial class App
         var oldView = view;
         view = Find<Monetail.WinUI.Views.Receipts.ReceiptListView>(root, "ReceiptsView");
         list = Find<ListView>(root, "ReceiptList");
+        await Wait(() => list.IsLoaded && All(list).OfType<ScrollViewer>().Any());
         scroll = All(list).OfType<ScrollViewer>().First();
         await Wait(() => Math.Abs(scroll.VerticalOffset - vertical) < 1 && Math.Abs(scroll.HorizontalOffset - horizontal) < 1);
         Check(!ReferenceEquals(oldView, view) && oldView.ViewModel is null, "入力からの復帰は旧ホームViewを解放し、新Pageで一覧位置を復元する");

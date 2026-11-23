@@ -248,6 +248,7 @@ public sealed partial class MainWindow
     private void CloseConnection(object sender, WindowEventArgs args)
     {
         closed = true;
+        AppWindow.Closing -= ConfirmWindowClosing;
         RecordPage?.Suspend();
         ReleaseAuthentication();
         ReleaseLedgerPage();
