@@ -4,7 +4,7 @@
 
 本書は人物リソースのAPI要求・応答と、認可・検証・整合性・競合・再送の保証を定める。
 
-**応答形式の変更は未実装。** 以下は確定した変更後の契約であり、現行API・Windows Clientはまだ`myPersonId`・`currentRole`を人物応答に含めている。実装時に両方を除外し、[家計簿API](../../../ledger-core-api.md)を取得元に統一する。
+**応答形式の変更は未実装。** 以下は確定した変更後の契約であり、現行API・Windows Clientはまだ`myPersonId`・`currentRole`を人物一覧応答に含め、業務エラーの`permissions`を使用している。実装時にこれらの操作者情報を除外し、[家計簿API](../../../ledger-core-api.md)を取得元に統一する。
 
 ## 1. 対象・関連契約
 
@@ -73,7 +73,7 @@
 
 ## 6. 競合・失敗応答
 
-- 人物APIの業務エラー本文は`code`・`message`を基本とし、該当する場合のみ`field`・`latest`を含める。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない。
+- 人物APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし、該当しない`field`・`latest`は`null`とする。操作者の`permissions`は含めない。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない。
 
 | HTTP | `code` | 内容 |
 | --- | --- | --- |
@@ -83,7 +83,7 @@
 | 404 | `not_found` | 家計簿不在・未参加・対象人物不在等（業務処理内） |
 | 409 | `duplicate_person_name` | 同名人物の登録・更新 |
 | 409 | `person_referenced` | 参照が残る人物の削除 |
-| 409 | `person_period_conflict` | 既存レシートが期間外になる人物期間変更。`field`は`validFrom`または`validTo`、`latest`は`null` |
+| 409 | `person_period_conflict` | 既存レシート・振替等が期間外になる人物期間変更（実装範囲は第3節）。`field`は`validFrom`または`validTo`、`latest`は`null` |
 | 409 | `revision_conflict` | 更新版の不一致 |
 | 409 | `request_conflict` | 要求IDを異なる内容で再利用 |
 | 409 | `created_result_deleted` | 作成済み人物の削除後に同じ要求を再送 |

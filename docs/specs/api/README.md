@@ -56,8 +56,8 @@ docs/specs/api/
 | 候補 | 比較する既存正本 | 抽出前に確認する差異 |
 | --- | --- | --- |
 | 認証・HTTP境界 | [セッション](../../auth-session-security.md)、[認証API](../../auth-api-contract.md)、[家計簿API](../../ledger-core-api.md) | CSRF・本文上限・認証方式・適用範囲 |
-| エラー本文 | [人物・参加者API](../../ledger-person-api-contract.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | `code`/`message`/`field`/`latest`/`permissions`の出現条件、認証境界、機能固有コード |
-| 更新版・競合 | [人物・参加者API](../../ledger-person-api-contract.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md)、[科目・支払方法](../../ledger-core-schema.md) | 対象行版と共通順の全体版、409時の`latest` |
+| エラー本文 | [人物API](features/persons.md)、[参加者API](../../ledger-person-api-contract.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | `code`/`message`/`field`/`latest`/`permissions`の出現条件、認証境界、機能固有コード |
+| 更新版・競合 | [人物API](features/persons.md)、[参加者API](../../ledger-person-api-contract.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md)、[科目・支払方法](../../ledger-core-schema.md) | 対象行版と共通順の全体版、409時の`latest` |
 | 要求ID・再送 | [共通再送](../../ledger-operation-retries.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | 対象操作・成功再現・削除後再送・権限再検証・レスポンスの差異 |
 | カーソル | [レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | フィルター・並び順・不正カーソルの扱い |
 | 回数制限 | [認証API](../../auth-api-contract.md)、[家計簿API](../../ledger-core-api.md)、[人物の競合・制限](../../ledger-person-conflicts.md) | 認証系と業務APIの異なる枠・対象操作 |
