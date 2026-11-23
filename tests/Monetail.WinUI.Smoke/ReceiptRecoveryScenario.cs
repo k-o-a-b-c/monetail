@@ -75,6 +75,9 @@ public partial class App
             price.Text = "12x";
             price.Select(1, 2);
             var date = Find<DateInputBox>(root, "ReceiptDate");
+            var focusChanges = new List<string>();
+            date.LosingFocus += (_, args) => focusChanges.Add($"losing:suppress={date.SuppressCompletion},readonly={date.IsReadOnly},enabled={date.IsEnabled},target={args.NewFocusedElement?.GetType().Name}");
+            date.LostFocus += (_, _) => focusChanges.Add($"lost:preserved={date.Text == "2026/"}");
             date.Text = "2026/";
             Find<TimeInputBox>(root, "ReceiptTime").Text = "9:";
             Find<TextBox>(root, "ReceiptInterval").Text = "2x";
@@ -88,10 +91,11 @@ public partial class App
             var offset = scroller.VerticalOffset;
             var dirty = editor.NeedsLeaveConfirmation;
             var reads = server.Details;
+            Check(price.Text == "12x" && date.Text == "2026/", "認証退避前に未確定の単価/日付を保持する: " + string.Join(";", focusChanges));
             await ExpireReceiptLogin(fixture);
             await Wait(() => Visible(root, "LoginPage"));
             var context = ReceiptRecoveryPosition;
-            string RetentionDiagnostic() => $"positionPresent={context is not null}; samePosition={ReferenceEquals(context, ReceiptRecoveryPosition)}; pricePreserved={price.Text == "12x"}; datePreserved={date.Text == "2026/"}; phase={ReceiptRecoveryPhaseValue}; suppress={date.SuppressCompletion}";
+            string RetentionDiagnostic() => $"positionPresent={context is not null}; samePosition={ReferenceEquals(context, ReceiptRecoveryPosition)}; pricePreserved={price.Text == "12x"}; datePreserved={date.Text == "2026/"}; phase={ReceiptRecoveryPhaseValue}; suppress={date.SuppressCompletion}; focusChanges={string.Join(";", focusChanges)}";
             Check(context is not null && price.Text == "12x" && date.Text == "2026/", "401直後の未確定入力と最初の編集位置を保持する: " + RetentionDiagnostic());
             Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) && ReferenceEquals(editorModel, ReceiptView.ViewModel) && ReferenceEquals(parent, ReceiptView.ViewModel?.ParentInput) &&
                 ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput) && !VisibleAncestors(Find<Monetail.WinUI.Views.Receipts.ReceiptEditorPage>(root, "ReceiptEditorPage")), "レシート401は元の編集/親入力/未反映下書き/コントロールを保持して非表示にする");

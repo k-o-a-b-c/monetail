@@ -33,6 +33,9 @@ public sealed partial class ReceiptEditorPage : Page
     private void InitialFocus(object sender, RoutedEventArgs args)
     {
         Loaded -= InitialFocus;
+        // Loadedより先に利用者が入力へ移った場合、そのフォーカスを奪わない。
+        if (FocusManager.GetFocusedElement(XamlRoot) is TextBox focused && Visuals(this).Any(element => ReferenceEquals(element, focused)))
+            return;
         ReceiptDate.Focus(FocusState.Programmatic);
     }
     protected override void OnNavigatedFrom(NavigationEventArgs args)
