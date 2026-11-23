@@ -1,24 +1,25 @@
 # 人物API・業務契約
 
-**人物5操作のAPI外部契約の正本。** 人物の画面動作は[人物管理](../../../ledger-persons.md)、参加者のAPIは[参加者API](../../../ledger-person-api-contract.md)、物理DBは[人物DB](../../../ledger-person-db.md)、共通再送は[operation_requests](../../../ledger-operation-retries.md)を参照する。
-
-本書は人物リソースのAPI要求・応答と、認可・検証・整合性・競合・再送の保証を定める。
+**人物APIの外部契約の正本。**
 
 ## 1. 対象・関連契約
 
-- 対象：家計簿に属する人物の一覧取得、作成、変更、削除、人物共通順の保存。全パスは `/ledgers/{ledgerId}` の下。
-- 対象外：参加者の役割と人物IDの対応付け（[参加者API](../../../ledger-person-api-contract.md)、[参加者仕様](../../../ledger-participants.md)）、認証アカウント自体、科目・支払方法・レシートの固有操作。
-- 共有の認証・HTTP境界は[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、作成要求の記録・保持は[共通再送](../../../ledger-operation-retries.md)。物理DBは[人物DB](../../../ledger-person-db.md)を正本とする。
+- 対象：家計簿に属する人物の5操作。全パスは `/ledgers/{ledgerId}` の下。
+- 対象外：参加者の役割と人物IDの対応付け、認証アカウント自体、科目・支払方法・レシートの固有操作。
+- 関連契約：[人物の画面動作・業務ルール](../../../ledger-persons.md)、[参加者API](../../../ledger-person-api-contract.md)、[参加者仕様](../../../ledger-participants.md)、[人物DB](../../../ledger-person-db.md)。
+- 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[共通再送](../../../ledger-operation-retries.md)。
 
 ## 2. エンドポイントと権限
 
-| メソッド・パス（家計簿相対） | 動作 | 権限 |
-| --- | --- | --- |
-| `GET /people` | 家計簿の全人物を共通順で取得する | 現在の家計簿参加者（Admin・Editor・Viewer） |
-| `POST /people` | 人物1人を作成する | Admin |
-| `PATCH /people/{personId}` | 人物名・有効期間を更新する | Adminは全項目。管理者以外は**本人に対応する人物の名前のみ** |
-| `DELETE /people/{personId}` | 更新版を確認して削除する | Admin |
-| `PUT /people/order` | 全人物の共通順を一括保存する | Admin |
+| メソッド・パス（家計簿相対） | 動作 | 権限 | HTTP成功コード |
+| --- | --- | --- | --- |
+| `GET /people` | 人物一覧を取得 | 現在の家計簿参加者（Admin・Editor・Viewer） | 200 |
+| `POST /people` | 人物1人を作成 | Admin | 初回201、同一の成功要求の再送200 |
+| `PATCH /people/{personId}` | 人物名・有効期間を更新 | Adminは全項目。Editor・Viewerは本人に対応する人物の名前のみ | 200 |
+| `DELETE /people/{personId}` | 人物を削除 | Admin | 200 |
+| `PUT /people/order` | 全人物の共通順を一括保存 | Admin | 200 |
+
+Admin以外が本人をPATCHするときは、日付項目を省略する。
 
 - APIは各要求で認証・対象家計簿への**現在の参加**を検証する。書込時は権限・本人に対応する人物のIDを、更新・確定と同じトランザクション内でも検証する。家計簿に参加しない全体管理者にもアクセスを認めない。
 - 本人判定はログインアカウントが**その家計簿で対応付けられた人物ID**で行う。人物名で同一人物と判定しない。対応なしでも人物閲覧は可能だが、管理者以外は本人に該当する名前変更の権限を得ない。
@@ -46,28 +47,16 @@
 | 人物削除 DELETE | JSON本文に対象人物の`revision`必須 |
 | 共通順 PUT | JSON本文に順序全体の`revision`と、現在の**全人物IDを各1回**含む`personIds`配列を必須とする |
 
-- Admin以外の本人が人物をPATCHするときは、**名前だけ**を変更対象として送信し、日付項目は省略する。
-- 編集で名前と期間を保存する際は1要求・1トランザクションでまとめ、一部だけ成功させない。APIの更新版は後述の単位で照合する。`revision`だけを指定した無変更PATCHも、版が一致すれば成功する。
-- 順序の配列は他家計簿の人物ID・重複・欠落を認めない。有効期間外を含む全人物が対象。人物0件の場合は空配列を受け付ける。本文は許可されたキーのみを認め、未知・重複キーや不正なJSON型は400 `invalid_input`。
+- 編集で名前と期間を保存する際は1要求・1トランザクションでまとめ、一部だけ成功させない。
+- 順序の配列は他家計簿の人物ID・重複・欠落を認めない。有効期間外を含む全人物が対象。人物0件の場合は空配列を受け付ける。
+- 本文は許可されたキーのみを認め、未知・重複キーや不正なJSON型は400 `invalid_input`。
 
 ## 5. 成功応答・識別と並び順
 
-| 操作 | HTTP成功応答 |
-| --- | --- |
-| `GET /people` | `200 OK`・人物一覧JSON |
-| `POST /people` | 初回作成は`201 Created`、同一の成功要求の再送は`200 OK`。どちらも人物一覧JSON |
-| `PATCH /people/{personId}` | `200 OK`・人物一覧JSON |
-| `DELETE /people/{personId}` | `200 OK`・人物一覧JSON |
-| `PUT /people/order` | `200 OK`・人物一覧JSON |
-
-変更後一覧は変更と同じサーバートランザクション内の状態を返す。
+全5操作の成功応答は共通の人物一覧JSONを返す。変更後一覧は変更と同じサーバートランザクション内の状態を返す。
 - 人物一覧/変更後の共通JSON形式は、トップレベルに`people`配列と`orderRevision`のみを持つ。人物ID・更新版はUUIDの**N形式の文字列**で返す。
 - `people[]`の人物1件は`personId`、`name`、`validFrom`、`validTo`、`displayOrder`、`revision`。日付は形式文字列または`null`。
 - `GET /people`は、有効期間外の人物を含む全人物を、家計簿共通の`displayOrder`に基づく順序で返す。新規人物は共通順の末尾へ追加する。
-- 共通順PUTで人物ID順が変わらない場合は**無変更成功（200）**とし、人物0件の空配列も含めて`displayOrder`・`orderRevision`を変更しない。順序が変われば`orderRevision`を更新する。
-- 人物の追加・削除時も`orderRevision`を更新する。
-- 共通順PUTでは、無変更時も要求の更新版・全人物ID集合を検証し、古い`revision`は409を返す。
-- 人物単位の`revision`は名前・期間の実値変更時だけ更新する。**無変更PATCHでは行版を維持**し、共通順だけの変更でも人物の行版を変えない（[更新版の保存単位](../../../ledger-person-db.md)）。
 
 ## 6. 競合・失敗応答
 
@@ -88,15 +77,16 @@
 | 429 | — | 共通の回数制限 |
 | 503 | `store_unavailable` | 保存障害等 |
 
-
 ### 更新版競合
 
-- PATCH・DELETEは**対象人物の`revision`**、PUT /people/orderは**共通順全体の`orderRevision`**を必須として原子的に照合する。
+- PATCH・DELETEの要求の`revision`は対象人物の`revision`、共通順PUTの要求の`revision`は共通順全体の`orderRevision`と原子的に照合する。
+- 人物単位の`revision`は名前・期間の実値変更時だけ更新する。共通順だけの変更でも人物の行版を変えない。`revision`だけを指定した無変更PATCHも版が一致すれば成功し、行版を維持する。
+- `orderRevision`は人物の追加・削除・共通順の変更時に更新する。共通順PUTで人物ID順が変わらない場合は、人物0件の空配列も含めて無変更成功（200）とし、`displayOrder`・`orderRevision`を維持する。無変更時も更新版・全人物ID集合を検証し、古い`revision`は409を返す。
 - 409 `revision_conflict`の`latest`には、PATCH/DELETEなら最新の人物1件（`people[]`と同じ6項目）、共通順PUTなら最新の人物一覧応答（`people`・`orderRevision`）を返す。いずれも現在の権限で閲覧可能な情報に限る（[競合・権限喪失](../../../ledger-person-conflicts.md)）。
 - 409の`latest`に情報を返す前にも現在の権限を検証し、権限喪失時は403/404等を優先する。閲覧できない他参加者の情報・過去の閲覧権限による情報を返さない。
 
 ## 7. 作成の再送・整合性
 
-- POST /peopleでは`requestId`で同一作成要求を識別する。人物IDはサーバーで採番し、要求IDは人物IDとは別。要求内容の同一性を照合する。
+- POST /peopleでは人物IDとは別の`requestId`で同一作成要求を識別し、要求内容の同一性を照合する。
 - [共通再送](../../../ledger-operation-retries.md)の`operation_requests`記録を利用し、人物作成は`person.create`として扱う。**同じ成功要求の再送で重複作成しない**。操作者・操作種類・家計簿・正規化入力等が異なる要求IDの再利用は拒否する。
-- 作成記録は業務行と同じトランザクション内で成功時だけ確定し、自動削除せず保持する。元の作成人物が後で削除されていても同じ要求で再作成せず、`created_result_deleted`で削除済みを伝える（[共通再送](../../../ledger-operation-retries.md)、[競合・権限喪失](../../../ledger-person-conflicts.md)）。
+- 作成記録は業務行と同じトランザクション内で成功時だけ確定し、自動削除せず保持する。元の作成人物が後で削除されていても同じ要求で再作成せず、`created_result_deleted`で削除済みを伝える。
