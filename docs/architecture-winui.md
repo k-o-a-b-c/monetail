@@ -171,6 +171,27 @@ PR1のソース行数・フィールド数・直接参照数の比較値、検�
 
 共通検索・一覧内部・管理メニューへのWindow直接参照をPR1で除去し、管理詳細はPR2で次の境界へ移した。**レシート/振替入力のPage化は下記のPR3で移管する**。Windowの横断遷移・認証・未保存保護は維持し、Service・DI・独自ルーター・イベントバスは追加しない。
 
+### 記録ホームの取得・マスタ更新の所有者
+
+`RecordHomeViewModel`が`RecordSearchState`と両一覧VMを生成し、既存Clientの4 Workspace（人物・支払方法・レシート・振替）を接続する。共有マスタの取得寿命もホームVMが所有する。一覧ごとの取消は共有取得の待機だけを中断し、もう一方が使う取得を取り消さない。通常のPage離脱はSuspendで行・選択・検索・表示位置を保持し、家計簿文脈の破棄ではDisposeで取得・両一覧を終了する。共有キャッシュの全消去は引き続きShell/Clientのコンテキスト破棄が担当し、ホーム単体のDisposeでは他画面のキャッシュを消さない。
+
+`LedgerMasterCache.Changed`の購読はShellの1か所を維持する。Shellは現在の家計簿/Window寿命を確認して、ホームの`MastersChanged`と編集中Pageへ通知する。人物・支払方法の選択肢と一覧名称の再投影はホームが担当し、検索下書き・適用条件・行選択・表示位置を変更しない。ホームに新しい購読や中継イベントを作らず、破棄済み/他家計簿の通知は無視する。登録可否・認証エラーの遷移・画面間の通知はShellに残す。
+
+401で入力PageとホームVMを保持したまま接続設定を再読込すると、API/セッションが同じ接続先でも再生成される。Shellが本人・家計簿・接続先の一致を確認した後、ホームにも`Rebind`で現在のAPI/セッションを渡す。変更前の共有取得を中断し、既存一覧の取得世代で遅延応答を無効化する。行・選択・検索は作り直さず、再接続だけでは一覧GET/書込を始めない。入力Pageが復帰時に再取得したマスタを、後続の明示的な一覧取得でも共有する。別本人/接続先では従来どおり破棄する。
+
+| 比較（基点main `b61b773`、生成物除外・空行込み） | 前 | 後 |
+| --- | ---: | ---: |
+| MainWindow XAML / C# | 55 / 1,358行 | 55 / 1,320行 |
+| MainWindow メソッド / 明示フィールド / boolフィールド | 94 / 24 / 3 | 92 / 23 / 3 |
+| MainWindow.Receipts.cs | 132行 | 93行 |
+| RecordHomeViewModel | 182行 | 270行 |
+| Windowから上記4 Workspaceへの生成依存 | 4 | 0 |
+| 共有マスタCTSの所有者 | Window | ホームVM |
+| WinUI＋Presentation 明示フィールド / boolフィールド / イベント | 194 / 49 / 38 | 197 / 49 / 38 |
+| 製品src C# / XAML / 合計 | 20,288 / 1,306 / 21,594行 | 20,338 / 1,306 / 21,644行 |
+
+製品コードは50行増える。通信構成と寿命をVMへ移し、401時の明示的な再接続を加えるためで、総行数・全状態数の削減とは扱わない。Homeの明示フィールドは5→9（家計簿ID、共有キャッシュ参照、API/セッションの組、移管CTSを追加）、WindowはCTSを1つ削減する。従来の主コンストラクターが捕捉していた検索/両一覧の3参照はget専用自動プロパティへ置換したため、自動プロパティ数も3増えるが正本は各1つのまま。旧Windowのローダーが捕捉していたAPI/セッション等を明示したもので、フィールド宣言数だけで実行時状態の増減は評価しない。既存の一覧注入用コンストラクターは純粋な検索/ページング試験に残す。新しいクラス・Service・DI・イベント・boolは追加しない。検証と実Windows手動確認の限界は[テスト記録](../tests/README.md#record-home-ownership)を参照する。
+
 <a id="pr2管理機能のpageviewmodel境界"></a>
 
 ### PR2：管理機能のPage・ViewModel境界
@@ -493,7 +514,8 @@ PR #202の振替一覧と同じ責務境界へ移行し、旧`ReceiptListState`�
 | `Views/Receipts/ReceiptListView.xaml/.cs` | 既存6列・見出し・登録・focus時の先頭復帰・読込/空/失敗/再試行/続行、可視範囲と実スクロール・フォーカス・縦横位置の記憶/復元 |
 | `Presentation/Receipts/ReceiptListViewModel` | 唯一の表示行コレクション・選択、取得世代/カーソル、100件取得・300件補充・20行先読み、中断/再開・1回カーソル復旧、通知と5 Command |
 | `Presentation/Receipts/ReceiptListItem` | 保存済み応答の表示用投影。ローカル秒精度・NULL・保存済み合計額を保持し、マスタ名称だけ再表示。独自ソート/再計算なし |
-| `MainWindow.Receipts.cs`等 | `RecordSearchState`、共通年月/人物/支払方法、検索確定、共有マスタ取得、Workspace接続、登録可否・編集遷移・認証/Window寿命 |
+| `Presentation/Workspace/RecordHomeViewModel` | 両一覧VM/`RecordSearchState`の生成、共通検索確定、共有マスタ取得の寿命・Workspace接続、マスタ名称/選択肢の更新 |
+| `MainWindow.Receipts.cs`等 | 登録可否・編集遷移・認証/Window寿命、共有マスタ通知の画面間調停 |
 | `Windows.Client` | `ReceiptsWorkspace`・Transport・DTO・検索契約・認証/書込。`ReceiptSearchState`は共通`RecordSearchState.Receipts`のまま |
 
 Viewは`ViewModel`/`OpeningContent`の2プロパティと`RememberPosition`/`RestorePosition`/`ObserveViewport`の3操作だけを公開する。WindowやClientSession、一覧内コントロールは渡さない。編集開始待ちUIはWindowの名前スコープ/所有権を維持した内容スロットに置き、そのVisibilityにラッパーも追従して従来の間隔を維持する。
@@ -618,7 +640,7 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 `RecordSearchState`が既存`ReceiptSearchState`を保持し、年月・全期間・人物・支払方法を両一覧へ共通適用する。上部のキーワード入力1つを検索確定時に店名と振替名の両方へ適用する。共通年月だけの確定ではキーワード下書きを適用しない。表示・操作の正本は[ホーム3一覧](ledger-transfer-ui.md#3つの一覧と共通フィルター確定範囲)と[共通UI](../UI_DESIGN.md)。
 
-`MainWindow.Transfers.cs`が既存`TransfersWorkspace.ListAsync`をPresentationへ接続し、UI非依存の`TransferListViewModel`で取得世代・ページング・中断／再開を管理する。`TransferListItem`はAPI順と保存金額を維持し、支払方法名を既存マスタキャッシュから表示する。レシートと振替はそれぞれ読込・失敗・再試行を管理し、共通条件変更時は両一覧の旧世代を破棄する。マスタ取得はホーム文脈のCancellationTokenで共有し、片方の検索中断だけでは他方のマスタ待機を失敗させない。
+`RecordHomeViewModel`が既存`TransfersWorkspace.ListAsync`を一覧VMへ接続し、UI非依存の`TransferListViewModel`で取得世代・ページング・中断／再開を管理する。`TransferListItem`はAPI順と保存金額を維持し、支払方法名を既存マスタキャッシュから表示する。レシートと振替はそれぞれ読込・失敗・再試行を管理し、共通条件変更時は両一覧の旧世代を破棄する。マスタ取得はホーム文脈のCancellationTokenで共有し、片方の検索中断だけでは他方のマスタ待機を失敗させない。
 
 年月・人物・支払方法と共通キーワードは標準`ScrollViewer`内の横1行にまとめ、幅不足は同領域の横スクロールで扱う。各一覧は見出し・登録（必要時の［先頭に戻る］）の1行の下に`ListView`を持ち、編集開始通知は一覧に重ねる。各一覧のスクロールは独立する。初期の上下60:40・下段左右2:1を実装済み。振替入力・保存後focusは下記の第3工程で接続。残高データ・スプリッター・比率保存は後続。
 

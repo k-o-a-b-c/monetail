@@ -173,6 +173,7 @@ public sealed partial class MainWindow
             return false;
         }
         context.Rebind(connection.Api, connection.Session);
+        recordHome?.Rebind(connection.Api, connection.Session, lifetime.Token);
         ShowRetainedEditor();
         await ReloadReceiptMastersAsync(page, token);
         return true;
@@ -315,6 +316,7 @@ public sealed partial class MainWindow
             return false;
         }
         context.Rebind(connection.Api, connection.Session);
+        recordHome?.Rebind(connection.Api, connection.Session, lifetime.Token);
         ShowRetainedEditor();
         await ReloadTransferMastersAsync(page, token);
         return true;
@@ -348,7 +350,6 @@ public sealed partial class MainWindow
         {
             recordSearch.ApplySavedTransfer(snapshot, methods);
             recordSearch.ApplySharedText(recordSearch.TransferText);
-            RefreshReceiptChoices();
             recordHome?.RefreshSearch();
         }
         ResetTransferEditor();
