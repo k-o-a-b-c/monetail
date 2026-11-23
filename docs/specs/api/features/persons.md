@@ -86,7 +86,6 @@
 - PATCH・DELETEは**対象人物の`revision`**、PUT /people/orderは**共通順全体の`orderRevision`**を必須として原子的に照合する。
 - 409 `revision_conflict`の`latest`には、PATCH/DELETEなら最新の人物1件（`people[]`と同じ6項目）、共通順PUTなら最新の人物一覧応答（`people`・`orderRevision`）を返す。いずれも現在の権限で閲覧可能な情報に限る（[競合・権限喪失](../../../ledger-person-conflicts.md)）。
 - 409の`latest`に情報を返す前にも現在の権限を検証し、権限喪失時は403/404等を優先する。閲覧できない他参加者の情報・過去の閲覧権限による情報を返さない。
-- 403/404で人物APIの応答から操作者の現在権限を推定しない。Clientは[家計簿API](../../../ledger-core-api.md)を再取得し、参加中なら`role`・`myPersonId`を更新し、未参加・家計簿不在なら当該家計簿の権限情報を破棄する。
 
 ## 7. 作成の再送・整合性
 
