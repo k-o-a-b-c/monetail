@@ -1,6 +1,6 @@
-# 人物 API・業務契約（正本移行前の草案）
+# 人物API・業務契約
 
-> **草案・正本未切替。** 既存の確定事項をAPI契約中心に再整理したもので、新規の仕様判断ではない。現時点では[人物・参加者API](../../../ledger-person-api-contract.md)、[人物業務ルール](../../../ledger-persons.md)、[競合・権限喪失](../../../ledger-person-conflicts.md)、[共通再送](../../../ledger-operation-retries.md)が引き続き正本。相違があれば既存正本を優先し、切替前に解消する。
+**人物5操作のAPI外部契約の正本。** 人物の画面動作は[人物管理](../../../ledger-persons.md)、参加者のAPIは[参加者API](../../../ledger-person-api-contract.md)、物理DBは[人物DB](../../../ledger-person-db.md)、共通再送は[operation_requests](../../../ledger-operation-retries.md)を参照する。
 
 本書は人物リソースのAPI要求・応答と、認可・検証・整合性・競合・再送の保証を定める。
 
@@ -71,7 +71,7 @@
 - 400 `invalid_input`：名前・日付・JSON本文・不正な順序ID集合等の入力不備。開始日・終了日の前後関係が不正な場合も400。
 - 401：未認証・認証失効等。共通の認証契約に従う。
 - 403 `forbidden`：権限不足。404 `not_found`：家計簿不在・未参加・対象人物不在等（業務処理内）。
-- 409：同名人物`duplicate_person_name`、参照あり人物の削除`person_referenced`、**既存レシートを期間外にする人物期間変更`person_period_conflict`（`field`は`validFrom`/`validTo`）**、更新版不一致`revision_conflict`、要求IDの別内容再利用`request_conflict`、削除済み作成結果の再送`created_result_deleted`を区別する。**異なる原因の409を一律`revision_conflict`として扱わない**。
+- 409：同名人物`duplicate_person_name`、参照あり人物の削除`person_referenced`、**既存レシートを期間外にする人物期間変更`person_period_conflict`（`field`は`validFrom`/`validTo`、`latest`は`null`）**、更新版不一致`revision_conflict`、要求IDの別内容再利用`request_conflict`、削除済み作成結果の再送`created_result_deleted`を区別する。**異なる原因の409を一律`revision_conflict`として扱わない**。
 - 429：既存の共有回数制限。503 `store_unavailable`：保存障害等。内部のDB障害をすべて「参照あり」に変換しない。
 
 ### 更新版競合
@@ -87,23 +87,3 @@
 - [共通再送](../../../ledger-operation-retries.md)の`operation_requests`記録を利用し、人物作成は`person.create`として扱う。**同じ成功要求の再送で重複作成しない**。操作者・操作種類・家計簿・正規化入力等が異なる要求IDの再利用は拒否する。
 - 作成記録は業務行と同じトランザクション内で成功時だけ確定し、自動削除せず保持する。元の作成人物が後で削除されていても同じ要求で再作成せず、`created_result_deleted`で削除済みを伝える（[共通再送](../../../ledger-operation-retries.md)、[競合と後続](../../../ledger-person-conflicts.md)）。
 - 人物PATCH/DELETEには`revision`が必須。`requestId`の必須条件を他のリソースの書込操作から一律に適用しない。人物POSTの同内容再送では、元の作成結果を改めて作らず、**現在の人物一覧**を返す。
-
-## 8. 既存実装との差異と反映状況
-
-| 項目 | 既存文書 | 現行API実装 | 状態 |
-| --- | --- | --- | --- |
-| 既存レシートが期間外になる人物期間変更 | **409 `person_period_conflict`とすることを決定**（[既存契約](../../../ledger-person-conflicts.md)） | 旧実装の400を、[PR #249](https://github.com/k-o-a-b-c/monetail/pull/249)で人物のみ409へ修正・テスト追加（未マージ） | **決定済み・反映PR確認待ち** |
-
-並び順の無変更PUTは、`orderRevision`を維持する契約に決定済みで、[PR #247](https://github.com/k-o-a-b-c/monetail/pull/247)でマージ済み。上記の期間変更エラーは[PR #249](https://github.com/k-o-a-b-c/monetail/pull/249)のマージ・CI結果を確認するまで実装と一致した扱いにしない。
-
-## 9. 正本切替前の確認事項（契約変更ではない）
-
-| 照合対象 | 内容 |
-| --- | --- |
-| [人物・参加者API](../../../ledger-person-api-contract.md) | 人物5操作、トップレベル4項目、人物6項目、PATCHの省略/null、削除JSON本文、エラー構造を欠落なく保持する |
-| [人物業務ルール](../../../ledger-persons.md) | 名前比較、日付の両端、参照削除不可、期間変更と取引、権限を残す |
-| [人物DB](../../../ledger-person-db.md) | 人物行版・家計簿人物順全体版・参加者版を混同しない。DB列/FKは別正本のまま |
-| [競合・権限喪失](../../../ledger-person-conflicts.md) | 403/404の本人の権限応答、409最新情報、作成結果削除後の再送、認証失効を確認 |
-| [共通再送](../../../ledger-operation-retries.md) | 人物POSTのみの作成要求同一性、成功記録・保持期限、他機能との差を維持 |
-
-**残る作業**：現行APIのDTO・成功/失敗レスポンスと、この草案の全項目を実コード・APIテストで突き合わせること。既存正本には人物・参加者をまとめた説明や実装時点の表記が含まれるため、**この草案だけで完全一致・現行実装検証済みとは宣言しない**。未検証の詳細を推測で補わず、相違は具体的に列挙して解消する。ユーザー了承までは既存正本と[docs/INDEX](../../../INDEX.md)の正本参照を切り替えない。
