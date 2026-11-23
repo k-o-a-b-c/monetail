@@ -2,6 +2,8 @@
 
 [← 58 家計簿設計・文書案内](58-ledger-foundation-design.md)
 
+人物5操作のHTTP・JSON・エラー・更新版・再送は[人物APIの正本](specs/api/features/persons.md)を参照する。本書は業務ルールとWindows画面動作を中心に扱う。
+
 <a id="人物の管理dec-055未実装"></a>
 
 ## 人物の管理（DEC-055・APIとWindows画面実装）
