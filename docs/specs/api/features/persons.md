@@ -68,10 +68,10 @@
 ## 6. 競合・失敗応答
 
 - 人物APIの業務エラー本文は`code`・`message`・`field`・`latest`・`permissions`を含み、該当しない情報は`null`とする。例外的な追加項目は共通エラー境界に従う。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない（[人物・参加者API](../../../ledger-person-api-contract.md)）。
-- 400 `invalid_input`：名前・日付・JSON本文・不正な順序ID集合等の入力不備。**既存レシートを人物の新期間から外す変更については第8節の仕様書と実装の不一致がある。**
+- 400 `invalid_input`：名前・日付・JSON本文・不正な順序ID集合等の入力不備。開始日・終了日の前後関係が不正な場合も400。
 - 401：未認証・認証失効等。共通の認証契約に従う。
 - 403 `forbidden`：権限不足。404 `not_found`：家計簿不在・未参加・対象人物不在等（業務処理内）。
-- 409：同名人物`duplicate_person_name`、参照あり人物の削除`person_referenced`、更新版不一致`revision_conflict`、要求IDの別内容再利用`request_conflict`、削除済み作成結果の再送`created_result_deleted`を区別する。**異なる原因の409を一律`revision_conflict`として扱わない**。既存記録が期間外となる変更の400/409の相違は第8節で留保する。
+- 409：同名人物`duplicate_person_name`、参照あり人物の削除`person_referenced`、**既存レシートを期間外にする人物期間変更`person_period_conflict`（`field`は`validFrom`/`validTo`）**、更新版不一致`revision_conflict`、要求IDの別内容再利用`request_conflict`、削除済み作成結果の再送`created_result_deleted`を区別する。**異なる原因の409を一律`revision_conflict`として扱わない**。
 - 429：既存の共有回数制限。503 `store_unavailable`：保存障害等。内部のDB障害をすべて「参照あり」に変換しない。
 
 ### 更新版競合
@@ -88,13 +88,13 @@
 - 作成記録は業務行と同じトランザクション内で成功時だけ確定し、自動削除せず保持する。元の作成人物が後で削除されていても同じ要求で再作成せず、`created_result_deleted`で削除済みを伝える（[共通再送](../../../ledger-operation-retries.md)、[競合と後続](../../../ledger-person-conflicts.md)）。
 - 人物PATCH/DELETEには`revision`が必須。`requestId`の必須条件を他のリソースの書込操作から一律に適用しない。人物POSTの同内容再送では、元の作成結果を改めて作らず、**現在の人物一覧**を返す。
 
-## 8. 実装照合で見つかった未解消差異
+## 8. 既存実装との差異と反映状況
 
 | 項目 | 既存文書 | 現行API実装 | 状態 |
 | --- | --- | --- | --- |
-| 既存の取引記録が期間外になる人物の有効期間変更 | [競合・権限喪失](../../../ledger-person-conflicts.md)で409と記載 | `ReceiptReferencePeriods.CheckReceiptPeriodAsync`は400 `invalid_input`（`field: "validFrom"`または`"validTo"`）を返す | **不一致・要判断**。文書だけでどちらかを正と決めない |
+| 既存レシートが期間外になる人物期間変更 | **409 `person_period_conflict`とすることを決定**（[既存契約](../../../ledger-person-conflicts.md)） | 旧実装の400を、[PR #249](https://github.com/k-o-a-b-c/monetail/pull/249)で人物のみ409へ修正・テスト追加（未マージ） | **決定済み・反映PR確認待ち** |
 
-並び順の無変更PUTは、`orderRevision`を維持する契約に決定済み。対応するAPI実装・テストの変更は別PRで実施する。上記の期間変更エラーは不一致のまま残す。
+並び順の無変更PUTは、`orderRevision`を維持する契約に決定済みで、[PR #247](https://github.com/k-o-a-b-c/monetail/pull/247)でマージ済み。上記の期間変更エラーは[PR #249](https://github.com/k-o-a-b-c/monetail/pull/249)のマージ・CI結果を確認するまで実装と一致した扱いにしない。
 
 ## 9. 正本切替前の確認事項（契約変更ではない）
 
