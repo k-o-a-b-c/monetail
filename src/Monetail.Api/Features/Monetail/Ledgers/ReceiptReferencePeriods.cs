@@ -5,12 +5,14 @@ namespace Monetail.Api.Features.Monetail.Ledgers;
 
 public sealed partial class LedgerManagementService
 {
-    private async Task CheckReceiptPeriodAsync(IQueryable<LedgerReceipt> receipts, DateOnly? from, DateOnly? to, CancellationToken token)
+    private async Task CheckReceiptPeriodAsync(IQueryable<LedgerReceipt> receipts, DateOnly? from, DateOnly? to, CancellationToken token, bool person = false)
     {
         if (from is DateOnly first && await receipts.AnyAsync(row => row.TransactionAt < first.ToDateTime(TimeOnly.MinValue), token))
-            throw new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", "validFrom");
+            throw person ? new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", "validFrom")
+                : LedgerPayload.Bad("既存のレシートが期間外になるため変更できません。", "validFrom");
         if (to is DateOnly last && await receipts.AnyAsync(row => row.TransactionAt > last.ToDateTime(new TimeOnly(23, 59, 59)), token))
-            throw new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", "validTo");
+            throw person ? new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", "validTo")
+                : LedgerPayload.Bad("既存のレシートが期間外になるため変更できません。", "validTo");
     }
     private Task CheckPersonReceiptsAsync(string ledger, string person, DateOnly? from, DateOnly? to, CancellationToken token)
     {
@@ -24,6 +26,6 @@ public sealed partial class LedgerManagementService
                        join receipt in context.Set<LedgerReceipt>() on new { receiptGroup.LedgerId, Id = receiptGroup.ReceiptId } equals new { receipt.LedgerId, receipt.Id }
                        where target.LedgerId == ledger && target.PersonId == person
                        select receipt;
-        return CheckReceiptPeriodAsync(paying.Union(targeted), from, to, token);
+        return CheckReceiptPeriodAsync(paying.Union(targeted), from, to, token, person: true);
     }
 }
