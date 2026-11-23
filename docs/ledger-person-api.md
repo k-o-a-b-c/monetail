@@ -10,11 +10,12 @@
 
 | 参照対象 | 正本 |
 | --- | --- |
-| 人物・参加者の9操作、DTO、成功／失敗応答 | [API・JSON契約](ledger-person-api-contract.md) |
+| 人物5操作のHTTP・JSON・業務制約・競合・再送 | [人物API](specs/api/features/persons.md) |
+| 参加者4操作のHTTP・JSON・競合 | [参加者API](ledger-person-api-contract.md) |
 | 人物・参加者のSQLiteテーブル、制約、更新版、UUID | [DB構成](ledger-person-db.md) |
 | 共通の作成要求、6列の記録、再送と保持条件 | [共通再送管理](ledger-operation-retries.md) |
 | 同時編集、権限喪失、未実装画面と残項目 | [競合・後続確認](ledger-person-conflicts.md) |
 
 ## 旧見出しの案内
 
-[人物管理API・DB（実装済み）](ledger-person-api-contract.md#人物管理apidb実装済み)
+[人物管理API・DB（実装済み）](specs/api/features/persons.md)
