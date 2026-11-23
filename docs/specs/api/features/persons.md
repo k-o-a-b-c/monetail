@@ -91,7 +91,6 @@
 | 429 | — | 既存の共有回数制限 |
 | 503 | `store_unavailable` | 保存障害等 |
 
-内部のDB障害を一律に`person_referenced`へ変換しない。
 
 ### 更新版競合
 
