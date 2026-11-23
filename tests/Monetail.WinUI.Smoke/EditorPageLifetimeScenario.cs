@@ -57,7 +57,7 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "ReceiptBack"));
         await ConfirmReceipt(root, true);
         await Wait(() => Visible(root, "HomePage"));
-        Check(receipt.ViewModel is null && receiptModel?.Context is null && !ReferenceEquals(home, host.Content) &&
+        Check(receipt.ViewModel is null && receiptModel?.Context is null && host.BackStack.Count == 0 && host.ForwardStack.Count == 0 && !ReferenceEquals(home, host.Content) &&
             ReferenceEquals(homeModel, (host.Content as RecordHomePage)?.ViewModel),
             "通常離脱で入力PageのVM/購読を解放し、新しいホームPageが同じ一覧状態を使用する");
         await window.OpenReceiptEditorAsync(null);
@@ -83,7 +83,7 @@ public partial class App
         await InvokeAsync(() => Find<Button>(root, "TransferBack"));
         await ConfirmTransfer(root, ContentDialogResult.Secondary);
         await Wait(() => Visible(root, "HomePage"));
-        Check(transfer.ViewModel is null && transferModel?.Context is null && transferModel?.PendingRequest is null && transfers.Writes.Count == 0,
+        Check(transfer.ViewModel is null && transferModel?.Context is null && transferModel?.PendingRequest is null && host.BackStack.Count == 0 && host.ForwardStack.Count == 0 && transfers.Writes.Count == 0,
             "振替の通常離脱はPage/要求参照を解放し、終了確認や破棄だけでは保存しない");
     }
 }

@@ -71,6 +71,8 @@ public partial class App
             var revision = editor.Revision;
             var price = Find<TextBox>(root, "ReceiptItemPrice");
             await ActivateReceiptInputWindowAsync();
+            // Frameの初回フォーカスが確定してから未確定入力を設定する。
+            await Settle();
             await FocusTransferControl(price);
             price.Text = "12x";
             price.Select(1, 2);

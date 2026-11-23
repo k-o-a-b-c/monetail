@@ -95,27 +95,14 @@ public sealed partial class ReceiptEditorPage
     }
     public void RememberPosition()
     {
-        if (ViewModel is null)
-            return;
-        // 共通busyによる一時的なフォーカス移動では未確定日時を補完しない。
-        SuppressCompletion(true);
-        if (position is not null)
+        if (ViewModel is null || position is not null)
             return;
         Synchronize();
         var focus = FocusManager.GetFocusedElement(XamlRoot) as Control;
         position = new(focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
             Visuals(this).OfType<ScrollViewer>().Select(v => (v, v.HorizontalOffset, v.VerticalOffset)).ToArray());
     }
-    public void ForgetPosition()
-    {
-        position = null;
-        var model = ViewModel;
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-        {
-            if (ReferenceEquals(ViewModel, model) && model?.AwaitingLogin == false)
-                SuppressCompletion(false);
-        });
-    }
+    public void ForgetPosition() => position = null;
     private static IEnumerable<DependencyObject> Visuals(DependencyObject root)
     {
         yield return root;
@@ -166,7 +153,6 @@ public sealed partial class ReceiptEditorPage
         Bindings.StopTracking();
         model.Discard();
         confirmation?.Hide();
-        Loaded -= InitialFocus;
         Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
         IsCancellationTarget = null;
         position = null;
