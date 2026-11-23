@@ -56,7 +56,9 @@ public sealed partial class LedgerManagementService
             var to = input.Has("validTo") ? input.Date("validTo") : person.ValidTo;
             Period(from, to);
             await UniqueNameAsync(id, personId, name, token);
-            await CheckPersonReceiptsAsync(id, personId, from, to, token);
+            var invalidField = await FindPersonReceiptPeriodViolationAsync(id, personId, from, to, token);
+            if (invalidField is not null)
+                throw new LedgerApiFault(409, "person_period_conflict", "既存のレシートが期間外になるため変更できません。", invalidField);
             if (person.Name != name || person.ValidFrom != from || person.ValidTo != to)
             {
                 person.Name = name; person.ValidFrom = from; person.ValidTo = to; person.Revision = Version();
