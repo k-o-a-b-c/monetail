@@ -75,11 +75,22 @@
 ## 6. 競合・失敗応答
 
 - 人物APIの業務エラー本文は`code`・`message`を基本とし、該当する場合のみ`field`・`latest`を含める。受付前の認証・CSRF・回数制限等の拒否には同じ本文を一律要求しない。
-- 400 `invalid_input`：名前・日付・JSON本文・不正な順序ID集合等の入力不備。開始日・終了日の前後関係が不正な場合も400。
-- 401：未認証・認証失効等。共通の認証契約に従う。
-- 403 `forbidden`：権限不足。404 `not_found`：家計簿不在・未参加・対象人物不在等（業務処理内）。
-- 409：同名人物`duplicate_person_name`、参照あり人物の削除`person_referenced`、**既存レシートを期間外にする人物期間変更`person_period_conflict`（`field`は`validFrom`/`validTo`、`latest`は`null`）**、更新版不一致`revision_conflict`、要求IDの別内容再利用`request_conflict`、削除済み作成結果の再送`created_result_deleted`を区別する。**異なる原因の409を一律`revision_conflict`として扱わない**。
-- 429：既存の共有回数制限。503 `store_unavailable`：保存障害等。内部のDB障害をすべて「参照あり」に変換しない。
+| HTTP | `code` | 内容 |
+| --- | --- | --- |
+| 400 | `invalid_input` | 名前・日付・JSON本文・順序ID集合等の入力不備。開始日・終了日の前後関係不正も含む |
+| 401 | — | 未認証・認証失効等。共通の認証契約に従う |
+| 403 | `forbidden` | 権限不足 |
+| 404 | `not_found` | 家計簿不在・未参加・対象人物不在等（業務処理内） |
+| 409 | `duplicate_person_name` | 同名人物の登録・更新 |
+| 409 | `person_referenced` | 参照が残る人物の削除 |
+| 409 | `person_period_conflict` | 既存レシートが期間外になる人物期間変更。`field`は`validFrom`または`validTo`、`latest`は`null` |
+| 409 | `revision_conflict` | 更新版の不一致 |
+| 409 | `request_conflict` | 要求IDを異なる内容で再利用 |
+| 409 | `created_result_deleted` | 作成済み人物の削除後に同じ要求を再送 |
+| 429 | — | 既存の共有回数制限 |
+| 503 | `store_unavailable` | 保存障害等 |
+
+内部のDB障害を一律に`person_referenced`へ変換しない。
 
 ### 更新版競合
 
