@@ -76,7 +76,7 @@
 | `PATCH /categories/{categoryId}` | 家計簿Admin | `revision`必須。名前・収支・初期税区分・開始日・終了日から1つ以上 |
 | `DELETE /categories/{categoryId}` | 家計簿Admin | `revision`必須 |
 
-現在の参加・認証・家計簿Admin権限を書込前と確定前に再確認し、家計簿をまたぐ参照/更新をしない。認証・CookieのCSRF/Origin・エラー形式は[共通契約](ledger-person-api-contract.md)と同じ。既存アカウント単位の書込20回/分・参照120回/分を共有する。
+現在の参加・認証・家計簿Admin権限を書込前と確定前に再確認し、家計簿をまたぐ参照/更新をしない。認証・CookieのCSRF/Originは[セッション保護](auth-session-security.md)、業務エラーの具体的な外部契約は[人物API](specs/api/features/persons.md)など各機能のAPI正本を参照する。既存アカウント単位の書込20回/分・参照120回/分を共有する。
 
 ### 入力と応答
 
