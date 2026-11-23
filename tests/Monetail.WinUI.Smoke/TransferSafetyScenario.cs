@@ -108,5 +108,46 @@ public partial class App
             await Wait(() => TransferEditing is null);
             Check(server.Writes.Count == 0, "読み取り専用を開いて戻るだけでは確認も書込も行わない");
         }
+        await CheckTransferSavedNavigationAuthentication();
     }
+    private async Task CheckTransferSavedNavigationAuthentication()
+    {
+        foreach (var leave in new[] { false, true })
+        {
+            using var fixture = new SyntheticConnection(saved: true) { HasPreviousLedger = true };
+            var masters = new PaymentServer();
+            var server = new TransferInputServer(masters);
+            var saved = server.Add();
+            fixture.PeopleHandler = (_, _) => Task.FromResult(PaymentServer.Json(masters.People()));
+            fixture.PaymentsHandler = masters.HandleAsync;
+            fixture.TransfersHandler = async (request, token) =>
+            {
+                var response = await server.HandleAsync(request, token);
+                if (request.Method == HttpMethod.Put)
+                    fixture.RejectSession = fixture.RejectAuthentication = true;
+                return response;
+            };
+            var root = await OpenSyntheticWindow(fixture);
+            await StartSyntheticAsync();
+            await window!.OpenTransferEditorAsync(saved.TransferId);
+            Find<TextBox>(root, "TransferAmount").Text = "2000";
+            if (leave)
+            {
+                await InvokeAsync(() => Find<Button>(root, "SettingsButton"));
+                await Wait(() => EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true });
+                await InvokeAsync(() => TransferDialogFooter(root, ContentDialogResult.Primary));
+                await Wait(() => EditorDialog(root, "TransferConfirmationDialog") is { IsLoaded: true, Title: "更新の確認" });
+            }
+            else
+                await InvokeAsync(() => Find<Button>(root, "TransferSave"));
+            await ConfirmTransfer(root, ContentDialogResult.Primary);
+            await Wait(() => Visible(root, "LoginPage"));
+            await Settle();
+            Check(CurrentTransferPage is null && !Visible(root, "ManagementPage") && Visible(root, "LoginPage") && TransferRuntime("account") is null,
+                $"保存後の一覧401はログインへ移動し、保存して移動の後続画面で上書きしない: leave={leave}");
+            Check(server.Writes.Count == 1 && server.Rows[saved.TransferId].Amount == 2000 && server.Details == 1,
+                "保存成功後の再取得失敗は再保存・自動再送・詳細再取得を行わない");
+        }
+    }
+
 }

@@ -22,7 +22,7 @@ public sealed partial class TransferEditorPage : Page
         get; private set;
     }
     public event Func<Task>? ReturnRequested;
-    public event Func<TransferWriteCompletion, bool, Task>? Saved;
+    public event Func<TransferWriteCompletion, Task<bool>>? Saved;
     protected override void OnNavigatedTo(NavigationEventArgs args)
     {
         base.OnNavigatedTo(args);

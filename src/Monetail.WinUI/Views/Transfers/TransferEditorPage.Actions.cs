@@ -58,7 +58,7 @@ public sealed partial class TransferEditorPage
             ViewModel?.Refresh();
         }
     }
-    private async Task<bool> SendPendingTransferAsync(bool returnToList)
+    private async Task<bool> SendPendingTransferAsync()
     {
         if (ViewModel is not { } model)
             return false;
@@ -72,11 +72,9 @@ public sealed partial class TransferEditorPage
             await OfferTransferConflictAsync(model.Editor);
         if (result.Completion is not { } completion)
             return false;
-        if (Saved is { } saved)
-            await saved(completion, returnToList);
-        return true;
+        return Saved is { } saved && await saved(completion);
     }
-    private async Task<bool> SaveTransferAsync(bool reuse, bool returnToList = true)
+    private async Task<bool> SaveTransferAsync(bool reuse)
     {
         if (transferEditor is not { } state || ViewModel is not { } model || ViewModel?.Context is null ||
             TransferFrozen || HasDialog || model.IsPreparingSave)
@@ -117,7 +115,7 @@ public sealed partial class TransferEditorPage
         if (!ReferenceEquals(state, transferEditor) || TransferFrozen || ViewModel?.Context is null)
             return false;
         model.PrepareWrite(model.Context!.LedgerId, prepared);
-        return await SendPendingTransferAsync(returnToList);
+        return await SendPendingTransferAsync();
     }
     private async Task DeleteTransferAsync()
     {
@@ -127,12 +125,12 @@ public sealed partial class TransferEditorPage
         if (await ConfirmTransferAsync("振替の削除", $"「{state.Draft.Name}」を削除しますか？", "削除") != ContentDialogResult.Primary || !ReferenceEquals(state, transferEditor) || TransferFrozen)
             return;
         model.PrepareDeleteWrite(model.Context!.LedgerId);
-        await SendPendingTransferAsync(true);
+        await SendPendingTransferAsync();
     }
     private async Task RetryTransferWriteAsync()
     {
         if (ViewModel?.CanRetryPendingWrite == true && ViewModel?.IsSending == false)
-            await SendPendingTransferAsync(true);
+            await SendPendingTransferAsync();
     }
     private async Task OfferTransferConflictAsync(TransferEditorState editor)
     {
@@ -186,7 +184,7 @@ public sealed partial class TransferEditorPage
                 if (answer == ContentDialogResult.None)
                     return false;
                 if (writable && answer == ContentDialogResult.Primary)
-                    return await SaveTransferAsync(false, returnToList: false);
+                    return await SaveTransferAsync(false);
             }
 
             return true;

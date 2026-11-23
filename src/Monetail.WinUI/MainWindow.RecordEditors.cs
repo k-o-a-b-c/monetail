@@ -336,13 +336,13 @@ public sealed partial class MainWindow
         }
     }
 
-    private async Task TransferSavedAsync(TransferWriteCompletion completion, bool returnToList)
+    private async Task<bool> TransferSavedAsync(TransferWriteCompletion completion)
     {
         var request = completion.Request;
         var snapshot = completion.Snapshot;
         var deleted = request.Operation == TransferWriteOperation.Delete;
         if (closed || TransferPage?.ViewModel?.Context is not { } context || !EditorContextMatches(context))
-            return;
+            return false;
         // 一覧条件の調整と保存行探索だけをShellで調停する。残高連動は未実装。
         if (!deleted && snapshot is not null && recordSearch is not null && TransferMethods is { } methods)
         {
@@ -352,16 +352,19 @@ public sealed partial class MainWindow
             recordHome?.RefreshSearch();
         }
         ResetTransferEditor();
-        if (returnToList)
-            NavigateWorkspace(WorkspaceScreen.HomePage);
+        // 従来の入力領域解除と同様に一覧を表示してから再取得し、401の通常処理へ接続する。
+        ReturnFromReleasedEditor();
         if (TransferListModel is { } list && recordSearch is not null)
         {
+            var query = recordSearch.TransferQuery();
             var receipt = ReceiptListModel?.StartAsync(receiptSearch!.Query(), lifetime.Token) ?? Task.CompletedTask;
             if (deleted)
-                await list.StartAsync(recordSearch.TransferQuery(), lifetime.Token);
+                await list.StartAsync(query, lifetime.Token);
             else if (completion.SavedId is Guid id)
-                await list.ShowSavedAsync(recordSearch.TransferQuery(), id, lifetime.Token);
+                await list.ShowSavedAsync(query, id, lifetime.Token);
             await receipt;
         }
+        // 一覧再取得中の認証喪失・終了後は、保存して移動の後続遷移を許可しない。
+        return !closed && EditorContextMatches(context);
     }
 }
