@@ -124,19 +124,30 @@ public sealed partial class ReceiptApiTests
     public async Task MasterMutationApisProtectReferencedPeoplePaymentsAndCategoryIncome()
     {
         await using var f = await Fixture.Create(); await f.CreateReceipt(f.Input());
-        async Task Check(string route, JsonObject request)
+        async Task Check(string route, JsonObject request, HttpStatusCode status, string? code = null, string? field = null)
         {
-            var before = f.Snapshot(); using var response = await f.Client.PatchAsJsonAsync(route, request);
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode); Assert.Equal(before, f.Snapshot());
+            var before = f.Snapshot();
+            using var response = await f.Client.PatchAsJsonAsync(route, request);
+            Assert.Equal(status, response.StatusCode);
+            if (code is not null)
+            {
+                var error = (await response.Content.ReadFromJsonAsync<JsonObject>())!;
+                Assert.Equal(code, error["code"]!.GetValue<string>());
+                Assert.Equal(field, error["field"]!.GetValue<string>());
+                Assert.Null(error["latest"]);
+            }
+            Assert.Equal(before, f.Snapshot());
         }
         var personRevision = (string)f.App.Database.Scalar($"SELECT revision FROM ledger_people WHERE person_id='{f.Other}'")!;
-        await Check($"/ledgers/{f.Ledger}/people/{f.Other}", new JsonObject { ["revision"] = personRevision, ["validTo"] = "2026-10-31" });
+        await Check($"/ledgers/{f.Ledger}/people/{f.Other}", new JsonObject { ["revision"] = personRevision, ["validTo"] = "2026-10-31" },
+            HttpStatusCode.Conflict, "person_period_conflict", "validTo");
         personRevision = (string)f.App.Database.Scalar($"SELECT revision FROM ledger_people WHERE person_id='{f.Owner}'")!;
-        await Check($"/ledgers/{f.Ledger}/people/{f.Owner}", new JsonObject { ["revision"] = personRevision, ["validFrom"] = "2026-11-11" });
+        await Check($"/ledgers/{f.Ledger}/people/{f.Owner}", new JsonObject { ["revision"] = personRevision, ["validFrom"] = "2026-11-11" },
+            HttpStatusCode.Conflict, "person_period_conflict", "validFrom");
         var payRevision = (string)f.App.Database.Scalar($"SELECT revision FROM ledger_payment_methods WHERE payment_method_id='{f.Payment}'")!;
-        await Check($"/ledgers/{f.Ledger}/payment-methods/{f.Payment}", new JsonObject { ["revision"] = payRevision, ["validTo"] = "2026-10-31" });
+        await Check($"/ledgers/{f.Ledger}/payment-methods/{f.Payment}", new JsonObject { ["revision"] = payRevision, ["validTo"] = "2026-10-31" }, HttpStatusCode.BadRequest);
         var catRevision = (string)f.App.Database.Scalar($"SELECT revision FROM ledger_categories WHERE category_id='{f.Category}'")!;
-        await Check($"/ledgers/{f.Ledger}/categories/{f.Category}", new JsonObject { ["revision"] = catRevision, ["incomeExpense"] = "Income" });
+        await Check($"/ledgers/{f.Ledger}/categories/{f.Category}", new JsonObject { ["revision"] = catRevision, ["incomeExpense"] = "Income" }, HttpStatusCode.BadRequest);
     }
 
     [Fact]
