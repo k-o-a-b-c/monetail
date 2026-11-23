@@ -160,6 +160,50 @@ public sealed class LedgerManagementTests
     }
 
     [Fact]
+    public async Task SamePersonOrderPreservesRevisionEvenWhenEmptyOrDisplayOrdersHaveGaps()
+    {
+        await using var app = await LoginTestApp.CreateAsync();
+        using var owner = await LoginAsync(app);
+        var id = await LedgerAsync(owner);
+        var path = $"/ledgers/{id}/people/order";
+        var empty = await Call(owner, "GET", $"/ledgers/{id}/people");
+        var emptyRevision = empty.GetProperty("orderRevision").GetString();
+        var emptySaved = await Call(owner, "PUT", path, new { revision = emptyRevision, personIds = Array.Empty<string>() });
+        Assert.Equal(emptyRevision, emptySaved.GetProperty("orderRevision").GetString());
+
+        var first = await PersonAsync(owner, id, "父");
+        var middle = await PersonAsync(owner, id, "母");
+        var last = await PersonAsync(owner, id, "子");
+        var beforeDelete = await Call(owner, "GET", $"/ledgers/{id}/people");
+        await Call(owner, "DELETE", $"/ledgers/{id}/people/{middle.GetProperty("personId").GetString()}",
+            new { revision = Revision(middle) });
+        var current = await Call(owner, "GET", $"/ledgers/{id}/people");
+        var revision = current.GetProperty("orderRevision").GetString();
+        var ids = new[] { first.GetProperty("personId").GetString(), last.GetProperty("personId").GetString() };
+        Assert.Equal(2, current.GetProperty("people").GetArrayLength());
+        Assert.Equal(2, current.GetProperty("people")[1].GetProperty("displayOrder").GetInt32());
+        Assert.NotEqual(beforeDelete.GetProperty("orderRevision").GetString(), revision);
+
+        var snapshot = app.Database.Snapshot(app.Database.Tables());
+        var unchanged = await Call(owner, "PUT", path, new { revision, personIds = ids });
+        Assert.Equal(revision, unchanged.GetProperty("orderRevision").GetString());
+        Assert.Equal(snapshot, app.Database.Snapshot(app.Database.Tables()));
+
+        var reversed = ids.Reverse().ToArray();
+        var changed = await Call(owner, "PUT", path, new { revision, personIds = reversed });
+        var changedRevision = changed.GetProperty("orderRevision").GetString();
+        Assert.NotEqual(revision, changedRevision);
+        Assert.Equal(last.GetProperty("personId").GetString(), changed.GetProperty("people")[0].GetProperty("personId").GetString());
+
+        var repeated = await Call(owner, "PUT", path, new { revision = changedRevision, personIds = reversed });
+        Assert.Equal(changedRevision, repeated.GetProperty("orderRevision").GetString());
+
+        var stale = await Call(owner, "PUT", path, new { revision, personIds = reversed }, HttpStatusCode.Conflict);
+        Assert.Equal("revision_conflict", Code(stale));
+        Assert.Equal(changedRevision, stale.GetProperty("latest").GetProperty("orderRevision").GetString());
+    }
+
+    [Fact]
     public async Task PersonConflictReturnsAllLatestFieldsAndNullClearsOnlyTheSpecifiedDate()
     {
         await using var app = await LoginTestApp.CreateAsync();

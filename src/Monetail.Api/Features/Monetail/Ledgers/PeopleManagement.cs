@@ -100,6 +100,10 @@ public sealed partial class LedgerManagementService
             if (ids.Count != people.Length || ids.Distinct(StringComparer.Ordinal).Count() != ids.Count ||
                 !ids.ToHashSet(StringComparer.Ordinal).SetEquals(people.Select(row => row.Id)))
                 throw LedgerPayload.Bad("現在の全人物を重複なく指定してください。", "personIds");
+            if (ids.SequenceEqual(people.OrderBy(person => person.DisplayOrder)
+                .ThenBy(person => person.Id, StringComparer.Ordinal).Select(person => person.Id)))
+                return await PeopleAsync(id, actor, token);
+
             var positions = ids.Select((key, index) => (key, index)).ToDictionary(value => value.key, value => value.index);
             foreach (var person in people) person.DisplayOrder = positions[person.Id];
             ledger.PeopleOrderRevision = Version();
