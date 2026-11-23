@@ -93,4 +93,3 @@
 - POST /peopleでは`requestId`で同一作成要求を識別する。人物IDはサーバーで採番し、要求IDは人物IDとは別。現在のログイン・参加・権限を確認した上で要求内容の同一性を照合する。
 - [共通再送](../../../ledger-operation-retries.md)の`operation_requests`記録を利用し、人物作成は`person.create`として扱う。**同じ成功要求の再送で重複作成しない**。操作者・操作種類・家計簿・正規化入力等が異なる要求IDの再利用は拒否する。
 - 作成記録は業務行と同じトランザクション内で成功時だけ確定し、自動削除せず保持する。元の作成人物が後で削除されていても同じ要求で再作成せず、`created_result_deleted`で削除済みを伝える（[共通再送](../../../ledger-operation-retries.md)、[競合と後続](../../../ledger-person-conflicts.md)）。
-- 人物PATCH/DELETEには`revision`が必須。`requestId`の必須条件を他のリソースの書込操作から一律に適用しない。人物POSTの同内容再送では、元の作成結果を改めて作らず、**現在の人物一覧**を返す。
