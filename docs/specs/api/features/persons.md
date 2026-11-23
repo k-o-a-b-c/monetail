@@ -57,13 +57,18 @@
 | --- | --- |
 | `GET /people` | `200 OK`・人物一覧JSON |
 | `POST /people` | 初回作成は`201 Created`、同一の成功要求の再送は`200 OK`。どちらも人物一覧JSON |
-| `PATCH /people/{personId}`・`DELETE /people/{personId}`・`PUT /people/order` | `200 OK`・人物一覧JSON |
+| `PATCH /people/{personId}` | `200 OK`・人物一覧JSON |
+| `DELETE /people/{personId}` | `200 OK`・人物一覧JSON |
+| `PUT /people/order` | `200 OK`・人物一覧JSON |
 
 人物の作成・更新・削除・共通順保存の**成功時は、最新の人物一覧を同じ応答に含める**。変更後一覧は変更と同じサーバートランザクション内の状態を返す。
 - 人物一覧/変更後の共通JSON形式は、トップレベルに`people`配列、`myPersonId`（対応人物がなければ`null`）、`currentRole`、`orderRevision`。人物ID・更新版はUUIDの**N形式の文字列**で返す。
 - `people[]`の人物1件は`personId`、`name`、`validFrom`、`validTo`、`displayOrder`、`revision`。日付は形式文字列または`null`。本人の人物IDは`myPersonId`で伝え、他参加者とのアカウント対応一覧を一般参加者へ公開しない。
 - `GET /people`は、有効期間外の人物を含む全人物を、家計簿共通の`displayOrder`に基づく順序で返す。新規人物は共通順の末尾へ追加する。
-- **共通順PUTが現在の人物ID順と同一の場合は無変更成功（200）**とし、人物0件の空配列を含めて`displayOrder`・`orderRevision`を変更しない。人物ID順が実際に変わる場合だけ`orderRevision`を更新する。追加・削除時も全体順序版を更新する。無変更時でも要求の更新版・ID集合を検証し、古い`revision`は409を返す。人物単位の`revision`は名前・期間の実値変更時だけ更新するため、**無変更PATCHでは行版を維持**し、共通順だけの変更でも人物の行版を変えない（[更新版の保存単位](../../../ledger-person-db.md)）。
+- **共通順PUTが現在の人物ID順と同一の場合は無変更成功（200）**とし、人物0件の空配列を含めて`displayOrder`・`orderRevision`を変更しない。
+- 人物ID順が実際に変わる場合だけ`orderRevision`を更新する。人物の追加・削除時も全体順序版を更新する。
+- 共通順PUTでは、無変更時も要求の更新版・全人物ID集合を検証し、古い`revision`は409を返す。
+- 人物単位の`revision`は名前・期間の実値変更時だけ更新する。**無変更PATCHでは行版を維持**し、共通順だけの変更でも人物の行版を変えない（[更新版の保存単位](../../../ledger-person-db.md)）。
 
 ## 6. 競合・失敗応答
 
