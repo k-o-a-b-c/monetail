@@ -36,7 +36,7 @@ docs/specs/api/
 | --- | --- | --- | --- |
 | 認証・セッション・全体アカウント | [認証API](../../auth-api-contract.md)、[セッション](../../auth-session-security.md)、[パスキー](../../auth-passkeys.md) | HTTP要求・認証・セッション・本人確認・アカウント管理 | 既存正本維持 |
 | 家計簿 | [家計簿API](../../ledger-core-api.md)、[共通前提](../../ledger-core-principles.md) | 作成・取得・権限・要求ID・回数制限 | 未移行 |
-| 人物 | [人物の業務条件・画面](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | GET・POST・PATCH・DELETE・順序PUT、制約・権限・更新版・再送 | **[正本](features/persons.md)**（PR #247・#249の実装済み仕様と照合） |
+| 人物 | [人物の業務条件・画面](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | GET・POST・PATCH・DELETE・順序PUT、制約・権限・更新版・再送 | **[正本](features/persons.md)**（現行API・テストと照合済み） |
 | 参加者・人物対応 | [参加者API](../../ledger-person-api-contract.md)、[参加者の業務条件](../../ledger-participants.md)、[競合・画面](../../ledger-person-conflicts.md) | 参加者取得・更新・除外、役割・人物対応・権限 | **既存正本維持**（人物APIを分離） |
 | 招待・参加受諾 | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 発行・取得・取消・受諾・認可・再送 | 未移行 |
 | 科目 | [家計簿DB・モデル](../../ledger-core-schema.md) | マスタのCRUD・順序API、入力制約・競合・再送 | 未移行 |
