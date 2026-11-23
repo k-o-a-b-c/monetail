@@ -68,10 +68,9 @@ public sealed partial class LedgerManagementService
             var name = input.Has("name") ? PaymentName(input.Text("name")) : row.Name;
             var from = input.Has("validFrom") ? input.Date("validFrom") : row.ValidFrom;
             var to = input.Has("validTo") ? input.Date("validTo") : row.ValidTo; Period(from, to);
-            var invalidField = await FindReceiptPeriodViolationAsync(context.Set<global::Monetail.Api.Features.Monetail.Receipts.LedgerReceipt>()
-                .Where(receipt => receipt.LedgerId == id && receipt.PaymentMethodId == key), from, to, token);
+            var invalidField = await FindPaymentMethodPeriodViolationAsync(id, key, from, to, token);
             if (invalidField is not null)
-                throw LedgerPayload.Bad("既存のレシートが期間外になるため変更できません。", invalidField);
+                throw LedgerPayload.Bad("既存の記録が期間外になるため変更できません。", invalidField);
             if (name != row.Name || from != row.ValidFrom || to != row.ValidTo)
             {
                 await UniquePaymentNameAsync(id, row.OwnerPersonId, key, name, token);
