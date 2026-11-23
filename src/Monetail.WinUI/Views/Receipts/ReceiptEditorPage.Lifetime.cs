@@ -98,7 +98,7 @@ public sealed partial class ReceiptEditorPage
         if (ViewModel is null || position is not null)
             return;
         Synchronize();
-        var focus = FocusManager.GetFocusedElement(XamlRoot) as Control;
+        var focus = XamlRoot is { } root ? FocusManager.GetFocusedElement(root) as Control : null;
         position = new(focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
             Visuals(this).OfType<ScrollViewer>().Select(v => (v, v.HorizontalOffset, v.VerticalOffset)).ToArray());
     }

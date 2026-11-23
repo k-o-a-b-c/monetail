@@ -237,7 +237,7 @@ public sealed partial class TransferEditorPage : Page
     {
         if (ViewModel?.RecoveryBlocked == true && position is not null)
             return;
-        var focus = FocusManager.GetFocusedElement(XamlRoot) as Control;
+        var focus = XamlRoot is { } root ? FocusManager.GetFocusedElement(root) as Control : null;
         position = new(focus, (focus as TextBox)?.SelectionStart ?? 0, (focus as TextBox)?.SelectionLength ?? 0,
             TransferInputScroller.VerticalOffset);
     }
