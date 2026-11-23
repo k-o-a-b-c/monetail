@@ -91,13 +91,15 @@ public partial class App
             await ExpireReceiptLogin(fixture);
             await Wait(() => Visible(root, "LoginPage"));
             var context = ReceiptRecoveryPosition;
+            string RetentionDiagnostic() => $"positionPresent={context is not null}; samePosition={ReferenceEquals(context, ReceiptRecoveryPosition)}; pricePreserved={price.Text == "12x"}; datePreserved={date.Text == "2026/"}; phase={ReceiptRecoveryPhaseValue}; suppress={date.SuppressCompletion}";
+            Check(context is not null && price.Text == "12x" && date.Text == "2026/", "401直後の未確定入力と最初の編集位置を保持する: " + RetentionDiagnostic());
             Check(ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(draft, editor.Draft) && ReferenceEquals(editorModel, ReceiptView.ViewModel) && ReferenceEquals(parent, ReceiptView.ViewModel?.ParentInput) &&
                 ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput) && !VisibleAncestors(Find<Monetail.WinUI.Views.Receipts.ReceiptEditorPage>(root, "ReceiptEditorPage")), "レシート401は元の編集/親入力/未反映下書き/コントロールを保持して非表示にする");
             await InvokeAsync(() => Find<Button>(root, "LoginButton"));
             await Wait(() => BrowserLoginWaiting(root));
             await InvokeAsync(() => Find<Button>(root, "CancelLoginButton"));
             await Wait(() => Visible(root, "LoginPage") && Equals(TransferRuntime("busy"), false));
-            Check(ReferenceEquals(context, ReceiptRecoveryPosition) && price.Text == "12x" && date.Text == "2026/", "ログイン取消は最初の復帰情報と未確定入力を保持してログイン画面に留まる");
+            Check(ReferenceEquals(context, ReceiptRecoveryPosition) && price.Text == "12x" && date.Text == "2026/", "ログイン取消は最初の復帰情報と未確定入力を保持してログイン画面に留まる: " + RetentionDiagnostic());
             server.ExpireAt = "taxes";
             await CompleteReceiptLogin(fixture, root, expiresAgain: true);
             Check(ReferenceEquals(context, ReceiptRecoveryPosition) && ReferenceEquals(editor, ReceiptEditing) && ReferenceEquals(input, ReceiptView.ViewModel?.DetailInput),
