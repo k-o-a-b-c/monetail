@@ -25,6 +25,9 @@ public partial class App
         // 各120秒を維持するため、新設Page寿命と独立した人物の削除/順序試験を前半へ配分する。
         // 既存の実IME入力試験とparticipant recoveryの反復対象は元のプロセスに残す。
         new("editor-page-lifetime", "transfer-editor", CheckEditorPageLifetime),
+        new("person-deletion", "transfer-editor", CheckPersonDeletion),
+        new("person-order", "transfer-editor", CheckPersonOrder),
+        new("person-order-reauthentication", "transfer-editor", CheckPersonOrderReauthentication),
         new("shell", "existing", () => CheckShell(output, capture)),
         new("participant-authentication-recovery", "existing", async () =>
         {
@@ -42,9 +45,6 @@ public partial class App
         new("people-filter", "existing", CheckPeopleFilter),
         new("tax-rate-connection-cache", "existing", CheckTaxRateConnectionCache),
         new("people-flow", "existing", () => CheckPeopleFlow(output, capture)),
-        new("person-deletion", "transfer-editor", CheckPersonDeletion),
-        new("person-order", "transfer-editor", CheckPersonOrder),
-        new("person-order-reauthentication", "transfer-editor", CheckPersonOrderReauthentication),
         new("person-reauthentication", "existing", CheckPersonReauthentication),
         new("participants-and-invitations", "existing", CheckParticipantsAndInvitations),
         new("input-controls", "existing", CheckInputControls),
