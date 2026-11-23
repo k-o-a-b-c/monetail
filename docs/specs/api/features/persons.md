@@ -64,7 +64,7 @@
 | `PUT /people/order` | `200 OK`・人物一覧JSON |
 
 人物の作成・更新・削除・共通順保存の**成功時は、最新の人物一覧を同じ応答に含める**。変更後一覧は変更と同じサーバートランザクション内の状態を返す。
-- 人物一覧/変更後の共通JSON形式は、トップレベルに`people`配列と`orderRevision`のみを持つ。人物ID・更新版はUUIDの**N形式の文字列**で返す。操作者の`role`・`myPersonId`は[家計簿API](../../../ledger-core-api.md)で取得する。
+- 人物一覧/変更後の共通JSON形式は、トップレベルに`people`配列と`orderRevision`のみを持つ。人物ID・更新版はUUIDの**N形式の文字列**で返す。
 - `people[]`の人物1件は`personId`、`name`、`validFrom`、`validTo`、`displayOrder`、`revision`。日付は形式文字列または`null`。本人判定は家計簿APIで得た`myPersonId`を用い、人物一覧から他参加者のアカウント対応を公開しない。
 - `GET /people`は、有効期間外の人物を含む全人物を、家計簿共通の`displayOrder`に基づく順序で返す。新規人物は共通順の末尾へ追加する。
 - **共通順PUTが現在の人物ID順と同一の場合は無変更成功（200）**とし、人物0件の空配列を含めて`displayOrder`・`orderRevision`を変更しない。
