@@ -75,7 +75,8 @@ docs/specs/api/
 - 現行`AdvancePaymentOrderAsync`の追加・削除時の旧順序版条件を廃止する。対象所有者の最新構成に対する末尾追加・削除と新版設定を同一トランザクションで確定する。PUTの版照合とDELETEの行版照合は維持する。`PaymentMethodApiTests.cs`の内部順序版CAS失敗を409とする期待値を見直し、順序版更新の保存失敗は503で全変更を戻すことを検証する。Clientは追加・削除専用の順序版競合分岐を設けない。同時操作、独立した所有者の版、欠番、再送記録の原子性を確認する。
 - 既存参照との期間競合は409 `payment_method_period_conflict`（field=validFromまたはvalidTo、latest=null）に統一する。現行`PaymentMethodManagement.cs`・`PaymentMethodPeriodTests.cs`・`ReceiptApiSafetyTests.cs`は400を使用する。日付の形式・前後関係の不備は400のまま。実レシート・振替両側、両端日・null・片側変更・同時保存、拒否時の行と版の保持を検証する。Client・画面はcodeとlatestの形式で業務エラーを区別する。
 - 行版競合では、`LedgerApiSupport.cs`の共通例外処理はAdmin/Editorの役割を再確認するが、対象所有者との本人対応まで再確認することはコード上確認できない。現在の対象所有者への操作権限を失った場合は409のlatestを返さず403等を優先する。所有者別順PUTも含め、現在の所有者権限の再検証と回帰テストが必要。
-- 評価額あり／なしの業務制約はDEC-305〜311で確定しているが、HTTP項目名・必須／省略・編集権限・エラーの詳細は未確定。残高・日付付き支払メモの参照検証は各業務API実装時に対応する。実装・テストの変更は文書移行の対象外。
+- 評価額属性のHTTP・DB契約は利用者確認済み。DEC-305〜311と[支払方法API](features/payment-methods.md)に従い、初期DBスキーマの`has_valuation`、API・Clientの`hasValuation`、書込検証・一覧と競合応答・再送同一性・行版を実装する。WinUIの評価額属性対応も後続。Migration・Snapshot・バックフィルは作成しない。省略/falseの同一性、trueとの不一致、null/文字列/数値拒否、属性変更時の行版更新・同値維持・順序版保持、既存の所有者権限を検証する。
+- 残高API実装時に、評価額のみ・残高のみ・両方（0円を含む）の記録について有効期間と削除制約を適用し、true→falseの非NULL評価額記録による拒否（409 `payment_method_valuation_conflict`）を実装する。残高のみならオフへの変更可。評価額履歴のない状態でオフへの変更、評価額記録削除後の変更、オフ→オン、期間競合と評価額競合が同時にある場合の期間優先、評価額保存とオフ変更・期間変更の同時操作での整合性・ロールバックを検証する。残高側のHTTP詳細は残高APIの設計で確定する。日付付き支払メモの参照検証は当該業務API実装時に対応する。実装・テストの変更は文書移行の対象外。
 
 物理DBの正本は、[共通DB](../../ledger-core-schema.md)、[人物DB](../../ledger-person-db.md)、[レシートDB](../../ledger-receipt-schema.md)、[振替DB](../../ledger-transfer-db.md)を参照する。
 
