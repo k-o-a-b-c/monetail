@@ -53,7 +53,7 @@ docs/specs/api/
 | レシート | 実装済み | 一覧／詳細GET・POST／PUT／DELETE・保存行フォーカス・履歴候補／自動補完GET・計算／検証。メモの空文字正規化も対応済み | [レシートAPI](../../ledger-receipt-api.md)、[履歴候補API](../../ledger-receipt-suggestions.md) | 未移行 |
 | 振替 | 実装済み | 一覧／詳細GET・POST／PUT／DELETE・保存行フォーカス・名称候補／自動補完GET。残高連動は残高API実装時 | [振替API](../../ledger-transfer-api.md)、[振替業務条件](../../ledger-transfer-db.md) | 未移行 |
 | 残高・推算残高 | 未実装 | 評価額対応を含む登録／更新／削除・履歴取得・推算一括GET、人物／支払方法の期間検証。推算GETは契約の確定範囲あり、保存／履歴のHTTP詳細等は後続設計 | [残高API](../../ledger-balance-api.md)、[家計簿DB・モデル](../../ledger-core-schema.md) | 未移行 |
-| 支払メモ | 未実装 | 記録・取得・日付付き参照の期間検証。API詳細は後続設計 | [共通UI](../../../UI_DESIGN.md)、[家計簿DB・モデル](../../ledger-core-schema.md) | 契約未整理 |
+| 支払メモ | 未実装 | 記録・取得。人物・支払方法の有効期間による保存制限なし。API詳細は後続設計 | [共通UI](../../../UI_DESIGN.md)、[家計簿DB・モデル](../../ledger-core-schema.md) | 契約未整理 |
 | 集計・分析 | 未実装 | 科目別・収支・残高の集計と内訳。API詳細は後続設計 | [共通UI](../../../UI_DESIGN.md)、[新旧比較台帳](../../legacy-new-final-parity-matrix.md) | 契約未整理 |
 | ポイント | 未実装 | ポイント設定・取引。採用範囲・API詳細は後続設計 | [家計簿DB・モデル](../../ledger-core-schema.md) | 契約未整理 |
 
@@ -77,7 +77,7 @@ docs/specs/api/
 - 所有者別順PUTの版競合の`latest`は`ownerPersonId`・`orderRevision`・`paymentMethods`の3項目とする（利用者確認済み）。現行の重複する`paymentMethodIds`を応答から除き、Clientは最新一覧の配列順と各行IDを用いる。要求側の`paymentMethodIds`は維持する。成功応答の`ownerOrderRevisions[]`の所有者ID項目名も`personId`から`ownerPersonId`に統一する（利用者確認済み）。人物APIの`personId`は変更しない。API・Client・関連テストで0件、欠番・同順位、他所有者情報の除外、最新順への切替、応答キーの一致を検証する。
 - 行版競合では、`LedgerApiSupport.cs`の共通例外処理はAdmin/Editorの役割を再確認するが、対象所有者との本人対応まで再確認することはコード上確認できない。現在の対象所有者への操作権限を失った場合は409のlatestを返さず403等を優先する。所有者別順PUTも含め、現在の所有者権限の再検証と回帰テストが必要。
 - 評価額属性のHTTP・DB契約は利用者確認済み。DEC-305〜311と[支払方法API](features/payment-methods.md)に従い、初期DBスキーマの`has_valuation`、API・Clientの`hasValuation`、書込検証・一覧と競合応答・再送同一性・行版を実装する。WinUIの評価額属性対応も後続。評価額履歴による事前照会・切替操作の無効化は行わず、保存時のAPI拒否に統一する（利用者確認済み、2026-11-24）。`payment_method_valuation_conflict` の理由表示、編集画面・入力保持を検証する。専用の事前照会API・一覧属性・DBフラグは追加しない。Migration・Snapshot・バックフィルは作成しない。省略/falseの同一性、trueとの不一致、null/文字列/数値拒否、属性変更時の行版更新・同値維持・順序版保持、既存の所有者権限を検証する。
-- 残高API実装時に、評価額のみ・残高のみ・両方（0円を含む）の記録について人物（支払方法の所有者）・支払方法双方の有効期間と削除制約を適用し、人物APIの期間変更で対象記録が期間外になる場合は409 `person_period_conflict` とする。人物側も残高保存との同時操作・両端日・null・拒否時の版保持を検証する。支払方法側はtrue→falseの非NULL評価額記録による拒否（409 `payment_method_valuation_conflict`）を実装する。残高のみならオフへの変更可。評価額履歴のない状態でオフへの変更、評価額記録削除後の変更、オフ→オン、期間競合と評価額競合が同時にある場合の評価額競合優先、評価額保存とオフ変更・期間変更の同時操作での整合性・ロールバックを検証する。残高側のHTTP詳細は残高APIの設計で確定する。日付付き支払メモの参照検証は当該業務API実装時に対応する。実装・テストの変更は文書移行の対象外。
+- 残高API実装時に、評価額のみ・残高のみ・両方（0円を含む）の記録について人物（支払方法の所有者）・支払方法双方の有効期間と削除制約を適用し、人物APIの期間変更で対象記録が期間外になる場合は409 `person_period_conflict` とする。人物側も残高保存との同時操作・両端日・null・拒否時の版保持を検証する。支払方法側はtrue→falseの非NULL評価額記録による拒否（409 `payment_method_valuation_conflict`）を実装する。残高のみならオフへの変更可。評価額履歴のない状態でオフへの変更、評価額記録削除後の変更、オフ→オン、期間競合と評価額競合が同時にある場合の評価額競合優先、評価額保存とオフ変更・期間変更の同時操作での整合性・ロールバックを検証する。残高側のHTTP詳細は残高APIの設計で確定する。支払メモは人物・支払方法の期間検証の対象外とする（利用者確認済み）。当該API実装時に、確認日が期間外でもメモの保存・マスタの期間変更を拒否せず、メモを自動削除しないこと、支払方法への参照による削除制限を維持することを検証する。実装・テストの変更は文書移行の対象外。
 
 物理DBの正本は、[共通DB](../../ledger-core-schema.md)、[人物DB](../../ledger-person-db.md)、[レシートDB](../../ledger-receipt-schema.md)、[振替DB](../../ledger-transfer-db.md)を参照する。
 
