@@ -70,14 +70,14 @@ docs/specs/api/
 **支払方法の確定契約と現行との差分・確認事項**：人物・科目との6項目の統一を利用者確認済み（2026-11-24）。確定契約は[支払方法API](features/payment-methods.md)を参照。
 
 - 操作者情報の集約は上記の確定方針に従う。POST初回・再送の成功応答も他の4操作と同じ一覧応答に統一する。現行`PaymentMethodManagement.cs`のトップレベル作成IDとClientの作成応答DTO・参照箇所を切り替える。行ID・共通再送記録の`result_id`は維持し、再送時の重複作成防止・削除後再送・権限検証を維持する。
-- 現行`PaymentMethodManagement.cs`は変更項目なしのPATCHを400で拒否する。正しい版でのrevisionのみのPATCHは無変更成功（200）とし、行版・順序版を維持する。古い版・権限不足・対象不在・既存参照の期間検証は維持する。PATCHの検証順は入力検証→同名判定→期間競合に統一する。現行は期間競合を先に判定する。複数不備が重なる場合の優先順位を検証する。
+- 現行`PaymentMethodManagement.cs`は変更項目なしのPATCHを400で拒否する。正しい版でのrevisionのみのPATCHは無変更成功（200）とし、行版・順序版を維持する。古い版・権限不足・対象不在・既存参照の期間検証は維持する。PATCHの検証順は入力検証→同名判定→評価額属性の変更制限→期間競合に統一する（利用者確認済み）。現行は期間競合を先に判定する。複数不備が重なる場合の優先順位を検証する。
 - 現行`PaymentMethodOrderManagement.cs`は同順・0件・1件でも順序版更新と連番設定を行う。同順では欠番・同順位も含め版と表示順値を維持し、古い版・不正な全ID集合は拒否する。実際の順変更では連番・新順序版となり、行版・人物版・他所有者の版を維持する。`PaymentMethodOrderApiTests.cs`の同順成功期待値を更新する。
 - 現行`AdvancePaymentOrderAsync`の追加・削除時の旧順序版条件を廃止する。対象所有者の最新構成に対する末尾追加・削除と新版設定を同一トランザクションで確定する。PUTの版照合とDELETEの行版照合は維持する。`PaymentMethodApiTests.cs`の内部順序版CAS失敗を409とする期待値を見直し、順序版更新の保存失敗は503で全変更を戻すことを検証する。Clientは追加・削除専用の順序版競合分岐を設けない。同時操作、独立した所有者の版、欠番、再送記録の原子性を確認する。
 - 既存参照との期間競合は409 `payment_method_period_conflict`（field=validFromまたはvalidTo、latest=null）に統一する。現行`PaymentMethodManagement.cs`・`PaymentMethodPeriodTests.cs`・`ReceiptApiSafetyTests.cs`は400を使用する。日付の形式・前後関係の不備は400のまま。実レシート・振替両側、両端日・null・片側変更・同時保存、拒否時の行と版の保持を検証する。Client・画面はcodeとlatestの形式で業務エラーを区別する。
 - 所有者別順PUTの版競合の`latest`は`ownerPersonId`・`orderRevision`・`paymentMethods`の3項目とする（利用者確認済み）。現行の重複する`paymentMethodIds`を応答から除き、Clientは最新一覧の配列順と各行IDを用いる。要求側の`paymentMethodIds`は維持する。API・Client・関連テストで0件、欠番・同順位、他所有者情報の除外、最新順への切替、応答キーの一致を検証する。
 - 行版競合では、`LedgerApiSupport.cs`の共通例外処理はAdmin/Editorの役割を再確認するが、対象所有者との本人対応まで再確認することはコード上確認できない。現在の対象所有者への操作権限を失った場合は409のlatestを返さず403等を優先する。所有者別順PUTも含め、現在の所有者権限の再検証と回帰テストが必要。
 - 評価額属性のHTTP・DB契約は利用者確認済み。DEC-305〜311と[支払方法API](features/payment-methods.md)に従い、初期DBスキーマの`has_valuation`、API・Clientの`hasValuation`、書込検証・一覧と競合応答・再送同一性・行版を実装する。WinUIの評価額属性対応も後続。評価額履歴による事前照会・切替操作の無効化は行わず、保存時のAPI拒否に統一する（利用者確認済み、2026-11-24）。`payment_method_valuation_conflict` の理由表示、編集画面・入力保持を検証する。専用の事前照会API・一覧属性・DBフラグは追加しない。Migration・Snapshot・バックフィルは作成しない。省略/falseの同一性、trueとの不一致、null/文字列/数値拒否、属性変更時の行版更新・同値維持・順序版保持、既存の所有者権限を検証する。
-- 残高API実装時に、評価額のみ・残高のみ・両方（0円を含む）の記録について有効期間と削除制約を適用し、true→falseの非NULL評価額記録による拒否（409 `payment_method_valuation_conflict`）を実装する。残高のみならオフへの変更可。評価額履歴のない状態でオフへの変更、評価額記録削除後の変更、オフ→オン、期間競合と評価額競合が同時にある場合の期間優先、評価額保存とオフ変更・期間変更の同時操作での整合性・ロールバックを検証する。残高側のHTTP詳細は残高APIの設計で確定する。日付付き支払メモの参照検証は当該業務API実装時に対応する。実装・テストの変更は文書移行の対象外。
+- 残高API実装時に、評価額のみ・残高のみ・両方（0円を含む）の記録について有効期間と削除制約を適用し、true→falseの非NULL評価額記録による拒否（409 `payment_method_valuation_conflict`）を実装する。残高のみならオフへの変更可。評価額履歴のない状態でオフへの変更、評価額記録削除後の変更、オフ→オン、期間競合と評価額競合が同時にある場合の評価額競合優先、評価額保存とオフ変更・期間変更の同時操作での整合性・ロールバックを検証する。残高側のHTTP詳細は残高APIの設計で確定する。日付付き支払メモの参照検証は当該業務API実装時に対応する。実装・テストの変更は文書移行の対象外。
 
 物理DBの正本は、[共通DB](../../ledger-core-schema.md)、[人物DB](../../ledger-person-db.md)、[レシートDB](../../ledger-receipt-schema.md)、[振替DB](../../ledger-transfer-db.md)を参照する。
 
