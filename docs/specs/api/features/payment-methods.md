@@ -90,7 +90,7 @@ GETには要求本文を必要としない。書込4操作（DELETEを含む）�
 | `name` | 文字列 | 保存済みの支払方法名 |
 | `validFrom` | 日付文字列またはnull | 有効開始日 |
 | `validTo` | 日付文字列またはnull | 有効終了日 |
-| `hasValuation` | boolean | 評価額あり／なし |
+| `hasValuation` | boolean | 評価額の登録可否 |
 | `displayOrder` | 整数（Int32） | 非負の所有者内の共通表示順 |
 | `revision` | UUID文字列 | 支払方法単位の更新版 |
 
