@@ -76,7 +76,7 @@
 | `PATCH /categories/{categoryId}` | 家計簿Admin | `revision`必須。名前・収支・初期税区分・開始日・終了日から1つ以上 |
 | `DELETE /categories/{categoryId}` | 家計簿Admin | `revision`必須 |
 
-現在の参加・認証・家計簿Admin権限を書込前と確定前に再確認し、家計簿をまたぐ参照/更新をしない。認証・CookieのCSRF/Origin・エラー形式は[共通契約](ledger-person-api-contract.md)と同じ。既存アカウント単位の書込20回/分・参照120回/分を共有する。
+現在の参加・認証・家計簿Admin権限を書込前と確定前に再確認し、家計簿をまたぐ参照/更新をしない。認証・CookieのCSRF/Originは[セッション保護](auth-session-security.md)、業務エラーの具体的な外部契約は[人物API](specs/api/features/persons.md)など各機能のAPI正本を参照する。既存アカウント単位の書込20回/分・参照120回/分を共有する。
 
 ### 入力と応答
 
@@ -86,6 +86,8 @@
 
 GET・PATCH・DELETEは次の`CategoriesResponse`。順序は`display_order ASC, category_id ASC`、有効期間外の除外や本人優先をしない。
 
+**変更後の応答契約（API・Windows Client未実装）**：科目・支払方法のマスタ応答から操作者の`currentRole`・`myPersonId`を除き、[家計簿API](ledger-core-api.md)の`role`・`myPersonId`を共通状態として参照する。現行のAPI・Clientには旧項目が残るため、移行実装まで新旧を区別する。
+
 ```json
 {
   "categories": [
@@ -93,8 +95,7 @@ GET・PATCH・DELETEは次の`CategoriesResponse`。順序は`display_order ASC,
       "taxCategoryCode": "ReducedFood", "validFrom": "2026-04-01", "validTo": null,
       "displayOrder": 0, "revision": "行UUID更新版" }
   ],
-  "orderRevision": "家計簿のcategory_order_revision",
-  "currentRole": "Admin"
+  "orderRevision": "家計簿のcategory_order_revision"
 }
 ```
 
@@ -127,8 +128,8 @@ POSTはこの一覧にトップレベルの`categoryId`を追加し、初回201�
 - 書込SQLiteトランザクション内で旧順序版を照合し、**DB更新時にも家計簿IDと旧`category_order_revision`を条件にしたUPDATE**で新UUIDへ変更する。行の順序変更と版を同時に確定し、失敗時は全体をロールバックする。
 - 支払方法並び替えと同じく、**0件・1件・同一順序の再保存も、成功ごとに順序版を更新する**。追加・削除もこの版を更新するため、旧一覧の並び替えで構成変更を上書きしない。通常の科目編集はこの版を変更しない。
 - 科目自身の`revision`・名前・収支区分・初期税区分・有効期間、家計簿自身の`revision`、人物・支払方法の順序版/行版は変更しない。他家計簿も変更しない。
-- 成功は200と既存の`CategoriesResponse`（全科目の全項目・`orderRevision`・`currentRole`）。追加GETを必要としない。
-- 旧版不一致は409 `revision_conflict`。`latest`に**現在の全科目一覧と`orderRevision`・`currentRole`**を同じ`CategoriesResponse`形式で返す。既存支払方法APIと同じく、版競合を全IDの集合照合より先に判定し、追加・削除後の古い配列にも最新一覧を返す。
+- 成功は200と`CategoriesResponse`（全科目の全項目・`orderRevision`）。追加GETを必要としない。
+- 旧版不一致は409 `revision_conflict`。`latest`に**現在の全科目一覧と`orderRevision`**を同じ`CategoriesResponse`形式で返す。既存支払方法APIと同じく、版競合を全IDの集合照合より先に判定し、追加・削除後の古い配列にも最新一覧を返す。
 - 書込前・確定前に現在の認証・参加・Admin権限を再検証する。競合情報取得後も再検証し、認証失効は401、参加喪失/家計簿不在は404、権限不足は403として`latest`を公開しない。想定外DB障害は既存の503 `store_unavailable`。
 
 ## 共通税区分・日付別税率履歴（DEC-138・DB基盤実装済み）
@@ -472,7 +473,7 @@ END;
 
 | HTTP・パス | 権限 | 本文 | 処理・応答 |
 | --- | --- | --- | --- |
-| `GET /payment-methods` | 参加者全員 | なし | **有効期間外も含む全支払方法**と所有者別の順序更新版・本人の人物ID・現在ロールを返す。所有者の支払方法0件でも版を返す |
+| `GET /payment-methods` | 参加者全員 | なし | **有効期間外も含む全支払方法**と所有者別の順序更新版を返す。所有者の支払方法0件でも版を返す |
 | `POST /payment-methods` | Adminは任意の同一家計簿人物、Editorは本人対応人物のみ | `requestId`、`ownerPersonId`、`name`、任意の`validFrom`／`validTo` | 新UUIDで作成、所有者内末尾へ追加。成功201、同要求の再送200。変更後の一覧を返す |
 | `PATCH /payment-methods/{paymentMethodId}` | Adminは全件、Editorは本人所有分のみ | 必須`revision`、変更対象の`name`／`validFrom`／`validTo` | 名前・有効期間だけ変更し、新しい行`revision`を発行。成功200で変更後の一覧を返す |
 | `DELETE /payment-methods/{paymentMethodId}` | Adminは全件、Editorは本人所有分のみ | 必須`revision` | **未使用の支払方法だけ**削除し、所有者の順序更新版を更新。成功200で変更後の一覧を返す |
@@ -480,10 +481,10 @@ END;
 - **POSTの必須項目：** `requestId`は操作ごとにクライアントが発行するUUID、`ownerPersonId`は当該家計簿に存在する人物のUUID、`name`は前後空白除去後1〜100 UTF-16コード単位。所有者が指定されない・他家計簿の人物・無権限の人物なら拒否。作成時の期間は省略・`null`のどちらも制限なしとし、日付の文字列は`YYYY-MM-DD`（DEC-119）。
 - **PATCHの部分更新：** `name`を省略した場合は据え置き、指定時は文字列必須（`null`不可）。`validFrom`／`validTo`は省略＝据え置き、明示的な`null`＝その側の期間制限を解除。変更項目を1つ以上必須とし、実値が変わらなければ何も更新せず行版も変えない。実値が変わる場合は必須の旧`revision`との一致を検証し、値と新UUIDの行版を同一トランザクションで保存する。
 - **所有者の不変性：** PATCHでは`ownerPersonId`、`ledgerId`、`paymentMethodId`、`displayOrder`を受け付けない。所有者変更はAdminでも許可しない（DEC-131）。所有者列のDB直接更新もDEC-134のトリガーで拒否する。表示順はDEC-132の専用PUTだけで更新する。
-- **期間検証：** 作成・更新時は開始日≦終了日を検証。更新時には既存のレシート・振替（両側）・残高・日付付き支払メモ等の保存済み参照日付が新期間外にならないかを、業務データの実装段階で同じ書込処理内で確認する（DEC-121）。無効化対象の既存データがあれば支払方法も保存しない。
+- **期間検証：** 作成・更新時は開始日≦終了日を検証。更新時には既存のレシート・振替（両側）・残高・日付付き支払メモ等の保存済み参照日付が新期間外にならないかを、業務データの実装段階で同じ書込処理内で確認する（DEC-121）。無効化対象の既存データがあれば支払方法も保存せず、`400 invalid_input`と対象の日付項目（`validFrom`または`validTo`）を返す。
 - **DELETEの使用済み判定：** レシート・振替両側・残高・支払メモなど、参照が1件でもあれば不可（DEC-125）。使用額0や日付なしの参照も使用済み。FKのRESTRICTで同時作成からも保護し、参照失敗は`payment_method_referenced`として409。失敗時は順序更新版を変更しない。
-- **一覧の返却：** 共通レスポンスは`paymentMethods`（各`paymentMethodId`、`ownerPersonId`、`name`、`displayOrder`、`validFrom`、`validTo`、`revision`）、`ownerOrderRevisions`（`personId`と`orderRevision`の配列）、`myPersonId`、`currentRole`。管理画面ではDEC-120の「本日有効」を初期表示としてUIで絞るが、並び替え用の集合は有効期間外も含む全件とする。POST成功・再送では作成した`paymentMethodId`も応答に含める。
-- **API配列順と画面表示順：** `paymentMethods`配列は`ownerPersonId ASC, displayOrder ASC, paymentMethodId ASC`で返す。これは画面表示順ではない。画面側で`myPersonId`の所有分を最優先にし、他の人物は人物マスタの共通順（`ownerOrderRevisions`の配列順）、同一人物内は`displayOrder ASC, paymentMethodId ASC`で表示する。本人対応がなければ人物共通順を使う。表示の並び替えでDBの保存順・更新版は変更しない。
+- **一覧の返却：** 共通レスポンスは`paymentMethods`（各`paymentMethodId`、`ownerPersonId`、`name`、`displayOrder`、`validFrom`、`validTo`、`revision`）、`ownerOrderRevisions`（`personId`と`orderRevision`の配列）。管理画面ではDEC-120の「本日有効」を初期表示としてUIで絞るが、並び替え用の集合は有効期間外も含む全件とする。POST成功・再送では作成した`paymentMethodId`も応答に含める。
+- **API配列順と画面表示順：** `paymentMethods`配列は`ownerPersonId ASC, displayOrder ASC, paymentMethodId ASC`で返す。これは画面表示順ではない。画面側で家計簿APIから取得した`myPersonId`の所有分を最優先にし、他の人物は人物マスタの共通順（`ownerOrderRevisions`の配列順）、同一人物内は`displayOrder ASC, paymentMethodId ASC`で表示する。本人対応がなければ人物共通順を使う。表示の並び替えでDBの保存順・更新版は変更しない。
 - **権限・競合：** 保存の直前にも現在の参加・ロール・本人の人物対応・対象所有者を検証する。行更新版不一致は409 `revision_conflict`で、権限の範囲で最新の支払方法情報を`latest`に返す。名前重複は409 `duplicate_payment_method_name`で区別し、所有者・名前入力エラーは400、権限不足403、未参加・対象不在404、予期しない保存障害503とする。行版の更新はDB側の旧値一致の条件付きUPDATEとし、同時操作で古い値が上書きされないようにする。
 - **追加・削除時の順序版：** 新規追加・削除では対象の`ledger_people.payment_order_revision`だけを新UUIDに更新し、支払方法の増減と版更新を1トランザクションで確定する。**POSTの作成成功時だけ**共通再送記録も同じトランザクションに含める。所有者別順序版の旧値条件付きUPDATEで別端末との増減・並び替えを競合検出する。無関係な所有者や人物名編集用の`ledger_people.revision`は変更しない。
 - **再送管理：** POSTは既存の`operation_requests`を共用し、操作種別を`payment_method.create`とする。UUID`requestId`＋操作種別＋現在アカウント＋家計簿ID・所有者ID・正規化済み名前・期間の内容ハッシュで照合し、成功時に作成結果IDを同時記録。同じ要求は新しい支払方法を作らず現在の一覧と元の作成IDを返し、順序版も再更新しない。異なる内容による同じ要求IDは409 `request_conflict`。元の作成結果が削除済みなら、所有者の人物も削除されていても409 `created_result_deleted`で、同じ要求IDで再作成しない。現在の参加・操作権限を確認してから再送記録を照合し、所有者の実在確認は再送記録がない新規作成に対して行う。再送時にも現在の家計簿参加・作成権限を検証する。更新・削除に要求IDを追加する必要はない。

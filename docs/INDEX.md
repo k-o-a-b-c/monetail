@@ -1,6 +1,6 @@
 # 文書の入口と更新先
 
-**機能を変えるときは、対応する正本だけを更新する。** README・ロードマップ・決定履歴へ同じ仕様や「ここまで実装した」という文章を転記しない。リンク先が正しければ整合性は保てる。
+**機能を変えるときは、対応する正本だけを更新する。** README・ロードマップ・決定履歴へ同じ仕様を転記しない。API実装状況・未対応差分はAPI実装・移行台帳、WinUIの実装状況は画面台帳で管理し、他文書への重複転記を避ける。リンク先が正しければ整合性は保てる。
 
 | 内容 | 正本・更新先 |
 | --- | --- |
@@ -10,6 +10,7 @@
 | アカウント・パスキー・登録・全失効と復旧 | [認証・パスキー](auth-passkeys.md) |
 | セッション期限・Cookie・CSRF | [セッション保護](auth-session-security.md) |
 | WindowsのOAuth・DPAPI・トークン保存 | [Windows認証](auth-windows-oauth.md) |
+| APIの機能別実装状況・未対応差分・契約参照先・正本移行状況 | [API実装・移行台帳](specs/api/README.md) |
 | 認証・管理APIの入出力と再送 | [認証API](auth-api-contract.md) |
 | 家計簿設計の入口・旧リンク | [58 家計簿設計](58-ledger-foundation-design.md) |
 | 家計簿共通設計の入口・旧見出し | [共通仕様](ledger-foundation-core.md) |
@@ -34,7 +35,8 @@
 | 人物仕様・人物画面 | [人物管理](ledger-persons.md) |
 | 参加者・人物対応 | [参加者管理](ledger-participants.md) |
 | 人物管理API・DBの入口・旧リンク | [人物API](ledger-person-api.md) |
-| 人物・参加者のAPIとJSON契約 | [API契約](ledger-person-api-contract.md) |
+| 人物5操作のHTTP・JSON・業務契約 | [人物API](specs/api/features/persons.md) |
+| 参加者4操作のAPI・JSON契約 | [参加者API](ledger-person-api-contract.md) |
 | 人物・参加者のテーブルと更新版 | [人物DB](ledger-person-db.md) |
 | 作成要求の再送と保持条件 | [共通再送](ledger-operation-retries.md) |
 | 人物・参加者の競合・権限喪失・後続画面 | [競合と後続](ledger-person-conflicts.md) |
