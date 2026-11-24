@@ -42,7 +42,7 @@ docs/specs/api/
 | 認証・セッション・パスキー | 実装済み | 登録・自己登録・ログイン・本人再確認・ログアウト・鍵管理・デスクトップOAuth。公開運用の準備や未確定の復旧・退会は別途 | [認証API](../../auth-api-contract.md)、[セッション](../../auth-session-security.md)、[パスキー](../../auth-passkeys.md) | 既存正本維持 |
 | 全体アカウント管理 | 実装済み | 一覧・作成・登録招待の発行／取消・管理メモ。全失効・緊急復旧はCLI。管理者の全失効HTTP経路・権限変更は未実装で、追加契約は未確定 | [認証API](../../auth-api-contract.md) | 既存正本維持 |
 | 家計簿 | 一部実装済み | 作成・一覧・個別参照・指定／最後の家計簿を開く。操作者情報の集約（上記）未対応。削除APIは後続設計 | [家計簿API](../../ledger-core-api.md)、[共通前提](../../ledger-core-principles.md) | 未移行 |
-| 人物 | 一部実装済み | CRUD・共通順PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）未対応。残高等の期間検証は各業務API実装時 | [人物API](features/persons.md)、[人物の業務条件](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
+| 人物 | 一部実装済み | CRUD・共通順PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）未対応。残高等の期間検証は各業務API実装時 | [人物API](features/persons.md)、[人物の画面仕様](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
 | 参加者・人物対応 | 実装済み | 一覧・編集情報GET・役割／人物対応の更新・除外 | [参加者API](../../ledger-person-api-contract.md)、[参加者の業務条件](../../ledger-participants.md) | 既存正本維持 |
 | 招待・参加受諾 | 実装済み | 一覧・発行・取消・プレビュー・受諾 | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 未移行 |
 | 科目 | 一部実装済み | CRUD・順序PUT。操作者情報の集約（上記）未対応 | [家計簿DB・モデル](../../ledger-core-schema.md) | 未移行 |
@@ -68,7 +68,7 @@ docs/specs/api/
 | 更新版・競合 | [人物API](features/persons.md)、[参加者API](../../ledger-person-api-contract.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md)、[科目・支払方法](../../ledger-core-schema.md) | 対象行版と共通順の全体版、409時の`latest` |
 | 要求ID・再送 | [共通再送](../../ledger-operation-retries.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | 対象操作・成功再現・削除後再送・権限再検証・レスポンスの差異 |
 | カーソル | [レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | フィルター・並び順・不正カーソルの扱い |
-| 回数制限 | [認証API](../../auth-api-contract.md)、[家計簿API](../../ledger-core-api.md)、[人物の競合・制限](../../ledger-person-conflicts.md) | 認証系と業務APIの異なる枠・対象操作 |
+| 回数制限 | [認証API](../../auth-api-contract.md)、[家計簿API](../../ledger-core-api.md) | 認証系と業務APIの異なる枠・対象操作 |
 
 **共通化は未決定。** 各機能の保証が異なる場合は、共通仕様として無理に統一せず、機能別契約に残す。
 
@@ -77,8 +77,8 @@ docs/specs/api/
 | 既存文書 | API契約として移行する項目 |
 | --- | --- |
 | [参加者API](../../ledger-person-api-contract.md) | 人物5操作は[正本](features/persons.md)へ移行済み。参加者4操作の契約は本書に維持 |
-| [人物の業務条件](../../ledger-persons.md) | APIの名前・期間・削除制限・権限は[正本](features/persons.md)を参照し、本書は画面・後続業務の判断を維持 |
-| [人物の競合](../../ledger-person-conflicts.md) | `revision`、403/404からの家計簿コンテキスト再取得、409の`latest`、再送保証 |
+| [人物の画面仕様](../../ledger-persons.md) | APIの名前・期間・削除制限・権限は[正本](features/persons.md)を参照し、本書は画面・後続業務の判断を維持 |
+| [人物の競合](../../ledger-person-conflicts.md) | 画面の競合・権限喪失・再送時の動作。API契約は[人物API](features/persons.md)と[家計簿API](../../ledger-core-api.md)を参照 |
 | [家計簿DB・モデル](../../ledger-core-schema.md) | 科目・支払方法・税率履歴のAPI契約。物理DB契約はその正本に残す |
 | [レシートAPI](../../ledger-receipt-api.md) | HTTP契約・金額計算・検証・検索。工程記録と区別 |
 | [履歴候補API](../../ledger-receipt-suggestions.md) | 検索・正規化・重複判定・取得権限・応答 |
