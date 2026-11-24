@@ -5,8 +5,8 @@
 ## 1. 対象・関連契約
 
 - 対象：家計簿に属する科目の5操作。全パスは `/ledgers/{ledgerId}` の下。
-- 対象外：共通税区分・税率履歴の取得、レシートの入力・保存・計算、科目管理画面の操作。
-- 関連契約：[科目DB・管理画面](../../../ledger-core-schema.md#category-master)、[共通税区分・税率履歴](../../../ledger-core-schema.md#shared-tax-history)、[レシートAPI](../../../ledger-receipt-api.md)、[科目とレシートの接続](../../../ledger-core-schema.md#category-receipt-handoff)。
+- 対象外：共通税区分・税率履歴の取得、レシートの入力・保存・計算。
+- 関連契約：[科目DB](../../../ledger-core-schema.md#category-master)、[共通税区分・税率履歴](../../../ledger-core-schema.md#shared-tax-history)、[レシートAPI](../../../ledger-receipt-api.md)、[科目とレシートの接続](../../../ledger-core-schema.md#category-receipt-handoff)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[家計簿API・回数制限](../../../ledger-core-api.md)、[共通再送](../../../ledger-operation-retries.md)。
 
 ## 2. エンドポイントと権限
