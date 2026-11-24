@@ -15,13 +15,7 @@
 
 <a id="category-master"></a>
 
-科目は家計簿ごとの独立したマスタ。全参加者が閲覧でき、追加・編集・削除・期間設定・並び替えは**家計簿Adminのみ**。全体Adminを家計簿Adminとして扱わない。家計簿作成時に初期科目を生成せず、0件なら管理画面で手動登録する。[Client・WinUI接続](architecture-winui.md#科目のclient接続画面)は実装済み。
-
-- 名前は`.NET Trim()`後に1〜100 UTF-16コード単位。同一家計簿内はBINARY完全一致で同名不可。有効期間外も重複判定へ含め、別家計簿では同名を許可する。
-- 科目IDは変更しない。過去の表示・集計は科目IDで新しい名前を参照し、保存済み取引データ自体を更新しない。初期税区分を変えても保存済みのレシート明細の税率は変更しない。
-- `is_enabled`は廃止。nullableの開始日・終了日で有効期間を指定し、両方nullなら全期間有効。**開始日・終了日を含む**。開始日≦終了日。同日の期間も許可する。作成時の省略はnullを初期値とする。
-- 未使用なら削除可能。参照があればRESTRICTで物理削除不可。期間に関係なく、過去の参照データや集計を削除しない。
-- 順序は収入・支出を分けず家計簿共通。新規は有効期間外を含む末尾（MAX+1、0件なら0）。期間・収支・名前・初期税区分の編集だけでは順序を変更しない。欠番・同順位を許容し、補助キーは科目ID。
+科目の外部契約（権限・入力・業務制約・一覧・書込・競合・再送）は[科目API](specs/api/features/categories.md)を正本とする。本節は管理画面と物理DBの仕様を扱う。[Client・WinUI接続](architecture-winui.md#科目のclient接続画面)を参照する。
 
 ### 科目管理画面
 
@@ -29,7 +23,7 @@
 
 - 初期表示はWindowsの本日日付で有効な科目のみ。［有効期間外も表示］で取得済みの全行へ切り替える。両端を含み、nullの境界は制限なし。切替に追加GETや書込を行わず、非表示になった選択を解除する。表示対象0件はその旨を表示する。
 - 共通の［追加］［編集］［削除］［並び順変更］を上部に置く。家計簿Adminのみ変更可能。未選択なら編集・削除不可。全参加者は閲覧可能。
-- 追加・編集・削除確認は標準ContentDialog。**追加時のWinUI入力支援初期値は支出（Expense）・標準（Standard）・両期間空欄**とし、登録前にすべて変更可能。API必須条件やDB初期値は変えない。編集時は保存済みの全5項目を表示する。**レシートグループから参照されている科目の収支区分は変更不可**とし、他の項目は従来どおり編集できる。使用状況を画面へ渡すAPIの形はレシート実装時に具体化する。
+- 追加・編集・削除確認は標準ContentDialog。**追加時のWinUI入力支援初期値は支出（Expense）・標準（Standard）・両期間空欄**とし、登録前にすべて変更可能。API必須条件やDB初期値は変えない。編集時は保存済みの全5項目を表示する。**レシートグループから参照されている科目の収支区分は変更不可**とし、他の項目は従来どおり編集できる。使用済み科目の収支変更制限は[科目API](specs/api/features/categories.md#3-科目の値業務制約)に従う。
 - 日付補完・Enter/IME・エラー近傍表示・削除のキャンセル既定は[入力](59-input-controls-design.md)と[共通UI](../UI_DESIGN.md)に従う。名前重複・参照中の削除拒否・期間逆転は入力を残して説明する。
 - 編集・削除の409では未保存入力と元の行版を保持し、最新の名前・収支・税区分・両期間をすべて別表示する。［最新内容に切り替える］でのみ対象と版を置き換え、切替前の保存は停止する。追加GET・自動保存は行わない。
 - 並び順変更は同じWindowの右ペインの専用画面。全期間・収支混在の全科目に［上へ］［下へ］［保存］［キャンセル］を提供し、全IDと順序版を一括送信する。409では未保存順を破棄し、応答の最新全行と順序版へ切り替える。取消や左メニューへの移動は保存せず破棄する。
@@ -43,7 +37,7 @@
 | 収支区分 | `Income` 収入・`Expense` 支出。科目固有。**レシートグループから参照された科目は変更不可**。グループ単位では変更しない |
 | 初期税区分 | `Standard` 標準・`ReducedFood` 食品軽減・`ReducedNewspaper` 新聞軽減・`Exempt` 非課税。レシートの**新規明細の税率初期選択**にだけ使う。グループ・明細に税区分コードは保存せず、明細には選択した実税率を保持する |
 
-科目の収支区分と明細金額の正負は独立し、支出科目の負額・収入科目の正額も認める。従来の実際の収入・支出は金額の符号から計算し、科目別の収支分類は参照時点の科目マスタの収支区分を使用する。科目の収支区分は未使用の間だけ変更でき、使用済み科目では過去・現在の分類を固定する。科目名・初期税区分等を変更しても、保存済みの金額・符号・税率・明細設定を書き換えない。費用区分・発生区分は明細に、繰り返し周期はレシートに持たせる。[後続のレシート仕様](#category-receipt-handoff)に従う。
+科目の値と変更制約は[科目API](specs/api/features/categories.md#3-科目の値業務制約)、明細・周期・計算との接続は[科目とレシート](#category-receipt-handoff)を参照する。
 
 ### 科目の物理モデルと制約
 
@@ -65,72 +59,19 @@
 
 **責務：** DBはNOT NULL・UNIQUE・FK・非負順序・収支許容値・期間の前後関係を保護する。名前のTrim/UTF-16長と日付の厳密な書式/実在日はAPIで検証する。名前の長さCHECKは補助的なUnicode文字数検証。Admin再検証・条件付き更新・順序版・再送記録の同時確定はAPIの責務。
 
-## 科目CRUD API（実装済み）
+## 科目CRUD API
 
 <a id="category-crud-api"></a>
+<a id="科目crud-api実装済み"></a>
 
-| メソッド・パス（`/ledgers/{ledgerId}`以下） | 権限 | 入力 |
-| --- | --- | --- |
-| `GET /categories` | 全参加者 | なし。有効期間外も含む全件 |
-| `POST /categories` | 家計簿Admin | `requestId`・`name`・`incomeExpense`・`taxCategoryCode`必須。`validFrom`・`validTo`は任意、初期値null |
-| `PATCH /categories/{categoryId}` | 家計簿Admin | `revision`必須。名前・収支・初期税区分・開始日・終了日から1つ以上 |
-| `DELETE /categories/{categoryId}` | 家計簿Admin | `revision`必須 |
+[科目API正本](specs/api/features/categories.md)を参照。
 
-現在の参加・認証・家計簿Admin権限を書込前と確定前に再確認し、家計簿をまたぐ参照/更新をしない。認証・CookieのCSRF/Originは[セッション保護](auth-session-security.md)、業務エラーの具体的な外部契約は[人物API](specs/api/features/persons.md)など各機能のAPI正本を参照する。既存アカウント単位の書込20回/分・参照120回/分を共有する。
-
-### 入力と応答
-
-- 名前・収支・税区分のnullは不可。収支/税区分は上記コードの完全一致。`validFrom`・`validTo`は人物・支払方法と同じ`YYYY-MM-DD`またはnull。実在しない日付・時刻付き・別書式・逆転期間は400。
-- POSTの期間省略/nullは無制限。PATCHでは**省略は現在値の保持、明示nullはその境界の解除**。片方だけの編集も現在値と組み合わせて期間を検証する。
-- `isEnabled`・`displayOrder`等の未許可項目、重複JSON項目、不正な本文/型/空UUIDは400 `invalid_input`。
-
-GET・PATCH・DELETEは次の`CategoriesResponse`。順序は`display_order ASC, category_id ASC`、有効期間外の除外や本人優先をしない。
-
-**変更後の応答契約（API・Windows Client未実装）**：科目・支払方法のマスタ応答から操作者の`currentRole`・`myPersonId`を除き、[家計簿API](ledger-core-api.md)の`role`・`myPersonId`を共通状態として参照する。現行のAPI・Clientには旧項目が残るため、移行実装まで新旧を区別する。
-
-```json
-{
-  "categories": [
-    { "categoryId": "科目UUID", "name": "食費", "incomeExpense": "Expense",
-      "taxCategoryCode": "ReducedFood", "validFrom": "2026-04-01", "validTo": null,
-      "displayOrder": 0, "revision": "行UUID更新版" }
-  ],
-  "orderRevision": "家計簿のcategory_order_revision"
-}
-```
-
-POSTはこの一覧にトップレベルの`categoryId`を追加し、初回201・再送200。成功時は更新後一覧を返し、追加GETを必要としない。
-
-### 保存・再送・競合
-
-- 科目ID/行版はサーバー発行UUID。全期間のMAX順序+1へ追加し、科目作成・順序版CAS・[共通再送](ledger-operation-retries.md)記録を同じSQLiteトランザクションで保存する。
-- `category.create`は操作者・操作種類・正規化済み家計簿ID/名前/収支/初期税区分/**開始日/終了日**を照合する。省略/nullの期間は同じ値。同じ要求の再送は元IDと現在一覧を返し、異内容等は409 `request_conflict`、元結果削除後は409 `created_result_deleted`。削除しても記録は保持する。
-- PATCHは家計簿・科目ID・旧行版の条件付きUPDATE。実値変更時だけ行版を更新し、科目順版・表示順は変更しない。全値が同じなら書き込まず、共通書込トランザクションで版を照合する。**収支区分が実際に変更される場合のみ、同じ書込トランザクションでレシートグループの参照有無を確認し、使用済みなら409で拒否する**。変更後の値が同じなら他項目の編集は許可する。既存APIはレシート表がまだないため、参照検証の実装はレシート表追加時に行う。
-- DELETEは旧行版を条件に削除し、順序版CASと同時に確定。参照違反だけを409 `category_referenced`、他DB障害は503 `store_unavailable`。連鎖削除しない。
-- 重複名は409 `duplicate_category_name`（field=`name`）。行版競合は409 `revision_conflict`と最新行全項目。内部の順序版CAS競合は最新一覧/順序版。最新取得後も現在の認証・権限を確認し、401/403/404では最新情報を公開しない。
-- マスタ編集では保存済み取引の行・金額・実際の税率を変更しない。使用済み科目の収支区分変更は禁止し、金額の正負による実収支の計算は科目分類と独立して維持する。
-
-## 科目並び替えAPI（実装済み）
+## 科目並び替えAPI
 
 <a id="category-order-api"></a>
+<a id="科目並び替えapi実装済み"></a>
 
-`PUT /ledgers/{ledgerId}/categories/order`。アクセス権・認証/CSRF/Origin・書込20回/分の共有枠・エラー形式は[科目CRUD API](#category-crud-api)と同じ。**家計簿Adminのみ**実行可能で、Editor・Viewer・家計簿に参加していない全体Adminは保存できない。DBの初期化はDEC-141の方式を使用する。
-
-```json
-{
-  "revision": "家計簿のcategory_order_revision",
-  "categoryIds": ["科目UUIDその1", "科目UUIDその2"]
-}
-```
-
-- 保存済みの**全科目ID**を有効期間外の科目・収入/支出を含め、過不足・重複なく指定する。0件なら空配列を許可する。家計簿をまたぐID・未知ID・不正UUID・配列以外・項目省略・未知/重複JSON項目は400 `invalid_input`。UUIDは既存APIと同じく空UUIDを拒否し、N形式へ正規化して照合する。
-- 初期一覧はGETの`display_order ASC, category_id ASC`。受信配列順に`display_order`を0から連番へ再採番する。収入・支出別の順序は持たない。
-- 書込SQLiteトランザクション内で旧順序版を照合し、**DB更新時にも家計簿IDと旧`category_order_revision`を条件にしたUPDATE**で新UUIDへ変更する。行の順序変更と版を同時に確定し、失敗時は全体をロールバックする。
-- 支払方法並び替えと同じく、**0件・1件・同一順序の再保存も、成功ごとに順序版を更新する**。追加・削除もこの版を更新するため、旧一覧の並び替えで構成変更を上書きしない。通常の科目編集はこの版を変更しない。
-- 科目自身の`revision`・名前・収支区分・初期税区分・有効期間、家計簿自身の`revision`、人物・支払方法の順序版/行版は変更しない。他家計簿も変更しない。
-- 成功は200と`CategoriesResponse`（全科目の全項目・`orderRevision`）。追加GETを必要としない。
-- 旧版不一致は409 `revision_conflict`。`latest`に**現在の全科目一覧と`orderRevision`**を同じ`CategoriesResponse`形式で返す。既存支払方法APIと同じく、版競合を全IDの集合照合より先に判定し、追加・削除後の古い配列にも最新一覧を返す。
-- 書込前・確定前に現在の認証・参加・Admin権限を再検証する。競合情報取得後も再検証し、認証失効は401、参加喪失/家計簿不在は404、権限不足は403として`latest`を公開しない。想定外DB障害は既存の503 `store_unavailable`。
+[科目API正本](specs/api/features/categories.md)を参照。
 
 ## 共通税区分・日付別税率履歴（DEC-138・DB基盤実装済み）
 
