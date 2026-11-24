@@ -623,7 +623,7 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 - `CategoryInput`は[科目API第3・4節](specs/api/features/categories.md#3-科目の値業務制約)の作成入力に対応する。`CategoryCreationDraft`は入力とrequestIdを保持し、同じ作成の明示再試行に使う。
 - `CategoryChanges`は名前・収支・初期税区分と、`CategoryDateChange`による期間の部分更新。文字列のnullは省略、期間はdefaultが省略・new(null)が境界解除。部分更新・値の検証と送信項目は[科目API第4節](specs/api/features/categories.md#4-リクエスト)に従う。
 - 行版と順序版を使い分け、並び替え配列は認証更新前にコピーする。`ClientSession`の認証更新・再ログイン・外部認証変更検知を共用し、成功一覧を使って追加GETしない。`CanManage`は現在の家計簿ロールによる表示用判定で、権限・重複・全IDの整合性はAPIが最終検証する。
-- `CategoryRequestException`はコード・fieldと、409の形に応じた`LatestCategory`/`LatestCategories`を保持する。403/404時の操作者情報は[家計簿API](ledger-core-api.md)から再取得する。最新行の対象IDも照合し、更新された収支・期間も受信する。自動取得・適用・保存はしない。401/403/404の非公開latestは読まない。429/503も型付き。既存Client操作の503処理は変更しない。
+- `CategoryRequestException`はコード・fieldと、行版競合の`LatestCategory`または共通順PUTの版競合の`LatestCategories`を保持する。403/404時の操作者情報は[家計簿API](ledger-core-api.md)から再取得する。最新行の対象IDも照合し、更新された収支・期間も受信する。自動取得・適用・保存はしない。401/403/404の非公開latestは読まない。429/503も型付き。既存Client操作の503処理は変更しない。
 
 `CategoriesPage`・`CategoriesManagementViewModel`とPresentationの`CategoryRow`で管理画面を接続済み。画面の表示・保存・競合・認証復帰は[科目管理画面](ledger-core-schema.md#科目管理画面)、人物の期間フィルターは[人物仕様](ledger-persons.md)を正本とする。レシートの親情報・科目入力は工程6-D2、明細編集は工程6-D3。税率履歴のClient取得/キャッシュは工程6-D4-Aで実装済み。計算表示と税率候補は工程6-D4-Cで接続済み。保存の画面接続は後続。
 
