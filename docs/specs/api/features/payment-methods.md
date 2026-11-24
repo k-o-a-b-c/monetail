@@ -95,7 +95,7 @@ GETには要求本文を必要としない。書込4操作（DELETEを含む）�
 
 | `ownerOrderRevisions[]` の項目 | 型 | 内容 |
 | --- | --- | --- |
-| `personId` | UUID文字列 | 所有者人物ID |
+| `ownerPersonId` | UUID文字列 | 所有者人物ID |
 | `orderRevision` | UUID文字列 | その人物の支払方法共通順の更新版 |
 
 UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新版はAPIが生成するUUID v4とし、大小や時系列ではなく一致で照合する。日付は第3節の形式に従う。
