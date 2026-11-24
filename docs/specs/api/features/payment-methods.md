@@ -101,7 +101,7 @@ GETには要求本文を必要としない。書込4操作（DELETEを含む）�
 
 UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新版はAPIが生成するUUID v4とし、大小や時系列ではなく一致で照合する。日付は第3節の形式に従う。
 
-- `paymentMethods` は `ownerPersonId`、`displayOrder`、`paymentMethodId` の順にそれぞれ昇順で返す。所有者間で順位値を比較しない。
+- `paymentMethods` は `ownerPersonId` の文字列昇順、同一所有者内では `displayOrder` 昇順、同値の場合は `paymentMethodId` の文字列昇順で返す。所有者間で順位値を比較しない。
 - `ownerOrderRevisions` は `ownerPersonId` の文字列昇順で返す。人物作成時に所有者別順序版を初期化し、支払方法0件でも保持する。
 - 新規支払方法は最新の対象所有者の共通順の末尾（最大の `displayOrder` + 1、0件なら0）に追加する。最大値がInt32上限なら作成を拒否する。実際に所有者内の共通順を変更したときは要求順に0から連番を設定する。削除時は残った支払方法の順序値を詰めない。欠番・同順位を許容する。
 
@@ -167,7 +167,7 @@ UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新�
 | --- | --- | --- |
 | `ownerPersonId` | UUID文字列 | 対象人物ID |
 | `orderRevision` | UUID文字列 | 対象人物の最新順序版 |
-| `paymentMethods` | オブジェクト配列 | 対象人物の最新の全支払方法（第5節の`paymentMethods[]` と同じ項目）。`displayOrder`、`paymentMethodId` の順に昇順。0件なら空配列。他所有者分は含めない |
+| `paymentMethods` | オブジェクト配列 | 対象人物の最新の全支払方法（第5節の`paymentMethods[]` と同じ項目）。`displayOrder` 昇順、同値の場合は `paymentMethodId` の文字列昇順。0件なら空配列。他所有者分は含めない |
 
 409の `latest` に情報を返す前にも現在の認証・家計簿参加・当該所有者への操作権限を検証し、認証失効なら401、未参加なら404、権限不足なら403を優先する。
 
