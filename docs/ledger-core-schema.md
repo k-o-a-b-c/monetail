@@ -162,7 +162,7 @@
 
 評価額属性・残高関連のDB/API/WinUI実装は後続。詳細な業務判断は[決定履歴](13-glossary-decisions.md#3-決定履歴決定時点の記録)、画面は[共通UI](../UI_DESIGN.md#集計分析の画面切替dec-2852026-11-15確定winui画面業務api未実装)、推算GETは[残高API契約](ledger-balance-api.md)を正本とする。
 
-- **支払方法の評価額属性（DEC-305〜311）**：［評価額あり／なし］を設け、新規は初期オフ。オンなら評価額のみの登録も可、オフなら評価額登録不可。0円を含む非NULL評価額の履歴があればオン→オフは禁止し、APIでも検証する。オフ→オンは残高履歴の有無に関係なく許可し、残高と評価額を転記・代用・自動削除しない。通常集計は残高、評価額モードではオンの支払方法は評価額のみ、オフは残高を参照。新属性の列名・編集権限等は後続設計。
+- **支払方法の評価額属性（DEC-305〜311）**：［評価額あり／なし］を設け、新規は初期オフ。オンなら評価額のみの登録も可、オフなら評価額登録不可。0円を含む非NULL評価額の履歴があればオン→オフは禁止し、APIでも検証する。オフ→オンは残高履歴の有無に関係なく許可し、残高と評価額を転記・代用・自動削除しない。通常集計は残高、評価額モードではオンの支払方法は評価額のみ、オフは残高を参照。評価額属性のHTTP・編集権限は[支払方法API](specs/api/features/payment-methods.md)を正本とする。物理列は下記の`has_valuation`。
 - **残高の保存（DEC-312〜320）**：同一家計簿・登録日・支払方法につき最大1行で、残高・評価額は独立したNULL許容値。0円は入力済み。両方NULLの行は保存せず、登録日全体の保存対象が0件なら「残高または評価額を1件以上入力してください」と拒否する。既存日の新規重複は拒否して編集へ案内する。既存行の両金額を空欄にすればその行を削除するが、通常保存で登録日全体の削除は不可。全体削除は対象日を示す`ContentDialog`で明示確認し、成功後だけ一覧へ戻って選択解除。失敗時は入力を保持し手動再試行可能。登録・編集の保存成功後は対象月の［月指定］へ移して保存行を選択する。
 - **画面・推算（DEC-321〜347）**：入力表は［支払方法／残高／推算残高／反映／評価額／メモ］の6列。評価額対象外は「—」と理由を表示。推算の起点は対象日より前の最新の非NULL残高で、評価額のみの行を使わない。残高・評価額・推算残高はInt64、SQLite `INTEGER`、C# `long?`、API JSONは正規10進整数文字列か`null`（DEC-336〜338）。推算一括GETは`calculated`／`no_data`／`overflow`の3状態で、現在の家計簿参加者Admin・Editor・Viewerが対象日有効な全支払方法を参照可能。全結果は同一DBスナップショットから取得し、配列順は保証しない。全体取得失敗では「取得失敗」表示・［反映］無効・入力保持とし、失敗時のみ`InfoBar`の明示［再試行］を出す。
 - **導入境界（DEC-309・141）**：正式リリース前は最新EFモデルと新規`initialize-db`で実装し、Migration・旧版データからの属性推定・既存DBの無断変換はしない。レシート・振替の金額はInt32のまま。APIエラー本文の残り、具体的なDB読取方式などは後続設計。
@@ -186,13 +186,13 @@
 
 ## 支払方法の業務・API契約
 
-所有者・名前・有効期間・削除制約・権限・採番・所有者別順序・更新版の外部契約は[支払方法API](specs/api/features/payment-methods.md)を正本とする。物理DBと画面は以下の各節に従う。旧版データの取込み時、所有者を判定できない支払方法に対し推測で人物を割り当てない。
+所有者・名前・有効期間・評価額属性・削除制約・権限・採番・所有者別順序・更新版の外部契約は[支払方法API](specs/api/features/payment-methods.md)を正本とする。物理DBと画面は以下の各節に従う。旧版データの取込み時、所有者を判定できない支払方法に対し推測で人物を割り当てない。
 
 <a id="支払方法マスタの物理db構成dec-133モデルとmigration実装済業務api未実装"></a>
 
 ## 支払方法マスタの物理DB構成（DEC-133・実装済み）
 
-DEC-123〜132の確定仕様に従い、SQLite/EF Coreの**物理テーブル・8列＋人物表1列・PK・FK・UNIQUE・索引・日付CHECKを採用する**。旧版の`m_payment_classification`をそのまま再利用せず、家計簿単位の新テーブル`ledger_payment_methods`を設ける。所有者変更はDEC-131で禁止され、**DBトリガーでの強制はDEC-134で確定**した。
+DEC-123〜132とDEC-305〜311の確定仕様に従い、SQLite/EF Coreの**物理テーブル・9列（現行8列に評価額属性を追加）＋人物表1列・PK・FK・UNIQUE・索引・CHECKを採用する**。評価額属性は未実装。旧版の`m_payment_classification`をそのまま再利用せず、家計簿単位の新テーブル`ledger_payment_methods`を設ける。所有者変更はDEC-131で禁止され、**DBトリガーでの強制はDEC-134で確定**した。
 
 | 保存先・列 | SQLite型 | NULL | 用途 |
 | --- | --- | --- | --- |
@@ -203,10 +203,11 @@ DEC-123〜132の確定仕様に従い、SQLite/EF Coreの**物理テーブル・
 | `display_order` | INTEGER | 不可 | その所有者内の並び順。0以上、欠番・同順位は許容（DEC-132） |
 | `valid_from` | TEXT | 可 | 有効開始日。制限なしならNULL（`YYYY-MM-DD`） |
 | `valid_to` | TEXT | 可 | 有効終了日。制限なしならNULL（`YYYY-MM-DD`） |
-| `revision` | TEXT | 不可 | この支払方法の名前・有効期間等の編集用UUID更新版 |
+| `has_valuation` | INTEGER | 不可 | 評価額属性。0=false、1=trueのみ許容（未実装）。APIの新規作成時の省略値はfalse |
+| `revision` | TEXT | 不可 | この支払方法の名前・有効期間・評価額属性の編集用UUID更新版 |
 | `ledger_people.payment_order_revision`（追加列） | TEXT | 不可 | **人物ごとの支払方法並び順更新版**。人物作成時に初期化（DEC-129・130） |
 
-**確定したSQLite DDLの基本構造**（EF Coreモデルと現行DB初期化に実装。以下は構成の説明であり、既存DBへ手動で直接実行するSQLではない）：
+**確定したSQLite DDLの基本構造**（評価額属性を除き実装済み。評価額属性は最新EF Coreモデルと新規DB初期化へ直接追加する。以下は構成の説明であり、既存DBへ手動で直接実行するSQLではない）：
 
 ```sql
 CREATE TABLE ledger_payment_methods (
@@ -217,6 +218,7 @@ CREATE TABLE ledger_payment_methods (
     display_order INTEGER NOT NULL CHECK (display_order >= 0),
     valid_from TEXT NULL,
     valid_to TEXT NULL,
+    has_valuation INTEGER NOT NULL CHECK (has_valuation IN (0, 1)),
     revision TEXT NOT NULL,
     PRIMARY KEY (ledger_id, payment_method_id),
     FOREIGN KEY (ledger_id) REFERENCES ledgers(id) ON DELETE RESTRICT,
@@ -233,13 +235,13 @@ CREATE INDEX ix_ledger_payment_methods_owner_order
 
 - **主キー・外部キー：** `(ledger_id, payment_method_id)`を主キーとし、支払方法を参照する今後のレシート・振替両側・残高・支払メモ等も**家計簿IDを含む複合FK**で参照する。`ON DELETE CASCADE`は使わずRESTRICT（DEC-125）。同一家計簿の人物しか所有者にできず、その人物に支払方法があれば人物削除は不可。
 - **名前の一意性：** 所有者必須なので`(ledger_id, owner_person_id, name)`の通常のUNIQUEでよい。APIは前後空白除去・Unicode空白判定・.NET `string.Length`の1〜100上限を検証。**SQLiteの`length()`はUTF-16コード単位と一致しない場合がある**ため、同じ100文字チェックを単純なSQLite `length(name)`制約で重ねない。SQLの`BINARY`照合を一意制約にも適用する。
-- **有効期間：** `DateOnly?`をISO固定桁`YYYY-MM-DD`で保存する。日付の実在・形式はAPIで検証し、DB CHECKで両端の前後関係を守る（DEC-119〜122）。既存のレシート等が期間外となる変更はAPIの同一書込処理で拒否する（DEC-121）。
+- **有効期間：** `DateOnly?`をISO固定桁`YYYY-MM-DD`で保存する。日付の実在・形式はAPIで検証し、DB CHECKで両端の前後関係を守る（DEC-119〜122）。既存のレシート・振替・残高・評価額等が期間外となる変更は[支払方法API](specs/api/features/payment-methods.md)に従い同一書込処理で拒否する（DEC-121）。
 - **所有者の不変性：** API編集DTOには所有者変更を含めず、DBでも`BEFORE UPDATE OF owner_person_id`トリガーにより実際に値が変わる更新を拒否する（DEC-134）。通常操作での誤作成訂正は未使用なら削除→新規（DEC-131）。
-- **並び順：** 1人物内で`display_order ASC, payment_method_id ASC`を使用。順序のUNIQUEは設けない。0件の人物でも`payment_order_revision`は人物行に残る。ポイント関連列は旧版に`default_point_code`があるが、新版のポイントモデル未確定のため**今回の8列へは含めない**。採用する場合はポイントマスタと整合したFK・列を別途設計する。
+- **並び順：** 1人物内で`display_order ASC, payment_method_id ASC`を使用。順序のUNIQUEは設けない。0件の人物でも`payment_order_revision`は人物行に残る。ポイント関連列は旧版に`default_point_code`があるが、新版のポイントモデル未確定のため**支払方法の確定列へは含めない**。採用する場合はポイントマスタと整合したFK・列を別途設計する。
 - **更新版・競合：** 所有者別順序版は対象人物の`payment_order_revision`に保持し、人物編集用`ledger_people.revision`や人物共通順版と独立させる。`payment_order_revision`を人物エンティティ全更新のEF Core同時実行トークンにしない。支払方法自体の`revision`は属性編集用とする。版の照合・更新条件・原子性は[支払方法API第6・7節](specs/api/features/payment-methods.md#6-競合失敗応答)に従う。
 - **人物の順序版初期化：** 新規人物はAPIで`payment_order_revision`へ個別のUUID v4（N形式）を指定する。空文字デフォルトや既存行のバックフィルは行わない。旧版整数IDや所有者不明行を自動推測で割り当てない。既存API DBの扱いは[現行DB初期化](42-api-foundation.md#db初期化登録復旧コマンド)に従う。
 
-**実装範囲：** EFマッピング・人物順序版・支払方法のPK/FK/UNIQUE/索引/CHECKと制約テストを実装済み。新規DBは現行モデルから作成する。CRUD・並び替え・WinUIは接続済み。ポイント機能・旧版データ移行は後続。
+**実装範囲：** EFマッピング・人物順序版・支払方法のPK/FK/UNIQUE/索引/CHECKと制約テストを実装済み。新規DBは現行モデルから作成する。CRUD・並び替え・WinUIは接続済み。評価額属性のDB・API・WinUIは未実装。ポイント機能・旧版データ移行は後続。
 
 <a id="支払方法の所有者変更をdbトリガーで禁止dec-134migration実装済業務api未実装"></a>
 
@@ -289,7 +291,7 @@ GET・POST・PATCH・DELETE・所有者別順PUTのHTTP・JSON・再送・競合
 ### 追加・編集・削除（利用者確認済み）
 
 - ［追加］は一覧上部の共通ボタンから標準`ContentDialog`を開き、**所有者・支払方法名・有効開始日・有効終了日**を入力する。管理者の所有者`ComboBox`は**初期値未選択**とし、明示選択なしでは登録できない。編集者は本人対応人物を自動設定し、変更できない固定表示とする。人物未対応の編集者・閲覧者は追加できない。
-- ［編集］も標準`ContentDialog`を使用する。所有者は人物名を**読み取り専用`TextBlock`**で表示し、変更用`ComboBox`は置かない。変更できるのは支払方法名・有効開始日・有効終了日だけ。名前・有効期間の検証はDEC-123・119〜122と[59](59-input-controls-design.md)に従う。
+- ［編集］も標準`ContentDialog`を使用する。所有者は人物名を**読み取り専用`TextBlock`**で表示し、変更用`ComboBox`は置かない。現行画面で変更できるのは支払方法名・有効開始日・有効終了日。評価額属性の入力UIは未実装であり、業務・API契約は[支払方法API](specs/api/features/payment-methods.md)に従う。名前・有効期間の検証はDEC-123・119〜122と[59](59-input-controls-design.md)に従う。
 - ［削除］は標準`ContentDialog`で**所有者名と支払方法名**を提示して確認し、キャンセルを既定とする。削除を確定しても参照済みの場合はAPIで拒否し、保存済みデータを変更しない。失敗時も一覧を維持する。使用済みの支払方法は終了日による管理を促し、参照を自動削除しない。
 
 ### 人物別の並び順変更（利用者確認済み）
