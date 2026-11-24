@@ -236,7 +236,7 @@ CREATE INDEX ix_ledger_payment_methods_owner_order
 - **有効期間：** `DateOnly?`をISO固定桁`YYYY-MM-DD`で保存する。日付の実在・形式はAPIで検証し、DB CHECKで両端の前後関係を守る（DEC-119〜122）。既存のレシート等が期間外となる変更はAPIの同一書込処理で拒否する（DEC-121）。
 - **所有者の不変性：** API編集DTOには所有者変更を含めず、DBでも`BEFORE UPDATE OF owner_person_id`トリガーにより実際に値が変わる更新を拒否する（DEC-134）。通常操作での誤作成訂正は未使用なら削除→新規（DEC-131）。
 - **並び順：** 1人物内で`display_order ASC, payment_method_id ASC`を使用。順序のUNIQUEは設けない。0件の人物でも`payment_order_revision`は人物行に残る。ポイント関連列は旧版に`default_point_code`があるが、新版のポイントモデル未確定のため**今回の8列へは含めない**。採用する場合はポイントマスタと整合したFK・列を別途設計する。
-- **更新版・競合：** 並び替え・追加・削除は**対象人物の`payment_order_revision`だけを条件付きUPDATEで照合・変更**し、支払方法の順序変更と同一トランザクションで確定する。人物編集用`ledger_people.revision`は変更しない。**`payment_order_revision`を単純に人物エンティティ全更新のEF Core同時実行トークンにすると人物名編集まで無関係な競合を起こし得る**ため、対象列を明示した条件付き更新（CAS相当）で独立性を維持する。支払方法自体の`revision`は名前・期間変更の競合検知に使う。
+- **更新版・競合：** 所有者別順序版は対象人物の`payment_order_revision`に保持し、人物編集用`ledger_people.revision`や人物共通順版と独立させる。`payment_order_revision`を人物エンティティ全更新のEF Core同時実行トークンにしない。支払方法自体の`revision`は属性編集用とする。版の照合・更新条件・原子性は[支払方法API第6・7節](specs/api/features/payment-methods.md#6-競合失敗応答)に従う。
 - **人物の順序版初期化：** 新規人物はAPIで`payment_order_revision`へ個別のUUID v4（N形式）を指定する。空文字デフォルトや既存行のバックフィルは行わない。旧版整数IDや所有者不明行を自動推測で割り当てない。既存API DBの扱いは[現行DB初期化](42-api-foundation.md#db初期化登録復旧コマンド)に従う。
 
 **実装範囲：** EFマッピング・人物順序版・支払方法のPK/FK/UNIQUE/索引/CHECKと制約テストを実装済み。新規DBは現行モデルから作成する。CRUD・並び替え・WinUIは接続済み。ポイント機能・旧版データ移行は後続。
