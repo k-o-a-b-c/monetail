@@ -617,13 +617,13 @@ Clientは`Monetail.Calculations`をProjectReferenceし、APIと同じ入力検�
 
 ## 科目のClient接続・画面
 
-`CategoryTransport`・`CategoriesWorkspace`で一覧・作成・部分編集・削除・共通順の並び替えを接続済み。確定契約は[科目CRUD](ledger-core-schema.md#category-crud-api)・[並び替え](ledger-core-schema.md#category-order-api)を参照する。
+`CategoryTransport`・`CategoriesWorkspace`で一覧・作成・部分編集・削除・共通順の並び替えを接続済み。確定契約は[科目API](specs/api/features/categories.md)、現行との差分は[API実装台帳](specs/api/README.md)を参照する。
 
 - 型付きDTOの`CategoryInfo`は`IsEnabled`を持たず、`ValidFrom`・`ValidTo`をnullableのDateOnlyで保持する。`CategoriesInfo`は期間外を含む全行・API配列順・同順位/欠番・順序版を保持する。ID/更新版はGuid。未知の収支/税区分、不正な日付・型・ID・版・一覧は接続エラーにする。
-- `CategoryInput`は名前・収支・初期税区分に任意の期間を加える。名前はTrim後1〜100 UTF-16単位。`CategoryCreationDraft`は入力とrequestIdを保持し、同じ作成の明示再試行に使う。
-- `CategoryChanges`は名前・収支・初期税区分と、`CategoryDateChange`による期間の部分更新。文字列のnullは省略、期間はdefaultが省略・new(null)が境界解除。片方の期間だけでも現在行と組み合わせて前後関係を検証する。表示順は送らない。
+- `CategoryInput`は[科目API第3・4節](specs/api/features/categories.md#3-科目の値業務制約)の作成入力に対応する。`CategoryCreationDraft`は入力とrequestIdを保持し、同じ作成の明示再試行に使う。
+- `CategoryChanges`は名前・収支・初期税区分と、`CategoryDateChange`による期間の部分更新。文字列のnullは省略、期間はdefaultが省略・new(null)が境界解除。部分更新・値の検証と送信項目は[科目API第4節](specs/api/features/categories.md#4-リクエスト)に従う。
 - 行版と順序版を使い分け、並び替え配列は認証更新前にコピーする。`ClientSession`の認証更新・再ログイン・外部認証変更検知を共用し、成功一覧を使って追加GETしない。`CanManage`は現在の家計簿ロールによる表示用判定で、権限・重複・全IDの整合性はAPIが最終検証する。
-- `CategoryRequestException`はコード・field・403/404の権限と、409の形に応じた`LatestCategory`/`LatestCategories`を保持する。最新行の対象IDも照合し、更新された収支・期間も受信する。自動取得・適用・保存はしない。401/403/404の非公開latestは読まない。429/503も型付き。既存Client操作の503処理は変更しない。
+- `CategoryRequestException`はコード・fieldと、行版競合の`LatestCategory`または共通順PUTの版競合の`LatestCategories`を保持する。403/404時の操作者情報は[家計簿API](ledger-core-api.md)から再取得する。最新行の対象IDも照合し、更新された収支・期間も受信する。自動取得・適用・保存はしない。401/403/404の非公開latestは読まない。429/503も型付き。既存Client操作の503処理は変更しない。
 
 `CategoriesPage`・`CategoriesManagementViewModel`とPresentationの`CategoryRow`で管理画面を接続済み。画面の表示・保存・競合・認証復帰は[科目管理画面](ledger-core-schema.md#科目管理画面)、人物の期間フィルターは[人物仕様](ledger-persons.md)を正本とする。レシートの親情報・科目入力は工程6-D2、明細編集は工程6-D3。税率履歴のClient取得/キャッシュは工程6-D4-Aで実装済み。計算表示と税率候補は工程6-D4-Cで接続済み。保存の画面接続は後続。
 
@@ -732,7 +732,7 @@ VMはマスタDTOを複製保持せず、Contextが参照する既存Clientキ�
 
 現在のReceiptEditorPage/既存VMは元の`ReceiptEditorState`/親入力/明細下書き/コントロールを保持し、本人・家計簿・接続先と最初のフォーカス/文字選択/スクロール位置だけを記録する。共通操作が画面を無効化する前に位置を取得し、通常離脱と同じ既存同期関数で未通知の入力も既存バッファへ取り込む（明細の追加/更新はしない）。一つの復帰段階でログイン待ち・取得中・失敗・権限喪失を区別し、入力全体のコピーやディスク保存をしない。保護/消去はView内の名前付きTextBoxへ適用し、非表示時のVisualTree実体化に依存しない。`NavigateToLogin`/`DiscardLedgerContents`に接続し、未承認遷移ガードはレシートにも適用する。
 
-同じ本人への復帰時は人物・科目・税率・支払方法を再取得し、最後の支払方法応答の現在ロール/本人対応と既存編集の保存基準支払方法から権限を確認する。Clientの`SavedPaymentMethodId`は既存baselineへの読み取り専用参照で、現在の入力値とは独立する。再取得中/失敗時は入力を保持した読み取り専用、失敗時だけ明示再試行。既存の科目行・人物CheckBoxを再利用して表示名を更新し、フォームの再読込や下書き反映を行わない。税率初期値も再取得した履歴を参照する。
+同じ本人への復帰時は人物・科目・税率・支払方法を再取得し、[家計簿API](ledger-core-api.md)から取得する現在ロール/本人対応と既存編集の保存基準支払方法から権限を確認する。Clientの`SavedPaymentMethodId`は既存baselineへの読み取り専用参照で、現在の入力値とは独立する。再取得中/失敗時は入力を保持した読み取り専用、失敗時だけ明示再試行。既存の科目行・人物CheckBoxを再利用して表示名を更新し、フォームの再読込や下書き反映を行わない。税率初期値も再取得した履歴を参照する。
 
 今回検証できるのは認証退避入口と復帰の経路。保存APIの画面接続は対象外で、登録/更新/流用登録と保存ショートカットは無効のまま。利用者向け契約・未実装範囲は[レシート画面](ledger-receipt-ui.md#401再認証と元の画面復元dec-268)と[実装境界](ledger-receipt-implementation.md#レシート401認証復帰の実装境界)を参照。
 

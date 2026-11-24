@@ -8,7 +8,7 @@
 
 - **支払方法の並び順更新版（DEC-129・130・133）を`ledger_people.payment_order_revision`に追加した。** 名前・期間編集用の`revision`とは独立し、人物新規作成時にUUIDを初期化する。現行の新規DBでは人物ごとにUUIDを初期化し、既存DBの追加移行は行わない（[DB初期化](42-api-foundation.md#db初期化登録復旧コマンド)）。支払方法が0件の人物にも保持し、支払方法の並び順APIで照合する。
 - `ledger_people` に人物名・有効開始日・有効終了日・共通順・人物の更新版を保存する。期間はSQLiteの `YYYY-MM-DD` 形式のTEXT（制限なしはNULL）、C#では `DateOnly?` とし、開始日・終了日の前後関係をDBのCHECKで保護する（DEC-086）。API形式・検証は[人物API](specs/api/features/persons.md)に従う。
-- 同一家計簿の人物名にUNIQUE制約を設け、SQLiteのBINARY比較で同時登録の重複を防ぐ。共通順は各人物行に保存する（DEC-087）。
+- 同一家計簿の人物名にUNIQUE制約を設け、SQLiteのBINARY比較で同時登録の重複を防ぐ。共通順は各人物行に保存する（DEC-087）。表示順を科目と同じ非負のInt32とする確定契約は[人物API](specs/api/features/persons.md)に従う。非負CHECKによるDB保護は未実装であり、初期DB定義に追加する（Migrationは追加しない）。
 - `ledgers.people_order_revision` に家計簿単位の人物順の更新版を保持する。人物0人でも保持する（DEC-087）。
 - 人物・参加者の行版はそれぞれ独立した行に保持する（DEC-087）。
 - 更新版はUUID文字列として保持する。版の照合・更新条件と原子性は[人物API](specs/api/features/persons.md)・[参加者API](ledger-person-api-contract.md)を正本とする。
