@@ -5,8 +5,8 @@
 ## 1. 対象・関連契約
 
 - 対象：家計簿に属する支払方法の5操作。全パスは `/ledgers/{ledgerId}` の下。
-- 対象外：人物・参加者の管理、レシート・振替・残高・支払メモの固有操作、支払方法管理画面の操作。
-- 関連契約：[支払方法DB・管理画面・評価額](../../../ledger-core-schema.md)、[人物API](persons.md)、[レシートAPI](../../../ledger-receipt-api.md)、[振替API](../../../ledger-transfer-api.md)、[残高API](../../../ledger-balance-api.md)。
+- 対象外：人物・参加者の管理、レシート・振替・残高・支払メモの固有操作。
+- 関連契約：[支払方法DB・評価額](../../../ledger-core-schema.md)、[人物API](persons.md)、[レシートAPI](../../../ledger-receipt-api.md)、[振替API](../../../ledger-transfer-api.md)、[残高API](../../../ledger-balance-api.md)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[家計簿API・回数制限](../../../ledger-core-api.md)、[共通再送](../../../ledger-operation-retries.md)。
 
 ## 2. エンドポイントと権限
@@ -103,7 +103,6 @@ UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新�
 - `paymentMethods` は `ownerPersonId`、`displayOrder`、`paymentMethodId` の順にそれぞれ昇順で返す。所有者間で順位値を比較しない。
 - `ownerOrderRevisions` は人物マスタの共通順（人物の `displayOrder` 昇順、同値なら人物ID昇順）で返す。人物作成時に所有者別順序版を初期化し、支払方法0件でも保持する。
 - 新規支払方法は最新の対象所有者の共通順の末尾（最大の `displayOrder` + 1、0件なら0）に追加する。最大値がInt32上限なら作成を拒否する。実際に所有者内の共通順を変更したときは要求順に0から連番を設定する。削除時は残った支払方法の順序値を詰めない。欠番・同順位を許容する。
-- API配列順と画面上の本人優先表示は区別する。画面の表示順・日付フィルターは[管理画面](../../../ledger-core-schema.md#windows版の支払方法管理画面dec-136winui実装済み)に従う。
 
 ## 6. 競合・失敗応答
 
