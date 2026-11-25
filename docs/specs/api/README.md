@@ -50,7 +50,7 @@ docs/specs/api/
 | 招待・参加受諾 | 実装済み | 一覧・発行・取消・プレビュー・受諾 | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 未移行 |
 | 科目 | 一部実装済み | CRUD・順序PUT。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCHの無変更成功、同順PUTの無変更成功、既存レシートを期間外にする科目期間変更の拒否、使用済み科目の収支変更拒否のHTTP 409（現行400）、追加・削除時の順序版の旧値条件の廃止が未対応。詳細は下記 | [科目API](features/categories.md)、[DB・管理画面](../../ledger-core-schema.md#category-master) | 移行済み |
 | 支払方法 | 一部実装済み | CRUD・所有者別順序PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCH・同順PUTの無変更成功、追加・削除時の順序版の旧値条件の廃止、期間競合の409応答、PATCH検証順の統一、順序版競合応答のID配列廃止、所有者別順序版のID項目名・配列順の統一、競合応答の所有者権限再検証、評価額属性が未対応。残高等の期間検証は各業務API実装時。詳細は下記 | [支払方法API](features/payment-methods.md)、[DB・管理画面](../../ledger-core-schema.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
-| 共通税区分・税率履歴 | 実装済み | 全履歴GET。履歴管理は実装済みの同期CLIを使用し、HTTP書込APIは対象外 | [共通税区分・税率履歴API](features/tax-rates.md)、[DB・同期CLI](../../ledger-core-schema.md#shared-tax-history) | 移行済み |
+| 共通税区分・税率履歴 | 実装済み | 全履歴GET。履歴管理は実装済みの同期CLIを使用し、HTTP書込APIは対象外。Decimal文字列の表記に関する確認事項は下記 | [共通税区分・税率履歴API](features/tax-rates.md)、[DB・同期CLI](../../ledger-core-schema.md#shared-tax-history) | 移行済み |
 | レシート | 実装済み | 一覧／詳細GET・POST／PUT／DELETE・保存行フォーカス・履歴候補／自動補完GET・計算／検証。メモの空文字正規化も対応済み | [レシートAPI](../../ledger-receipt-api.md)、[履歴候補API](../../ledger-receipt-suggestions.md) | 未移行 |
 | 振替 | 実装済み | 一覧／詳細GET・POST／PUT／DELETE・保存行フォーカス・名称候補／自動補完GET。残高連動は残高API実装時 | [振替API](../../ledger-transfer-api.md)、[振替業務条件](../../ledger-transfer-db.md) | 未移行 |
 | 残高・推算残高 | 未実装 | 評価額対応を含む登録／更新／削除・履歴取得・推算一括GET、人物／支払方法の期間検証。推算GETは契約の確定範囲あり、保存／履歴のHTTP詳細等は後続設計 | [残高API](../../ledger-balance-api.md)、[家計簿DB・モデル](../../ledger-core-schema.md) | 未移行 |
@@ -59,6 +59,8 @@ docs/specs/api/
 | ポイント | 未実装 | ポイント設定・取引。採用範囲・API詳細は後続設計 | [家計簿DB・モデル](../../ledger-core-schema.md) | 契約未整理 |
 
 **更新ルール**：API契約の確定・変更、またはAPI実装の追加・完了に伴って状態／未対応差分が変わるとき、同じPRで本表の該当行だけ更新する。実装変更がなく文書だけ移行した場合は文書移行列だけを更新する。実装済みの判定はコードと必要なテストを確認し、未確認事項を完了扱いしない。文書移行やPRの進捗、テスト件数、実行ログを実装状況として転記しない。
+
+**共通税区分・税率履歴の確認事項**：既存契約は課税0%を文字列`"0"`で非課税の`null`と区別する。現行`TaxRateManagement.cs`はInvariantCultureのDecimal文字列を返し、`TaxRateApiTests.cs`は0%をDecimalに変換して値を照合する。同期CLIもDecimal文字列を用い、小数末尾のゼロを除去する応答の正規化は行っていない。`"0.0"`等を含む数値として同値の表記を許容するか、`"0"`に固定するかは追加確認が必要であり、文書移行では既存の記述・実装を維持する。人物・科目・支払方法の操作者情報集約は本APIには適用せず、既存の認証・参加エラー本文を維持する。変更する場合は事前承認を得る。
 
 **人物の表示順契約と現行との差分**：科目と同じ非負のInt32表示順・上限時の400 `invalid_input`（field=null）を利用者確認済み（2026-11-24）。現行`PeopleManagement.cs`は`checked`による加算で上限を超えると例外となり、明示的な400拒否は未実装。`LedgerModel.cs`の人物表には表示順の非負CHECKがない。実装時は科目と同様の非負CHECKを初期DB定義に追加し、上限直前の成功・上限時の新規作成拒否・既存成功要求の再送・拒否時の行／順序版／再送記録の保持を検証する。Migrationは追加しない。
 
