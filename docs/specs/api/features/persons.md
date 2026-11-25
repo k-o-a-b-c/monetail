@@ -121,7 +121,7 @@ UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新�
 | 404 | `not_found` | 家計簿不在・未参加、または権限確認後の対象人物不在 | `null` |
 | 409 | `duplicate_person_name` | 同名人物の登録・更新 | `name` |
 | 409 | `person_referenced` | 参照が残る人物の削除 | `null` |
-| 409 | `person_period_conflict` | 期間検証対象の既存記録を範囲外にする期間変更 | `validFrom` または `validTo` |
+| 409 | `person_period_conflict` | PATCH適用後の有効期間外に期間検証対象の既存記録がある（第7節） | `validFrom` または `validTo` |
 | 409 | `revision_conflict` | 更新版の不一致 | `null` |
 | 409 | `request_conflict` | 成功記録のある要求IDの再利用で、第7節の同一性条件を満たさない | `null` |
 | 409 | `created_result_deleted` | 第7節の同一作成要求の再送で、作成結果の人物が削除済み | `null` |
