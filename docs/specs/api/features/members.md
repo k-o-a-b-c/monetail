@@ -35,9 +35,9 @@ GETには要求本文を必要としない。PATCH・DELETEはJSONオブジェ�
 
 | JSON項目 | 型 | PATCH | DELETE |
 | --- | --- | --- | --- |
-| `revision` | UUID文字列 | 必須 | 必須 |
 | `role` | 文字列 | 任意 | — |
 | `personId` | UUID文字列または`null` | 任意 | — |
+| `revision` | UUID文字列 | 必須 | 必須 |
 
 「任意」はキーの省略を許す。「—」は送信不可。キー名は大文字・小文字を区別する。省略した項目は変更しない。`personId: null` は対応解除を表す。役割の `null` は認めない。
 
