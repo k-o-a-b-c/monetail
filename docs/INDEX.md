@@ -30,7 +30,8 @@
 | 旧振替との機能差分・旧DB移行方針 | [振替旧版比較・移行](ledger-transfer-legacy.md) |
 | 履歴候補検索・店名補完と候補UI | [レシート履歴候補](ledger-receipt-suggestions.md) |
 | Codex向け実装工程・参照文書・受入確認 | [レシート実装の入口](ledger-receipt-implementation.md) |
-| 家計簿の作成・参照・回数制限 | [家計簿API](ledger-core-api.md) |
+| 家計簿の作成・参照・開く・名前変更・並び順・削除 | [家計簿API](specs/api/features/ledgers.md) |
+| 業務APIの共通HTTP境界・回数制限 | [共通契約](ledger-core-api.md) |
 | 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
 | 科目5操作のHTTP・JSON・業務契約 | [科目API](specs/api/features/categories.md) |
 | 支払方法5操作のHTTP・JSON・業務契約 | [支払方法API](specs/api/features/payment-methods.md) |

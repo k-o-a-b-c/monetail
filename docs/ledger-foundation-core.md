@@ -10,7 +10,8 @@
 | --- | --- |
 | 共通前提、家計簿名、人物対応、確定済みの基本ルール | [共通前提](ledger-core-principles.md) |
 | 業務モデル方針、家計簿・人物・参加者等のDB構成 | [DB・モデル](ledger-core-schema.md) |
-| 家計簿の作成／再送、参照・開く、権限・API回数制限 | [家計簿API](ledger-core-api.md) |
+| 家計簿の作成／再送、参照・開く、名前変更・並び順・削除 | [家計簿API](specs/api/features/ledgers.md) |
+| 業務APIの共通HTTP境界・認可・回数制限 | [共通契約](ledger-core-api.md) |
 | 旧版DBの一度きりの移行、今後の実装と未決定事項 | [移行と後続](ledger-core-transition.md) |
 
 ## 旧見出しへの案内
