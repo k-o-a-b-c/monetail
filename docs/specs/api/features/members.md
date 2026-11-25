@@ -52,7 +52,7 @@ GETには要求本文を必要としない。PATCH・DELETEはJSONオブジェ�
 | `members[]` の項目 | 型 | 内容 |
 | --- | --- | --- |
 | `accountId` | UUID文字列 | 参加者の認証アカウントID |
-| `displayName` | 文字列または`null` | アカウント表示名 |
+| `displayName` | 文字列 | 登録済みアカウントの表示名（[認証仕様](../../../auth-passkeys.md)に従う） |
 | `role` | 文字列 | 家計簿内の役割 |
 | `personId` | UUID文字列または`null` | 対応する人物ID。未対応なら`null` |
 | `personName` | 文字列または`null` | 対応する人物の現在名。未対応なら`null` |

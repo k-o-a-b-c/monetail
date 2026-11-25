@@ -92,6 +92,7 @@ docs/specs/api/
 - `LedgerManagementEndpoints.cs`・`MemberManagement.cs` の編集専用GETを廃止し、`MemberEditResponse`・`PersonCandidate`の応答を整理する。PATCH・DELETEの版競合の`latest`は最新参加者1件に統一する。現行は編集情報と候補を返す。
 - `LedgerApiSupport.cs` の参加者一覧トップレベル`currentAccountId`・`currentRole`、参加者行の`personDisplayOrder`、業務エラーの`permissions`を廃止する。内部の順位値は共通順の判定に使う。対応済み参加者の同順位時は現行の参加日時・アカウントID順から人物ID順に変更する。未対応者の参加日時・アカウントID順と本人先頭は維持する。パスの`accountId`を文字列一致からUUID値照合へ変更する。
 - 除外時の対象アカウントの家計簿一覧順序版更新は未実装。[家計簿API](features/ledgers.md)に従い同じトランザクションで実装する。
+- 参加者の`displayName`はNULL不可とすることを利用者確認済み（2026-11-26）。一覧・競合応答の現行nullable DTOとClientの読み取り・表示名未設定の表示処理を確定契約に整合させ、正常な登録済み参加者の表示名が返ること、ClientがNULLを正常応答として受理しないことを検証する。未登録アカウントのNULL許容や認証DBの契約は変更しない。
 - `ParticipantTransport.cs`・`ParticipantsWorkspace.cs`・`ParticipantsManagementViewModel.cs`等を新契約に整合させる。認証済みアカウントID（`ManagementContext.AccountId`）による本人判定、既存の人物APIと参加者一覧の照合による候補生成、家計簿APIによる操作者情報の再取得、最新参加者1件の競合表示へ切り替える。編集入力保持・明示的な最新情報への切替・401復帰・自動保存なしを維持する。既存コードの維持を前提とせず、不要になるDTO・ルート・処理は削除する。
 - `LedgerManagementTests.cs`・`ParticipantsWorkspaceTests.cs`・関連Presentation／WinUIテストを整合させる。旧ルート廃止、成功と競合のJSON項目、UUID表記差、本人先頭・人物同順位・未割当同日時、選択候補（未対応・本人対応・他者対応・有効期間外）、403/404時の操作者情報取得、更新版と重複割当の競合、無変更版保持、除外時の順序版・ロールバック、同時除外・権限喪失時の情報非公開を検証する。DB構造・招待API自体は変更対象外。文書移行時点ではコード・テストは変更しない。
 
