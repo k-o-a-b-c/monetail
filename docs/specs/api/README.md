@@ -4,7 +4,7 @@
 
 **本書はAPIの実装状況・文書移行の台帳であり、外部契約の正本ではない。** API仕様は第3節の参照先、WinUIの実装状況は[画面台帳](../../screen-inventory.md)、開発の優先順位は[ロードマップ](../../07-roadmap.md)、検証・CIは[テスト台帳](../../../tests/README.md)で管理する。
 
-**新たに確定した応答責務の変更は未実装。** 操作者の`role`・`myPersonId`を[家計簿API](../../ledger-core-api.md)に集約し、人物・科目・支払方法の成功応答・版競合の`latest`から`currentRole`・`myPersonId`を除く。人物・科目・支払方法・共通税区分／税率履歴APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし（保存先障害は2項目）、操作者の`permissions`を返さない。Clientは人物・科目・支払方法APIの403/404検知時に家計簿APIで状態を再取得する。HTTP成功コード、業務制約、サーバー側の認可、再送・更新版・保存の原子性は維持する。実装とAPIテスト・Windows Clientの切替が完了するまでは、新しいJSON契約と現行実装を混同しない。
+**新たに確定した応答責務の変更は未実装。** 操作者の`role`・`myPersonId`を[家計簿API](../../ledger-core-api.md)に集約し、人物・科目・支払方法の成功応答・版競合の`latest`から`currentRole`・`myPersonId`を除く。人物・科目・支払方法・共通税区分／税率履歴APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし（保存先障害は2項目）、操作者の`permissions`を返さない。Clientは人物・科目・支払方法APIの403/404検知時に家計簿APIで状態を再取得する。共通税区分・税率履歴APIは有効な認証を要求する独立した共通マスタAPIとし、家計簿参加確認を行わない。その他のHTTP成功コード、業務制約、サーバー側の認可、再送・更新版・保存の原子性は維持する。実装とAPIテスト・Windows Clientの切替が完了するまでは、新しいJSON契約と現行実装を混同しない。
 
 ## 1. API仕様書の記載範囲
 
@@ -60,7 +60,7 @@ docs/specs/api/
 
 **更新ルール**：API契約の確定・変更、またはAPI実装の追加・完了に伴って状態／未対応差分が変わるとき、同じPRで本表の該当行だけ更新する。実装変更がなく文書だけ移行した場合は文書移行列だけを更新する。実装済みの判定はコードと必要なテストを確認し、未確認事項を完了扱いしない。文書移行やPRの進捗、テスト件数、実行ログを実装状況として転記しない。
 
-**共通税区分・税率履歴の確定契約と現行との差分**：`GET /tax-rates`を有効な認証アカウント向けの共通マスタAPIとし、家計簿の指定・参加確認を不要とすることを利用者確認済み（2026-11-25）。現行の`GET /ledgers/{ledgerId}/tax-rates`を置き換え、旧ルートは残さない。`LedgerManagementEndpoints.cs`・`TaxRateManagement.cs`の家計簿依存を解消し、新ルートにも既存の共通HTTP境界（固定HTTPS・ホスト検証・no-store・認証・障害応答）とアカウント単位の共有参照枠を適用する。業務エラー本文は4項目とし、現行`LedgerApiSupport.cs`の5項目形式に含まれる`permissions`を廃止する。家計簿不在・未参加を理由とする404は対象外とする。`TaxRateTransport.cs`の`ListTaxRatesAsync`・`TaxRateRequestException`と`TaxRateHistoryCache.cs`の`TaxRatesWorkspace`から不要な家計簿ID・権限情報依存を除き、呼出元とテストも整合させる。税率取得失敗を家計簿参加喪失として扱わない。Decimal文字列は同値表記を許容し、`null`と課税0%を区別する（利用者確認済み）。現行のInvariantCulture出力に正規化処理は不要。401の既存認証復帰、取得前・確定前の認証再検証、503の2項目形式、失敗時の履歴非公開・非キャッシュ、読取非変更、認証コンテキスト単位のキャッシュと旧応答拒否を維持する。API・Clientのテストで、家計簿未参加・未作成でも有効な認証で取得可能、役割によらず同一全履歴、旧ルートのルーティング404、未認証・認証失効・停止の拒否、回数制限、Decimal同値・精度・`null`、失敗時の取得結果非キャッシュを確認する。他機能の認可・契約、DB・CLI・保存時の税率検証は変更しない。
+**共通税区分・税率履歴の確定契約と現行との差分**：`GET /tax-rates`を有効な認証アカウント向けの共通マスタAPIとし、家計簿の指定・参加確認を不要とすることを利用者確認済み（2026-11-25）。現行の`GET /ledgers/{ledgerId}/tax-rates`を置き換え、旧ルートは残さない。`LedgerManagementEndpoints.cs`・`TaxRateManagement.cs`の家計簿依存を解消し、`Program.cs`の`MapPasskeyWeb`の保護対象に新ルートを追加し、既存の共通HTTP境界（固定HTTPS・ホスト検証・no-store・認証・障害応答）とアカウント単位の共有参照枠を適用する。業務エラー本文は4項目とし、現行`LedgerApiSupport.cs`の5項目形式に含まれる`permissions`を廃止する。家計簿不在・未参加を理由とする404は対象外とする。`TaxRateTransport.cs`の`ListTaxRatesAsync`・`TaxRateRequestException`と`TaxRateHistoryCache.cs`の`TaxRatesWorkspace`から不要な家計簿ID・権限情報依存を除き、呼出元とテストも整合させる。税率取得失敗を家計簿参加喪失として扱わない。Decimal文字列は同値表記を許容し、`null`と課税0%を区別する（利用者確認済み）。現行のInvariantCulture出力に正規化処理は不要。401の既存認証復帰、取得前・確定前の認証再検証、503の2項目形式、失敗時の履歴非公開・非キャッシュ、読取非変更、[Clientキャッシュ契約](../../ledger-core-schema.md#共通税率履歴の全件getメモリキャッシュ)を維持する。API・Clientのテストで、家計簿未参加・未作成でも有効な認証で取得可能、役割によらず同一全履歴、旧ルートのルーティング404、未認証・認証失効・停止の拒否、共通HTTP境界（HTTPS・ホスト・no-store）、回数制限、JSONの必須キー・型・NULL許容、Decimal同値・精度・`null`、失敗時の取得結果非キャッシュを確認する。他機能の認可・契約、DB・CLI・保存時の税率検証は変更しない。
 
 **人物の表示順契約と現行との差分**：科目と同じ非負のInt32表示順・上限時の400 `invalid_input`（field=null）を利用者確認済み（2026-11-24）。現行`PeopleManagement.cs`は`checked`による加算で上限を超えると例外となり、明示的な400拒否は未実装。`LedgerModel.cs`の人物表には表示順の非負CHECKがない。実装時は科目と同様の非負CHECKを初期DB定義に追加し、上限直前の成功・上限時の新規作成拒否・既存成功要求の再送・拒否時の行／順序版／再送記録の保持を検証する。Migrationは追加しない。
 
