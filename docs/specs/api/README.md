@@ -4,7 +4,7 @@
 
 **本書はAPIの実装状況・文書移行の台帳であり、外部契約の正本ではない。** API仕様は第3節の参照先、WinUIの実装状況は[画面台帳](../../screen-inventory.md)、開発の優先順位は[ロードマップ](../../07-roadmap.md)、検証・CIは[テスト台帳](../../../tests/README.md)で管理する。
 
-**新たに確定した応答責務の変更は未実装。** 操作者の`role`・`myPersonId`を[家計簿API](../../ledger-core-api.md)に集約し、人物・科目・支払方法の成功応答・版競合の`latest`から`currentRole`・`myPersonId`を除く。人物・科目・支払方法・共通税区分／税率履歴APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし（保存先障害は2項目）、操作者の`permissions`を返さない。Clientは403/404検知時に家計簿APIで状態を再取得する。HTTP成功コード、業務制約、サーバー側の認可、再送・更新版・保存の原子性は維持する。実装とAPIテスト・Windows Clientの切替が完了するまでは、新しいJSON契約と現行実装を混同しない。
+**新たに確定した応答責務の変更は未実装。** 操作者の`role`・`myPersonId`を[家計簿API](../../ledger-core-api.md)に集約し、人物・科目・支払方法の成功応答・版競合の`latest`から`currentRole`・`myPersonId`を除く。人物・科目・支払方法・共通税区分／税率履歴APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし（保存先障害は2項目）、操作者の`permissions`を返さない。Clientは人物・科目・支払方法APIの403/404検知時に家計簿APIで状態を再取得する。HTTP成功コード、業務制約、サーバー側の認可、再送・更新版・保存の原子性は維持する。実装とAPIテスト・Windows Clientの切替が完了するまでは、新しいJSON契約と現行実装を混同しない。
 
 ## 1. API仕様書の記載範囲
 
@@ -50,7 +50,7 @@ docs/specs/api/
 | 招待・参加受諾 | 実装済み | 一覧・発行・取消・プレビュー・受諾 | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 未移行 |
 | 科目 | 一部実装済み | CRUD・順序PUT。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCHの無変更成功、同順PUTの無変更成功、既存レシートを期間外にする科目期間変更の拒否、使用済み科目の収支変更拒否のHTTP 409（現行400）、追加・削除時の順序版の旧値条件の廃止が未対応。詳細は下記 | [科目API](features/categories.md)、[DB・管理画面](../../ledger-core-schema.md#category-master) | 移行済み |
 | 支払方法 | 一部実装済み | CRUD・所有者別順序PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCH・同順PUTの無変更成功、追加・削除時の順序版の旧値条件の廃止、期間競合の409応答、PATCH検証順の統一、順序版競合応答のID配列廃止、所有者別順序版のID項目名・配列順の統一、競合応答の所有者権限再検証、評価額属性が未対応。残高等の期間検証は各業務API実装時。詳細は下記 | [支払方法API](features/payment-methods.md)、[DB・管理画面](../../ledger-core-schema.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
-| 共通税区分・税率履歴 | 一部実装済み | 全履歴GET。業務エラー本文の操作者情報の廃止（上記）が未対応。履歴管理は同期CLIを使用し、HTTP書込APIは対象外。詳細は下記 | [共通税区分・税率履歴API](features/tax-rates.md)、[DB・同期CLI](../../ledger-core-schema.md#shared-tax-history) | 移行済み |
+| 共通税区分・税率履歴 | 一部実装済み | 全履歴GETは実装済み。家計簿に依存しない`GET /tax-rates`への切替、参加確認の廃止、業務エラー本文の操作者情報の廃止が未対応。履歴管理は同期CLIを使用し、HTTP書込APIは対象外。詳細は下記 | [共通税区分・税率履歴API](features/tax-rates.md)、[DB・同期CLI](../../ledger-core-schema.md#shared-tax-history) | 移行済み |
 | レシート | 実装済み | 一覧／詳細GET・POST／PUT／DELETE・保存行フォーカス・履歴候補／自動補完GET・計算／検証。メモの空文字正規化も対応済み | [レシートAPI](../../ledger-receipt-api.md)、[履歴候補API](../../ledger-receipt-suggestions.md) | 未移行 |
 | 振替 | 実装済み | 一覧／詳細GET・POST／PUT／DELETE・保存行フォーカス・名称候補／自動補完GET。残高連動は残高API実装時 | [振替API](../../ledger-transfer-api.md)、[振替業務条件](../../ledger-transfer-db.md) | 未移行 |
 | 残高・推算残高 | 未実装 | 評価額対応を含む登録／更新／削除・履歴取得・推算一括GET、人物／支払方法の期間検証。推算GETは契約の確定範囲あり、保存／履歴のHTTP詳細等は後続設計 | [残高API](../../ledger-balance-api.md)、[家計簿DB・モデル](../../ledger-core-schema.md) | 未移行 |
@@ -60,7 +60,7 @@ docs/specs/api/
 
 **更新ルール**：API契約の確定・変更、またはAPI実装の追加・完了に伴って状態／未対応差分が変わるとき、同じPRで本表の該当行だけ更新する。実装変更がなく文書だけ移行した場合は文書移行列だけを更新する。実装済みの判定はコードと必要なテストを確認し、未確認事項を完了扱いしない。文書移行やPRの進捗、テスト件数、実行ログを実装状況として転記しない。
 
-**共通税区分・税率履歴の確定契約と現行との差分**：Decimal文字列は数値として同値の表記を許容し、非課税の`null`と課税0%を区別することを利用者確認済み（2026-11-25）。現行`TaxRateManagement.cs`のInvariantCultureによるDecimal文字列出力に正規化処理を追加する必要はない。実装時は末尾ゼロのある表記とない表記の同値性、精度保持、`null`との区別をAPI・Clientの関連テストで確認する。業務エラー本文を他の3マスタと同じ4項目とし、`permissions`を廃止することも利用者確認済み（2026-11-25）。現行`LedgerApiSupport.cs`の共通業務エラーは5項目で、`TaxRateTransport.cs`の`TaxRateRequestException`も`Permissions`を持つ。API・Client・関連テストを確定契約に整合させる。401/404の認証・参加再検証、失敗時の履歴非公開、503の2項目形式、既存参照枠・読取非変更・キャッシュの認証境界は維持し、他機能の未承認契約には変更を波及させない。404時の家計簿APIによる参加状態の再確認、401の既存認証復帰、業務エラーでの取得結果非キャッシュを検証する。
+**共通税区分・税率履歴の確定契約と現行との差分**：`GET /tax-rates`を有効な認証アカウント向けの共通マスタAPIとし、家計簿の指定・参加確認を不要とすることを利用者確認済み（2026-11-25）。現行の`GET /ledgers/{ledgerId}/tax-rates`を置き換え、旧ルートは残さない。`LedgerManagementEndpoints.cs`・`TaxRateManagement.cs`の家計簿依存を解消し、新ルートにも既存の共通HTTP境界（固定HTTPS・ホスト検証・no-store・認証・障害応答）とアカウント単位の共有参照枠を適用する。業務エラー本文は4項目とし、現行`LedgerApiSupport.cs`の5項目形式に含まれる`permissions`を廃止する。家計簿不在・未参加を理由とする404は対象外とする。`TaxRateTransport.cs`の`ListTaxRatesAsync`・`TaxRateRequestException`と`TaxRateHistoryCache.cs`の`TaxRatesWorkspace`から不要な家計簿ID・権限情報依存を除き、呼出元とテストも整合させる。税率取得失敗を家計簿参加喪失として扱わない。Decimal文字列は同値表記を許容し、`null`と課税0%を区別する（利用者確認済み）。現行のInvariantCulture出力に正規化処理は不要。401の既存認証復帰、取得前・確定前の認証再検証、503の2項目形式、失敗時の履歴非公開・非キャッシュ、読取非変更、認証コンテキスト単位のキャッシュと旧応答拒否を維持する。API・Clientのテストで、家計簿未参加・未作成でも有効な認証で取得可能、役割によらず同一全履歴、旧ルートのルーティング404、未認証・認証失効・停止の拒否、回数制限、Decimal同値・精度・`null`、失敗時の取得結果非キャッシュを確認する。他機能の認可・契約、DB・CLI・保存時の税率検証は変更しない。
 
 **人物の表示順契約と現行との差分**：科目と同じ非負のInt32表示順・上限時の400 `invalid_input`（field=null）を利用者確認済み（2026-11-24）。現行`PeopleManagement.cs`は`checked`による加算で上限を超えると例外となり、明示的な400拒否は未実装。`LedgerModel.cs`の人物表には表示順の非負CHECKがない。実装時は科目と同様の非負CHECKを初期DB定義に追加し、上限直前の成功・上限時の新規作成拒否・既存成功要求の再送・拒否時の行／順序版／再送記録の保持を検証する。Migrationは追加しない。
 
@@ -104,7 +104,7 @@ docs/specs/api/
 | [参加者API](../../ledger-person-api-contract.md) | 人物5操作は[正本](features/persons.md)へ移行済み。参加者4操作の契約は本書に維持 |
 | [人物の画面仕様](../../ledger-persons.md) | APIの名前・期間・削除制限・権限は[正本](features/persons.md)を参照し、本書は画面・後続業務の判断を維持 |
 | [人物の競合](../../ledger-person-conflicts.md) | 画面の競合・権限喪失・再送時の動作。API契約は[人物API](features/persons.md)と[家計簿API](../../ledger-core-api.md)を参照 |
-| [家計簿DB・モデル](../../ledger-core-schema.md) | 科目APIは[正本](features/categories.md)、支払方法APIは[正本](features/payment-methods.md)へ移行済み。税率履歴のAPI契約は今後移行。物理DB・管理画面は既存正本に残す |
+| [家計簿DB・モデル](../../ledger-core-schema.md) | 科目APIは[正本](features/categories.md)、支払方法APIは[正本](features/payment-methods.md)へ移行済み。税率履歴APIも[正本](features/tax-rates.md)へ移行済み。物理DB・管理画面は既存正本に残す |
 | [レシートAPI](../../ledger-receipt-api.md) | HTTP契約・金額計算・検証・検索。工程記録と区別 |
 | [履歴候補API](../../ledger-receipt-suggestions.md) | 検索・正規化・重複判定・取得権限・応答 |
 | [振替API](../../ledger-transfer-api.md) | CRUD・候補・補完・カーソル・権限・再送 |
