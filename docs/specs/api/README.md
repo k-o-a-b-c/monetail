@@ -47,7 +47,7 @@ docs/specs/api/
 | 全体アカウント管理 | 実装済み | 一覧・作成・登録招待の発行／取消・管理メモ。全失効・緊急復旧はCLI。管理者の全失効HTTP経路・権限変更は未実装で、追加契約は未確定 | [認証API](../../auth-api-contract.md) | 既存正本維持 |
 | 家計簿 | 一部実装済み | 作成・一覧・個別参照・指定／最後の家計簿を開く。操作者情報の集約、JSON・業務エラーの統一、アカウント別順序PUT、一覧の応答変更、作成と開く処理の分離、名前変更・削除APIが未対応。詳細は下記 | [家計簿API](features/ledgers.md)、[共通前提](../../ledger-core-principles.md)、[DB](../../ledger-core-schema.md) | 移行済み |
 | 人物 | 一部実装済み | CRUD・共通順PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）、表示順上限の400応答・非負のDB制約、追加・削除時の順序版の旧値条件の廃止が未対応。残高・評価額等の期間検証は各業務API実装時 | [人物API](features/persons.md)、[人物の画面仕様](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
-| 参加者・人物対応 | 一部実装済み | 一覧・役割／人物対応の更新・除外。編集専用GET廃止、一覧／競合／業務エラー応答の統一、UUID照合、一覧順、除外時の家計簿一覧順序版更新が未対応。詳細は下記 | [参加者API](features/members.md)、[参加者管理](../../ledger-participants.md) | 移行済み |
+| 参加者・人物対応 | 一部実装済み | 一覧・役割／人物対応の更新・除外。編集専用GET廃止、一覧／競合／業務エラー応答の統一、UUID照合、一覧順、PATCHの人物不在エラー・検証順、除外時の家計簿一覧順序版更新が未対応。詳細は下記 | [参加者API](features/members.md)、[参加者管理](../../ledger-participants.md) | 移行済み |
 | 招待・参加受諾 | 一部実装済み | 一覧・発行・取消・プレビュー・受諾。受諾時の最終選択更新の廃止、一覧への末尾追加・順序版更新・応答の共通化が未対応（家計簿APIの未対応差分を参照） | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 未移行 |
 | 科目 | 一部実装済み | CRUD・順序PUT。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCHの無変更成功、同順PUTの無変更成功、既存レシートを期間外にする科目期間変更の拒否、使用済み科目の収支変更拒否のHTTP 409（現行400）、追加・削除時の順序版の旧値条件の廃止が未対応。詳細は下記 | [科目API](features/categories.md)、[DB・管理画面](../../ledger-core-schema.md#category-master) | 移行済み |
 | 支払方法 | 一部実装済み | CRUD・所有者別順序PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCH・同順PUTの無変更成功、追加・削除時の順序版の旧値条件の廃止、期間競合の409応答、PATCH検証順の統一、順序版競合応答のID配列廃止、所有者別順序版のID項目名・配列順の統一、競合応答の所有者権限再検証、評価額属性が未対応。残高等の期間検証は各業務API実装時。詳細は下記 | [支払方法API](features/payment-methods.md)、[DB・管理画面](../../ledger-core-schema.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
@@ -91,10 +91,11 @@ docs/specs/api/
 
 - `LedgerManagementEndpoints.cs`・`MemberManagement.cs` の編集専用GETを廃止し、`MemberEditResponse`・`PersonCandidate`の応答を整理する。PATCH・DELETEの版競合の`latest`は最新参加者1件に統一する。現行は編集情報と候補を返す。
 - `LedgerApiSupport.cs` の参加者一覧トップレベル`currentAccountId`・`currentRole`、参加者行の`personDisplayOrder`・`personName`・`joinedAtUtc`、業務エラーの`permissions`を廃止する。内部の順位値とDBの参加日時は配列順の判定に引き続き使用する。対応済み参加者の同順位時は現行の参加日時・アカウントID順から人物ID順に変更する。未対応者の参加日時・アカウントID順と本人先頭は維持する。パスの`accountId`を文字列一致からUUID値照合へ変更する。
+- PATCHで本文の`personId`が同一家計簿に存在しない場合は、現行の404 `not_found`から400 `invalid_input`（`field=personId`）へ変更する。役割・人物IDの入力検証を本人の役割変更禁止より先に行うことも利用者確認済み（2026-11-26）。対象参加者の存在・更新版の照合を先に行い、本人の役割変更禁止、人物の存在、重複対応の順に業務制約を検証する。DELETEの優先順位・本人操作禁止の専用コードは維持する。
 - 除外時の対象アカウントの家計簿一覧順序版更新は未実装。[家計簿API](features/ledgers.md)に従い同じトランザクションで実装する。
 - 参加者の`displayName`はNULL不可とすることを利用者確認済み（2026-11-26）。一覧・競合応答の現行nullable DTOとClientの読み取り・表示名未設定の表示処理を確定契約に整合させ、正常な登録済み参加者の表示名が返ること、ClientがNULLを正常応答として受理しないことを検証する。未登録アカウントのNULL許容や認証DBの契約は変更しない。
 - `ParticipantTransport.cs`・`ParticipantsWorkspace.cs`・`ParticipantsManagementViewModel.cs`等を新契約に整合させる。認証済みアカウントID（`ManagementContext.AccountId`）による本人判定、既存の人物APIと参加者一覧の照合による対応人物名の表示・候補生成、家計簿APIによる操作者情報の再取得、最新参加者1件の競合表示へ切り替える。編集入力保持・明示的な最新情報への切替・401復帰・自動保存なしを維持する。既存コードの維持を前提とせず、不要になるDTO・ルート・処理は削除する。
-- `LedgerManagementTests.cs`・`ParticipantsWorkspaceTests.cs`・関連Presentation／WinUIテストを整合させる。旧ルート廃止、成功と競合のJSON項目（参加者行5項目）、人物マスタを用いた対応人物名の表示、UUID表記差、本人先頭・人物同順位・未割当同日時、選択候補（未対応・本人対応・他者対応・有効期間外）、403/404時の操作者情報取得、更新版と重複割当の競合、無変更版保持、除外時の順序版・ロールバック、同時除外・権限喪失時の情報非公開を検証する。DB構造・招待API自体は変更対象外。文書移行時点ではコード・テストは変更しない。
+- `LedgerManagementTests.cs`・`ParticipantsWorkspaceTests.cs`・関連Presentation／WinUIテストを整合させる。旧ルート廃止、成功と競合のJSON項目（参加者行5項目）、人物マスタを用いた対応人物名の表示、UUID表記差、本人先頭・人物同順位・未割当同日時、選択候補（未対応・本人対応・他者対応・有効期間外）、403/404時の操作者情報取得、同一家計簿に存在しない人物IDの400（他家計簿のIDを含む）、複数不備時の検証優先順位、本人操作禁止の403、更新版と重複割当の競合、無変更版保持、除外時の順序版・ロールバック、同時除外・権限喪失時の情報非公開を検証する。DB構造・招待API自体は変更対象外。文書移行時点ではコード・テストは変更しない。
 
 ### 家計簿APIの未対応差分
 
