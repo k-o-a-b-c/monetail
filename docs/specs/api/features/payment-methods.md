@@ -100,7 +100,7 @@ GETには要求本文を必要としない。書込4操作（DELETEを含む）�
 | `ownerPersonId` | UUID文字列 | 所有者人物ID |
 | `orderRevision` | UUID文字列 | その人物の支払方法共通順の更新版 |
 
-UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新版はAPIが生成するUUID v4とし、大小や時系列ではなく一致で照合する。日付は第3節の形式に従う。
+UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新版はAPIが生成するUUID v4とし、一致のみで照合する。日付は第3節の形式に従う。
 
 - `paymentMethods` は `ownerPersonId` の文字列昇順でまとめ、同一所有者内では支払方法の共通順で返す。共通順の判定は[DBの表示順管理](../../../ledger-core-schema.md#master-order-storage)に従う。
 - `ownerOrderRevisions` は `ownerPersonId` の文字列昇順で返す。人物作成時に所有者別順序版を初期化し、支払方法0件でも保持する。
