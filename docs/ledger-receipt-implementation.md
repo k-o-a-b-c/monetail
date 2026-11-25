@@ -42,7 +42,7 @@ PR #189の遷移構造を利用し、[DEC-268・269・267](ledger-receipt-ui.md#
 
 ## 工程6-D4の実装前整理（調査済み事実と分割案）
 
-**D4-0・D4-A・D4-CLI・D4-B・D4-Cは実装済み。** 税率・CLI・キャッシュの正本は[共通税率履歴](ledger-core-schema.md#shared-tax-history)、計算は[レシートAPI](ledger-receipt-api.md)、画面は[レシートUI](ledger-receipt-ui.md)を参照する。登録用の全期間JSONは[`config/tax-history.json`](../config/tax-history.json)にあるが、初期DBへ自動投入しない。
+**D4-0・D4-A・D4-CLI・D4-B・D4-Cは実装済み。** 税率履歴APIの正本は[共通税区分・税率履歴API](specs/api/features/tax-rates.md)、DB・CLI・キャッシュは[共通税率履歴](ledger-core-schema.md#shared-tax-history)、計算は[レシートAPI](ledger-receipt-api.md)、画面は[レシートUI](ledger-receipt-ui.md)を参照する。登録用の全期間JSONは[`config/tax-history.json`](../config/tax-history.json)にあるが、初期DBへ自動投入しない。
 
 ### 現状確認（工程6-D4-Cまで）
 
@@ -63,7 +63,7 @@ PR #189の遷移構造を利用し、[DEC-268・269・267](ledger-receipt-ui.md#
 
 #### 1. 全件GETの応答JSON（D4-A実装済み）
 
-`GET /ledgers/{ledgerId}/tax-rates`は日付指定なしの全件取得。`rates`の4フィールド、NULL・0%・配列順非保証、認証/参加検証は[共通税率履歴のGET契約](ledger-core-schema.md#共通税率履歴の全件getメモリキャッシュ)を正本とする。履歴の例示値は運用DBへの自動投入を意味しない。
+[共通税区分・税率履歴API](specs/api/features/tax-rates.md)を正本とする。履歴の例示値は運用DBへの自動投入を意味しない。
 
 #### 2. 管理CLI：将来の改定まで扱う全履歴同期（D4-CLI実装済み）
 
@@ -71,7 +71,7 @@ PR #189の遷移構造を利用し、[DEC-268・269・267](ledger-receipt-ui.md#
 
 #### 3. Clientキャッシュ・受入条件（仕様確定）
 
-接続先・アカウント単位のメモリキャッシュ、認証切替時の破棄・旧応答拒否、期間両端を含む照合、非課税候補の常設、履歴変更による保存拒否後の再取得と入力保持は[GET・Client契約](ledger-core-schema.md#共通税率履歴の全件getメモリキャッシュ)および[レシート画面](ledger-receipt-ui.md#税率候補正式計算の画面接続工程6-d4-c実装済み)を参照する。ディスク保存・TTL・定期確認は設けない。履歴NULLの起源は明細`taxRate:null`に保存しない。
+キャッシュの取得・保持・破棄・再取得は[Clientキャッシュ契約](ledger-core-schema.md#共通税率履歴の全件getメモリキャッシュ)、税率候補・入力保持は[レシート画面](ledger-receipt-ui.md#税率候補正式計算の画面接続工程6-d4-c実装済み)を参照する。履歴NULLの起源は明細`taxRate:null`に保存しない。
 
 ## DB実装の判断境界
 
