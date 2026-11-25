@@ -126,7 +126,7 @@ UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新�
 | 409 | `duplicate_category_name` | 同名科目の登録・更新 | `name` |
 | 409 | `category_referenced` | 参照が残る科目の削除 | `null` |
 | 409 | `category_income_expense_conflict` | 使用済み科目の収支区分の実値変更 | `incomeExpense` |
-| 409 | `category_period_conflict` | 期間検証対象の既存記録を範囲外にする期間変更 | `validFrom` または `validTo` |
+| 409 | `category_period_conflict` | PATCH適用後の有効期間外に期間検証対象の既存記録がある（第7節） | `validFrom` または `validTo` |
 | 409 | `revision_conflict` | 更新版の不一致 | `null` |
 | 409 | `request_conflict` | 成功記録のある要求IDの再利用で、第7節の同一性条件を満たさない | `null` |
 | 409 | `created_result_deleted` | 第7節の同一作成要求の再送で、作成結果の科目が削除済み | `null` |
