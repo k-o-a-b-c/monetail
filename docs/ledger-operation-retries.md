@@ -42,6 +42,8 @@
 
 科目作成は`category.create`で共通照合・記録を使用する。入力・応答と削除後再送の契約は[科目API](specs/api/features/categories.md#7-整合性作成の再送)を正本とする。
 
+支払方法作成は`payment_method.create`で共通照合・記録を使用する。入力・応答と削除後再送の契約は[支払方法API](specs/api/features/payment-methods.md#7-整合性作成の再送)を正本とする。
+
 ## レシート書込の再送保証（DEC-259・API／Client実装済み、WinUI未接続）
 
 レシートPOST・PUT・DELETEはすべて`requestId`を要求し、PUT・DELETEは`revision`も要求する。既存の`operation_requests`6列を共用し、業務データと成功記録を同じトランザクションで確定。無変更PUT成功も記録する。記録はDEC-074どおり無期限保持・自動削除なし。
