@@ -10,7 +10,7 @@
 
 ## 共通HTTP境界・認可
 
-参加者追加は[家計簿招待](ledger-invitations.md)の受領で行い、任意のアカウントID指定による直接追加APIは作らない。人物対応の操作は[参加者API](ledger-person-api-contract.md)を正本とする。
+参加者追加は[家計簿招待](ledger-invitations.md)の受領で行い、任意のアカウントID指定による直接追加APIは作らない。人物対応の操作は[参加者API](specs/api/features/members.md)を正本とする。
 
 - 対象家計簿を指定して操作するAPIは、対象家計簿の現在の参加・roleを要求ごとにDBで確認する。Cookieの全体Adminやクライアントのroleを信用しない。
 - 未認証・セッション失効・利用停止は401。指定した家計簿の未参加と不存在は同じ404、参加済みで役割不足は403、古いrevision・対応の重複・要求IDの競合は409。人物・参加者・招待の操作にも適用する。

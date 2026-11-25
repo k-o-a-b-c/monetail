@@ -6,7 +6,7 @@
 
 - 対象：参加中の家計簿の一覧・個別参照、作成、指定／最後の家計簿を開く、家計簿名の変更、アカウント別並び順の保存、家計簿の削除。
 - Clientの操作者情報の再取得：[画面共通処理](../../../ledger-person-conflicts.md)。
-- 関連契約：[家計簿共通前提](../../../ledger-core-principles.md)、[家計簿DB](../../../ledger-core-schema.md)、[参加者API](../../../ledger-person-api-contract.md)、[招待](../../../ledger-invitations.md)、[人物API](persons.md)、[科目API](categories.md)、[支払方法API](payment-methods.md)。
+- 関連契約：[家計簿共通前提](../../../ledger-core-principles.md)、[家計簿DB](../../../ledger-core-schema.md)、[参加者API](members.md)、[招待](../../../ledger-invitations.md)、[人物API](persons.md)、[科目API](categories.md)、[支払方法API](payment-methods.md)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[共通HTTP境界・回数制限](../../../ledger-core-api.md)、[共通再送](../../../ledger-operation-retries.md)。
 
 ## 2. エンドポイントと権限
@@ -39,7 +39,7 @@
 | 並び順 | アカウント単位の任意の順序。端末間で共有し、新規作成・招待参加は末尾に追加する。家計簿の削除・参加解除では対象家計簿を一覧から除き、残った家計簿の相対順を維持する |
 | 削除 | レシート・残高（評価額のみの登録を含む）・振替・支払メモが1件でも残る家計簿は削除不可。業務記録が0件の場合は物理削除する。有効な認証と対象家計簿のAdmin権限を要求し、直近のパスキー本人確認は要求しない |
 
-人物とアカウントの対応は[参加者API](../../../ledger-person-api-contract.md)で管理する。同一家計簿では1アカウント0〜1人物、1人物0〜1アカウント。人物対応の有無を管理権限の条件にしない。
+人物とアカウントの対応は[参加者API](members.md)で管理する。同一家計簿では1アカウント0〜1人物、1人物0〜1アカウント。人物対応の有無を管理権限の条件にしない。
 
 ## 4. リクエスト
 

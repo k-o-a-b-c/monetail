@@ -4,7 +4,7 @@
 
 **本書はAPIの実装状況・文書移行の台帳であり、外部契約の正本ではない。** API仕様は第3節の参照先、WinUIの実装状況は[画面台帳](../../screen-inventory.md)、開発の優先順位は[ロードマップ](../../07-roadmap.md)、検証・CIは[テスト台帳](../../../tests/README.md)で管理する。
 
-**新たに確定した応答責務の変更は未実装。** 操作者の`role`・`myPersonId`を[家計簿API](features/ledgers.md)に集約し、人物・科目・支払方法の成功応答・版競合の`latest`から`currentRole`・`myPersonId`を除く。家計簿・人物・科目・支払方法・共通税区分／税率履歴APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし（保存先障害は2項目）、操作者の`permissions`を返さない。Clientは人物・科目・支払方法APIの403/404検知時に家計簿APIで状態を再取得する。共通税区分・税率履歴APIは有効な認証を要求する独立した共通マスタAPIとし、家計簿参加確認を行わない。その他のHTTP成功コード、業務制約、サーバー側の認可、再送・更新版・保存の原子性は維持する。実装とAPIテスト・Windows Clientの切替が完了するまでは、新しいJSON契約と現行実装を混同しない。
+**新たに確定した応答責務の変更は未実装。** 操作者の`role`・`myPersonId`を[家計簿API](features/ledgers.md)に集約し、人物・科目・支払方法の成功応答・版競合の`latest`から`currentRole`・`myPersonId`を除く。家計簿・人物・科目・支払方法・共通税区分／税率履歴・参加者APIの業務エラー本文は`code`・`message`・`field`・`latest`の4項目とし（保存先障害は2項目）、操作者の`permissions`を返さない。Clientは人物・科目・支払方法・参加者APIの403/404検知時に家計簿APIで状態を再取得する。共通税区分・税率履歴APIは有効な認証を要求する独立した共通マスタAPIとし、家計簿参加確認を行わない。その他のHTTP成功コード、業務制約、サーバー側の認可、再送・更新版・保存の原子性は維持する。実装とAPIテスト・Windows Clientの切替が完了するまでは、新しいJSON契約と現行実装を混同しない。
 
 ## 1. API仕様書の記載範囲
 
@@ -31,7 +31,7 @@ docs/specs/api/
     categories.md             # 科目API（正本）
     payment-methods.md        # 支払方法API（正本）
     tax-rates.md               # 共通税区分・税率履歴API（正本）
-    participants.md            # 後続候補
+    members.md                 # 参加者API（正本）
     ...                        # 機能の移行時だけ追加
 ```
 
@@ -47,7 +47,7 @@ docs/specs/api/
 | 全体アカウント管理 | 実装済み | 一覧・作成・登録招待の発行／取消・管理メモ。全失効・緊急復旧はCLI。管理者の全失効HTTP経路・権限変更は未実装で、追加契約は未確定 | [認証API](../../auth-api-contract.md) | 既存正本維持 |
 | 家計簿 | 一部実装済み | 作成・一覧・個別参照・指定／最後の家計簿を開く。操作者情報の集約、JSON・業務エラーの統一、アカウント別順序PUT、一覧の応答変更、作成と開く処理の分離、名前変更・削除APIが未対応。詳細は下記 | [家計簿API](features/ledgers.md)、[共通前提](../../ledger-core-principles.md)、[DB](../../ledger-core-schema.md) | 移行済み |
 | 人物 | 一部実装済み | CRUD・共通順PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）、表示順上限の400応答・非負のDB制約、追加・削除時の順序版の旧値条件の廃止が未対応。残高・評価額等の期間検証は各業務API実装時 | [人物API](features/persons.md)、[人物の画面仕様](../../ledger-persons.md)、[DB](../../ledger-person-db.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
-| 参加者・人物対応 | 実装済み | 一覧・編集情報GET・役割／人物対応の更新・除外 | [参加者API](../../ledger-person-api-contract.md)、[参加者の業務条件](../../ledger-participants.md) | 既存正本維持 |
+| 参加者・人物対応 | 一部実装済み | 一覧・役割／人物対応の更新・除外。編集専用GET廃止、一覧／競合／業務エラー応答の統一、UUID照合、一覧順、除外時の家計簿一覧順序版更新が未対応。詳細は下記 | [参加者API](features/members.md)、[参加者管理](../../ledger-participants.md) | 移行済み |
 | 招待・参加受諾 | 一部実装済み | 一覧・発行・取消・プレビュー・受諾。受諾時の最終選択更新の廃止、一覧への末尾追加・順序版更新・応答の共通化が未対応（家計簿APIの未対応差分を参照） | [招待](../../ledger-invitations.md)、[認証API](../../auth-api-contract.md) | 未移行 |
 | 科目 | 一部実装済み | CRUD・順序PUT。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCHの無変更成功、同順PUTの無変更成功、既存レシートを期間外にする科目期間変更の拒否、使用済み科目の収支変更拒否のHTTP 409（現行400）、追加・削除時の順序版の旧値条件の廃止が未対応。詳細は下記 | [科目API](features/categories.md)、[DB・管理画面](../../ledger-core-schema.md#category-master) | 移行済み |
 | 支払方法 | 一部実装済み | CRUD・所有者別順序PUT・既存レシート／振替の期間検証。操作者情報の集約（上記）、POST成功応答の統一、revisionのみのPATCH・同順PUTの無変更成功、追加・削除時の順序版の旧値条件の廃止、期間競合の409応答、PATCH検証順の統一、順序版競合応答のID配列廃止、所有者別順序版のID項目名・配列順の統一、競合応答の所有者権限再検証、評価額属性が未対応。残高等の期間検証は各業務API実装時。詳細は下記 | [支払方法API](features/payment-methods.md)、[DB・管理画面](../../ledger-core-schema.md)、[共通再送](../../ledger-operation-retries.md) | 移行済み |
@@ -85,6 +85,16 @@ docs/specs/api/
 
 物理DBの正本は、[共通DB](../../ledger-core-schema.md)、[人物DB](../../ledger-person-db.md)、[レシートDB](../../ledger-receipt-schema.md)、[振替DB](../../ledger-transfer-db.md)を参照する。
 
+### 参加者APIの未対応差分
+
+利用者確認済み（2026-11-26）の確定契約は[参加者API](features/members.md)を参照する。
+
+- `LedgerManagementEndpoints.cs`・`MemberManagement.cs` の編集専用GETを廃止し、`MemberEditResponse`・`PersonCandidate`の応答を整理する。PATCH・DELETEの版競合の`latest`は最新参加者1件に統一する。現行は編集情報と候補を返す。
+- `LedgerApiSupport.cs` の参加者一覧トップレベル`currentAccountId`・`currentRole`、参加者行の`personDisplayOrder`、業務エラーの`permissions`を廃止する。内部の順位値は共通順の判定に使う。対応済み参加者の同順位時は現行の参加日時・アカウントID順から人物ID順に変更する。未対応者の参加日時・アカウントID順と本人先頭は維持する。パスの`accountId`を文字列一致からUUID値照合へ変更する。
+- 除外時の対象アカウントの家計簿一覧順序版更新は未実装。[家計簿API](features/ledgers.md)に従い同じトランザクションで実装する。
+- `ParticipantTransport.cs`・`ParticipantsWorkspace.cs`・`ParticipantsManagementViewModel.cs`等を新契約に整合させる。認証済みアカウントID（`ManagementContext.AccountId`）による本人判定、既存の人物APIと参加者一覧の照合による候補生成、家計簿APIによる操作者情報の再取得、最新参加者1件の競合表示へ切り替える。編集入力保持・明示的な最新情報への切替・401復帰・自動保存なしを維持する。既存コードの維持を前提とせず、不要になるDTO・ルート・処理は削除する。
+- `LedgerManagementTests.cs`・`ParticipantsWorkspaceTests.cs`・関連Presentation／WinUIテストを整合させる。旧ルート廃止、成功と競合のJSON項目、UUID表記差、本人先頭・人物同順位・未割当同日時、選択候補（未対応・本人対応・他者対応・有効期間外）、403/404時の操作者情報取得、更新版と重複割当の競合、無変更版保持、除外時の順序版・ロールバック、同時除外・権限喪失時の情報非公開を検証する。DB構造・招待API自体は変更対象外。文書移行時点ではコード・テストは変更しない。
+
 ### 家計簿APIの未対応差分
 
 - 現行の `LedgerResponse`・Clientの `LedgerInfo` は4項目。全家計簿オブジェクトの `myPersonId` 追加とClient共通状態の切替、人物・科目・支払方法APIからの操作者情報の除去が必要。
@@ -101,15 +111,15 @@ docs/specs/api/
 家計簿・人物・科目・支払方法はサーバーで保存順に整列した配列を返し、配列順をClientの基準とする（利用者確認済み）。人物・科目・支払方法の現行応答および行版競合の `latest` に含まれる `displayOrder` は廃止する。順序版競合の配列も同じ応答形式に統一する。DBの表示順値・採番・上限・欠番・同順位の扱いと順序版、全ID配列による保存は維持する。家計簿にも表示順管理の共通規則を適用し、具体的なテーブル構成は別途設計する。
 
 - APIのDTO・投影とClientの `PersonInfo`・`CategoryInfo`・`PaymentMethodInfo` および各Transportのパース・検証を切り替える。Clientのキャッシュと各画面で受信配列順を保持し、`DisplayOrder` による再ソートを除く。本人優先は安定した並び替え、絞り込みは相対順の保持、支払方法の所有者グループ順は人物配列の順に基づく。並び順編集は全期間の保存順を使用し、画面固有の表示順をそのまま書き戻さない。
-- API・Client・表示関連テストで、成功／再送／版競合のJSON項目、保存順と同順位時のID順、追加・削除・並び替え、空配列、本人優先・有効期間フィルター、所有者別の順序と版の独立性を検証する。DBの順位値を検証するテストは維持する。参加者APIの `personDisplayOrder` は別契約のため、今回変更しない。
+- API・Client・表示関連テストで、成功／再送／版競合のJSON項目、保存順と同順位時のID順、追加・削除・並び替え、空配列、本人優先・有効期間フィルター、所有者別の順序と版の独立性を検証する。DBの順位値を検証するテストは維持する。参加者APIの応答・配列順の変更は上記の参加者APIの未対応差分で扱う。
 
 ## 4. 共通契約の抽出候補
 
 | 候補 | 比較する既存正本 | 抽出前に確認する差異 |
 | --- | --- | --- |
 | 認証・HTTP境界 | [セッション](../../auth-session-security.md)、[認証API](../../auth-api-contract.md)、[共通HTTP境界・回数制限](../../ledger-core-api.md) | CSRF・本文上限・認証方式・適用範囲 |
-| エラー本文 | [人物API](features/persons.md)、[参加者API](../../ledger-person-api-contract.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | `code`/`message`/`field`/`latest`/`permissions`の出現条件、認証境界、機能固有コード |
-| 更新版・競合 | [人物API](features/persons.md)、[参加者API](../../ledger-person-api-contract.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md)、[科目API](features/categories.md)、[支払方法API](features/payment-methods.md) | 対象行版と共通順の全体版、409時の`latest` |
+| エラー本文 | [人物API](features/persons.md)、[参加者API](features/members.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | `code`/`message`/`field`/`latest`/`permissions`の出現条件、認証境界、機能固有コード |
+| 更新版・競合 | [人物API](features/persons.md)、[参加者API](features/members.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md)、[科目API](features/categories.md)、[支払方法API](features/payment-methods.md) | 対象行版と共通順の全体版、409時の`latest` |
 | 要求ID・再送 | [共通再送](../../ledger-operation-retries.md)、[レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | 対象操作・成功再現・削除後再送・権限再検証・レスポンスの差異 |
 | カーソル | [レシートAPI](../../ledger-receipt-api.md)、[振替API](../../ledger-transfer-api.md) | フィルター・並び順・不正カーソルの扱い |
 | 回数制限 | [認証API](../../auth-api-contract.md)、[共通HTTP境界・回数制限](../../ledger-core-api.md) | 認証系と業務APIの異なる枠・対象操作 |
@@ -120,9 +130,9 @@ docs/specs/api/
 
 | 既存文書 | API契約として移行する項目 |
 | --- | --- |
-| [参加者API](../../ledger-person-api-contract.md) | 人物5操作は[正本](features/persons.md)へ移行済み。参加者4操作の契約は本書に維持 |
+| [旧参加者API](../../ledger-person-api-contract.md) | 参加者3操作は[正本](features/members.md)へ移行済み。旧文書は参照案内 |
 | [人物の画面仕様](../../ledger-persons.md) | APIの名前・期間・削除制限・権限は[正本](features/persons.md)を参照し、本書は画面・後続業務の判断を維持 |
-| [人物の競合](../../ledger-person-conflicts.md) | 画面の競合・権限喪失・再送時の動作。API契約は[人物API](features/persons.md)と[家計簿API](features/ledgers.md)を参照 |
+| [人物の競合](../../ledger-person-conflicts.md) | 画面の競合・権限喪失・再送時の動作。API契約は[人物API](features/persons.md)・[参加者API](features/members.md)・[家計簿API](features/ledgers.md)を参照 |
 | [家計簿DB・モデル](../../ledger-core-schema.md) | 科目APIは[正本](features/categories.md)、支払方法APIは[正本](features/payment-methods.md)へ移行済み。税率履歴APIも[正本](features/tax-rates.md)へ移行済み。物理DB・管理画面は既存正本に残す |
 | [レシートAPI](../../ledger-receipt-api.md) | HTTP契約・金額計算・検証・検索。工程記録と区別 |
 | [履歴候補API](../../ledger-receipt-suggestions.md) | 検索・正規化・重複判定・取得権限・応答 |
@@ -137,4 +147,4 @@ docs/specs/api/
 4. 承認後に**対象機能の正本だけ切り替える**。[文書INDEX](../../INDEX.md)の契約参照先を更新し、旧文書の当該API契約の重複を案内に置き換える。
 5. 第3節の文書移行列を更新する。実装状況は実際のAPI実装と確定契約の差分が変わった場合だけ更新する。API/DBの実装変更を伴わない文書整理では、ビルドやAPIテストの未実施を未実施と報告する。
 
-**家計簿API**（8操作）、**人物API・科目API・支払方法API**（GET/POST/PATCH/DELETE・順序PUT）、**共通税区分・税率履歴API**（全件GET）は移行済み。次の機能も確定した契約を照合してから移行する。参加者API・共通の認証・再送契約・物理DBは各正本を維持する。
+**家計簿API**（8操作）、**人物API・科目API・支払方法API**（GET/POST/PATCH/DELETE・順序PUT）、**共通税区分・税率履歴API**（全件GET）は移行済み。次の機能も確定した契約を照合してから移行する。**参加者API**（3操作）も移行済み。共通の認証・再送契約・物理DBは各正本を維持する。
