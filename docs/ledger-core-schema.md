@@ -348,7 +348,7 @@ erDiagram
 | --- | --- |
 | `id` | API生成の招待UUID・主キー |
 | `ledger_id` | 参加先の家計簿ID |
-| `token` | 推測困難な乱数トークン。平文で保持し、照合とリンクの再コピーに使う。一意制約を置く |
+| `token` | [招待API](specs/api/features/invitations.md#3-招待の値業務制約)のトークン。平文で保持し、照合とリンクの再コピーに使う |
 | `created_by_auth_user_id` | 発行したアカウントID |
 | `created_at_utc` | 発行日時 |
 | `expires_at_utc` | 有効期限 |
@@ -356,7 +356,7 @@ erDiagram
 | `used_at_utc` | 使用日時。未使用はNULL |
 | `revoked_at_utc` | 取消日時。未取消はNULL |
 
-トークンは平文で保持し、照合とリンク復元に用いる。状態は使用・取消日時と現在のUTC日時から判定する。期限切れ・使用済み・取消済みの行も保持し、自動削除しない。家計簿自体の削除は[家計簿API](specs/api/features/ledgers.md)に従う。家計簿・発行者・使用者にRESTRICTのFK、トークンに一意制約、家計簿IDと期限の複合索引を設ける。発行の成功記録は共通の `operation_requests` に `ledger-invitation.create` として保存する。外部契約は[招待API](specs/api/features/invitations.md)を参照する。
+`used_by_auth_user_id` と `used_at_utc` は未使用時はともにNULLとし、招待消費時に参加者追加と同じトランザクションで設定する。状態は使用・取消日時と現在のUTC日時から判定する。期限切れ・使用済み・取消済みの行も保持し、自動削除しない。家計簿自体の削除は[家計簿API](specs/api/features/ledgers.md)に従う。家計簿・発行者・使用者にRESTRICTのFK、トークンに一意制約、家計簿IDと期限の複合索引を設ける。発行の成功記録は共通の `operation_requests` に `ledger-invitation.create` として保存する。外部契約は[招待API](specs/api/features/invitations.md)を参照する。
 
 <a id="支払方法の有効期間dec-119基本仕様確定未実装"></a>
 <a id="支払方法の候補表示dec-120仕様確定未実装"></a>
