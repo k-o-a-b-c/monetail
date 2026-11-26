@@ -11,7 +11,8 @@
 | 参加者・権限・アカウントと人物の対応 | [ledger-participants.md](./ledger-participants.md) |
 | 人物管理API・DB・作成要求の再送・整合性 | [ledger-person-api.md](./ledger-person-api.md) |
 | 新規利用・登録／ログイン画面・家計簿ホーム | [ledger-onboarding.md](./ledger-onboarding.md) |
-| 家計簿の招待・参加確認・招待エラー | [ledger-invitations.md](./ledger-invitations.md) |
+| 家計簿の招待・参加受諾API | [招待API](specs/api/features/invitations.md) |
+| 家計簿の招待・参加確認・招待エラー画面 | [ledger-invitations.md](./ledger-invitations.md) |
 | Windows版の接続・ログイン・起動時の遷移 | [ledger-windows.md](./ledger-windows.md) |
 
 現行の進捗・決定状況はリンク先の記述に従います。仕様を変更するときは担当する正本1か所を更新し、履歴や他分野へ同じ契約を複製しません。

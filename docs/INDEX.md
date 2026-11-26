@@ -45,7 +45,9 @@
 | 作成要求の再送と保持条件 | [共通再送](ledger-operation-retries.md) |
 | 人物・参加者の競合・権限喪失・後続画面 | [競合と後続](ledger-person-conflicts.md) |
 | 登録・ログイン・家計簿ホーム | [新規利用](ledger-onboarding.md) |
-| 家計簿への招待・参加 | [招待](ledger-invitations.md) |
+| 家計簿への招待・参加受諾の5操作・HTTP・JSON・業務契約 | [招待API](specs/api/features/invitations.md) |
+| 家計簿招待の保存構成 | [招待DB](ledger-core-schema.md#ledger-invitations-storage) |
+| 家計簿への招待・参加のWinUI・Web画面 | [招待画面](ledger-invitations.md) |
 | Windows版の接続・画面遷移 | [Windows接続](ledger-windows.md) |
 | API起動・設定・DB初期化・復旧の操作 | [42 起動・運用](42-api-foundation.md) |
 | 通信・認証・永続化・更新に関する配備共通要件 | [API配備・運用](deployment.md) |
