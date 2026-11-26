@@ -14,18 +14,18 @@
 | メソッド・パス | 動作 | 権限 | HTTP成功コード |
 | --- | --- | --- | --- |
 | `GET /ledgers/{ledgerId}/invitations` | 有効招待一覧 | Admin | 200 |
-| `POST /ledgers/{ledgerId}/invitations` | 新規発行・同一成功要求の再送 | Admin | 新規201・再送200 |
+| `POST /ledgers/{ledgerId}/invitations` | 新規発行・同一成功要求の再送 | Admin | 初回201、同一の成功要求の再送200 |
 | `DELETE /ledgers/{ledgerId}/invitations/{invitationId}` | 取消 | Admin | 200 |
 | `POST /ledger-invitations/preview` | 招待状態・参加先の確認 | 認証済みアカウント | 200 |
 | `POST /ledger-invitations/accept` | 参加受諾 | 認証済みアカウント | 200 |
 
-管理3操作は要求ごとに対象家計簿への現在の参加とAdmin権限を検証する。全体Adminは家計簿Adminを代替しない。preview・acceptは家計簿未参加でも利用できる。本人は検証済みの認証アカウントIDで判定する。
+管理3操作は要求ごとに対象家計簿への現在の参加とAdmin権限を検証する。全体管理者の権限は家計簿Adminの権限を代替しない。preview・acceptは家計簿未参加でも利用できる。本人は検証済みの認証アカウントIDで判定する。
 
 ## 3. 招待の値・業務制約
 
 | 項目 | 契約 |
 | --- | --- |
-| 招待ID | APIが生成するUUID |
+| 招待ID | APIが生成するUUID v4 |
 | 招待先 | 発行時にアカウントを固定せず、リンクを受け取った登録・ログイン済みアカウントが参加できる |
 | 有効期限 | 発行から7日間。現在のUTC日時が期限未満で、未使用・未取消の招待を有効とする |
 | 招待トークン | APIが暗号学的に安全な32バイト（256ビット）の乱数を生成し、パディングなしのBase64URLで符号化する。43文字のASCII文字列（`A-Z`・`a-z`・`0-9`・`-`・`_`）とし、家計簿をまたいで全招待で一意とする。[招待DB](../../../ledger-core-schema.md#ledger-invitations-storage)で一意性を保証する |
