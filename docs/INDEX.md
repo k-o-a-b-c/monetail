@@ -19,7 +19,7 @@
 | 共通税区分・税率履歴の全件取得・HTTP・JSON・業務契約 | [共通税区分・税率履歴API](specs/api/features/tax-rates.md) |
 | 共通税率履歴のDB・同期CLI・Clientメモリキャッシュ | [共通税履歴](ledger-core-schema.md#shared-tax-history) |
 | レシート4表の列・複合FK・CHECK・索引 | [レシートDB](ledger-receipt-schema.md) |
-| レシート一覧・詳細・書込・競合・再送API | [レシートAPI](ledger-receipt-api.md) |
+| レシート一覧・詳細・書込・競合・再送API | [レシートAPI](specs/api/features/receipts.md) |
 | レシート専用入力・一覧・保存不可時のWinUI | [レシート画面](ledger-receipt-ui.md) |
 | 振替の入口・実装順序・未決定事項 | [振替仕様の入口](ledger-transfer.md) |
 | 振替の物理DB・入力値・CHECK・更新版・原子性 | [振替DB](ledger-transfer-db.md) |
