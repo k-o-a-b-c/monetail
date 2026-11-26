@@ -127,7 +127,7 @@ UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。更新�
 | 409 | `request_conflict` | 成功記録のある要求IDの再利用で第7節の同一性条件を満たさない | null |
 | 409 | `revision_conflict` | 更新版の不一致 | null |
 | 409 | `ledger_referenced` | 業務記録が残る家計簿の削除 | null |
-| 503 | `store_unavailable` | 業務処理の保存先障害等、作成確定前に作成者のAdmin参加が失われた場合 | （キーなし） |
+| 503 | `store_unavailable` | 業務処理の保存先障害等 | （キーなし） |
 
 参照制約による削除拒否（409 `ledger_referenced`）と保存先障害（503 `store_unavailable`）は区別する。不存在と未参加を区別する情報や内部例外・DBの詳細は返さない。
 
