@@ -48,7 +48,7 @@ docs/specs/winui/
 | `person` 人物管理 | M01〜M03 | [人物](../../ledger-persons.md)、[競合と後続](../../ledger-person-conflicts.md) | 未移行 |
 | `category` 科目管理 | M04〜M06 | [家計簿DB・モデル](../../ledger-core-schema.md)、[共通UI](../../../UI_DESIGN.md) | 未移行 |
 | `payment-method` 支払方法管理 | M07〜M09 | [家計簿DB・モデル](../../ledger-core-schema.md)、[共通UI](../../../UI_DESIGN.md) | 未移行 |
-| `participant` 参加者管理 | M10〜M11 | [参加者](../../ledger-participants.md)、[参加者API契約](../../ledger-person-api-contract.md) | 未移行 |
+| `participant` 参加者管理 | M10〜M11 | [参加者](../../ledger-participants.md)、[参加者API契約](../api/features/members.md) | 未移行 |
 | `invitation` 招待管理 | M12〜M13 | [招待](../../ledger-invitations.md)、[共通UI](../../../UI_DESIGN.md) | 未移行 |
 
 共通仕様の移行元は[UI_DESIGN.md](../../../UI_DESIGN.md)、[入力コントロール設計](../../59-input-controls-design.md)、[画面台帳](../../screen-inventory.md)。WinUIの実装上の責務は[構成](../../architecture-winui.md)と[monetail WinUI architecture Skill](../../../.agents/skills/monetail-winui-architecture/SKILL.md)を参照する。

@@ -7,7 +7,7 @@
 - 対象：全家計簿共通の日付別税率履歴の取得。
 - 対象外：税率履歴の登録・更新・削除（運営者の同期CLIで管理し、HTTP書込APIは設けない）、科目の編集、レシートの入力・保存・計算、Clientキャッシュ。
 - 関連契約：[税区分・税率履歴DBと同期CLI](../../../ledger-core-schema.md#shared-tax-history)、[科目API](categories.md)、[レシートAPI](../../../ledger-receipt-api.md)。
-- 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[家計簿API・回数制限](../../../ledger-core-api.md)。
+- 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[共通HTTP境界・回数制限](../../../ledger-core-api.md)。
 
 ## 2. エンドポイントと権限
 
