@@ -46,6 +46,8 @@
 
 支払方法作成は`payment_method.create`で共通照合・記録を使用する。入力・応答と削除後再送の契約は[支払方法API](specs/api/features/payment-methods.md#7-整合性作成の再送)を正本とする。
 
+<a id="レシート書込の再送保証dec-259apiclient実装済みwinui未接続"></a>
+
 ## レシート書込の再送保証（DEC-259・263）
 
 操作ごとの成功応答、権限・版の検証、同一要求再送の条件は[レシートAPI第7節](specs/api/features/receipts.md#7-整合性再送)を参照する。共通再送記録の物理契約は本書に従う。
