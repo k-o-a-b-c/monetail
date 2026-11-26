@@ -6,7 +6,7 @@
 
 - 対象：家計簿の参加者一覧取得・役割と人物対応の更新・除外。全パスは `/ledgers/{ledgerId}` の下。
 - 対象外：認証アカウント自体、人物マスタの操作、招待による参加、家計簿自体の操作。
-- 関連契約：[家計簿API](ledgers.md)、[人物API](persons.md)、[参加者管理](../../../ledger-participants.md)、[人物・参加者DB](../../../ledger-person-db.md)、[招待](../../../ledger-invitations.md)。
+- 関連契約：[家計簿API](ledgers.md)、[人物API](persons.md)、[参加者管理](../../../ledger-participants.md)、[人物・参加者DB](../../../ledger-person-db.md)、[招待API](invitations.md)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[共通HTTP境界・回数制限](../../../ledger-core-api.md)、[共通再送](../../../ledger-operation-retries.md)。
 
 ## 2. エンドポイントと権限

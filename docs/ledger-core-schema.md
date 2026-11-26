@@ -319,7 +319,7 @@ GET・POST・PATCH・DELETE・所有者別順PUTのHTTP・JSON・再送・競合
 | `ledger_members` | `ledger_id`, `auth_user_id`, `role`, `joined_at_utc`, `revision`, `person_id` | 家計簿ID＋認証IDが主キー。家計簿・認証アカウントへFK。roleはViewer / Editor / AdminのCHECK。NULL許容の人物IDを保存する。家計簿ID＋人物IDをUNIQUEとし、同じ家計簿の人物へのRESTRICTの複合FKを設ける |
 | `ledger_people` | `ledger_id`, `person_id`, `name`, `valid_from`, `valid_to`, `display_order`, `revision` | 人物IDはAPI側で生成するUUID。家計簿ID＋人物IDが主キー。家計簿へFK。同一家計簿内の人物名は前後空白除去後の完全一致で重複を禁止。日付はYYYY-MM-DDのTEXT/NULLに確定。更新版は名前・有効期間を対象とするUUID。アカウントIDは持たない |
 | `operation_requests` | [共通再送管理表](ledger-operation-retries.md#共通の再送管理表apidb実装済み)の6列 | 要求IDを主キーとする共通の処理履歴。家計簿・人物・招待の作成で共有し、結果IDに削除制限FKを設けない |
-| `ledger_invitations` | [家計簿招待](ledger-invitations.md)の招待テーブル9列 | 招待IDが主キー、トークンを一意とし、家計簿・発行者・使用者へRESTRICTのFK |
+| `ledger_invitations` | [招待テーブル](#ledger-invitations-storage)の9列 | 招待IDが主キー、トークンを一意とし、家計簿・発行者・使用者へRESTRICTのFK |
 | `ledger_navigation` | `auth_user_id`, `last_opened_ledger_id` | アカウントIDが主キー。アカウントと家計簿へRESTRICTのFK。参加行へのFKは設けず、参照・開く時に現在の参加を検証 |
 
 - 実装済みの家計簿IDはサーバー生成のランダムなUUIDをTEXTで保持し、作成・参加・要求記録の日時はUTC。家計簿名の制約は[家計簿API](specs/api/features/ledgers.md#3-家計簿の値業務制約)に従う。未実装の業務データの採番は上記の設計方針で別途検討する。
@@ -339,6 +339,24 @@ erDiagram
 ```
 
 図の任意の1対1は利用者確認済み。FKは家計簿をまたぐ対応を拒否できるが、「管理者1人以上」は単純なFKで表せないため書込時に確認する。
+
+<a id="ledger-invitations-storage"></a>
+
+### 家計簿招待の保存構成
+
+| 列名 | 内容 |
+| --- | --- |
+| `id` | API生成の招待UUID・主キー |
+| `ledger_id` | 参加先の家計簿ID |
+| `token` | 推測困難な乱数トークン。平文で保持し、照合とリンクの再コピーに使う。一意制約を置く |
+| `created_by_auth_user_id` | 発行したアカウントID |
+| `created_at_utc` | 発行日時 |
+| `expires_at_utc` | 有効期限 |
+| `used_by_auth_user_id` | 使用したアカウントID。未使用はNULL |
+| `used_at_utc` | 使用日時。未使用はNULL |
+| `revoked_at_utc` | 取消日時。未取消はNULL |
+
+トークンは平文で保持し、照合とリンク復元に用いる。状態は使用・取消日時と現在のUTC日時から判定する。期限切れ・使用済み・取消済みの行も保持し、自動削除しない。家計簿自体の削除は[家計簿API](specs/api/features/ledgers.md)に従う。家計簿・発行者・使用者にRESTRICTのFK、トークンに一意制約、家計簿IDと期限の複合索引を設ける。発行の成功記録は共通の `operation_requests` に `ledger-invitation.create` として保存する。外部契約は[招待API](specs/api/features/invitations.md)を参照する。
 
 <a id="支払方法の有効期間dec-119基本仕様確定未実装"></a>
 <a id="支払方法の候補表示dec-120仕様確定未実装"></a>
