@@ -15,9 +15,11 @@
 2. 再送契約は[共通再送管理](ledger-operation-retries.md)・[人物API](specs/api/features/persons.md)に従う。認証アカウント作成用表の統合はこの採用に含めず、了承前に範囲を追加しない。
 3. 参加者の権限・役割／人物対応の一括保存、除外・再参加、同名時のID非表示、権限喪失時の入力保持は既定方針を維持する。WinUI 3の一覧・編集／除外ダイアログと競合表示は[参加者管理](ledger-participants.md)、招待発行・一覧・取消の画面は[招待](ledger-invitations.md)を正本とする（DEC-116）。
 
-## 一覧の並び方（API・WinUI 3実装済み）
+<a id="一覧の並び方apiwinui-3実装済み"></a>
 
-- 参加者一覧は[参加者API](specs/api/features/members.md)の返却順をWinUI 3でも使用する。参加者専用の並べ替え保存機能は追加しない（DEC-116）。
+## 一覧の並び方
+
+- 参加者一覧の表示順は[参加者管理](ledger-participants.md)に従う。実装状況は[API実装台帳](specs/api/README.md)・[画面台帳](screen-inventory.md)を参照する。
 
 ## 権限喪失・削除済み結果への再送
 
