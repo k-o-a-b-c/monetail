@@ -534,6 +534,7 @@
 | DEC-367 | **利用者確認済み（2026-11-28）** | 品名の空文字を許容しない | 旧Windows版と同じく品名は必須とし、null・空文字を拒否する。空白のみの文字列を含む非空文字列はTrimせず保持する。100 UTF-16コード単位の上限、履歴候補の空値除外、明細の新規入力時の空欄は維持する。正本は[レシートAPI](specs/api/features/receipts.md)・[画面仕様](ledger-receipt-ui.md)。 |
 | DEC-368 | **利用者確認済み（2026-11-28）** | レシートの全階層のメモを100 UTF-16コード単位以内に統一する | 親・科目グループ・明細の各メモに同一の上限を適用する。未入力のNULL正規化・空白保持は維持し、超過値を切り詰めない。正本は[レシートAPI](specs/api/features/receipts.md)・[画面仕様](ledger-receipt-ui.md)。 |
 | DEC-369 | **利用者確認済み（2026-11-28）** | 新版の税設定を文字列列挙値に統一する | API・DBの税込／税抜は `Inclusive`／`Exclusive`、端数方式は `Floor`／`HalfUp` とし、C#内部はenumを用いる。既存の計算式・端数処理・初期選択・補完条件・計算結果および旧Windows版は変更しない。正本は[レシートAPI](specs/api/features/receipts.md)・[レシートDB](ledger-receipt-schema.md)・[計算契約](12-calculation-contract.md)。 |
+| DEC-370 | **利用者確認済み（2026-11-28）** | レシート一覧の月指定を全件取得としfocus開始位置を廃止する | 月指定は該当全件・nextCursor=null、全期間は100件カーソル方式を維持。DEC-231・350等のレシート一覧契約を更新し、保存後は取引月の全件取得からIDで選択・表示する。保存後の個別検索条件解除は別途確定する。振替の取得・focus契約は維持。正本は[レシートAPI](specs/api/features/receipts.md)・[画面仕様](ledger-receipt-ui.md)。 |
 
 ## 4. 仕様変更の原則（提案）
 

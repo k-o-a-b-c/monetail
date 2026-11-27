@@ -10,7 +10,9 @@ APIの正本は[レシートAPI](specs/api/features/receipts.md)へ移行した�
 
 [レシートAPIの一覧取得](specs/api/features/receipts.md#41-一覧get)を参照。
 
-### 保存行を先頭にする開始位置指定（DEC-350・実装済み）
+<a id="保存行を先頭にする開始位置指定dec-350実装済み"></a>
+
+### 保存後の一覧復帰（DEC-370）
 
 [レシートAPIの一覧取得](specs/api/features/receipts.md#41-一覧get)を参照。
 
