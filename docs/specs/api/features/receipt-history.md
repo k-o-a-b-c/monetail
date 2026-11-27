@@ -71,8 +71,8 @@ HTTP 200の成功応答はJSONオブジェクトを返す。各JSONオブジェ�
 | --- | --- | --- |
 | `shopLocation` | 文字列または`null` | 所在地。未入力は`null` |
 | `paymentMethodId` | UUID文字列または`null` | 支払方法ID |
-| `taxInclusionMode` | 整数または`null` | 0（税込）・1（税抜） |
-| `taxRoundingMode` | 文字列または`null` | `floor`・`half_up` |
+| `taxInclusionMode` | 文字列または`null` | `Inclusive`（税込）・`Exclusive`（税抜） |
+| `taxRoundingMode` | 文字列または`null` | `Floor`（切り捨て）・`HalfUp`（四捨五入） |
 
 店名の完全一致履歴から、次の2集合それぞれで最終更新UTC日時降順、同日時はレシートIDのBINARY降順の最新1件を選ぶ。有効期間による絞り込みは行わない。
 

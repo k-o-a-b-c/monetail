@@ -4,6 +4,8 @@
 
 新版の正式レシート計算は工程6-D4-Bで`Monetail.Calculations`へ移動し、API/Windows Clientが同じDLLを使用する。既存の計算式・検証順序・最終変換境界は維持する。旧VBの計算ソースは変更せず、既存24ケースの実計算照合と固定期待値テストで検証する。構成は[APIの参照関係](architecture-api.md#共通計算の参照関係工程6-d4-b実装済み)、新版固有の保存検証は[レシートAPI](ledger-receipt-api.md#金額計算参考額dec-156157)を参照。
 
+**税設定の表現**：以下の旧VBの引数・値は旧版の計算互換性を説明する。新版のAPI・DBの値は[レシートAPIの税設定](specs/api/features/receipts.md#3-レシートの値業務制約)に従い、C#内部では型付きenumを用いる。`Inclusive`／`Exclusive` は旧版の `0`／`1`、`Floor`／`HalfUp` は旧版の `floor`／`half_up` と同じ計算規則に対応する。表現の変更で計算式・端数処理・集計単位・金額の期待値は変更しない。旧版の値・コードも変更しない。
+
 ## 1. 買い物明細の金額
 
 引数:
