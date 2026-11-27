@@ -12,8 +12,8 @@
 
 | メソッド・パス | 動作 | 権限 | HTTP成功コード |
 | --- | --- | --- | --- |
-| `GET /ledgers/{ledgerId}/receipt-suggestions` | 履歴候補検索 | Admin・Editor・Viewer | 200 |
-| `GET /ledgers/{ledgerId}/receipt-autofill` | 基本情報自動補完 | Admin・Editor・Viewer | 200 |
+| `GET /ledgers/{ledgerId}/receipts/suggestions` | 履歴候補検索 | Admin・Editor・Viewer | 200 |
+| `GET /ledgers/{ledgerId}/receipts/autofill` | 基本情報自動補完 | Admin・Editor・Viewer | 200 |
 
 各要求で現在の認証と対象家計簿への参加を検証する。候補と所在地・税設定は参加者全員が参照可能。補完する支払方法だけは第5節の本人・権限制約を適用する。
 

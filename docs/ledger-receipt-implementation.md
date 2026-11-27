@@ -22,7 +22,7 @@
 | 2. 計算と検証 | 税率別合算、値引、Decimal計算、Int32境界、保存条件 | 正負・非課税/0%・複数税率・端数方式の固定期待値、範囲外拒否 |
 | 3. 詳細GET・書込 | 詳細GET、POST/PUT/DELETE、版、`requestId`の再送保証、権限 | 原子的ロールバック、既存子ID維持、409の`latest`、DELETE再送、403/404 |
 | 4. 一覧GET | 月/全期間・支払者/支払方法・店名、7フィールド、100件カーソル | 同日時ID順・ページ境界・条件不一致の`400 invalid_cursor`・家計簿分離 |
-| 5. 履歴候補・補完API | `receipt-suggestions`・`receipt-autofill` | 店名完全一致／候補部分一致の区別、表記ゆれ、更新UTC順、入力・権限・エラー |
+| 5. 履歴候補・補完API | `receipts/suggestions`・`receipts/autofill` | 店名完全一致／候補部分一致の区別、表記ゆれ、更新UTC順、入力・権限・エラー |
 | 6-A. Windows Client読取 | 一覧/詳細/候補/親情報補完のTransport・Workspace・型付きDTO | NULL/Decimal/整数/ローカル日時、検索条件とカーソル保持、認証更新/別アカウント、64KiB超の100件 |
 | 6-B. WinUI一覧・キャッシュ | 記録ホームの実API一覧、複合検索、追加読込、家計簿別マスタキャッシュ | 0件/エラー/300件上限と明示続行、旧応答破棄、管理画面更新の反映 |
 | 6-C. Windows Client書込 | POST/PUT/DELETE、不変要求・再送、空成功本文、型付きエラー/大きな409 | 同一requestId/本文/版、認証更新、全階層latest、NULL/Decimal/整数、通信結果不明 |
