@@ -31,7 +31,7 @@
 | 履歴候補検索・基本情報自動補完と候補UI | [履歴API](specs/api/features/receipt-history.md)、[候補画面](ledger-receipt-suggestions.md) |
 | Codex向け実装工程・参照文書・受入確認 | [レシート実装の入口](ledger-receipt-implementation.md) |
 | 家計簿の作成・参照・開く・名前変更・並び順・削除 | [家計簿API](specs/api/features/ledgers.md) |
-| 業務APIの共通HTTP境界・回数制限 | [共通契約](ledger-core-api.md) |
+| 業務APIの共通HTTP境界・認可・検証原則・回数制限 | [共通契約](ledger-core-api.md) |
 | 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
 | 科目5操作のHTTP・JSON・業務契約 | [科目API](specs/api/features/categories.md) |
 | 支払方法5操作のHTTP・JSON・業務契約 | [支払方法API](specs/api/features/payment-methods.md) |
