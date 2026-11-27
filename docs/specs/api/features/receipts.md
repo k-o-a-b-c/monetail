@@ -4,19 +4,19 @@
 
 ## 1. 対象・関連契約
 
-- 対象：レシート全体の参照・作成・更新・削除。履歴候補・自動補完は[履歴API](receipt-history.md)。
+- 対象：レシート全体の参照・作成・更新・削除の5操作。全パスは `/ledgers/{ledgerId}` の下。履歴候補・自動補完は[履歴API](receipt-history.md)。
 - 関連契約：[家計簿](ledgers.md)、[人物](persons.md)、[科目](categories.md)、[支払方法](payment-methods.md)、[税率履歴](tax-rates.md)、[レシートDB](../../../ledger-receipt-schema.md)、[計算契約](../../../12-calculation-contract.md)、[レシート画面](../../../ledger-receipt-ui.md)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[共通HTTP境界・回数制限](../../../ledger-core-api.md)、[共通再送](../../../ledger-operation-retries.md)。
 
 ## 2. エンドポイントと権限
 
-| メソッド・パス | 動作 | 権限 | HTTP成功コード |
+| メソッド・パス（家計簿相対） | 動作 | 権限 | HTTP成功コード |
 | --- | --- | --- | --- |
-| `GET /ledgers/{ledgerId}/receipts` | 一覧取得 | Admin・Editor・Viewer | 200 |
-| `GET /ledgers/{ledgerId}/receipts/{receiptId}` | 詳細取得 | Admin・Editor・Viewer | 200 |
-| `POST /ledgers/{ledgerId}/receipts` | 全体作成 | Admin・Editor（下記） | 201 |
-| `PUT /ledgers/{ledgerId}/receipts/{receiptId}` | 全体更新 | Admin・Editor（下記） | 204 |
-| `DELETE /ledgers/{ledgerId}/receipts/{receiptId}` | 全体削除 | Admin・Editor（下記） | 204 |
+| `GET /receipts` | 一覧取得 | Admin・Editor・Viewer | 200 |
+| `GET /receipts/{receiptId}` | 詳細取得 | Admin・Editor・Viewer | 200 |
+| `POST /receipts` | 全体作成 | Admin・Editor（下記） | 201 |
+| `PUT /receipts/{receiptId}` | 全体更新 | Admin・Editor（下記） | 204 |
+| `DELETE /receipts/{receiptId}` | 全体削除 | Admin・Editor（下記） | 204 |
 
 現在の認証・対象家計簿への参加を要求ごとに検証する。全体管理者の権限は家計簿Adminの権限を代替しない。Adminは家計簿内の全レシートを書き込める。Editorは本人対応人物が所有する支払方法のレシートに限り書込可。PUTは変更前と変更後の両方の支払方法について検証する。作成者で権限を判定しない。成功済み要求の再送は第7節に従う。
 
@@ -124,15 +124,15 @@ HTTP 200の成功応答のトップレベル項目は次のとおり。
 | `receipts` | オブジェクト配列 | レシート要約。0〜100件 |
 | `nextCursor` | 文字列または`null` | 後続取得用の不透明なカーソル。後続なしは`null` |
 
-| `receipts[]` のキー | JSON型 | `null` |
+| `receipts[]` の項目 | 型 | 内容 |
 | --- | --- | --- |
-| `receiptId` | UUID文字列 | 不可 |
-| `transactionAt` | 日時文字列 | 不可 |
-| `shopName` | 文字列 | 不可 |
-| `shopLocation` | 文字列 | 可 |
-| `paymentMethodId` | UUID文字列 | 不可 |
-| `totalAmount` | 保存済み合計のInt32整数 | 不可 |
-| `memo` | 文字列 | 可 |
+| `receiptId` | UUID文字列 | レシートID |
+| `transactionAt` | 日時文字列 | 取引日時 |
+| `shopName` | 文字列 | 店名 |
+| `shopLocation` | 文字列または`null` | 所在地 |
+| `paymentMethodId` | UUID文字列 | 支払方法ID |
+| `totalAmount` | Int32整数 | APIが計算し保存したレシート合計額 |
+| `memo` | 文字列または`null` | メモ。未入力は`null` |
 
 全件に条件を適用してから取引日時降順・同日時はIDのBINARY降順で最大100件を返す。後続が存在する場合のみ `nextCursor` を発行する。0件は `{"receipts":[],"nextCursor":null}`。通常は直前ページの末尾より後方を取得し、focus指定時は対象自身を先頭に含める。
 
@@ -142,42 +142,42 @@ HTTP 200の成功応答のトップレベル項目は次のとおり。
 
 200応答はレシートオブジェクトを直接返す。
 
-| 基本情報のキー | JSON型 | `null` |
+| 基本情報の項目 | 型 | 内容 |
 | --- | --- | --- |
-| `receiptId` | UUID文字列 | 不可 |
-| `transactionAt` | 日時文字列 | 不可 |
-| `shopName` | 文字列 | 不可 |
-| `shopLocation` | 文字列 | 可 |
-| `paymentMethodId` | UUID文字列 | 不可 |
-| `taxInclusionMode` | 整数 | 不可 |
-| `taxRoundingMode` | 文字列 | 不可 |
-| `recurrenceInterval` | 整数 | 可 |
-| `recurrenceUnit` | 文字列 | 可 |
-| `memo` | 文字列 | 可 |
-| `revision` | UUID文字列 | 不可 |
-| `groups` | 配列 | 不可 |
+| `receiptId` | UUID文字列 | レシートID |
+| `transactionAt` | 日時文字列 | 取引日時 |
+| `shopName` | 文字列 | 店名 |
+| `shopLocation` | 文字列または`null` | 所在地 |
+| `paymentMethodId` | UUID文字列 | 支払方法ID |
+| `taxInclusionMode` | 整数 | 税込／税抜区分 |
+| `taxRoundingMode` | 文字列 | 税端数方式 |
+| `recurrenceInterval` | 整数または`null` | 周期の間隔。設定なしは`null` |
+| `recurrenceUnit` | 文字列または`null` | 周期の単位。設定なしは`null` |
+| `memo` | 文字列または`null` | メモ。未入力は`null` |
+| `revision` | UUID文字列 | レシートの更新版 |
+| `groups` | オブジェクト配列 | 科目グループ |
 
-| `groups[]` のキー | JSON型 | `null` |
+| `groups[]` の項目 | 型 | 内容 |
 | --- | --- | --- |
-| `groupId` | UUID文字列 | 不可 |
-| `categoryId` | UUID文字列 | 不可 |
-| `memo` | 文字列 | 可 |
-| `details` | 配列 | 不可 |
+| `groupId` | UUID文字列 | 科目グループID |
+| `categoryId` | UUID文字列 | 科目ID |
+| `memo` | 文字列または`null` | メモ。未入力は`null` |
+| `details` | オブジェクト配列 | 明細 |
 
-| `details[]` のキー | JSON型 | `null` |
+| `details[]` の項目 | 型 | 内容 |
 | --- | --- | --- |
-| `detailId` | UUID文字列 | 不可 |
-| `displayOrder` | Int32整数 | 不可 |
-| `name` | 文字列 | 不可 |
-| `unitPrice` | Int32整数 | 不可 |
-| `quantity` | Int32整数 | 不可 |
-| `unitDiscountAmount` | Int32整数 | 不可 |
-| `discountRate` | Decimal文字列 | 不可 |
-| `taxRate` | Decimal文字列 | 可 |
-| `expenseType` | 文字列 | 不可 |
-| `occurrenceType` | 文字列 | 不可 |
-| `memo` | 文字列 | 可 |
-| `personIds` | UUID文字列の配列 | 不可 |
+| `detailId` | UUID文字列 | 明細ID |
+| `displayOrder` | Int32整数 | 明細の表示順値 |
+| `name` | 文字列 | 品名 |
+| `unitPrice` | Int32整数 | 単価 |
+| `quantity` | Int32整数 | 数量 |
+| `unitDiscountAmount` | Int32整数 | 単位値引額 |
+| `discountRate` | Decimal文字列 | 率値引（百分率） |
+| `taxRate` | Decimal文字列または`null` | 実税率（百分率）。非課税は`null` |
+| `expenseType` | 文字列 | 費用区分 |
+| `occurrenceType` | 文字列 | 発生区分 |
+| `memo` | 文字列または`null` | メモ。未入力は`null` |
+| `personIds` | UUID文字列の配列 | 対象人物IDの配列。0人なら空配列 |
 
 グループは科目マスタ順（同順位は科目IDのBINARY昇順）、明細は表示順昇順（同順位は明細IDのBINARY昇順）。対象人物は人物マスタ順（同順位は人物IDのBINARY昇順）で返すが、集合として比較する。空配列は `[]`。保存済みの空文字メモも`null`として返す。
 
@@ -232,9 +232,11 @@ POSTは201 Created・本文なし、作成した詳細リソースのURL（`/led
 | --- | --- |
 | 一覧GET | 現在の認証・家計簿参加 → クエリの許可キー・重複・必須項目・年月／UUID・組み合わせの検証 → カーソルの検証またはfocus対象の存在・検索条件への一致確認 → 一覧取得 → 認証・参加の再検証 → 応答 |
 | 詳細GET | 現在の認証・家計簿参加 → 対象レシートの存在・詳細取得 → 認証・参加の再検証 → 応答 |
-| POST | 現在の認証・家計簿参加・書込ロール → 必須項目・型・構造・UUID・日時形式の検証、同一性の正規化 → 再送照合（第7節） → 新規要求のみ支払方法の実在・所有者権限 → 全入力値・マスタ・子要素・金額の検証 → 作成 → 認証・参加・所有者権限・必要なマスタの再検証 → 原子的な確定・応答 |
-| PUT | 現在の認証・家計簿参加・書込ロール → 必須項目・型・構造・UUID・日時形式の検証、同一性の正規化 → 再送照合（第7節） → 新規要求のみ対象レシートの存在・旧／新支払方法の実在と所有者権限 → 更新版の一致 → 全入力値・マスタ・子ID・金額の検証 → 更新または無変更 → 認証・参加・所有者権限・必要なマスタの再検証 → 原子的な確定・応答 |
+| POST | 現在の認証・家計簿参加・書込ロール → 必須項目・型・構造・UUID・日時・Decimal文字列の形式／表現可能性の検証、同一性の正規化 → 再送照合（第7節） → 新規要求のみ支払方法の実在・所有者権限 → 全入力値・マスタ・子要素・金額の検証 → 作成 → 認証・参加・所有者権限・必要なマスタの再検証 → 原子的な確定・応答 |
+| PUT | 現在の認証・家計簿参加・書込ロール → 必須項目・型・構造・UUID・日時・Decimal文字列の形式／表現可能性の検証、同一性の正規化 → 再送照合（第7節） → 新規要求のみ対象レシートの存在・旧／新支払方法の実在と所有者権限 → 更新版の一致 → 全入力値・マスタ・子ID・金額の検証 → 更新または無変更 → 認証・参加・所有者権限・必要なマスタの再検証 → 原子的な確定・応答 |
 | DELETE | 現在の認証・家計簿参加・書込ロール → `requestId`・`revision` の型／UUID形式 → 再送照合（第7節） → 新規要求のみ対象レシートの存在・支払方法の所有者権限 → 更新版の一致 → 削除 → 認証・参加・当該操作権限の再検証 → 原子的な確定・応答 |
+
+Decimal文字列の不正形式・丸めなしでDecimalに表現できない値は再送照合・版照合前の入力検証で400 `invalid_input` とする。正確に解釈できる値の許容範囲・実税率の有効性・計算結果は版照合後の業務検証で判定する。
 
 同一成功要求は現在の認証・参加・Admin／Editorロールと要求同一性のみを確認し、対象の存在・所有者・版・業務制約は再検証せず元の成功応答を返す。新規PUTでは変更前と変更後の支払方法に対する権限を版照合前に検証する。存在しない入力支払方法IDは400 `invalid_input`。支払方法と所有人物の有効期間、科目・明細・対象人物・既存子IDの業務制約は版照合後とする。版競合時の最新情報は現時点の操作権限を再検証してから返す。
 
