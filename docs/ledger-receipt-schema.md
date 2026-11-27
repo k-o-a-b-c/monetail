@@ -89,7 +89,7 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 | `detail_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `group_id` | TEXT NOT NULL | 同一家計簿グループへのFK |
 | `display_order` | INTEGER NOT NULL | グループ内の並び順。`typeof()`で整数かつ0〜2,147,483,647（Int32）を検証 |
-| `name` | TEXT NOT NULL | 明細名。**上限100 UTF-16コード単位（DEC-211）** |
+| `name` | TEXT NOT NULL | 明細名。空文字不可。**上限100 UTF-16コード単位（DEC-211）** |
 | `unit_price` | INTEGER NOT NULL | 単価、符号付きInt32（旧版`fee`） |
 | `quantity` | INTEGER NOT NULL | 数量、1以上・Int32上限以下 |
 | `unit_discount_amount` | INTEGER NOT NULL | 1単位の値引額、符号付きInt32（旧版`discount_fee`） |
