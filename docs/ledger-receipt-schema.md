@@ -4,7 +4,7 @@
 本書は**承認済みの業務・保存要件**と、**実装前に確認する物理列・索引・制約の設計案**を区別する。表に示す列や索引のうち明示的に確定していない物理仕様は、設計候補のまま扱う（Codexが独断で採用しない）。採用状況は[実装ガイド](ledger-receipt-implementation.md#db実装の判断境界)を参照。
 関連: [科目・税・権限](ledger-core-schema.md#category-receipt-handoff)、[計算・集計](12-calculation-contract.md)、[旧DB](02-database.md)、[既存の再送契約](ledger-operation-retries.md)。
 
-**実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと必要な索引を実装した。`ApiDbContext`から既存の`DatabaseSchema`を通じて新規DBへ作成し、初期化・通常利用時の構造照合にも含める。既存DBの自動更新・Migration追加は行わない。[工程2の共通計算・検証](ledger-receipt-api.md#工程2の実装と工程3への接続)も実装済み。詳細GET/書込APIと、保存トランザクション内のマスタ照会・有効期間/所属・使用済み科目の収支変更拒否への接続も実装済み。一覧GETも既存索引を利用して実装済み。履歴候補・自動補完もAPI実装済み。WinUIは後続工程。本工程ではDBスキーマ・初期化方式を変更しない。
+**DBの実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと索引を実装済み。新規DB作成・既存DB構造照合に含む。既存DBの自動更新・Migration追加は行わない。APIの外部契約は[レシートAPI](specs/api/features/receipts.md)・[履歴API](specs/api/features/receipt-history.md)、APIの実装状況は[API実装台帳](specs/api/README.md)、画面の実装状況は[画面台帳](screen-inventory.md)を参照する。
 
 実装上の選択は、取引日時を`DateTime`と固定書式のTEXT変換（読込時は`Unspecified`）で保持し、監査日時は既存家計簿と同じUTC用`DateTime`とした。FKは親子もRESTRICTとし、必要なFK列索引はEFの規約と複合PK/索引の先頭列を利用する。一覧の必須索引は昇順B-treeの逆走査で日時・IDのBINARY降順を処理できることを実行計画で検証した。追加候補の支払方法・日時複合索引は今回追加していない。
 
@@ -113,9 +113,9 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 
 ### メモの共通NULL正規化（親・科目グループ・明細）
 
-- **空欄はすべて`null`**。親／グループ／明細の`memo`に対し、APIのPOST/PUTで`null`と空文字`""`を受け付け、空文字は**検証・同値判定・保存の前に`null`へ正規化**する。GETの一覧・詳細・競合`latest`でも旧空文字を`null`として返す。JSONの`memo`キーを省略する契約には変えない。空白のみの文字列（`" "`など）は元のまま保持し、Trim・Unicode正規化・改行除去は新規に行わない。
+- 親・グループ・明細のメモは未入力を`null`で保存し、空白のみの文字列は保持する。入力・応答・同値判定の契約は[レシートAPI](specs/api/features/receipts.md)に従う。
 - **DBの補助制約**：親／グループ／明細の各`memo`は`TEXT NULL`を維持し、`CHECK (memo IS NULL OR length(memo) > 0)`を備える。親には100文字の補助CHECKも設ける場合、SQLiteの`length(TEXT)`はUTF-16コード単位ではなくコードポイントを数えるため、**厳密な100 UTF-16単位検証はAPI/Clientで実施**する。科目・明細メモには未承認の長さ上限を設けない。
-- **旧データ・無変更保存**：既存DBの空文字はGETで`null`扱い、無変更判定でも`null`と同値として扱う。読み取りだけでDBを自動更新せず、同じ業務値のPUTでは既存の更新版・監査列を変えない。保存済み空文字の物理的な是正は、既存DBを確認したうえで別途明示的に実施する。正式リリース前はMigrationを追加せず、新規`initialize-db`に最新の制約を適用する。
+- **旧データ**：読み取りだけでDBを自動更新しない。保存済み空文字の物理的な是正は既存DB確認後に別途明示的に実施する。正式リリース前はMigrationを追加せず、新規`initialize-db`に最新の制約を適用する。
 
 ## 5. `ledger_receipt_detail_people`（対象人物）
 
