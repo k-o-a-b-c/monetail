@@ -129,7 +129,9 @@
 
 [履歴API](specs/api/features/receipt-history.md#41-履歴候補検索)を参照。
 
-### 取得中の状態変更（DEC-274）
+<a id="取得中の状態変更dec-274"></a>
+
+### 自動補完の認可（DEC-363）
 
 [履歴APIの整合性](specs/api/features/receipt-history.md#7-整合性認可)を参照。
 
