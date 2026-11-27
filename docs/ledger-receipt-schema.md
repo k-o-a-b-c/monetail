@@ -32,7 +32,7 @@
 | `receipt_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `transaction_at` | TEXT NOT NULL | **取引日時を時刻まで保持**。旧版のローカル日時をUTCへ読み替えず、日付部分を税率履歴・有効期間の照合に使う。**日時TEXTは`yyyy-MM-ddTHH:mm:ss`（ISO 8601、タイムゾーンなし、秒精度、小数秒なし）とし、APIの`transactionAt`も同じ文字列（DEC-253）** |
 | `shop_name` | TEXT NOT NULL | 店名。マスタFKは設けず、自由入力。**上限100 UTF-16コード単位（DEC-211）** |
-| `shop_location` | TEXT NULL | 店舗所在地。**上限100 UTF-16コード単位（DEC-211）** |
+| `shop_location` | TEXT NULL | 店舗所在地。未入力は`NULL`で保存する。**上限100 UTF-16コード単位（DEC-211）** |
 | `payment_method_id` | TEXT NOT NULL | `(ledger_id, payment_method_id)`で支払方法FK |
 | `tax_inclusion_mode` | INTEGER NOT NULL | 0=税込、1=税抜（旧版`tax_type`の値と計算契約は維持） |
 | `tax_rounding_mode` | TEXT NOT NULL | `floor` / `half_up` |
@@ -109,9 +109,11 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 
 レシート書込・読取の詳細なHTTP/JSON契約は[レシートAPI](ledger-receipt-api.md)、画面・履歴候補は[WinUI](ledger-receipt-ui.md)・[候補](ledger-receipt-suggestions.md)を参照。
 
-### メモの共通NULL正規化（親・科目グループ・明細）
+<a id="メモの共通null正規化親科目グループ明細"></a>
 
-- 親・グループ・明細のメモは未入力を`null`で保存し、空白のみの文字列は保持する。入力・応答・同値判定の契約は[レシートAPI](specs/api/features/receipts.md)に従う。
+### 所在地・メモのNULL正規化
+
+- 所在地・親・グループ・明細のメモは未入力（空文字を含む）を`null`で保存し、空白のみの文字列は保持する。入力・応答・同値判定の契約は[レシートAPI](specs/api/features/receipts.md)に従う。
 - **DBの補助制約**：親／グループ／明細の各`memo`は`TEXT NULL`を維持し、`CHECK (memo IS NULL OR length(memo) > 0)`を備える。親には100文字の補助CHECKも設ける場合、SQLiteの`length(TEXT)`はUTF-16コード単位ではなくコードポイントを数えるため、**厳密な100 UTF-16単位検証はAPI/Clientで実施**する。科目グループ・明細メモには独自の長さ上限を設けない。
 - **旧データ**：読み取りだけでDBを自動更新しない。保存済み空文字の物理的な是正は既存DB確認後に別途明示的に実施する。正式リリース前はMigrationを追加せず、新規`initialize-db`に最新の制約を適用する。
 
