@@ -30,13 +30,15 @@
 
 ### 4.1 履歴候補検索
 
-| kind | 必須クエリ | 任意クエリ | 検索範囲 |
-| --- | --- | --- | --- |
-| shopName | kind | q | 家計簿内の全レシートの店名 |
-| shopLocation | kind・shopName | q | 同じ店名のレシートの所在地 |
-| itemName | kind・shopName・categoryId | q | 同じ店名・科目の明細の品名 |
+`kind` は検索する候補の種類を指定する必須クエリパラメータであり、次の3値のみを許容する。
 
-`shopName` は空文字不可。`categoryId` はUUID。`q` は省略・空文字なら絞り込みなしとし、指定時は部分一致で絞り込む。
+| `kind` の値 | 検索範囲 | 追加の必須クエリ |
+| --- | --- | --- |
+| `shopName` | 家計簿内の全レシートの店名 | なし |
+| `shopLocation` | 同じ店名のレシートの所在地 | `shopName` |
+| `itemName` | 同じ店名・科目の明細の品名 | `shopName`・`categoryId` |
+
+`shopName` は空文字不可。`categoryId` はUUID。`q` はすべての種類で任意とし、省略・空文字なら絞り込みなし、指定時は部分一致で絞り込む。
 
 ### 4.2 基本情報自動補完
 
