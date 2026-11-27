@@ -65,7 +65,7 @@
 | `group_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `receipt_id` | TEXT NOT NULL | 同一家計簿レシートへのFK |
 | `category_id` | TEXT NOT NULL | 同一家計簿科目へのFK |
-| `memo` | TEXT NULL | グループ自由記述。空欄は`null`、独自の長さ上限なし |
+| `memo` | TEXT NULL | グループ自由記述。空欄は`null`、上限100 UTF-16コード単位 |
 
 - **同一レシート・同一科目のグループは1件**。率が異なってもグループを分割しない。
 - 重複禁止は通常の複合UNIQUE索引1本。`category_id`はNOT NULLであり、税率がグループにないため、税率NULL用の部分UNIQUE索引は不要。
@@ -97,7 +97,7 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 | `tax_rate` | TEXT NULL | **実税率（%）、Decimal。NULL=非課税、'0'=課税0%** |
 | `expense_type` | TEXT NOT NULL | `Fixed` / `Variable` / `Excluded` |
 | `occurrence_type` | TEXT NOT NULL | `Regular` / `Irregular` / `Temporary` |
-| `memo` | TEXT NULL | 明細自由記述。空欄は`null`、独自の長さ上限なし |
+| `memo` | TEXT NULL | 明細自由記述。空欄は`null`、上限100 UTF-16コード単位 |
 
 - 明細・レシート合計の計算は[計算契約](12-calculation-contract.md)、入力値の検証は[レシートAPI](specs/api/features/receipts.md)を正本とする。
 - `discount_rate` と `tax_rate` はDecimal文字列のTEXT保存。非課税NULLと課税0%を区別し、TEXTの辞書順で税率を比較しない。APIの形式・同値判定は[レシートAPI](specs/api/features/receipts.md)に従う。
@@ -105,7 +105,7 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 - 税込・税抜と端数方式はレシート単位に保持する。合計・参考額の計算規則は[計算契約](12-calculation-contract.md)に従う。
 - 費用区分・発生区分・周期の業務制約は[レシートAPI](specs/api/features/receipts.md)、初期値は[画面仕様](ledger-receipt-ui.md)に従う。
 - 明細は`display_order ASC, detail_id ASC`で表示。順序は非負、同順序は許容しIDで安定ソートする。
-- 名称・メモの文字数制約は[レシートAPI](specs/api/features/receipts.md)に従う。科目グループ・明細メモには独自の長さ上限を設けない。
+- 名称・メモの文字数制約は[レシートAPI](specs/api/features/receipts.md)に従う。
 
 レシート書込・読取の詳細なHTTP/JSON契約は[レシートAPI](ledger-receipt-api.md)、画面・履歴候補は[WinUI](ledger-receipt-ui.md)・[候補](ledger-receipt-suggestions.md)を参照。
 
@@ -114,7 +114,7 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 ### 所在地・メモのNULL正規化
 
 - 所在地・親・グループ・明細のメモは未入力（空文字を含む）を`null`で保存し、空白のみの文字列は保持する。入力・応答・同値判定の契約は[レシートAPI](specs/api/features/receipts.md)に従う。
-- **DBの補助制約**：親／グループ／明細の各`memo`は`TEXT NULL`を維持し、`CHECK (memo IS NULL OR length(memo) > 0)`を備える。親には100文字の補助CHECKも設ける場合、SQLiteの`length(TEXT)`はUTF-16コード単位ではなくコードポイントを数えるため、**厳密な100 UTF-16単位検証はAPI/Clientで実施**する。科目グループ・明細メモには独自の長さ上限を設けない。
+- **DBの補助制約**：親／グループ／明細の各`memo`は`TEXT NULL`を維持し、`CHECK (memo IS NULL OR length(memo) > 0)`を備える。100文字の補助CHECKを設ける場合、SQLiteの`length(TEXT)`はUTF-16コード単位ではなくコードポイントを数えるため、**厳密な100 UTF-16単位検証はAPI/Clientで実施**する。
 - **旧データ**：読み取りだけでDBを自動更新しない。保存済み空文字の物理的な是正は既存DB確認後に別途明示的に実施する。正式リリース前はMigrationを追加せず、新規`initialize-db`に最新の制約を適用する。
 
 ## 5. `ledger_receipt_detail_people`（対象人物）
