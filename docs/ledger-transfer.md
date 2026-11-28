@@ -1,19 +1,19 @@
 # 振替仕様：入口・Codex実装順・残課題
 
-更新: 2026-11-16。新WinUI 3の振替は**主要仕様が確定済み・残課題あり。DBの確定範囲と一覧/詳細GET・POST/PUT/DELETE・振替名候補/自動補完GET、Windows Clientの読取4種類・書込3種類・編集モデルは実装済み。ホームの振替一覧・共通フィルターは実装済み、専用入力・候補補完・保存／削除は第3工程まで接続済み、409競合復旧は第4-Aまで接続済み、認証復元は第4-Bまで接続済み、残高連動は後続**。実装する際は、下記の各**正本を必要な工程だけ**参照する。旧版の既存機能・新レシートの実装済み機能とは区別する。
+更新: 2026-11-16。新WinUI 3の振替は**主要仕様が確定済み・残課題あり。最新のAPI契約への未対応差分は[API実装台帳](specs/api/README.md)で管理する。DBの確定範囲と一覧/詳細GET・POST/PUT/DELETE・振替名候補/自動補完GET、Windows Clientの読取4種類・書込3種類・編集モデルは実装済み。ホームの振替一覧・共通フィルターは実装済み、専用入力・候補補完・保存／削除は第3工程まで接続済み、409競合復旧は第4-Aまで接続済み、認証復元は第4-Bまで接続済み、残高連動は後続**。実装する際は、下記の各**正本を必要な工程だけ**参照する。旧版の既存機能・新レシートの実装済み機能とは区別する。
 
 | 作業 | 正本 | 参照する内容 |
 | --- | --- | --- |
 | DB・入力値 | [振替DB](ledger-transfer-db.md) | `ledger_transfers`、キー・FK・CHECK、金額・日時・文字列、版・監査、原子性 |
-| API・認可 | [振替API](ledger-transfer-api.md) | 権限、一覧／詳細／候補／補完、`focusTransferId`、カーソル、POST/PUT/DELETE、再送・競合 |
+| API・認可 | [振替API](specs/api/features/transfers.md)／[振替履歴API](specs/api/features/transfer-history.md) | 権限、一覧／詳細／候補／補完、カーソル、書込、再送・競合 |
 | WinUI 3・ホーム | [振替画面・3一覧](ledger-transfer-ui.md) | 入力・候補・日付・離脱、月指定／全期間、レイアウト、読込・エラー、保存後の復帰 |
 | 旧版差分・移行 | [旧版比較・移行方針](ledger-transfer-legacy.md) | WinFormsとの相違、移行時の値域差、旧DB読み取り専用、変換未決定 |
 | 共通の実装済み基盤 | [レシートDB](ledger-receipt-schema.md)／[レシートAPI](ledger-receipt-api.md)／[レシート画面](ledger-receipt-ui.md) | 共通パターンの参照。振替の実装完了を意味しない |
 
-## Codex向け実装の順番（DB・API実装済み）
+## Codex向け実装の順番
 
 1. **DB（実装済み）**：既存EFモデルと空DB初期化方式へ`ledger_transfers`の確定範囲を追加。[DB正本の実装範囲](ledger-transfer-db.md#db実装の範囲)と[検証結果](../tests/README.md#振替db確定範囲の実装)を参照。POSTの採番/成功記録はAPIで実装済み。PUT/DELETEの原子的版照合・再送もAPIで検証済み。正式リリース前はMigrationを追加しない。
-2. **API（実装済み）**：[一覧/詳細GET・POST/PUT/DELETE・振替名候補/自動補完GET](ledger-transfer-api.md#実装範囲)を実装済み。Clientの[読取接続](architecture-winui.md#振替のclient読取接続)・[書込接続](architecture-winui.md#振替のclient書込接続)・[編集モデル](architecture-winui.md#振替の編集状態モデル)も実装済み。WinUI一覧接続は実装済み、入力・書込接続は第3工程まで実装済み。既存のレシート共通処理を優先し、振替専用のルートや応答差をテストする。
+2. **API**：7操作の既存実装がある。[API実装台帳](specs/api/README.md)の未対応差分を[振替API](specs/api/features/transfers.md)・[振替履歴API](specs/api/features/transfer-history.md)に整合させる。Clientの[読取接続](architecture-winui.md#振替のclient読取接続)・[書込接続](architecture-winui.md#振替のclient書込接続)・[編集モデル](architecture-winui.md#振替の編集状態モデル)も実装済み。WinUI一覧接続は実装済み、入力・書込接続は第3工程まで実装済み。既存のレシート共通処理を優先し、振替専用のルートや応答差をテストする。
 3. **WinUI**：共通フィルター・ホーム初期配置・振替一覧は実装済み。第3工程で振替入力・保存・基本復帰を接続済み。409の確認付き最新採用は第4-Aで実装済み。401再認証後の復元は第4-Bで実装済み。残高連動は次工程。残高データ・スプリッター／比率保存も未実装。WinUI 3と既存Windows Clientの構成に合わせる。
 4. 旧DBデータ移行は**新版の基本業務が完成してから独立ツールで検討**。現段階で実データへの書込を行わない。
 

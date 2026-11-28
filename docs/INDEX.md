@@ -23,7 +23,8 @@
 | レシート専用入力・一覧・保存不可時のWinUI | [レシート画面](ledger-receipt-ui.md) |
 | 振替の入口・実装順序・未決定事項 | [振替仕様の入口](ledger-transfer.md) |
 | 振替の物理DB・入力値・CHECK・更新版・原子性 | [振替DB](ledger-transfer-db.md) |
-| 振替の権限・HTTP・JSON・カーソル・再送 | [振替API](ledger-transfer-api.md) |
+| 振替の権限・HTTP・JSON・カーソル・再送 | [振替API](specs/api/features/transfers.md) |
+| 振替名候補・支払方法自動補完 | [振替履歴API](specs/api/features/transfer-history.md) |
 | 支払方法の評価額属性・残高保存条件（未実装） | [家計簿DB・モデル](ledger-core-schema.md#支払方法の評価額と残高連携dec-305347未実装) |
 | 登録残高・推算残高のAPI設計（未実装） | [残高API](ledger-balance-api.md) |
 | 振替入力とホーム3一覧・画面動作・状態復旧 | [振替WinUI 3画面](ledger-transfer-ui.md) |
