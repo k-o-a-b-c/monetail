@@ -48,7 +48,7 @@ HTTP 200の成功応答はJSONオブジェクトを返す。各JSONオブジェ�
 | `taxCategoryCode` | 文字列 | 第3節の税区分コード |
 | `validFrom` | 日付文字列 | 適用開始日（YYYY-MM-DD） |
 | `validTo` | 日付文字列または`null` | 適用終了日（YYYY-MM-DD）。終了なしは`null` |
-| `rate` | 文字列または`null` | 百分率のDecimalをInvariantCultureで表した文字列、または`null`。Decimalとして同値の表記を許容する（例：課税0%の`"0"`と`"0.0"`、8%の`"8"`と`"8.00"`）。`null`とは区別する |
+| `rate` | Decimal文字列または`null` | 百分率のDecimalをInvariantCultureで表した文字列、または`null`。Decimalとして同値の表記を許容する（例：課税0%の`"0"`と`"0.0"`、8%の`"8"`と`"8.00"`）。`null`とは区別する |
 
 - 過去・現在・将来の登録済み履歴を全件返す。同じ数値の税率も区分・期間を保持し、重複排除しない。
 - 配列の並び順は保証しない。

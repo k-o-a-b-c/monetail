@@ -133,7 +133,7 @@ docs/specs/api/
 
 **レシート・履歴候補の確定契約との差分（利用者確認済み・2026-11-27以降）**：
 
-- DEC-371の仮登録フラグは未実装。[レシートAPI](features/receipts.md)・[DB](../../ledger-receipt-schema.md)・[画面](../../ledger-receipt-ui.md)に従い、親の列とCHECK、POST／PUTの必須真偽値、一覧／詳細／409のlatest、Clientのモデル・送受信・編集状態・一覧表示を整合させる。欠落・null・型不正の400（field=isProvisional）、true／falseの往復、フラグだけの変更時の更新版更新・同値PUTの版保持、同一再送と異なるフラグによるrequest_conflict、通常登録と同じ認可・入力検証・金額計算・集計対象・原子性を検証する。既存DBと成功再送記録の互換性は実装前に確認し、必要なデータ是正は別途承認を得る。Migrationや既存DBの自動更新は行わない。仮登録の絞り込みおよび要確認一覧（仮登録、対象人物0人の明細を含むレシート等の抽出）は後続開発とし、今回のクエリ・専用API・警告専用フラグ／テーブルは追加しない。
+- DEC-371・374の仮登録フラグは未実装。[レシートAPI](features/receipts.md)・[DB](../../ledger-receipt-schema.md)・[画面](../../ledger-receipt-ui.md)に従い、親の列とCHECK、POST／PUTの必須真偽値、一覧／詳細／409のlatest、Clientのモデル・送受信・編集状態・一覧表示を整合させる。欠落・null・型不正の400（field=isProvisional）、true／falseの往復、フラグだけの変更時の更新版更新・同値PUTの版保持、同一再送と異なるフラグによるrequest_conflict、通常登録と同じ認可・入力検証・金額計算・集計対象・原子性、履歴候補・自動補完への包含、流用登録で現在の編集値の仮登録状態をPOSTに反映することを検証する。既存DBと成功再送記録の互換性は実装前に確認し、必要なデータ是正は別途承認を得る。Migrationや既存DBの自動更新は行わない。仮登録の絞り込みおよび要確認一覧（仮登録、対象人物0人の明細を含むレシート等の抽出）は後続開発とし、今回のクエリ・専用API・警告専用フラグ／テーブルは追加しない。
 
 - レシート／履歴APIのパス・本文・クエリのUUIDを共通契約に、応答とLocationを小文字N形式に統一する。現行 `ReceiptPayload.cs`・`ReceiptEndpoints.cs`・`ReceiptHistoryEndpoints.cs`・`ReceiptListQuery.cs` 等はD形式を使用し、不正パスを400とする。Clientの送受信も整合させる。全桁ゼロの本文／クエリは400、パスは通常の認可・存在確認。DB形式、生成UUID版は維持。
 - 業務エラー4項目、503の2項目、未知・重複JSONキーのfield=NULL、個別fieldの配列パスを検証する。現行の `permissions` と `reason` をレシート／履歴APIの契約から除き、PUTのマスタ不整合は400 master_changedへ変更する。Clientの403／404時の家計簿個別GET、入力保持・保存不可、該当マスタだけの再取得を整合させる。現行の参照マスタ不存在404を400 invalid_inputへ変更（fieldは入力パス）。他家計簿の有無を漏らさず、対象レシート・既存子IDの不存在404は維持。
@@ -148,7 +148,8 @@ docs/specs/api/
 - `ReceiptApiSafetyTests.cs`、`ReceiptApiTests.cs`、`ReceiptListFocusTests.cs`、`ReceiptHistoryInputTests.cs`、`ReceiptHistorySearchTests.cs`、`ReceiptAutofillTests.cs`、Clientの読取・書込・競合・フォーカス・編集状態テスト等を更新・追加して確定契約を確認する。既存コード維持を前提としないが、レシートと振替で共有するUUID・カーソル・エラー処理の変更により、未移行の振替契約を変えない。DB構造は確定した変更範囲に限定し、認証・共有制限・既存データは維持する。
 - レシートの検証順は下記の共通検証原則に整合させる。現行はJSON読取後に参加・書込ロールを確認してから許可キーと個別項目を検証している。トップレベルのJSONオブジェクト／許可キーの検証を現在の参加・書込ロール確認より先に行う。現行の `ReceiptPayload.Canonical` は不正なDecimal文字列を `invalid:` 付きでハッシュ化し、実際の入力拒否は後段に委ねている。日時・Decimal形式／表現可能性は再送・版照合前の入力検証へ整合させる。整数はInt64解析とInt32保存値制約を区別する。古い版と形式不備・入力表現不能が重なると400、正しい形式の率の業務範囲外・数量等のInt32保存値範囲外と古い版が重なると409になることを検証する。正常値の再送同一性・所有者・版・マスタの契約は維持する。
 - 文書移行ではコード・テストを変更しない。人物按分の新版最終丸め・人物別期間合計、URL全体の独自バイト上限、検索性能保証値、旧版100文字超名称の移行、保存後の検索条件解除は未決定であり、今回のAPI仕様には追加しない。
-- DEC-373に従い、トップレベル・子オブジェクトの未知・重複JSONキーはともに `field=null` とする。子オブジェクトのキー検証は段階4、定義済み項目の型不正・必須キー欠落は具体的な項目パスを返す。関連テストで検証する。DEC-374の流用登録では現在の編集値の仮登録状態をPOSTに反映する。詳細GETの全階層と更新版の整合性は現行 `ReceiptManagement.cs` の `GetReceiptAsync`・`ReceiptGraphAsync` と `LedgerApiSupport.cs` の `InLedgerAsync` に基づく既存の取得保証として維持する。
+- DEC-373に従い、トップレベル・子オブジェクトの未知・重複JSONキーはともに `field=null` とする。子オブジェクトのキー検証は段階4、定義済み項目の型不正・必須キー欠落は具体的な項目パスを返す。関連テストで検証する。
+- 詳細GETの全階層と更新版の整合性は現行 `ReceiptManagement.cs` の `GetReceiptAsync`・`ReceiptGraphAsync` と `LedgerApiSupport.cs` の `InLedgerAsync` に基づく既存の取得保証として維持する。
 
 **未知クエリの拒否（DEC-372・利用者確認済み）**：[共通検証原則](../../ledger-core-api.md#共通の検証原則)に従い、全業務APIで未知クエリを400 `invalid_input`（field=該当クエリ名）とする。現行のレシート一覧・履歴APIは許可クエリを検証するが、クエリを定義していない操作を含む全業務APIの現行対応状況は未照合。各APIの実装時に照合し、未対応箇所と関連テストを整合させる。通常要求の成功、未知クエリの拒否、参加・基本操作権限とのエラー優先順位、書込・再送記録が変更されないことを確認する。認証固有APIは対象外。
 
