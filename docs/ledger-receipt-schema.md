@@ -4,7 +4,7 @@
 本書は**承認済みの業務・保存要件**と、**実装前に確認する物理列・索引・制約の設計案**を区別する。表に示す列や索引のうち明示的に確定していない物理仕様は、設計候補のまま扱う（Codexが独断で採用しない）。採用状況は[実装ガイド](ledger-receipt-implementation.md#db実装の判断境界)を参照。
 関連: [科目・税・権限](ledger-core-schema.md#category-receipt-handoff)、[計算・集計](12-calculation-contract.md)、[旧DB](02-database.md)、[既存の再送契約](ledger-operation-retries.md)。
 
-**DBの実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと索引を実装済み。新規DB作成・既存DB構造照合に含む。既存DBの自動更新・Migration追加は行わない。APIの外部契約は[レシートAPI](specs/api/features/receipts.md)・[履歴API](specs/api/features/receipt-history.md)、APIの実装状況は[API実装台帳](specs/api/README.md)、画面の実装状況は[画面台帳](screen-inventory.md)を参照する。
+**DBの実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと索引を実装済み。仮登録列の追加は[API実装台帳](specs/api/README.md)で管理する。新規DB作成・既存DB構造照合に含む。既存DBの自動更新・Migration追加は行わない。APIの外部契約は[レシートAPI](specs/api/features/receipts.md)・[履歴API](specs/api/features/receipt-history.md)、APIの実装状況は[API実装台帳](specs/api/README.md)、画面の実装状況は[画面台帳](screen-inventory.md)を参照する。
 
 実装上の選択は、取引日時を`DateTime`と固定書式のTEXT変換（読込時は`Unspecified`）で保持し、監査日時は既存家計簿と同じUTC用`DateTime`とした。FKは親子もRESTRICTとし、必要なFK列索引はEFの規約と複合PK/索引の先頭列を利用する。一覧の必須索引は昇順B-treeの逆走査で日時・IDのBINARY降順を処理できることを実行計画で検証した。追加候補の支払方法・日時複合索引は今回追加していない。
 
@@ -36,6 +36,7 @@
 | `payment_method_id` | TEXT NOT NULL | `(ledger_id, payment_method_id)`で支払方法FK |
 | `tax_inclusion_mode` | TEXT NOT NULL | `Inclusive` / `Exclusive` |
 | `tax_rounding_mode` | TEXT NOT NULL | `Floor` / `HalfUp` |
+| `is_provisional` | INTEGER NOT NULL | レシート単位の仮登録フラグ。0=false、1=true。業務上の意味は[レシートAPI](specs/api/features/receipts.md#3-レシートの値業務制約)に従う |
 | `recurrence_interval` | INTEGER NULL | 周期間隔。設定時は整数、1〜2,147,483,647（Int32） |
 | `recurrence_unit` | TEXT NULL | `Week` / `Month` / `Year` |
 | `total_amount` | INTEGER NOT NULL（確定） | 保存時に計算した合計を必ず保持。符号付きInt32範囲内。旧版のNULL値は移行時に個別対応 |
@@ -49,6 +50,7 @@
 **業務上必要な制約と検索用索引候補**
 
 - `FK(ledger_id)→ledgers(id)`、`FK(ledger_id,payment_method_id)→ledger_payment_methods(ledger_id,payment_method_id)`を設ける。**作成者・更新者の両IDはそれぞれ`AspNetUsers(Id)`へのRESTRICT FKを設定する（確定）**。レシート監査情報に参照されている認証アカウントは物理削除不可とし、無効化しても履歴と認証IDを残す。アカウント退会・削除機能は現時点で未実装であり、将来の退会仕様は別途検討する。
+- `CHECK(is_provisional IN (0, 1))`。
 - `CHECK(tax_inclusion_mode IN ('Inclusive','Exclusive'))`、`CHECK(tax_rounding_mode IN ('Floor','HalfUp'))`、`total_amount`はNOT NULLかつ符号付きInt32範囲内。
 - 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`typeof(recurrence_interval) = 'integer'`かつ`recurrence_interval BETWEEN 1 AND 2147483647`、`recurrence_unit IN ('Week','Month','Year')`をDBで検証し、APIでも同じ値域を検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
 - 周期がある場合、レシート内に`occurrence_type='Regular'`の明細が**1件以上必須**。周期なしでも定期明細を認める。これは行をまたぐためAPIの一括保存トランザクションで検証する。

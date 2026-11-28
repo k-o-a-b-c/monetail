@@ -131,7 +131,9 @@ docs/specs/api/
 - APIのDTO・投影とClientの `PersonInfo`・`CategoryInfo`・`PaymentMethodInfo` および各Transportのパース・検証を切り替える。Clientのキャッシュと各画面で受信配列順を保持し、`DisplayOrder` による再ソートを除く。本人優先は安定した並び替え、絞り込みは相対順の保持、支払方法の所有者グループ順は人物配列の順に基づく。並び順編集は全期間の保存順を使用し、画面固有の表示順をそのまま書き戻さない。
 - API・Client・表示関連テストで、成功／再送／版競合のJSON項目、保存順と同順位時のID順、追加・削除・並び替え、空配列、本人優先・有効期間フィルター、所有者別の順序と版の独立性を検証する。DBの順位値を検証するテストは維持する。参加者APIの応答・配列順の変更は上記の参加者APIの未対応差分で扱う。
 
-**レシート・履歴候補の確定契約との差分（利用者確認済み・2026-11-27）**：
+**レシート・履歴候補の確定契約との差分（利用者確認済み・2026-11-27以降）**：
+
+- DEC-371の仮登録フラグは未実装。[レシートAPI](features/receipts.md)・[DB](../../ledger-receipt-schema.md)・[画面](../../ledger-receipt-ui.md)に従い、親の列とCHECK、POST／PUTの必須真偽値、一覧／詳細／409のlatest、Clientのモデル・送受信・編集状態・一覧表示を整合させる。欠落・null・型不正の400（field=isProvisional）、true／falseの往復、フラグだけの変更時の更新版更新・同値PUTの版保持、同一再送と異なるフラグによるrequest_conflict、通常登録と同じ認可・入力検証・金額計算・集計対象・原子性を検証する。既存DBと成功再送記録の互換性は実装前に確認し、必要なデータ是正は別途承認を得る。Migrationや既存DBの自動更新は行わない。仮登録の絞り込みおよび要確認一覧（仮登録、対象人物0人の明細を含むレシート等の抽出）は後続開発とし、今回のクエリ・専用API・警告専用フラグ／テーブルは追加しない。
 
 - レシート／履歴APIのパス・本文・クエリのUUIDを共通契約に、応答とLocationを小文字N形式に統一する。現行 `ReceiptPayload.cs`・`ReceiptEndpoints.cs`・`ReceiptHistoryEndpoints.cs`・`ReceiptListQuery.cs` 等はD形式を使用し、不正パスを400とする。Clientの送受信も整合させる。全桁ゼロの本文／クエリは400、パスは通常の認可・存在確認。DB形式、生成UUID版は維持。
 - 業務エラー4項目、503の2項目、未知・重複JSONキーのfield=NULL、個別fieldの配列パスを検証する。現行の `permissions` と `reason` をレシート／履歴APIの契約から除き、PUTのマスタ不整合は400 master_changedへ変更する。Clientの403／404時の家計簿個別GET、入力保持・保存不可、該当マスタだけの再取得を整合させる。現行の参照マスタ不存在404を400 invalid_inputへ変更（fieldは入力パス）。他家計簿の有無を漏らさず、対象レシート・既存子IDの不存在404は維持。
@@ -143,7 +145,7 @@ docs/specs/api/
 - 成功済みPOST／PUT／DELETEの再送は現在の認証・参加・書込ロールと同一性だけを検証し、既存処理を繰り返さない。現行 `ReceiptManagement.cs` の再送分岐はこの方式。所有者変更・Viewer・参加喪失・対象削除後の成功再送、異内容の409、成功記録と業務データの原子性を回帰確認する。
 - 履歴候補・自動補完のURLを家計簿直下の `receipt-suggestions`・`receipt-autofill` から `receipts/suggestions`・`receipts/autofill` に変更する。`ReceiptHistoryEndpoints.cs`・Client・関連テストのURLを整合させる。詳細取得等との区別はUUIDルート制約を使用し、独自の分岐は追加しない。旧URLの互換ルートは設けない。振替APIは今回の変更対象外。
 - `ReceiptHistoryQuery.cs` の自動補完空店名を400へ、候補検索の空文字・空白のみを除外へ変更する。履歴候補検索・基本情報自動補完の `shopName`・`q` の100 UTF-16コード単位制限を廃止する。保存時の店名・所在地・品名の制限は維持する。関連テストでは100単位超の検索語・店名が文字数だけを理由に400にならないことを確認する。DEC-364に従い、`ReceiptHistoryManagement.cs` の本人所有履歴は有効期間で絞らず最新1件を選び、その所在地を応答に追加する。DEC-366に従い、`ReceiptHistoryQuery.cs`・Clientの補完要求から `transactionDate` を廃止し、店名だけを受け付ける。APIでは書込ロールのみ選定後に判定し、Viewerなら支払方法だけ`null`とする。支払方法・所有人物の有効期間によるAPI側の絞り込み・判定を廃止する。Clientは取得済みマスタと適用時の取引日で両者の有効期間を確認し、不適合・マスタ不明なら補完しない。古い有効な支払方法へフォールバックせず、保存時の最新マスタ・権限の検証を維持する。税設定は従来どおり全人物の最新同名店履歴から取得する。本人・他人物の履歴の混在、本人の最新が期間外でもAPIはそのIDを返すこと、Clientでは補完せず古い有効履歴へ戻らないこと、期間の両端、マスタ不明、取引日変更中の応答を適用時の日付で判定し日付だけで再取得しないこと、店名のみの要求成功・旧取引日クエリ400、本人対応なし・Viewer・履歴なし、所在地の`null`・空文字のNULL統一と空白の保持、同時刻のID順を検証する。Client DTOと画面の所在地適用・古い応答破棄・手動操作保護を整合させる。追加DB列やAPIは不要。
-- `ReceiptApiSafetyTests.cs`、`ReceiptApiTests.cs`、`ReceiptListFocusTests.cs`、`ReceiptHistoryInputTests.cs`、`ReceiptHistorySearchTests.cs`、`ReceiptAutofillTests.cs`、Clientの読取・書込・競合・フォーカス・編集状態テスト等を更新・追加して確定契約を確認する。既存コード維持を前提としないが、レシートと振替で共有するUUID・カーソル・エラー処理の変更により、未移行の振替契約を変えない。DB構造・認証・共有制限・既存データは維持する。
+- `ReceiptApiSafetyTests.cs`、`ReceiptApiTests.cs`、`ReceiptListFocusTests.cs`、`ReceiptHistoryInputTests.cs`、`ReceiptHistorySearchTests.cs`、`ReceiptAutofillTests.cs`、Clientの読取・書込・競合・フォーカス・編集状態テスト等を更新・追加して確定契約を確認する。既存コード維持を前提としないが、レシートと振替で共有するUUID・カーソル・エラー処理の変更により、未移行の振替契約を変えない。DB構造は確定した変更範囲に限定し、認証・共有制限・既存データは維持する。
 - レシートの検証順は下記の共通検証原則に整合させる。現行はJSON読取後に参加・書込ロールを確認してから許可キーと個別項目を検証している。トップレベルのJSONオブジェクト／許可キーの検証を現在の参加・書込ロール確認より先に行う。現行の `ReceiptPayload.Canonical` は不正なDecimal文字列を `invalid:` 付きでハッシュ化し、実際の入力拒否は後段に委ねている。日時・Decimal形式／表現可能性は再送・版照合前の入力検証へ整合させる。整数はInt64解析とInt32保存値制約を区別する。古い版と形式不備・入力表現不能が重なると400、正しい形式の率の業務範囲外・数量等のInt32保存値範囲外と古い版が重なると409になることを検証する。正常値の再送同一性・所有者・版・マスタの契約は維持する。
 - 文書移行ではコード・テストを変更しない。人物按分の新版最終丸め・人物別期間合計、URL全体の独自バイト上限、検索性能保証値、旧版100文字超名称の移行、保存後の検索条件解除は未決定であり、今回のAPI仕様には追加しない。
 
