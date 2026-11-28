@@ -22,12 +22,14 @@ public sealed partial class LedgerManagementService
                     throw LedgerPayload.Bad("科目の一覧を確認してください。", "categoryIds");
                 ids.Add(key.ToString("N"));
             }
-            var rows = await context.Set<LedgerCategory>().Where(row => row.LedgerId == id).ToArrayAsync(token);
+            var rows = await context.Set<LedgerCategory>().Where(row => row.LedgerId == id)
+                .OrderBy(row => row.DisplayOrder).ThenBy(row => row.Id).ToArrayAsync(token);
             if (ids.Count != rows.Length || ids.Distinct(StringComparer.Ordinal).Count() != ids.Count ||
                 !ids.ToHashSet(StringComparer.Ordinal).SetEquals(rows.Select(row => row.Id)))
                 throw LedgerPayload.Bad("現在の全科目を重複なく指定してください。", "categoryIds");
             await RequireMemberAsync(id, actor, CategoryAdmin, token);
-            // 同順・0件でも科目順版だけを更新し、CRUDと同じ版で構成変更との競合を検知する。
+            if (rows.Select(row => row.Id).SequenceEqual(ids, StringComparer.Ordinal))
+                return await CategoriesAsync(id, actor, token);
             var count = await context.Set<Ledger>().Where(row => row.Id == id && row.CategoryOrderRevision == revision)
                 .ExecuteUpdateAsync(set => set.SetProperty(row => row.CategoryOrderRevision, Version()), token);
             if (count != 1) throw Conflict(await CategoriesAsync(id, actor, token));
