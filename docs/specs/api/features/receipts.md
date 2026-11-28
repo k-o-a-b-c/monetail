@@ -235,7 +235,7 @@ POSTは201 Created・本文なし、作成した詳細リソースのURL（`/led
 
 個別項目の`field`は0始まりの配列パス（例：`groups[0].details[2].personIds[0]`）。複数の入力エラーの扱いは共通の検証原則に従う。科目0件は`groups`、明細0件の科目は`groups[i].details`を返す。
 
-PUTで既存子IDを指定した場合、対象レシート内にそのグループまたは明細が存在しなければ404 `not_found`（`field=null`）とする。対象レシート内に存在する既存 `groupId` に対して保存済みと異なる `categoryId` を指定した場合は400 `invalid_input`（`field=groups[i].categoryId`）。同じ科目の既存グループに別の有効な既存 `groupId` を指定する、またはそのIDを省略する場合も400 `invalid_input`（`field=groups[i].groupId`）。これらの子ID・科目の業務制約は更新版照合後に検証し、複数の独立した不備が同時にある場合は共通の検証原則に従う。
+PUTで既存子IDを指定した場合、対象レシート内にそのグループまたは明細が存在しなければ404 `not_found`（`field=null`）とする。対象レシート内に存在する既存 `groupId` に対して保存済みと異なる `categoryId` を指定した場合は400 `invalid_input`（`field=groups[i].categoryId`）。同じ科目の既存グループに別の有効な既存 `groupId` を指定する、またはそのIDを省略する場合も400 `invalid_input`（`field=groups[i].groupId`）。これらの子ID・科目の業務制約は更新版照合後に検証する。別の既存グループに属する科目を既存 `groupId` に指定して両方の400条件に該当する場合は、`groups[i].categoryId` または `groups[i].groupId` のいずれかを返せばよく、優先順位は規定しない。他の複数不備も共通の検証原則に従う。
 
 金額の範囲超過・Decimal演算のオーバーフローは400 `invalid_input` とし、明細単位の計算は `groups[i].details[j]`、科目グループ単位の計算は `groups[i]`、レシート全体の計算は `groups` を `field` として返す。
 
