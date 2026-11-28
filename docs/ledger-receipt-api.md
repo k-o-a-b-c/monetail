@@ -36,7 +36,9 @@ APIの正本は[レシートAPI](specs/api/features/receipts.md)へ移行した�
 
 [整合性・再送](specs/api/features/receipts.md#7-整合性再送)を参照。
 
-### 一覧GET：要約7フィールド（DEC-256）
+<a id="一覧get要約7フィールドdec-256"></a>
+
+### 一覧GET：要約項目（DEC-256・371）
 
 [レシートAPIの一覧取得](specs/api/features/receipts.md#41-一覧get)を参照。
 

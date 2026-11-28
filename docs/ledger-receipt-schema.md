@@ -4,7 +4,7 @@
 本書は**承認済みの業務・保存要件**と、**実装前に確認する物理列・索引・制約の設計案**を区別する。表に示す列や索引のうち明示的に確定していない物理仕様は、設計候補のまま扱う（Codexが独断で採用しない）。採用状況は[実装ガイド](ledger-receipt-implementation.md#db実装の判断境界)を参照。
 関連: [科目・税・権限](ledger-core-schema.md#category-receipt-handoff)、[計算・集計](12-calculation-contract.md)、[旧DB](02-database.md)、[既存の再送契約](ledger-operation-retries.md)。
 
-**DBの実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと索引を実装済み。仮登録列の追加は[API実装台帳](specs/api/README.md)で管理する。新規DB作成・既存DB構造照合に含む。既存DBの自動更新・Migration追加は行わない。APIの外部契約は[レシートAPI](specs/api/features/receipts.md)・[履歴API](specs/api/features/receipt-history.md)、APIの実装状況は[API実装台帳](specs/api/README.md)、画面の実装状況は[画面台帳](screen-inventory.md)を参照する。
+**DBの実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと索引を実装済み。現行4表は新規DB作成・既存DB構造照合に含まれる。DEC-369の税設定の文字列列挙値への統一とDEC-371の仮登録列追加は未実装であり、対応・検証は[API実装台帳](specs/api/README.md)で管理する。既存DBの自動更新・Migration追加は行わない。APIの外部契約は[レシートAPI](specs/api/features/receipts.md)・[履歴API](specs/api/features/receipt-history.md)、APIの実装状況は[API実装台帳](specs/api/README.md)、画面の実装状況は[画面台帳](screen-inventory.md)を参照する。
 
 実装上の選択は、取引日時を`DateTime`と固定書式のTEXT変換（読込時は`Unspecified`）で保持し、監査日時は既存家計簿と同じUTC用`DateTime`とした。FKは親子もRESTRICTとし、必要なFK列索引はEFの規約と複合PK/索引の先頭列を利用する。一覧の必須索引は昇順B-treeの逆走査で日時・IDのBINARY降順を処理できることを実行計画で検証した。追加候補の支払方法・日時複合索引は今回追加していない。
 
