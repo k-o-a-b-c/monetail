@@ -45,7 +45,7 @@ docs/specs/winui/
 | `balance` 残高一覧・登録・編集 | R06〜R07 | [共通UIの残高仕様](../../../UI_DESIGN.md)、[残高API](../../ledger-balance-api.md)、[画面台帳](../../screen-inventory.md) | 未移行 |
 | `payment-memo` 支払メモ | 記録画面内の共通パネル（独立画面IDなし） | [共通UIの支払メモ](../../../UI_DESIGN.md)、[画面台帳](../../screen-inventory.md) | 未移行 |
 | `analytics` 科目別・収支・残高集計と内訳 | R08〜R09 | [共通UIの集計](../../../UI_DESIGN.md)、[画面台帳](../../screen-inventory.md)、[旧版／新版の比較](../../legacy-new-final-parity-matrix.md) | 未移行 |
-| `person` 人物管理 | M01〜M03 | [人物](../../ledger-persons.md)、[競合と後続](../../ledger-person-conflicts.md) | 未移行 |
+| `person` 人物管理 | M01〜M03 | [人物](../../ledger-persons.md)、[競合と後続](../../ledger-person-conflicts.md) | [草案作成・正本未切替](features/person/README.md) |
 | `category` 科目管理 | M04〜M06 | [家計簿DB・モデル](../../ledger-core-schema.md)、[共通UI](../../../UI_DESIGN.md) | 未移行 |
 | `payment-method` 支払方法管理 | M07〜M09 | [家計簿DB・モデル](../../ledger-core-schema.md)、[共通UI](../../../UI_DESIGN.md) | 未移行 |
 | `participant` 参加者管理 | M10〜M11 | [参加者](../../ledger-participants.md)、[参加者API契約](../api/features/members.md) | 未移行 |
