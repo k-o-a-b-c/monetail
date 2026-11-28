@@ -66,7 +66,7 @@
 | `ledger_id` | TEXT NOT NULL | 家計簿ID、PKの一部 |
 | `group_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `receipt_id` | TEXT NOT NULL | 同一家計簿レシートへのFK |
-| `category_id` | TEXT NOT NULL | 同一家計簿科目へのFK |
+| `category_id` | TEXT NOT NULL | 同一家計簿科目へのFK。既存グループでは変更不可（[レシートAPI](specs/api/features/receipts.md)） |
 | `memo` | TEXT NULL | グループ自由記述。空欄は`null`、上限100 UTF-16コード単位 |
 
 - **同一レシート・同一科目のグループは1件**。率が異なってもグループを分割しない。
