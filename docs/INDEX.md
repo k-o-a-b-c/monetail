@@ -19,7 +19,7 @@
 | 共通税区分・税率履歴の全件取得・HTTP・JSON・業務契約 | [共通税区分・税率履歴API](specs/api/features/tax-rates.md) |
 | 共通税率履歴のDB・同期CLI・Clientメモリキャッシュ | [共通税履歴](ledger-core-schema.md#shared-tax-history) |
 | レシート4表の列・複合FK・CHECK・索引 | [レシートDB](ledger-receipt-schema.md) |
-| レシート一覧・詳細・書込・競合・再送API | [レシートAPI](ledger-receipt-api.md) |
+| レシート一覧・詳細・書込・競合・再送API | [レシートAPI](specs/api/features/receipts.md) |
 | レシート専用入力・一覧・保存不可時のWinUI | [レシート画面](ledger-receipt-ui.md) |
 | 振替の入口・実装順序・未決定事項 | [振替仕様の入口](ledger-transfer.md) |
 | 振替の物理DB・入力値・CHECK・更新版・原子性 | [振替DB](ledger-transfer-db.md) |
@@ -28,10 +28,10 @@
 | 登録残高・推算残高のAPI設計（未実装） | [残高API](ledger-balance-api.md) |
 | 振替入力とホーム3一覧・画面動作・状態復旧 | [振替WinUI 3画面](ledger-transfer-ui.md) |
 | 旧振替との機能差分・旧DB移行方針 | [振替旧版比較・移行](ledger-transfer-legacy.md) |
-| 履歴候補検索・店名補完と候補UI | [レシート履歴候補](ledger-receipt-suggestions.md) |
+| 履歴候補検索・基本情報自動補完と候補UI | [履歴API](specs/api/features/receipt-history.md)、[候補画面](ledger-receipt-suggestions.md) |
 | Codex向け実装工程・参照文書・受入確認 | [レシート実装の入口](ledger-receipt-implementation.md) |
 | 家計簿の作成・参照・開く・名前変更・並び順・削除 | [家計簿API](specs/api/features/ledgers.md) |
-| 業務APIの共通HTTP境界・回数制限 | [共通契約](ledger-core-api.md) |
+| 業務APIの共通HTTP境界・認可・検証原則・回数制限 | [共通契約](ledger-core-api.md) |
 | 既存DB移行・後続の確認事項 | [移行と後続](ledger-core-transition.md) |
 | 科目5操作のHTTP・JSON・業務契約 | [科目API](specs/api/features/categories.md) |
 | 支払方法5操作のHTTP・JSON・業務契約 | [支払方法API](specs/api/features/payment-methods.md) |

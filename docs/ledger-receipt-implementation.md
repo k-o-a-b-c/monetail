@@ -7,9 +7,9 @@
 | 実装対象 | 主な正本 | 追加で確認 |
 | --- | --- | --- |
 | DB4表・SQLiteモデル | [レシートDB](ledger-receipt-schema.md) | [既存の初期化方式](42-api-foundation.md#db初期化登録復旧コマンド)、[科目・支払方法モデル](ledger-core-schema.md) |
-| 計算・保存/読取API | [レシートAPI](ledger-receipt-api.md) | [計算契約](12-calculation-contract.md)、[再送契約](ledger-operation-retries.md) |
-| 一覧GET・カーソル | [レシートAPI](ledger-receipt-api.md) | [画面の一覧操作](ledger-receipt-ui.md) |
-| 候補GET・店名補完 | [履歴候補](ledger-receipt-suggestions.md) | [レシートAPI](ledger-receipt-api.md) |
+| 計算・保存/読取API | [レシートAPI](specs/api/features/receipts.md) | [計算契約](12-calculation-contract.md)、[再送契約](ledger-operation-retries.md) |
+| 一覧GET・カーソル | [レシートAPI](specs/api/features/receipts.md) | [画面の一覧操作](ledger-receipt-ui.md) |
+| 候補GET・店名補完 | [履歴API](specs/api/features/receipt-history.md) | [レシートAPI](specs/api/features/receipts.md) |
 | Windows Client・WinUI | [レシート画面](ledger-receipt-ui.md) | [共通UI](../UI_DESIGN.md)、[入力コントロール](59-input-controls-design.md)、[履歴候補](ledger-receipt-suggestions.md) |
 
 **重要：DBの運用境界。正式リリース前はEF Core Migrationを追加・適用せず、`initialize-db`が現在のEFモデルから新規・空DBへ最新スキーマを一括作成する。既存API DBを通常起動で自動改造しない。正式リリース後はMigrationを導入する（初回移行方式・運用手順はリリース準備時に確定）。** 正本は[API起動・DB初期化](42-api-foundation.md)。
@@ -21,10 +21,10 @@
 | 1. DBモデル・初期化 | レシート4表、複合FK/索引/CHECK、`ApiDbContext`・`DatabaseSchema`の初期化／構造検証 | 空DBの初期化と再検証、FK／CHECK、家計簿間参照拒否、**Migration未生成** |
 | 2. 計算と検証 | 税率別合算、値引、Decimal計算、Int32境界、保存条件 | 正負・非課税/0%・複数税率・端数方式の固定期待値、範囲外拒否 |
 | 3. 詳細GET・書込 | 詳細GET、POST/PUT/DELETE、版、`requestId`の再送保証、権限 | 原子的ロールバック、既存子ID維持、409の`latest`、DELETE再送、403/404 |
-| 4. 一覧GET | 月/全期間・支払者/支払方法・店名、7フィールド、100件カーソル | 同日時ID順・ページ境界・条件不一致の`400 invalid_cursor`・家計簿分離 |
-| 5. 履歴候補・補完API | `receipt-suggestions`・`receipt-autofill` | 店名完全一致／候補部分一致の区別、表記ゆれ、更新UTC順、入力・権限・エラー |
+| 4. 一覧GET | 月/全期間・支払者/支払方法・店名、要約（仮登録を含む。項目はレシートAPI第5節）、月指定全件・全期間100件カーソル | 同日時ID順・月指定全件・全期間のページ境界・条件不一致の`400 invalid_cursor`・家計簿分離 |
+| 5. 履歴候補・補完API | `receipts/suggestions`・`receipts/autofill` | 店名完全一致／候補部分一致の区別、表記ゆれ、更新UTC順、入力・権限・エラー |
 | 6-A. Windows Client読取 | 一覧/詳細/候補/親情報補完のTransport・Workspace・型付きDTO | NULL/Decimal/整数/ローカル日時、検索条件とカーソル保持、認証更新/別アカウント、64KiB超の100件 |
-| 6-B. WinUI一覧・キャッシュ | 記録ホームの実API一覧、複合検索、追加読込、家計簿別マスタキャッシュ | 0件/エラー/300件上限と明示続行、旧応答破棄、管理画面更新の反映 |
+| 6-B. WinUI一覧・キャッシュ | 記録ホームの実API一覧、複合検索、追加読込、家計簿別マスタキャッシュ | 0件/エラー/月指定全件・全期間の初回300件上限と明示続行、旧応答破棄、管理画面更新の反映 |
 | 6-C. Windows Client書込 | POST/PUT/DELETE、不変要求・再送、空成功本文、型付きエラー/大きな409 | 同一requestId/本文/版、認証更新、全階層latest、NULL/Decimal/整数、通信結果不明 |
 | 6-D1. 編集状態モデル | UI非依存の親/科目/明細/人物、未反映下書き、更新/流用登録用スナップショット | ID維持/除外、未変更判定、切替3択、失敗時の入力保持 |
 | 6-D2. WinUI基本入力 | 親情報4行・科目領域・詳細GET・同一Window内遷移・離脱保護 | 新規初期値/既存値保持・二重起動/旧応答拒否・一覧状態復帰・保存無効 |
@@ -32,9 +32,9 @@
 | 6-D4（D4-0・A・B・C・CLI実装済み）. 税率・正式計算接続 | 税率履歴の読取経路・既存計算の共用化・WinUI候補/参考額/合計表示 | 期間端点・重複率・非課税/課税0%・Decimal/Int32・入力値保持・API保存なし |
 | 6-D5以降（分割案・未実装）. WinUI保存・候補 | 保存/競合/認証復帰、履歴候補/自動補完、実API受入 | 不変requestId/再送、未反映下書き保護、IME・キーボード、認証/権限、実機検証 |
 
-**実装状態：工程1〜5（DB・共通計算/検証・読取/書込・履歴候補/自動補完API）は実装済み。** [API契約](ledger-receipt-api.md)を参照。未確定の人物按分最終端数・人物別期間合計は未実装。工程6-AのWindows Client読取接続も実装済み（[構成](architecture-winui.md#レシートのclient読取接続工程6-a)）。工程6-BのWinUI一覧・画面用キャッシュ基盤も実装済み。工程6-Cの書込Clientも実装済み（[構成と要求の保持](architecture-winui.md#レシートのclient書込接続工程6-c)）。工程6-D1のUI非依存編集モデルも実装済み（[構成](architecture-winui.md#レシート編集状態モデル工程6-d1)）。工程6-D2の親情報・科目・画面遷移、工程6-D3の明細フォーム・一覧・画面内編集も実装済み。**税率候補/初期値・正式参考額/会計合計のWinUI接続はD4-Cで実装済み。全体保存・履歴候補UIは未実装**。履歴候補・自動補完は[候補API契約](ledger-receipt-suggestions.md)を参照。
+実装状況は[API実装台帳](specs/api/README.md)・[画面台帳](screen-inventory.md)を参照する。実装工程は検証の単位を示すもので、現行の未対応差分は実装台帳に従う。
 
-作業をまとめて1PRにせず、**既存実装のDI/DB初期化/権限構造に合わせて、工程ごとの最小テストを通してから次へ進む**。具体的な実装ファイルやテスト実行範囲は[tests/README](../tests/README.md)を参照。CI成功と実Windows画面・実運用DBでの検証は区別する。
+作業をまとめて1PRにせず、**確定済みのDB初期化・認証・権限・API契約を守り、既存コードの維持を前提とせず、最もシンプルで保守しやすい構成を選ぶ。工程ごとの受入テストを通してから次へ進む**。具体的な実装ファイルやテスト実行範囲は[tests/README](../tests/README.md)を参照。CI成功と実Windows画面・実運用DBでの検証は区別する。
 
 ## レシート401認証復帰の実装境界
 
@@ -42,14 +42,14 @@ PR #189の遷移構造を利用し、[DEC-268・269・267](ledger-receipt-ui.md#
 
 ## 工程6-D4の実装前整理（調査済み事実と分割案）
 
-**D4-0・D4-A・D4-CLI・D4-B・D4-Cは実装済み。** 税率履歴APIの正本は[共通税区分・税率履歴API](specs/api/features/tax-rates.md)、DB・CLI・キャッシュは[共通税率履歴](ledger-core-schema.md#shared-tax-history)、計算は[レシートAPI](ledger-receipt-api.md)、画面は[レシートUI](ledger-receipt-ui.md)を参照する。登録用の全期間JSONは[`config/tax-history.json`](../config/tax-history.json)にあるが、初期DBへ自動投入しない。
+**D4-0・D4-A・D4-CLI・D4-B・D4-Cは実装済み。** 税率履歴APIの正本は[共通税区分・税率履歴API](specs/api/features/tax-rates.md)、DB・CLI・キャッシュは[共通税率履歴](ledger-core-schema.md#shared-tax-history)、計算は[計算契約](12-calculation-contract.md)、画面は[レシートUI](ledger-receipt-ui.md)を参照する。登録用の全期間JSONは[`config/tax-history.json`](../config/tax-history.json)にあるが、初期DBへ自動投入しない。
 
 ### 現状確認（工程6-D4-Cまで）
 
 - **D4-0**：課税区分の履歴`rate:null`を許可し、`Exempt`はNULL必須。期間重複禁止と最新スキーマでの新規DB初期化を維持。
 - **D4-A・D4-CLI**：税率履歴の全件GET、Clientの接続先/アカウント別キャッシュ、全履歴同期CLIを実装済み。CLIはdry-run/明示apply、削除ガード、トランザクションを備える。
 - **D4-B・D4-C**：API/Clientの共通`Monetail.Calculations`による正式計算と、WinUIの候補・初期選択・参考額/合計表示を実装済み。計算不能時は未計算とし、入力を変更しない。
-- **未接続**：レシート全体保存と履歴候補UI。保存ボタンは接続まで無効。人物按分の最終端数・人物別期間合計は未決定。
+- **未接続**：レシート全体保存と履歴候補UI。保存ボタンは接続まで無効。集計の未決定事項は[計算契約](12-calculation-contract.md#新レシートの明細別税率と計算境界)を参照。
 
 ### 推奨する小PRの境界（D4-0・D4-A・D4-CLI・D4-B・D4-C実装済み）
 
@@ -93,21 +93,19 @@ PR #135の「実装前に残る確認事項」を工程別に整理した一覧�
 | 旧版`total`がNULLのデータ | **旧DB引継ぎ時**：新DBの`total_amount INTEGER NOT NULL`は確定。旧実データのNULLを**自動0変換しない**。個別対応を要する |
 | 主キーとID一意性 | **DB（PR1）**：全4表が`ledger_id`を含む複合PK。レシート・グループ・明細のID単独UNIQUEは設けず、複合FKによる家計簿分離をテスト |
 | 監査アカウント参照と削除 | **DB（PR1）**：作成者・更新者を認証アカウントへRESTRICT FK。将来のアカウント物理削除/退会の業務設計は対象外 |
-| 複数税率グループの参考額・人物按分 | **計算（PR2）**：DEC-156・157の集計境界。0～3人、正負、税率混在、税込/税抜、`floor`/`half_up`を固定例でテスト。**人物按分後の最終端数は未確定**であり、必要な段階で期待値を確認 |
-| 人物別レシート・期間合計 | **集計機能の実装時**：全体・期間合計の集計境界は未確定。グループ参考額の単純合算を会計上の正本としない |
-| 有効期間変更後の再編集 | **保存API（PR3）**：変更対象に関係なく全明細の税率を現行の取引日履歴へ照合し、保存済み税率は自動変更しない。科目・支払方法・人物の有効期間が後から変更された場合の細則は、実装時に既存のマスタ有効期間契約と照合 |
-| レシート一覧・詳細・保存API | **API（PR3・4）**：[API契約](ledger-receipt-api.md)のPOST/PUT/DELETE、詳細・一覧GET、版・再送・競合・カーソル等を検証。HTTP/JSONは確定済みで、未承認の追加エラーやパラメータを作らない |
+| 複数税率グループの参考額・人物按分 | **計算（PR2）・後続集計機能**：[計算契約](12-calculation-contract.md#新レシートの明細別税率と計算境界)の集計境界・未決定事項に従う。0～3人、正負、税率混在、税込/税抜、端数方式の固定例で検証する |
+| 有効期間変更後の再編集 | **保存API（PR3）**：[レシートAPI第3・6節](specs/api/features/receipts.md)と[API実装台帳](specs/api/README.md)のマスタ不整合・有効期間の契約と受入条件に従う |
+| レシート一覧・詳細・保存API | **API（PR3・4）**：[レシートAPI](specs/api/features/receipts.md)と[API実装台帳](specs/api/README.md)の受入条件を使用する。未承認の追加エラーやパラメータを作らない |
 | 旧Windows版データの引継ぎ | **別工程**：実データ検査まで保留。旧グループ税率・課税対象フラグを新明細の税率へ対応付け、同じ科目のグループを統合する必要がある。現行のDB初期化へ混ぜない |
 | 候補`AutoSuggestBox`の矢印・Tab・Esc・Enter | **WinUI（PR6）**：プレビューと業務値確定の分離、自由入力復元、次欄移動、IME確定、二重イベントを実画面で検証。[レシート候補](ledger-receipt-suggestions.md)と[Microsoft仕様](https://learn.microsoft.com/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.controls.autosuggestbox)を参照 |
 | Enterのコントロール別扱い | **WinUI（PR6）**：共通入力契約59の`ComboBox`は候補確定時に移動しないが、レシートの`AutoSuggestBox`はDEC-196で確定後次欄へ移動。コントロールを混同せず、IME確定・入力確定の順序を検証 |
-| 履歴候補検索・負荷 | **候補API（PR5）**：全対象検索→正規化付き部分一致→**元文字列**で重複排除→更新UTC降順→最大100件（店名／所在地／科目の条件別スコープ）。権限・キャンセル・古い応答の破棄、検索計画・索引・負荷試験を確認。APIの経路や基本エラーは[候補契約](ledger-receipt-suggestions.md)に確定済み |
+| 履歴候補検索・負荷 | **候補API（PR5）**：[履歴API](specs/api/features/receipt-history.md)と[API実装台帳](specs/api/README.md)の受入条件を使用する。検索計画・索引・負荷は計測し、キャンセル・古い応答の破棄も確認する |
 
 **今回の対象外（将来の別判断）**：必須の店舗マスタ、明細の税区分コード・別の課税対象フラグ、グループ専用表示順、明細の周期列、旧ポイント明細（`t_receipt_points`）、週/月/年から次回入力候補を計算する月末・曜日・営業日ルール。現時点では周期を保存するだけ。これらの機能を先取りしてDBに追加しない。
 
 ## 未決定・後続検証（独断で確定しない）
 
 - 物理設計で未承認の列・制約の採用可否は、上記**DB実装の判断境界**に従う。性能索引はユーザー向け仕様と区別し、必要性を計測してPRで説明する。
-- 人物別の参考額の細かな端数期待値、人物別レシート／期間合計の集計境界。
-- 履歴検索のSQL性能・索引要否とURLバイト長上限。画面上の標準コントロール差異やIME／フォーカスの実機挙動。
+- API・計算・旧データ移行に関する未決定事項は[API実装台帳](specs/api/README.md)および上記の工程別参照先に従う。画面上の標準コントロール差異やIME／フォーカスは実機で検証する。
 - 旧Windows版DBの実データ移行（`total=NULL`等）。**新API DBの現行モデル初期化**と**旧Windows版からの業務データ移行**は別工程。
 - リリース後のMigrationの初回導入・アップグレード／ロールバック方針はリリース準備時に設計し、正式リリース前の実装PRへ先取りしない。
