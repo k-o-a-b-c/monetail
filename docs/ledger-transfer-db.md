@@ -1,6 +1,6 @@
 # 振替DB・業務値仕様（DB実装済み）
 
-更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。振替DBの確定範囲は実装済み、振替APIは一覧GET・詳細GET・新規POST・更新PUT・削除DELETEを実装済み。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
+更新: 2026-11-15。振替の**業務値・DB物理制約・トランザクション・更新版**の正本。振替DBの確定範囲は実装済み。APIの確定契約・未対応差分は[API実装台帳](specs/api/README.md)を参照。正式リリース前はMigrationを追加せず、`initialize-db`で新規DBの最新スキーマを作る。
 
 参照：[入口・残課題](ledger-transfer.md)／[API契約](ledger-transfer-api.md)／[WinUI画面](ledger-transfer-ui.md)／[既存レシートDB](ledger-receipt-schema.md)／[家計簿DBモデル](ledger-core-schema.md)。
 
@@ -39,6 +39,6 @@ DB工程はEFマッピング・物理制約・新規DB初期化まで。新規PO
 ## 振替DB保存の原子性・更新版・索引（2026-11-15確定）
 
 - **原子性**：POST（流用登録を含む）・PUT・DELETEは、振替本体の業務変更・`revision`／監査列の更新・`operation_requests`への成功再送記録を**同じSQLiteトランザクション**で確定する。バリデーション・権限照合・版照合・再送記録の作成を含む処理の途中で失敗した場合は**全体をロールバック**し、振替だけ保存／削除されて再送記録が残らない状態、または再送記録だけ残る状態を作らない。更新・削除の`revision`照合は保存処理と原子的に行い、競合時は変更を確定しない。
-- **更新版の発行**：POSTで新しい`revision`（UUID v4）をサーバー発行する。PUTでは[業務値・DB契約](ledger-transfer-db.md)の6業務項目の比較によって**実際に保存値が変わる場合だけ**新しい`revision`を発行し、`updated_by_auth_user_id`・`updated_at_utc`を更新する。無変更PUTは**204 No Content**で振替行へのUPDATE・`revision`再発行・監査列の更新を行わず、成功再送記録だけを同じトランザクション内で保存する。DELETEは既存`revision`一致を条件に対象行を削除し、成功再送記録を同時に確定する。
+- **更新版の発行**：POSTで新しい`revision`（UUID v4）をサーバー発行する。PUTでは[振替API](specs/api/features/transfers.md#7-整合性再送)の6業務項目の比較によって**実際に保存値が変わる場合だけ**新しい`revision`を発行し、`updated_by_auth_user_id`・`updated_at_utc`を更新する。無変更PUTは**204 No Content**で振替行へのUPDATE・`revision`再発行・監査列の更新を行わず、成功再送記録だけを同じトランザクション内で保存する。DELETEは既存`revision`一致を条件に対象行を削除し、成功再送記録を同時に確定する。
 - **索引の最小構成**：確定済みの`(ledger_id, transaction_at, transfer_id)`一覧キーセット用複合索引を基本とし、主キー・FK・一意制約の実現に必要な構造を除いて**先回りした追加索引は採用しない**。人物・振替元／先の検索、振替名候補・補完等に追加索引が必要かどうかは、実装時の`EXPLAIN QUERY PLAN`と代表的データ量での性能測定を根拠に判断する。必要性が確認されたものだけ、別途設計・検証して追加する。
 - POST/PUT/DELETEの実装・検証範囲は[API正本](ledger-transfer-api.md#実装範囲)を参照。**実運用DBでの検証は未実施**。
