@@ -49,11 +49,12 @@ public sealed partial class CategoryApiTests
     }
 
     [Theory]
-    [InlineData("Admin", 200)] [InlineData("Editor", 403)] [InlineData("Viewer", 403)]
-    public async Task OrderOnlyLedgerAdminCanWriteEvenForGlobalAdmin(string role, int status)
+    [InlineData("Admin", 200, false)] [InlineData("Editor", 403, false)] [InlineData("Viewer", 403, false)]
+    [InlineData("Admin", 200, true)] [InlineData("Editor", 403, true)] [InlineData("Viewer", 403, true)]
+    public async Task OrderOnlyLedgerAdminCanWriteEvenForGlobalAdmin(string role, int status, bool unchanged)
     {
         await using var f = await Fixture.Create(); var a = await f.Category("A"); var b = await f.Category("B"); f.Role(role); var before = f.Snapshot();
-        var result = await Order(f, [Id(b), Id(a)], status: status);
+        var result = await Order(f, unchanged ? [Id(a), Id(b)] : [Id(b), Id(a)], status: status);
         if (status == 403) { Assert.Equal(before, f.Snapshot()); AssertNoLatest(result); }
     }
 
@@ -64,19 +65,50 @@ public sealed partial class CategoryApiTests
     }
 
     [Theory]
-    [InlineData(0)] [InlineData(1)] [InlineData(2)]
-    public async Task OrderSameSequenceAlwaysAdvancesOnlyOrderRevisionIncludingEmpty(int count)
+    [InlineData(0, "normal")]
+    [InlineData(1, "normal")]
+    [InlineData(2, "normal")]
+    [InlineData(3, "gaps")]
+    [InlineData(3, "ties")]
+    public async Task OrderSameSequencePreservesPositionsAndAllVersions(int count, string positions)
     {
-        await using var f = await Fixture.Create(); var ids = new List<string>();
-        for (var i = 0; i < count; i++) ids.Add(Id(await f.Category("科目" + i)));
-        var old = f.Order(); var header = f.Header(); var rows = (await f.Call("GET")).GetProperty("categories").GetRawText();
-        // UUIDの別表記も既存APIと同様に正規化する。
-        await Order(f, ids.Select(id => Guid.Parse(id).ToString("D").ToUpperInvariant()).ToArray(), Guid.Parse(old).ToString("D"));
-        var first = f.Order(); Assert.NotEqual(old, first); AssertUuid(first);
-        var result = await Order(f, ids.ToArray()); Assert.NotEqual(first, f.Order()); AssertUuid(f.Order());
-        Assert.Equal(rows, result.GetProperty("categories").GetRawText()); Assert.Equal(header, f.Header());
-        var before = f.Snapshot(); var conflict = await Order(f, ids.ToArray(), first, 409);
-        AssertCategoryOrderLatest(conflict, result); Assert.Equal(before, f.Snapshot());
+        await using var f = await Fixture.Create();
+        for (var i = 0; i < count; i++)
+            await f.Category("科目" + i);
+        if (positions == "gaps")
+            f.App.Database.Execute("UPDATE ledger_categories SET display_order=display_order*7+5");
+        if (positions == "ties")
+            f.App.Database.Execute("UPDATE ledger_categories SET display_order=7");
+        var expected = await f.Call("GET");
+        var ids = expected.GetProperty("categories").EnumerateArray().Select(Id).ToArray();
+        var revision = f.Order();
+        // 無変更経路でSQL UPDATE自体を行わないことも確認する。
+        f.App.Database.Execute("CREATE TRIGGER must_not_write_category BEFORE UPDATE ON ledger_categories BEGIN SELECT RAISE(ABORT,'unexpected_write'); END; " +
+            "CREATE TRIGGER must_not_write_order BEFORE UPDATE OF category_order_revision ON ledgers BEGIN SELECT RAISE(ABORT,'unexpected_write'); END");
+        var before = f.Snapshot();
+        foreach (var format in new[] { "N", "D", "B", "P", "X" })
+        {
+            var result = await Order(f, ids.Select(id => Guid.Parse(id).ToString(format).ToUpperInvariant()).ToArray(), Guid.Parse(revision).ToString(format));
+            Assert.Equal(expected.GetRawText(), result.GetRawText());
+            Assert.Equal(before, f.Snapshot());
+        }
+        AssertCategoryOrderLatest(await Order(f, ids, Guid.NewGuid().ToString("N"), 409), expected);
+        Assert.Equal(before, f.Snapshot());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task OrderEmptyAndSingleStillValidateTheEntireIdSet(int count)
+    {
+        await using var f = await Fixture.Create();
+        if (count == 1)
+            await f.Category("科目");
+        var before = f.Snapshot();
+        var error = await Order(f, [Guid.NewGuid().ToString("N")], status: 400);
+        Assert.Equal("invalid_input", Code(error));
+        Assert.Equal("categoryIds", error.GetProperty("field").GetString());
+        Assert.Equal(before, f.Snapshot());
     }
 
     [Theory]
@@ -150,11 +182,20 @@ public sealed partial class CategoryApiTests
         var responses = await Task.WhenAll(inputs.Select(ids => f.Client.PutAsJsonAsync(f.Root + "/order", new { revision, categoryIds = ids })));
         try
         {
-            Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK); Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Conflict);
-            var winner = Array.FindIndex(responses, r => r.StatusCode == HttpStatusCode.OK);
-            var success = await responses[winner].Content.ReadFromJsonAsync<JsonElement>();
-            AssertCategoryOrderLatest(await responses[1 - winner].Content.ReadFromJsonAsync<JsonElement>(), success);
-            Assert.Equal(inputs[winner], (await f.Call("GET")).GetProperty("categories").EnumerateArray().Select(Id));
+            // 無変更が先なら版を消費しないため両方200。変更が先なら無変更は409。
+            Assert.Equal(HttpStatusCode.OK, responses[1].StatusCode);
+            Assert.True(responses[0].StatusCode is HttpStatusCode.OK or HttpStatusCode.Conflict);
+            var changed = await responses[1].Content.ReadFromJsonAsync<JsonElement>();
+            Assert.NotEqual(revision, changed.GetProperty("orderRevision").GetString());
+            if (responses[0].StatusCode == HttpStatusCode.Conflict)
+                AssertCategoryOrderLatest(await responses[0].Content.ReadFromJsonAsync<JsonElement>(), changed);
+            else
+            {
+                var unchanged = await responses[0].Content.ReadFromJsonAsync<JsonElement>();
+                Assert.Equal(revision, unchanged.GetProperty("orderRevision").GetString());
+                Assert.Equal(inputs[0], unchanged.GetProperty("categories").EnumerateArray().Select(Id));
+            }
+            Assert.Equal(inputs[1], (await f.Call("GET")).GetProperty("categories").EnumerateArray().Select(Id));
         }
         finally { foreach (var response in responses) response.Dispose(); }
     }
@@ -199,6 +240,34 @@ public sealed partial class CategoryApiTests
         f.App.Database.Execute(stage == "version" ? "CREATE TRIGGER fail_order BEFORE UPDATE OF category_order_revision ON ledgers BEGIN SELECT RAISE(ABORT,'synthetic'); END" :
             "CREATE TABLE test_category_order_writes(value INTEGER); CREATE TRIGGER fail_order BEFORE UPDATE OF display_order ON ledger_categories BEGIN INSERT INTO test_category_order_writes VALUES(1); SELECT CASE WHEN (SELECT COUNT(*) FROM test_category_order_writes)=2 THEN RAISE(ABORT,'synthetic') END; END");
         var before = f.Snapshot(); Assert.Equal("store_unavailable", Code(await Order(f, [Id(b), Id(a)], status: 503))); Assert.Equal(before, f.Snapshot());
+    }
+
+    [Theory]
+    [InlineData("role", 403)]
+    [InlineData("membership", 404)]
+    [InlineData("session", 401)]
+    [InlineData("expiry", 401)]
+    public async Task OrderSameSequenceRechecksAuthorityAfterReadingSuccessResponse(string change, int status)
+    {
+        await using var f = await Fixture.Create();
+        var a = await f.Category("非公開科目");
+        var mutation = change switch
+        {
+            "role" => "UPDATE ledger_members SET role='Viewer'",
+            "membership" => "DELETE FROM ledger_members",
+            _ => "UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc"
+        };
+        var interceptor = new OrderReadMutation(f.App.Time, mutation, change == "expiry", 2);
+        using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(interceptor))));
+        using var client = f.App.Client(host);
+        await f.App.LoginAsync(client, count: 1);
+        await LoginTestApp.CsrfAsync(client);
+        var before = f.Snapshot();
+        interceptor.Armed = true;
+        var error = await Send(client, "PUT", f.Root + "/order", new { revision = f.Order(), categoryIds = new[] { Id(a) } }, status);
+        Assert.False(interceptor.Armed);
+        AssertNoLatest(error);
+        Assert.Equal(before, f.Snapshot());
     }
 
     [Theory]
@@ -248,13 +317,14 @@ public sealed partial class CategoryApiTests
     }
     private static void AssertNoLatest(JsonElement error) => Assert.True(!error.TryGetProperty("latest", out var latest) || latest.ValueKind == JsonValueKind.Null);
 
-    private sealed class OrderReadMutation(LoginTestApp.LoginTime time, string mutation, bool expire) : DbCommandInterceptor
+    private sealed class OrderReadMutation(LoginTestApp.LoginTime time, string mutation, bool expire, int readNumber = 1) : DbCommandInterceptor
     {
         public bool Armed { get; set; }
+        private int reads;
         public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command, CommandExecutedEventData eventData,
             DbDataReader result, CancellationToken cancellationToken = default)
         {
-            if (Armed && command.CommandText.Contains("FROM \"ledger_categories\"", StringComparison.Ordinal))
+            if (Armed && command.CommandText.Contains("FROM \"ledger_categories\"", StringComparison.Ordinal) && ++reads == readNumber)
             {
                 Armed = false;
                 if (expire) time.Advance(TimeSpan.FromDays(15));
