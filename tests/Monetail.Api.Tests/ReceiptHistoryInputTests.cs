@@ -1,8 +1,9 @@
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptSuggestionsApiTests
 {
     [Theory]
     [InlineData("suggestions", "", "kind")] [InlineData("suggestions", "kind=unknown", "kind")]
@@ -17,7 +18,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("autofill", "shopName=A&shopName=B&transactionDate=2026-11-10", "shopName")]
     public async Task HistoryRejectsInvalidAndUnsupportedQueriesWithCommonField(string operation, string query, string field)
     {
-        await using var f = await Fixture.Create(); var error = await HistoryGet(f, operation, query, 400);
+        await using var f = await RecordApiFixture.Create(); var error = await HistoryGet(f, operation, query, 400);
         Assert.Equal("invalid_input", error["code"]!.GetValue<string>()); Assert.Equal(field, error["field"]!.GetValue<string>());
     }
 
@@ -25,7 +26,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("q", 100, true)] [InlineData("q", 101, false)] [InlineData("shopName", 100, true)] [InlineData("shopName", 101, false)]
     public async Task HistoryInputLengthCountsOriginalUtf16Units(string field, int length, bool valid)
     {
-        await using var f = await Fixture.Create(); var value = string.Concat(Enumerable.Repeat("😀", length / 2)) + (length % 2 == 0 ? "" : "a");
+        await using var f = await RecordApiFixture.Create(); var value = string.Concat(Enumerable.Repeat("😀", length / 2)) + (length % 2 == 0 ? "" : "a");
         var query = field == "q" ? "kind=shopName&q=" + Uri.EscapeDataString(value) : "kind=shopLocation&shopName=" + Uri.EscapeDataString(value);
         var result = await HistoryGet(f, "suggestions", query, valid ? 200 : 400);
         if (!valid) Assert.Equal(field, result["field"]!.GetValue<string>());
@@ -36,7 +37,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task HistoryDoesNotCountExpandedSearchNormalizationOrAddUrlByteLimits()
     {
-        await using var f = await Fixture.Create(); var text = new string('㍿', 100);
+        await using var f = await RecordApiFixture.Create(); var text = new string('㍿', 100);
         await HistoryGet(f, "suggestions", "kind=shopName&q=" + Uri.EscapeDataString(text));
         await HistoryGet(f, "autofill", "shopName=" + Uri.EscapeDataString(text) + "&transactionDate=2024-02-29");
     }

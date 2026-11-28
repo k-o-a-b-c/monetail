@@ -9,16 +9,17 @@ using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Features.Monetail.Transfers;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
 // 既存の実HTTP・Identity・家計簿・隔離SQLite fixtureを共用する。
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferDetailApiTests
 {
     [Fact]
     public async Task TransferDetailReturnsOnlyEightFieldsAndDoesNotChangeAnyData()
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
         var detail = await ReadTransfer(f.Client, TransferPath(f, row.Id));
         Keys(detail, "transferId", "transactionAt", "name", "fromPaymentMethodId", "toPaymentMethodId", "amount", "memo", "revision");
         Assert.Equal("2026-11-10T12:34:56", detail["transactionAt"]!.GetValue<string>());
@@ -34,7 +35,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("Admin", false)] [InlineData("Editor", false)] [InlineData("Editor", true)] [InlineData("Viewer", false)]
     public async Task TransferDetailAllLedgerRolesCanReadOtherOwnersIncludingWithoutPersonMapping(string role, bool mapped)
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); f.Role(role, mapped ? f.Owner : null);
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f); f.Role(role, mapped ? f.Owner : null);
         var before = f.Snapshot(); await ReadTransfer(f.Client, TransferPath(f, row.Id)); Assert.Equal(before, f.Snapshot());
     }
 
@@ -42,7 +43,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(null)] [InlineData("")] [InlineData("  元のメモ  ")]
     public async Task TransferDetailMemoNormalizesOnlyEmptyStringWithoutUpdatingDatabase(string? memo)
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f);
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f);
         using (var connection = f.App.Database.OpenForeignKeyConnection())
         {
             using var command = connection.CreateCommand(); command.CommandText = "PRAGMA ignore_check_constraints=ON"; command.ExecuteNonQuery();
@@ -62,7 +63,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("ledgerId", "00112233445566778899aabbccddeeff")] [InlineData("transferId", "00112233445566778899aabbccddeeff")]
     public async Task TransferDetailInvalidIdsUseCommonInputErrorAndDoNotChangeData(string field, string bad)
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
         var path = $"/ledgers/{(field == "ledgerId" ? bad : D(f.Ledger))}/transfers/{(field == "transferId" ? bad : D(row.Id))}";
         var error = await ReadTransfer(f.Client, path, 400); Keys(error, "code", "message", "field", "latest", "permissions");
         Assert.Equal("invalid_input", error["code"]!.GetValue<string>()); Assert.Equal(field, error["field"]!.GetValue<string>());
@@ -73,7 +74,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("missing-transfer")] [InlineData("missing-ledger")] [InlineData("not-member")]
     public async Task TransferDetailNotFoundDoesNotExposeTransferOrAuditData(string kind)
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f); f.Role("Editor", f.Owner);
         var path = kind == "missing-ledger" ? $"/ledgers/{Guid.NewGuid():D}/transfers/{D(row.Id)}" : TransferPath(f, kind == "missing-transfer" ? Guid.NewGuid().ToString("N") : row.Id);
         if (kind == "not-member") f.App.Database.Execute("DELETE FROM ledger_members");
         var before = f.Snapshot(); var error = await ReadTransfer(f.Client, path, 404);
@@ -87,7 +88,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferDetailCompositeIdAndMembershipSeparateLedgers()
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f);
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f);
         using var create = await f.Client.PostAsJsonAsync("/ledgers", new { requestId = Guid.NewGuid(), name = "別家計簿" }); Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         var other = (await create.Content.ReadFromJsonAsync<JsonObject>())!["ledgerId"]!.GetValue<string>(); var otherN = Guid.Parse(other).ToString("N");
         f.App.Database.Execute($"INSERT INTO ledger_people(ledger_id,person_id,name,display_order,revision,payment_order_revision) SELECT '{otherN}',person_id,name,display_order,revision,payment_order_revision FROM ledger_people WHERE ledger_id='{f.Ledger}'");
@@ -105,7 +106,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("anonymous")] [InlineData("expired")] [InlineData("revoked")]
     public async Task TransferDetailRequiresCurrentAuthenticationBeforeExposingData(string kind)
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); using var anonymous = f.App.Client();
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f); using var anonymous = f.App.Client();
         if (kind == "expired") f.App.Time.Advance(TimeSpan.FromDays(15));
         if (kind == "revoked") f.App.Database.Execute("UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc");
         var before = f.Snapshot(); using var response = await (kind == "anonymous" ? anonymous : f.Client).GetAsync(TransferPath(f, row.Id));
@@ -117,7 +118,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("member", 404)] [InlineData("expire", 401)] [InlineData("store", 503)]
     public async Task TransferDetailRechecksAccessAfterReadAndDoesNotLeakOnFailure(string kind, int status)
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); var mutation = new TransferReadMutation(f.App.Time, kind);
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f); var mutation = new TransferReadMutation(f.App.Time, kind);
         using var host = f.App.NewFactory().WithWebHostBuilder(b => b.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); await LoginTestApp.CsrfAsync(client);
         var before = f.Snapshot(); mutation.Armed = true; var error = await ReadTransfer(client, TransferPath(f, row.Id), status);
@@ -127,7 +128,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferDetailUsesExistingSharedReadLimitAndOriginBoundary()
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f);
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f);
         // GETはレシートと同じOrigin境界。CSRF必須の書込APIは今回追加しない。
         f.Client.DefaultRequestHeaders.Remove("Origin"); f.Client.DefaultRequestHeaders.Add("Origin", "https://other.example.test");
         for (var i = 0; i < 119; i++) { using var response = await f.Client.GetAsync($"/ledgers/{D(f.Ledger)}/people"); Assert.Equal(HttpStatusCode.OK, response.StatusCode); }
@@ -139,7 +140,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferDetailDoesNotAddPostEndpoint()
     {
-        await using var f = await Fixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var row = await SeedTransferDetail(f); var before = f.Snapshot();
         foreach (var method in new[] { HttpMethod.Post })
         {
             using var request = new HttpRequestMessage(method, TransferPath(f, row.Id)); using var response = await f.Client.SendAsync(request); Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
@@ -163,24 +164,5 @@ public sealed partial class ReceiptApiTests
         }
     }
 
-    private static string TransferPath(Fixture f, string id) => $"/ledgers/{D(f.Ledger)}/transfers/{D(id)}";
-    private static async Task<JsonObject> ReadTransfer(HttpClient client, string path, int status = 200)
-    {
-        using var response = await client.GetAsync(path); var body = await response.Content.ReadAsStringAsync();
-        Assert.True((int)response.StatusCode == status, $"Expected {status}, got {(int)response.StatusCode}: {body}");
-        return JsonNode.Parse(body)!.AsObject();
-    }
-    private static async Task<LedgerTransfer> SeedTransferDetail(Fixture f, string? ledger = null, string? id = null, string? name = null)
-    {
-        var row = new LedgerTransfer
-        {
-            LedgerId = ledger ?? Guid.Parse(f.Ledger).ToString("N"), Id = id ?? Guid.CreateVersion7().ToString("N"), Revision = Guid.NewGuid().ToString("N"),
-            TransactionAt = new(2026, 11, 10, 12, 34, 56, DateTimeKind.Unspecified), Name = name ?? "  銀行 → 現金  ",
-            FromPaymentMethodId = Guid.Parse(f.Payment).ToString("N"), ToPaymentMethodId = Guid.Parse(f.OtherPayment).ToString("N"), Amount = int.MaxValue,
-            CreatedByAuthUserId = f.App.UserId, UpdatedByAuthUserId = f.App.UserId,
-            CreatedAtUtc = new(2026, 11, 10, 3, 34, 56, DateTimeKind.Utc), UpdatedAtUtc = new(2026, 11, 10, 3, 34, 56, DateTimeKind.Utc)
-        };
-        await using var services = f.App.Database.CreateServices(); await using var scope = services.CreateAsyncScope();
-        var context = scope.ServiceProvider.GetRequiredService<ApiDbContext>(); context.Add(row); await context.SaveChangesAsync(); return row;
-    }
+    private static string TransferPath(RecordApiFixture f, string id) => $"/ledgers/{D(f.Ledger)}/transfers/{D(id)}";
 }

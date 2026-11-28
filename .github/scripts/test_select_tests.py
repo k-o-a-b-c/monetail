@@ -108,9 +108,9 @@ class SelectionTests(unittest.TestCase):
 
     def test_model_and_expression_follow_their_actual_dependencies(self):
         self.assert_flags([PRODUCT + "Data/Data/Receipt.vb"],
-                          "calculations", "windows_tests", "windows_build", "performance")
+                          "api", "calculations", "windows_tests", "windows_build", "performance")
         self.assert_flags([PRODUCT + "Logic/IntegerExpression.vb"],
-                          "calculations", "windows_tests", "windows_build")
+                          "api", "calculations", "windows_tests", "windows_build")
 
     def test_read_changes_include_measurement_but_not_migration(self):
         self.assert_flags([PRODUCT + "DataAccess/DataAccess.vb"],
@@ -120,15 +120,15 @@ class SelectionTests(unittest.TestCase):
         for path in ["docs/schema/monetail_schema.sql", "docs/migrations/20261019_01_revision_tokens.sql"]:
             with self.subTest(path=path):
                 self.assert_flags([path], "api", "migrations", "windows_tests", "performance")
-        self.assert_flags(["docs/tests/tax-rounding-cases.json"], "calculations")
+        self.assert_flags(["docs/tests/tax-rounding-cases.json"], "api", "calculations")
         self.assert_flags(["tests/test_revision_migration.py"], "migrations")
         self.assert_flags(["docs/migrations/future.sql"], "migrations")
 
     def test_ui_test_change_does_not_rebuild_product_or_measure_reads(self):
         self.assert_flags(["tests/PersistenceTests/ReceiptInputTests.vb"], "windows_tests")
         self.assert_flags(["tests/PersistenceTests/ReceiptReadMeasurements.vb"], "windows_tests", "performance")
-        self.assert_flags(["tests/Shared/ReceiptFixtures.vb"], "calculations", "windows_tests")
-        self.assert_flags(["tests/Shared/Assertions.vb"], "calculations", "windows_tests", "performance")
+        self.assert_flags(["tests/Shared/ReceiptFixtures.vb"], "api", "calculations", "windows_tests")
+        self.assert_flags(["tests/Shared/Assertions.vb"], "api", "calculations", "windows_tests", "performance")
 
     def test_workflow_and_shared_build_settings_validate_all_jobs(self):
         for path in [".github/workflows/tests.yml", ".github/actions/nuget-cache/action.yml", "Directory.Build.props", "global.json"]:

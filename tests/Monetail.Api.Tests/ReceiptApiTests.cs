@@ -4,15 +4,16 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptWriteApiTests
 {
     [Fact]
     public async Task PostAndDetailHaveExactShapeDIdentifiersAndNoMutationOnRead()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var input = f.Input(); var id = await f.CreateReceipt(input); var before = f.Snapshot();
         var detail = await f.Get(id);
         Keys(detail, "receiptId", "transactionAt", "shopName", "shopLocation", "paymentMethodId", "taxInclusionMode", "taxRoundingMode", "recurrenceInterval", "recurrenceUnit", "memo", "revision", "groups");
@@ -30,7 +31,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task PutMaintainsChildrenAndNoChangeLeavesRevisionAndAuditUntouched()
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var original = await f.Get(id);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var original = await f.Get(id);
         var request = f.Update(original); Line(request)["unitPrice"] = 200;
         await f.Call("PUT", request, 204, "/" + id); var changed = await f.Get(id);
         Assert.Equal(Group(original)["groupId"]!.GetValue<string>(), Group(changed)["groupId"]!.GetValue<string>());
@@ -47,7 +48,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task BlankMemosAreNullInStorageReadsAndPostReplay()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var input = f.Input(); input["memo"] = ""; Group(input)["memo"] = ""; Line(input)["memo"] = "";
         var id = await f.CreateReceipt(input);
         Assert.Equal(1L, f.App.Database.Scalar("SELECT COUNT(*) FROM ledger_receipts WHERE memo IS NULL"));
@@ -66,7 +67,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task LegacyBlankMemosReadAsNullAndDoNotCauseAnUpdate()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = await f.CreateReceipt(f.Input());
         // 新しいCHECKを迂回して、旧DBに残り得る空文字のデータを再現する。
         f.App.Database.Execute("PRAGMA ignore_check_constraints=ON");
@@ -95,7 +96,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(51, true, false)]
     public async Task ParentMemoLimitCountsUtf16CodeUnits(int count, bool emoji, bool valid)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var memo = emoji ? string.Concat(Enumerable.Repeat("😀", count)) : new string('a', count);
         var input = f.Input(); input["memo"] = memo;
         if (valid)
@@ -116,7 +117,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task PutRejectsOversizeParentMemoWithoutMutatingExistingReceipt()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = await f.CreateReceipt(f.Input());
         var before = f.Snapshot();
         var update = f.Update(await f.Get(id)); update["memo"] = new string('x', 101);
@@ -132,7 +133,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("ledger_receipt_details")]
     public async Task MemoDatabaseConstraintsRejectEmptyText(string table)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         await f.CreateReceipt(f.Input());
         Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => f.App.Database.Execute($"UPDATE {table} SET memo=''"));
     }
@@ -140,7 +141,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task DeleteReplayUsesSuccessRecordWithoutRequiringDeletedResource()
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var detail = await f.Get(id);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var detail = await f.Get(id);
         var input = new JsonObject { ["requestId"] = Guid.NewGuid().ToString("D"), ["revision"] = detail["revision"]!.GetValue<string>() };
         await f.Call("DELETE", input, 204, "/" + id); var before = f.Snapshot();
         await f.Call("DELETE", input, 204, "/" + id); Assert.Equal(before, f.Snapshot());
@@ -151,70 +152,4 @@ public sealed partial class ReceiptApiTests
 
     private static JsonObject Group(JsonObject root, int index = 0) => root["groups"]![index]!.AsObject();
     private static JsonObject Line(JsonObject root, int group = 0, int index = 0) => Group(root, group)["details"]![index]!.AsObject();
-    private static string D(string value) => Guid.Parse(value).ToString("D");
-    private static void Keys(JsonObject value, params string[] keys) => Assert.Equal(keys.Order(), value.Select(p => p.Key).Order());
-    private static void AssertD(JsonNode value, char? version = null)
-    {
-        var text = value.GetValue<string>(); Assert.True(Guid.TryParseExact(text, "D", out var id)); Assert.Equal(id.ToString("D"), text);
-        if (version is char digit) Assert.Equal(digit, id.ToString("N")[12]);
-    }
-
-    private sealed class Fixture : IAsyncDisposable
-    {
-        public LoginTestApp App = null!; public HttpClient Client = null!;
-        public string Ledger = "", Owner = "", Other = "", Payment = "", OtherPayment = "", Category = "", OtherCategory = "";
-        public string Root => $"/ledgers/{D(Ledger)}/receipts";
-        public static async Task<Fixture> Create()
-        {
-            var f = new Fixture { App = await LoginTestApp.CreateAsync() }; f.Client = f.App.Client();
-            await f.App.LoginAsync(f.Client); await LoginTestApp.CsrfAsync(f.Client);
-            async Task<JsonObject> Send(string path, object input)
-            {
-                using var response = await f.Client.PostAsJsonAsync(path, input); Assert.Equal(201, (int)response.StatusCode);
-                return (await response.Content.ReadFromJsonAsync<JsonObject>())!;
-            }
-            f.Ledger = (await Send("/ledgers", new { requestId = Guid.NewGuid(), name = "家計簿" }))["ledgerId"]!.GetValue<string>();
-            async Task<string> Person(string name) => (await Send($"/ledgers/{f.Ledger}/people", new { requestId = Guid.NewGuid(), name }))["people"]!.AsArray().Single(p => p!["name"]!.GetValue<string>() == name)!["personId"]!.GetValue<string>();
-            f.Owner = await Person("父"); f.Other = await Person("母");
-            async Task<string> Payment(string owner) => (await Send($"/ledgers/{f.Ledger}/payment-methods", new { requestId = Guid.NewGuid(), ownerPersonId = owner, name = "現金" }))["paymentMethodId"]!.GetValue<string>();
-            f.Payment = await Payment(f.Owner); f.OtherPayment = await Payment(f.Other);
-            async Task<string> Category(string name) => (await Send($"/ledgers/{f.Ledger}/categories", new { requestId = Guid.NewGuid(), name, incomeExpense = "Expense", taxCategoryCode = "Standard" }))["categoryId"]!.GetValue<string>();
-            f.Category = await Category("食費"); f.OtherCategory = await Category("日用品");
-            f.App.Database.Execute($"INSERT INTO tax_rate_history(id,tax_category_code,valid_from,rate,revision) VALUES('{Guid.NewGuid():N}','Standard','2026-01-01','10','{Guid.NewGuid():N}')");
-            return f;
-        }
-        public JsonObject Input() => JsonSerializer.SerializeToNode(new
-        {
-            requestId = Guid.NewGuid().ToString("D"), transactionAt = "2026-11-10T12:34:56", shopName = "店舗", shopLocation = (string?)null,
-            paymentMethodId = D(Payment), taxInclusionMode = 1, taxRoundingMode = "floor", recurrenceInterval = (int?)null, recurrenceUnit = (string?)null, memo = (string?)null,
-            groups = new[] { new { categoryId = D(Category), memo = (string?)null, details = new[] { new {
-                displayOrder = 0, name = "明細", unitPrice = 100, quantity = 1, unitDiscountAmount = 0, discountRate = "0", taxRate = "10",
-                expenseType = "Variable", occurrenceType = "Irregular", memo = (string?)null, personIds = new[] { D(Other), D(Owner) }
-            } } } }
-        })!.AsObject();
-        public JsonObject Update(JsonObject detail)
-        {
-            var result = detail.DeepClone().AsObject(); result.Remove("receiptId"); result["requestId"] = Guid.NewGuid().ToString("D"); return result;
-        }
-        public async Task<string> CreateReceipt(JsonObject input)
-        {
-            using var response = await Client.PostAsJsonAsync(Root, input);
-            var body = await response.Content.ReadAsStringAsync(); Assert.True(response.StatusCode == HttpStatusCode.Created, body);
-            Assert.Empty(body); return response.Headers.Location!.OriginalString.Split('/').Last();
-        }
-        public async Task<JsonObject> Get(string id) => (await Call("GET", null, 200, "/" + id))!;
-        public async Task<JsonObject?> Call(string method, JsonObject? input, int expected, string suffix = "")
-        {
-            using var request = new HttpRequestMessage(new HttpMethod(method), Root + suffix);
-            if (input is not null) request.Content = JsonContent.Create(input);
-            using var response = await Client.SendAsync(request); var body = await response.Content.ReadAsStringAsync();
-            Assert.True((int)response.StatusCode == expected, $"Expected {expected}, got {(int)response.StatusCode}: {body}");
-            if (expected is 201 or 204) { Assert.Empty(body); return null; }
-            return JsonNode.Parse(body)!.AsObject();
-        }
-        public string Snapshot() => App.Database.Snapshot(App.Database.Tables());
-        public string BusinessSnapshot() => App.Database.Snapshot(new[] { "ledger_receipts", "ledger_receipt_groups", "ledger_receipt_details", "ledger_receipt_detail_people" });
-        public void Role(string role, string? person = null) => App.Database.Execute($"UPDATE ledger_members SET role='{role}',person_id={(person is null ? "NULL" : "'" + person + "'")} WHERE ledger_id='{Ledger}' AND auth_user_id='{App.UserId}'");
-        public async ValueTask DisposeAsync() { Client.Dispose(); await App.DisposeAsync(); }
-    }
 }

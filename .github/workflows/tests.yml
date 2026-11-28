@@ -194,16 +194,22 @@ jobs:
         if: needs.changes.outputs.api == 'true'
         with:
           scope: api
-      - run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+      - name: Run API tests and record timings
         if: needs.changes.outputs.api == 'true'
+        run: >-
+          dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release
+          --logger "trx;LogFileName=api.trx" --results-directory "$RUNNER_TEMP/api-test-results"
+      - name: Summarize API test timings
+        if: ${{ !cancelled() && needs.changes.outputs.api == 'true' }}
+        run: python3 tests/Monetail.Api.Tests/summarize-trx.py "$RUNNER_TEMP/api-test-results/api.trx" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && needs.changes.outputs.api == 'true' }}
+        with:
+          name: api-test-results
+          path: ${{ runner.temp }}/api-test-results/api.trx
+          if-no-files-found: error
       - run: node --test tests/Monetail.Api.Tests/registration-ui.test.js
         if: needs.changes.outputs.api == 'true'
-      - uses: ./.github/actions/ci-proof
-        if: needs.changes.outputs.api == 'true'
-        with:
-          mode: save
-          check: api
-          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).api }}
       - run: |
           docker compose config --quiet
           docker compose --env-file deploy/docker/server.env.example -f compose.yaml -f deploy/docker/compose.server.yaml config --quiet
@@ -307,6 +313,18 @@ jobs:
         run: dotnet test tests/Monetail.Api.Tests/Monetail.Api.Tests.csproj --configuration Release --filter "FullyQualifiedName~ReceiptParityTests"
         env:
           MONETAIL_LEGACY_PARITY_RESULTS: ${{ runner.temp }}/receipt-parity.json
+
+  api-success:
+    needs: [changes, api-foundation, receipt-calculation-parity]
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ci-proof
+        with:
+          mode: save
+          check: api
+          fingerprint: ${{ fromJSON(needs.changes.outputs.fingerprints).api }}
 
   windows-persistence-and-ui:
     needs: changes

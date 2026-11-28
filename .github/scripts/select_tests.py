@@ -140,7 +140,8 @@ def selected_inputs(paths, *, strict=True):
         if path.startswith("HouseholdAccountsBeta/"):
             enable("windows_build")
         if any(matches(path, pattern) for pattern in calculation_inputs):
-            enable("calculations")
+            # 旧VBの実出力照合もAPI成功記録の検証入力。
+            enable("calculations", "api")
         if any(matches(path, pattern) for pattern in windows_inputs):
             enable("windows_tests")
         if (path.startswith("tests/CalculationTests/") or

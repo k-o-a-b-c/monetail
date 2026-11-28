@@ -5,16 +5,17 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferListApiTests
 {
     [Theory]
     [InlineData("Admin")] [InlineData("Editor")] [InlineData("Viewer")]
     public async Task TransferFocusAllowsAllMemberRolesWithoutPersonMapping(string role)
     {
-        await using var f = await Fixture.Create(); var id = SeedTransferList(f, 1)[0]; f.Role(role); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var id = SeedTransferList(f, 1)[0]; f.Role(role); var before = f.Snapshot();
         var page = await TransferPage(f, "month=all&focusTransferId=" + D(id));
         Assert.Equal(D(id), Assert.Single(page["transfers"]!.AsArray())!["transferId"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
     }
@@ -23,7 +24,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("member", 404)] [InlineData("expire", 401)] [InlineData("deleted", 404)] [InlineData("store", 503)]
     public async Task TransferFocusNeverLeaksRowsAfterTargetLookupWhenAccessOrTargetChanges(string kind, int status)
     {
-        await using var f = await Fixture.Create(); var id = SeedTransferList(f, 3)[1]; var mutation = new FocusReadMutation(f.App.Time, kind, id);
+        await using var f = await RecordApiFixture.Create(); var id = SeedTransferList(f, 3)[1]; var mutation = new FocusReadMutation(f.App.Time, kind, id);
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); var before = f.Snapshot(); mutation.Armed = true;
@@ -35,7 +36,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferFocusUsesInclusiveKeysetBoundaryAndExistingIndexWithoutOffset()
     {
-        await using var f = await Fixture.Create(); var id = SeedTransferList(f, 1001)[500]; var capture = new TransferListCommandCapture();
+        await using var f = await RecordApiFixture.Create(); var id = SeedTransferList(f, 1001)[500]; var capture = new TransferListCommandCapture();
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
             services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(capture))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); var before = f.Snapshot();

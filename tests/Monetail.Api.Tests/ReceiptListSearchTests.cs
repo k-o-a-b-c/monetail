@@ -1,17 +1,18 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptListApiTests
 {
     [Theory]
     [InlineData("2026-11", 2)] [InlineData("2026-12", 1)] [InlineData("2027-01", 1)]
     [InlineData("2024-02", 1)] [InlineData("all", 7)] [InlineData("0001-01", 1)] [InlineData("9999-12", 1)]
     public async Task ListMonthUsesInclusiveCalendarBoundariesAndAll(string month, int expected)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var dates = new[] { "2026-11-01T00:00:00", "2026-11-30T23:59:59", "2026-12-31T23:59:59", "2027-01-01T00:00:00",
             "2024-02-29T23:59:59", "0001-01-01T00:00:00", "9999-12-31T23:59:59" };
         for (var i = 0; i < dates.Length; i++) SeedList(f, 1, at: dates[i], start: i);
@@ -26,7 +27,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("100%_店", "%_")] [InlineData("O'Brien", "'B")]
     public async Task ListShopSearchNormalizesBothSidesAndUsesLiteralSubstring(string shop, string search)
     {
-        await using var f = await Fixture.Create(); SeedList(f, 1, shop: "前" + shop + "後"); SeedList(f, 1, shop: "対象外", start: 1);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 1, shop: "前" + shop + "後"); SeedList(f, 1, shop: "対象外", start: 1);
         var before = f.Snapshot(); var culture = CultureInfo.CurrentCulture;
         try
         {
@@ -42,14 +43,14 @@ public sealed partial class ReceiptApiTests
     [InlineData("は", "ば")] [InlineData("ABC DEF", "abcdef")] [InlineData("スーパー", "コンビニ")]
     public async Task ListSearchDoesNotRemoveVoicingSpacesOrInventSynonyms(string shop, string search)
     {
-        await using var f = await Fixture.Create(); SeedList(f, 1, shop: shop);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 1, shop: shop);
         Assert.Empty((await ListPage(f, "month=all&q=" + Uri.EscapeDataString(search)))["receipts"]!.AsArray());
     }
 
     [Fact]
     public async Task ListPayerPaymentAndShopConditionsAreAndedBeforePaging()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var ids = SeedList(f, 201, shop: "スーパー"); SeedList(f, 3, f.OtherPayment, shop: "スーパー", start: 1000);
         SeedList(f, 4, shop: "薬局", start: 2000); SeedList(f, 5, at: "2026-12-01T00:00:00", shop: "スーパー", start: 3000);
         var owner = "&ownerPersonId=" + D(f.Owner); var payment = "&paymentMethodId=" + D(f.Payment);
@@ -68,7 +69,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ListSearchFiltersTheWholeResultAndDoesNotAddAnInputLengthLimit()
     {
-        await using var f = await Fixture.Create(); SeedList(f, 201, shop: "対象外", start: 1000); SeedList(f, 1, shop: "一致");
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 201, shop: "対象外", start: 1000); SeedList(f, 1, shop: "一致");
         var rows = (await ListPage(f, "month=all&q=" + Uri.EscapeDataString("一致")))["receipts"]!.AsArray(); Assert.Single(rows);
         Assert.Empty((await ListPage(f, "month=all&q=" + new string('a', 1001)))["receipts"]!.AsArray());
         Assert.Equal(100, (await ListPage(f, "month=all&q="))["receipts"]!.AsArray().Count);
@@ -80,7 +81,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("month=all&q=x&q=y")] [InlineData("month=all&ownerPersonId=bad")] [InlineData("month=all&paymentMethodId=")]
     public async Task ListRejectsMalformedOrAdditionalQueryInputs(string query)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         Assert.Equal("invalid_input", (await ListPage(f, query, 400))["code"]!.GetValue<string>());
     }
 }

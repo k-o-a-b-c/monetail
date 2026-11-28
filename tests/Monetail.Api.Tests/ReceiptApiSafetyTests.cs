@@ -3,10 +3,11 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptWriteApiTests
 {
     [Theory]
     [InlineData("tax", "POST")] [InlineData("category", "POST")] [InlineData("payment", "POST")] [InlineData("owner", "POST")] [InlineData("person", "POST")] [InlineData("expense", "POST")]
@@ -15,7 +16,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("tax", "value")] [InlineData("category", "value")] [InlineData("payment", "value")] [InlineData("owner", "value")] [InlineData("person", "value")] [InlineData("expense", "value")]
     public async Task MasterChangedRequiresSavedUnchangedDayAndRelevantValue(string kind, string mode)
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input());
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input());
         var input = mode == "POST" ? f.Input() : f.Update(await f.Get(id));
         if (mode == "date") input["transactionAt"] = "2026-11-11T12:34:56";
         var payment = f.Payment; var person = kind == "person" ? f.Other : f.Owner; var category = f.Category;
@@ -50,7 +51,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task MalformedChangedTaxStringIsNormalInputErrorAndNotAnUnhandledMasterError()
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id));
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id));
         Line(input)["taxRate"] = "not-a-number"; var before = f.Snapshot();
         var error = (await f.Call("PUT", input, 400, "/" + id))!; Assert.Equal("groups[0].details[0].taxRate", error["field"]!.GetValue<string>());
         Assert.False(error.ContainsKey("reason")); Assert.Equal(before, f.Snapshot());
@@ -63,7 +64,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("POST", "member")] [InlineData("PUT", "member")] [InlineData("DELETE", "member")]
     public async Task AuthorizationChangesDuringSaveRollBackEntireTreeAndOperationRecord(string method, string change)
     {
-        await using var f = await Fixture.Create(); string id = ""; var input = f.Input();
+        await using var f = await RecordApiFixture.Create(); string id = ""; var input = f.Input();
         if (method != "POST")
         {
             id = await f.CreateReceipt(input); var row = await f.Get(id);
@@ -89,7 +90,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("ledger_receipt_detail_people")] [InlineData("operation_requests")]
     public async Task CreateFailureAtEveryLayerLeavesNoPartialData(string table)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         f.App.Database.Execute($"CREATE TRIGGER fail_write BEFORE INSERT ON {table} BEGIN SELECT RAISE(ABORT,'synthetic_failure'); END");
         var before = f.Snapshot(); var error = (await f.Call("POST", f.Input(), 503))!;
         Assert.Equal("store_unavailable", error["code"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
@@ -100,7 +101,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("PUT", "ignore")] [InlineData("DELETE", "ignore")]
     public async Task UpdateDeleteFailuresAndCasIgnoreRestoreFullPreviousTree(string method, string kind)
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
         var input = method == "PUT" ? f.Update(row) : new JsonObject { ["requestId"] = Guid.NewGuid().ToString("D"), ["revision"] = row["revision"]!.GetValue<string>() };
         if (method == "PUT") Line(input)["unitPrice"] = 200;
         var action = kind == "record" ? "INSERT" : method == "PUT" ? "UPDATE" : "DELETE";
@@ -114,7 +115,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task MasterChangeAfterBusinessWritesIsRevalidatedBeforeCommit()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         f.App.Database.Execute("CREATE TRIGGER change_rates AFTER INSERT ON operation_requests WHEN NEW.operation_type='receipt.create' BEGIN DELETE FROM tax_rate_history; END");
         var before = f.Snapshot(); var error = (await f.Call("POST", f.Input(), 400))!;
         Assert.False(error.ContainsKey("reason")); Assert.Equal(before, f.Snapshot());
@@ -123,7 +124,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task MasterMutationApisProtectReferencedPeoplePaymentsAndCategoryIncome()
     {
-        await using var f = await Fixture.Create(); await f.CreateReceipt(f.Input());
+        await using var f = await RecordApiFixture.Create(); await f.CreateReceipt(f.Input());
         async Task Check(string route, JsonObject request, HttpStatusCode status, string? code = null, string? field = null)
         {
             var before = f.Snapshot();
@@ -153,7 +154,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ActualForeignLedgerReferencesAndReceiptScopeReturn404WithoutLeakingRows()
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input());
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input());
         async Task<JsonObject> Post(string path, object body)
         {
             using var response = await f.Client.PostAsJsonAsync(path, body); Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -177,7 +178,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task DifferentActorCannotReuseSuccessfulRequestId()
     {
-        await using var f = await Fixture.Create(); var input = f.Input(); await f.CreateReceipt(input);
+        await using var f = await RecordApiFixture.Create(); var input = f.Input(); await f.CreateReceipt(input);
         var account = await f.App.AddAccountAsync();
         f.App.Database.Execute($"INSERT INTO ledger_members(ledger_id,auth_user_id,role,joined_at_utc,revision,person_id) VALUES('{f.Ledger}','{account.UserId}','Admin','2026-11-10','{Guid.NewGuid():N}',NULL)");
         using var other = f.App.Client(); var options = await f.App.BeginAsync(other);
@@ -190,7 +191,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task DetailOrderingExemptZeroAndEmptyPersonArraysFollowTheContract()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         f.App.Database.Execute($"INSERT INTO tax_rate_history(id,tax_category_code,valid_from,rate,revision) VALUES('{Guid.NewGuid():N}','ReducedFood','2026-01-01','0','{Guid.NewGuid():N}')");
         var input = f.Input(); var line = Line(input); line["taxRate"] = null; line["personIds"] = new JsonArray(); line["displayOrder"] = 2;
         var zero = line.DeepClone().AsObject(); zero["taxRate"] = "0"; zero["displayOrder"] = 0; Group(input)["details"]!.AsArray().Add(zero);
@@ -202,7 +203,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task DuplicateJsonKeysAndInvalidUrlUuidsAreRejected()
     {
-        await using var f = await Fixture.Create(); var text = f.Input().ToJsonString().Replace("\"shopName\":", "\"shopName\":\"duplicate\",\"shopName\":");
+        await using var f = await RecordApiFixture.Create(); var text = f.Input().ToJsonString().Replace("\"shopName\":", "\"shopName\":\"duplicate\",\"shopName\":");
         var before = f.Snapshot(); using var content = new StringContent(text, Encoding.UTF8, "application/json");
         using var response = await f.Client.PostAsync(f.Root, content); Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(before, f.Snapshot()); await f.Call("GET", null, 400, "/not-a-uuid");

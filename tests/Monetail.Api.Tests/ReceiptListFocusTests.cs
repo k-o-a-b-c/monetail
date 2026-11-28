@@ -2,15 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptListApiTests
 {
     [Fact]
     public async Task ReceiptFocusStartsAtTargetAndContinuesWithOrdinaryCursorWithoutChangingData()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var ids = SeedList(f, 250, shop: "ＡＢＣ店舗");
         var query = "month=2026-11&ownerPersonId=" + D(f.Owner) + "&paymentMethodId=" + D(f.Payment) + "&q=abc";
         var before = f.Snapshot();
@@ -32,7 +33,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ReceiptFocusMissingTargetReturnsCommonNotFoundWithoutChangingData()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         SeedList(f, 1);
         var before = f.Snapshot();
         var error = await ListPage(f, "month=all&focusReceiptId=" + Guid.NewGuid().ToString("D"), 404);
@@ -49,7 +50,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(201)]
     public async Task ReceiptFocusIncludesEqualTimeTargetAtPageBoundariesAndAcceptsUppercaseD(int number)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var ids = SeedList(f, 201);
         var before = f.Snapshot();
         var page = await ListPage(f, "month=all&focusReceiptId=" + D(ids[number - 1]).ToUpperInvariant());
@@ -63,7 +64,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ReceiptFocusUsesTransactionTimeBeforeIdAndNeverReturnsNewerTransfers()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var older = SeedList(f, 101, at: "2026-11-01T00:00:00", start: 1000);
         var newer = SeedList(f, 101, at: "2026-11-30T23:59:59");
         var before = f.Snapshot();
@@ -86,7 +87,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("empty-cursor")]
     public async Task ReceiptFocusInvalidIdsDuplicatesAndCursorCombinationAreInputErrors(string kind)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = SeedList(f, 1)[0];
         var normal = D(id);
         var value = kind switch
@@ -122,7 +123,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("deleted")]
     public async Task ReceiptFocusOutOfScopeAndDeletedTargetAreIndistinguishableFromMissing(string kind)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = SeedList(f, 2, shop: "ＡＢＣ店舗")[1];
         var query = kind switch
         {
@@ -147,7 +148,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ReceiptFocusNeverFindsTargetInAnotherLedgerAndTransferApiRejectsReceiptFocus()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         SeedList(f, 1);
         using var create = await f.Client.PostAsJsonAsync("/ledgers", new
         {
@@ -174,7 +175,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ReceiptFocusKeepsExistingSharedReadLimit()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = SeedList(f, 1)[0];
         var before = f.Snapshot();
         for (var i = 0; i < 120; i++)
@@ -192,7 +193,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("removed")]
     public async Task ReceiptFocusChecksAuthenticationAndMembershipBeforeDisclosingTarget(string kind)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = SeedList(f, 1)[0];
         using var anonymous = f.App.Client();
         if (kind == "expired")

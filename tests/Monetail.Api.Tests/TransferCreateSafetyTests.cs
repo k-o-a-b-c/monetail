@@ -8,16 +8,17 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferCreateApiTests
 {
     [Theory]
     [InlineData("amount")] [InlineData("name")] [InlineData("memo")] [InlineData("operation")] [InlineData("ledger")]
     public async Task TransferCreateRequestIdCannotBeReusedForDifferentContentOperationOrLedger(string kind)
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f); await CreateTransfer(f, input); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f); await CreateTransfer(f, input); var before = f.Snapshot();
         if (kind == "operation")
         {
             var receipt = f.Input(); receipt["requestId"] = input["requestId"]!.GetValue<string>(); Assert.Equal("request_conflict", (await f.Call("POST", receipt, 409))!["code"]!.GetValue<string>());
@@ -40,7 +41,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferCreateDifferentActorCannotReuseSuccessRecord()
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f); await CreateTransfer(f, input); var account = await f.App.AddAccountAsync();
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f); await CreateTransfer(f, input); var account = await f.App.AddAccountAsync();
         f.App.Database.Execute($"INSERT INTO ledger_members(ledger_id,auth_user_id,role,joined_at_utc,revision) VALUES('{f.Ledger}','{account.UserId}','Admin','2026-11-10','{Guid.NewGuid():N}')");
         using var client = f.App.Client(); var options = await f.App.BeginAsync(client); using var login = await f.App.VerifyAsync(client, f.App.AssertionFor(options, account.UserId, account.CredentialId)); Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         await LoginTestApp.CsrfAsync(client); var before = f.Snapshot();
@@ -50,7 +51,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferCreateConcurrentSameRequestCommitsOnlyOneTransferAndRecord()
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f);
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f);
         var responses = await Task.WhenAll(f.Client.PostAsJsonAsync(TransferRoot(f), input), f.Client.PostAsJsonAsync(TransferRoot(f), input));
         try
         {
@@ -65,7 +66,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferCreateConcurrentRequestIdWithDifferentBodyHasOnlyOneWinner()
     {
-        await using var f = await Fixture.Create(); var a = TransferInput(f); var b = a.DeepClone().AsObject(); b["amount"] = 2;
+        await using var f = await RecordApiFixture.Create(); var a = TransferInput(f); var b = a.DeepClone().AsObject(); b["amount"] = 2;
         var responses = await Task.WhenAll(f.Client.PostAsJsonAsync(TransferRoot(f), a), f.Client.PostAsJsonAsync(TransferRoot(f), b));
         try { Assert.Equal(new[] { 201, 409 }, responses.Select(r => (int)r.StatusCode).Order()); }
         finally { foreach (var response in responses) response.Dispose(); }
@@ -75,7 +76,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferCreateReplaySurvivesRestartAndDoesNotRecreateDeletedResult()
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f); var location = await CreateTransfer(f, input); var id = Guid.Parse(location.Split('/').Last()).ToString("N");
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f); var location = await CreateTransfer(f, input); var id = Guid.Parse(location.Split('/').Last()).ToString("N");
         f.App.Database.Execute($"DELETE FROM ledger_transfers WHERE transfer_id='{id}'");
         using var host = f.App.NewFactory(); using var client = f.App.Client(host); await f.App.LoginAsync(client); await LoginTestApp.CsrfAsync(client); var before = f.Snapshot();
         Assert.Equal(location, await CreateTransfer(f, input, client)); Assert.Equal(before, f.Snapshot()); Assert.Equal(0L, f.App.Database.Scalar("SELECT count(*) FROM ledger_transfers"));
@@ -85,7 +86,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("role", 403)] [InlineData("mapping", 403)] [InlineData("member", 404)] [InlineData("session", 401)]
     public async Task TransferCreateReplayStillRequiresCurrentPermission(string change, int status)
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f); input["toPaymentMethodId"] = D(await OwnTransferPayment(f)); f.Role("Editor", f.Owner); await CreateTransfer(f, input);
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f); input["toPaymentMethodId"] = D(await OwnTransferPayment(f)); f.Role("Editor", f.Owner); await CreateTransfer(f, input);
         f.App.Database.Execute(change switch { "role" => "UPDATE ledger_members SET role='Viewer'", "mapping" => $"UPDATE ledger_members SET person_id='{f.Other}'", "member" => "DELETE FROM ledger_members", _ => "UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc" });
         var before = f.Snapshot(); using var response = await f.Client.PostAsJsonAsync(TransferRoot(f), input); Assert.Equal(status, (int)response.StatusCode); Assert.Null(response.Headers.Location); Assert.Equal(before, f.Snapshot());
     }
@@ -94,7 +95,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("ledger_transfers")] [InlineData("operation_requests")]
     public async Task TransferCreateFailureAtEitherInsertRollsBackBothRecords(string table)
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f); f.App.Database.Execute($"CREATE TRIGGER transfer_fail BEFORE INSERT ON {table} BEGIN SELECT RAISE(ABORT,'synthetic_failure'); END"); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f); f.App.Database.Execute($"CREATE TRIGGER transfer_fail BEFORE INSERT ON {table} BEGIN SELECT RAISE(ABORT,'synthetic_failure'); END"); var before = f.Snapshot();
         Assert.Equal("store_unavailable", (await TransferCreateError(f, input, 503))["code"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
     }
 
@@ -107,7 +108,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("ledger_transfers", "person-from", 400)] [InlineData("operation_requests", "person-to", 400)]
     public async Task TransferCreateRechecksCurrentRightsAndBothMastersBeforeCommit(string table, string change, int status)
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f); input["toPaymentMethodId"] = D(await OwnTransferPayment(f)); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f); input["toPaymentMethodId"] = D(await OwnTransferPayment(f)); f.Role("Editor", f.Owner);
         var mutation = change switch
         {
             "role" => "UPDATE ledger_members SET role='Viewer'", "mapping" => $"UPDATE ledger_members SET person_id='{f.Other}'", "member" => "DELETE FROM ledger_members",
@@ -123,26 +124,11 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferCreateRechecksOwnerAfterOperationRecordInsert()
     {
-        await using var f = await Fixture.Create(); var input = TransferInput(f); input["toPaymentMethodId"] = D(await OwnTransferPayment(f)); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var input = TransferInput(f); input["toPaymentMethodId"] = D(await OwnTransferPayment(f)); f.Role("Editor", f.Owner);
         var mutation = new TransferOwnerMutation(f.Other, f.Payment);
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); await LoginTestApp.CsrfAsync(client); var before = f.Snapshot(); mutation.Armed = true;
         await TransferCreateError(f, input, 403, client); Assert.False(mutation.Armed); Assert.Equal(before, f.Snapshot());
     }
 
-    private sealed class TransferOwnerMutation(string owner, string payment) : DbCommandInterceptor
-    {
-        public bool Armed { get; set; }
-        public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken token = default)
-        {
-            if (Armed && command.CommandText.Contains("INSERT INTO \"operation_requests\"", StringComparison.Ordinal))
-            {
-                Armed = false; using var mutate = command.Connection!.CreateCommand(); mutate.Transaction = command.Transaction;
-                // 本番は所有者変更禁止トリガーでも保護する。検証中の同一Txだけで外し、サービスの再照合も確認する。
-                mutate.CommandText = $"DROP TRIGGER trg_ledger_payment_methods_owner_immutable; UPDATE ledger_payment_methods SET owner_person_id='{owner}',name='所有者変更検証用' WHERE payment_method_id='{payment}'";
-                await mutate.ExecuteNonQueryAsync(token);
-            }
-            return result;
-        }
-    }
 }

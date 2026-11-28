@@ -3,15 +3,16 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptWriteApiTests
 {
     [Fact]
     public async Task PermissionIdentifiersAlsoUseDFormatAtReceiptBoundary()
     {
-        await using var f = await Fixture.Create(); f.Role("Editor", f.Other);
+        await using var f = await RecordApiFixture.Create(); f.Role("Editor", f.Other);
         var error = (await f.Call("POST", f.Input(), 403))!;
         Assert.Equal(D(f.Other), error["permissions"]!["myPersonId"]!.GetValue<string>());
     }
@@ -23,7 +24,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("Admin", "DELETE", false, 204)] [InlineData("Editor", "DELETE", true, 204)] [InlineData("Editor", "DELETE", false, 403)] [InlineData("Viewer", "DELETE", false, 403)]
     public async Task LedgerRolesAndOwnerMappingAreAuthoritative(string role, string method, bool mapped, int status)
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
         f.Role(role, mapped ? f.Owner : null); var before = f.Snapshot();
         var body = method == "POST" ? f.Input() : method == "PUT" ? f.Update(row) : new JsonObject { ["requestId"] = Guid.NewGuid().ToString("D"), ["revision"] = row["revision"]!.GetValue<string>() };
         await f.Call(method, method == "GET" ? null : body, status, method == "POST" ? "" : "/" + id);
@@ -34,7 +35,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(true)] [InlineData(false)]
     public async Task EditorMustOwnBothOldAndNewPaymentMethods(bool ownOld)
     {
-        await using var f = await Fixture.Create(); var initial = f.Input();
+        await using var f = await RecordApiFixture.Create(); var initial = f.Input();
         if (!ownOld) initial["paymentMethodId"] = D(f.OtherPayment);
         var id = await f.CreateReceipt(initial); var input = f.Update(await f.Get(id));
         input["paymentMethodId"] = D(ownOld ? f.OtherPayment : f.Payment); f.Role("Editor", f.Owner); var before = f.Snapshot();
@@ -45,7 +46,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(true)] [InlineData(false)]
     public async Task RepeatedExistingChildIdsAreInputErrorsNotMissingResources(bool group)
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id));
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id));
         if (group)
         {
             var copy = Group(input).DeepClone().AsObject(); copy["categoryId"] = D(f.OtherCategory); input["groups"]!.AsArray().Add(copy);
@@ -58,7 +59,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task SnapshotUpdateAddsDeletesMovesAndPreservesExistingChildIds()
     {
-        await using var f = await Fixture.Create(); var input = f.Input();
+        await using var f = await RecordApiFixture.Create(); var input = f.Input();
         var second = Group(input).DeepClone().AsObject(); second["categoryId"] = D(f.OtherCategory);
         second["details"]![0]!["unitPrice"] = 200; input["groups"]!.AsArray().Add(second);
         var id = await f.CreateReceipt(input); var old = await f.Get(id);
@@ -78,7 +79,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("POST")] [InlineData("PUT")] [InlineData("DELETE")]
     public async Task ReplaysAreExactAndDifferentContentOrOperationConflicts(string method)
     {
-        await using var f = await Fixture.Create(); var input = f.Input(); string id;
+        await using var f = await RecordApiFixture.Create(); var input = f.Input(); string id;
         if (method == "POST") id = await f.CreateReceipt(input);
         else
         {
@@ -99,7 +100,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ReplayAfterTargetDeletionReturnsPriorPostAndPutStatus()
     {
-        await using var f = await Fixture.Create(); var create = f.Input(); var id = await f.CreateReceipt(create); var put = f.Update(await f.Get(id));
+        await using var f = await RecordApiFixture.Create(); var create = f.Input(); var id = await f.CreateReceipt(create); var put = f.Update(await f.Get(id));
         put["memo"] = "更新"; await f.Call("PUT", put, 204, "/" + id); var latest = await f.Get(id);
         await f.Call("DELETE", new JsonObject { ["requestId"] = Guid.NewGuid().ToString("D"), ["revision"] = latest["revision"]!.GetValue<string>() }, 204, "/" + id);
         var before = f.Snapshot(); await f.Call("POST", create, 201); await f.Call("PUT", put, 204, "/" + id); Assert.Equal(before, f.Snapshot());
@@ -109,7 +110,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("Admin", 204)] [InlineData("Editor", 204)] [InlineData("Viewer", 403)] [InlineData("removed", 404)]
     public async Task DeleteReplayUsesCurrentRoleWithoutOldOwnerMapping(string role, int status)
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
         var request = new JsonObject { ["requestId"] = Guid.NewGuid().ToString("D"), ["revision"] = row["revision"]!.GetValue<string>() };
         await f.Call("DELETE", request, 204, "/" + id);
         if (role == "removed") f.App.Database.Execute("DELETE FROM ledger_members"); else f.Role(role);
@@ -120,7 +121,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("PUT")] [InlineData("DELETE")]
     public async Task StaleRevisionReturnsExactFullLatestWithoutChangingData(string method)
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var old = await f.Get(id);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var old = await f.Get(id);
         var first = f.Update(old); first["memo"] = "最新"; await f.Call("PUT", first, 204, "/" + id); var latest = await f.Get(id); var before = f.Snapshot();
         var stale = method == "PUT" ? f.Update(old) : new JsonObject { ["requestId"] = Guid.NewGuid().ToString("D"), ["revision"] = old["revision"]!.GetValue<string>() };
         var conflict = (await f.Call(method, stale, 409, "/" + id))!;
@@ -131,7 +132,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ConcurrentDistinctRequestsCannotOverwriteAStaleRevision()
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var row = await f.Get(id);
         var a = f.Update(row); a["memo"] = "A"; var b = f.Update(row); b["memo"] = "B";
         var responses = await Task.WhenAll(f.Client.PutAsJsonAsync(f.Root + "/" + id, a), f.Client.PutAsJsonAsync(f.Root + "/" + id, b));
         try { Assert.Equal(new[] { 204, 409 }, responses.Select(r => (int)r.StatusCode).Order()); }
@@ -142,7 +143,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ConcurrentSameCreateRequestCommitsOnlyOneTree()
     {
-        await using var f = await Fixture.Create(); var input = f.Input();
+        await using var f = await RecordApiFixture.Create(); var input = f.Input();
         var responses = await Task.WhenAll(f.Client.PostAsJsonAsync(f.Root, input), f.Client.PostAsJsonAsync(f.Root, input));
         try { Assert.All(responses, response => Assert.Equal(HttpStatusCode.Created, response.StatusCode)); }
         finally { foreach (var response in responses) response.Dispose(); }
@@ -154,7 +155,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("category")] [InlineData("payment")] [InlineData("person")] [InlineData("receipt")] [InlineData("group")] [InlineData("detail")]
     public async Task ForeignLedgerAndForeignReceiptIdentifiersAreNeverReparented(string kind)
     {
-        await using var f = await Fixture.Create(); var first = await f.CreateReceipt(f.Input()); var second = await f.CreateReceipt(f.Input());
+        await using var f = await RecordApiFixture.Create(); var first = await f.CreateReceipt(f.Input()); var second = await f.CreateReceipt(f.Input());
         var row = await f.Get(first); var other = await f.Get(second); var input = f.Update(row);
         if (kind == "group") Group(input)["groupId"] = Group(other)["groupId"]!.GetValue<string>();
         else if (kind == "detail") Line(input)["detailId"] = Line(other)["detailId"]!.GetValue<string>();
@@ -170,7 +171,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("peopleDuplicate")] [InlineData("groupsEmpty")] [InlineData("detailsEmpty")] [InlineData("overflow")]
     public async Task InvalidInputNeverWritesOrAddsReplayRecords(string kind)
     {
-        await using var f = await Fixture.Create(); var input = f.Input();
+        await using var f = await RecordApiFixture.Create(); var input = f.Input();
         switch (kind)
         {
             case "requestId": input["requestId"] = Guid.NewGuid().ToString("N"); break;
@@ -196,7 +197,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("anonymous", 401)] [InlineData("csrf", 400)] [InlineData("origin", 403)] [InlineData("member", 404)]
     public async Task ExistingAuthenticationAndCsrfBoundariesAreMaintained(string kind, int status)
     {
-        await using var f = await Fixture.Create(); using var anonymous = f.App.Client(); var client = kind == "anonymous" ? anonymous : f.Client;
+        await using var f = await RecordApiFixture.Create(); using var anonymous = f.App.Client(); var client = kind == "anonymous" ? anonymous : f.Client;
         if (kind == "csrf") client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
         if (kind == "origin") client.DefaultRequestHeaders.Remove("Origin");
         if (kind == "member") f.App.Database.Execute("DELETE FROM ledger_members");

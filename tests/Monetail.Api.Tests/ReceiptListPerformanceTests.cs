@@ -9,15 +9,17 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+[Collection(nameof(RecordQueryPerformanceCollection))]
+public sealed partial class RecordQueryPerformanceTests
 {
     [Fact]
     public async Task ListLargeDatasetUsesKeysetIndexAndMeasuresSelectiveAndNormalizedSearch()
     {
-        await using var f = await Fixture.Create(); SeedList(f, 90000); SeedList(f, 10000, f.OtherPayment, start: 90000);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 90000); SeedList(f, 10000, f.OtherPayment, start: 90000);
         var capture = new ListCommandCapture();
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(capture))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client);

@@ -11,14 +11,14 @@ using Xunit;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptWriteApiTests
 {
     [Theory]
     [InlineData("member", false, 404)] [InlineData("expire", false, 401)]
     [InlineData("owner", true, 403)] [InlineData("member", true, 404)] [InlineData("expire", true, 401)]
     public async Task DetailAndConflictRecheckAccessAfterReadingLatest(string change, bool conflict, int expected)
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id));
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id));
         input["revision"] = Guid.NewGuid().ToString("D"); f.Role("Editor", f.Owner);
         var mutation = new ReceiptReadMutation(f.App.Time, change, f.Other);
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
@@ -33,7 +33,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task NoChangePutStillRollsBackOperationRecordAfterLosingOwnerMapping()
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id)); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input()); var input = f.Update(await f.Get(id)); f.Role("Editor", f.Owner);
         f.App.Database.Execute($"CREATE TRIGGER revoke_noop AFTER INSERT ON operation_requests WHEN NEW.operation_type='receipt.update' BEGIN UPDATE ledger_members SET person_id='{f.Other}'; END");
         var before = f.Snapshot(); await f.Call("PUT", input, 403, "/" + id); Assert.Equal(before, f.Snapshot());
     }
@@ -41,7 +41,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task CommonReadAndWriteLimitsIncludeReceiptEndpoints()
     {
-        await using var f = await Fixture.Create(); var id = await f.CreateReceipt(f.Input());
+        await using var f = await RecordApiFixture.Create(); var id = await f.CreateReceipt(f.Input());
         for (var i = 0; i < 120; i++) await f.Get(id);
         using var read = await f.Client.GetAsync($"/ledgers/{f.Ledger}/people"); Assert.Equal(HttpStatusCode.TooManyRequests, read.StatusCode);
         var created = 0;

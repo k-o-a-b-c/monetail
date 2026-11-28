@@ -1,14 +1,15 @@
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferAutofillApiTests
 {
     [Theory]
     [InlineData(false, false)] [InlineData(false, true)] [InlineData(true, false)] [InlineData(true, true)]
     public async Task TransferAutofillSearchesAllHistoryBeforePickingUsablePairAndUsesExistingIndexes(bool editor, bool specified)
     {
-        await using var f = await Fixture.Create(); var own = await OwnTransferPayment(f); AutofillTransfer(f, 1, f.Payment, own, updated: "2020-01-01 00:00:00");
+        await using var f = await RecordApiFixture.Create(); var own = await OwnTransferPayment(f); AutofillTransfer(f, 1, f.Payment, own, updated: "2020-01-01 00:00:00");
         SeedTransferList(f, 1001, f.OtherPayment, f.Payment, start: 1000); f.App.Database.Execute($"UPDATE ledger_payment_methods SET valid_to='2026-11-09' WHERE payment_method_id='{f.OtherPayment}'"); if (editor) f.Role("Editor", f.Owner);
         var capture = new TransferListCommandCapture(); using var host = HistoryHost(f, capture); using var client = f.App.Client(host); await f.App.LoginAsync(client); var before = f.Snapshot();
         AssertTransferPair(await TransferAutofill(f, TransferAutofillQuery(from: specified ? D(f.Payment) : null), client: client), f.Payment, own);
