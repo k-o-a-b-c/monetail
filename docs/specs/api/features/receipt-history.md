@@ -5,7 +5,8 @@
 ## 1. 対象・関連契約
 
 - 対象：保存済みレシートからの店名・所在地・品名候補の検索、および店名確定時のレシート基本情報の取得の2操作。全パスは `/ledgers/{ledgerId}` の下。
-- 関連契約：[レシートAPI](receipts.md)、[人物](persons.md)、[科目](categories.md)、[支払方法](payment-methods.md)、[家計簿](ledgers.md)、[レシートDB](../../../ledger-receipt-schema.md)、[候補入力・自動補完画面](../../../ledger-receipt-suggestions.md)。
+- 対象外：レシートの保存・削除、マスタの管理、画面での候補表示・補完値の適用。
+- 関連契約：[レシートAPI](receipts.md)、[人物API](persons.md)、[科目API](categories.md)、[支払方法API](payment-methods.md)、[家計簿API](ledgers.md)、[レシートDB](../../../ledger-receipt-schema.md)、[候補入力・自動補完画面](../../../ledger-receipt-suggestions.md)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[共通HTTP境界・回数制限](../../../ledger-core-api.md)。
 
 ## 2. エンドポイントと権限
@@ -54,7 +55,7 @@ GETには要求本文を必要としない。パスとクエリのUUIDは[レシ
 
 ## 5. 成功応答・並び順
 
-HTTP 200の成功応答はJSONオブジェクトを返す。各JSONオブジェクトは表に列挙した項目のみで構成し、すべて必須キーとする。UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。
+HTTP 200の成功応答はJSONオブジェクトを返す。各JSONオブジェクトは表に列挙した項目のみで構成し、すべて必須キーとする。`null`は表で明記した項目だけに許す。UUIDの応答形式は小文字のN形式（ハイフンなし32桁）。
 
 ### 5.1 履歴候補検索
 
@@ -108,7 +109,7 @@ HTTP 200の成功応答はJSONオブジェクトを返す。各JSONオブジェ�
 
 ### 検証の優先順位
 
-[共通の検証原則](../../../ledger-core-api.md#共通の検証原則)に従う。全操作で受付時の認証を含む共通HTTP境界を適用し、第4節でJSON本文を定義した操作ではJSONメディアタイプ・構文・トップレベルのオブジェクト／許可キーを検証してから、下表の業務処理に進む。
+[共通の検証原則](../../../ledger-core-api.md#共通の検証原則)に従う。両操作で受付時の認証を含む共通HTTP境界を適用してから、下表の業務処理に進む。
 
 矢印はエラーの優先順位を示す。同一段階の項目は列挙順を要求しない。業務処理は受付時に認証済みのアカウントを使用する。内部処理やクラス構成は指定しない。
 

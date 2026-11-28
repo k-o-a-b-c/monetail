@@ -6,7 +6,7 @@
 
 - 対象：全家計簿共通の日付別税率履歴の取得。
 - 対象外：税率履歴の登録・更新・削除（運営者の同期CLIで管理し、HTTP書込APIは設けない）、科目の編集、レシートの入力・保存・計算、Clientキャッシュ。
-- 関連契約：[税区分・税率履歴DBと同期CLI](../../../ledger-core-schema.md#shared-tax-history)、[科目API](categories.md)、[レシートAPI](../../../ledger-receipt-api.md)。
+- 関連契約：[税区分・税率履歴DBと同期CLI](../../../ledger-core-schema.md#shared-tax-history)、[科目API](categories.md)、[レシートAPI](receipts.md)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[共通HTTP境界・回数制限](../../../ledger-core-api.md)。
 
 ## 2. エンドポイントと権限
@@ -92,4 +92,4 @@ HTTP 200の成功応答はJSONオブジェクトを返す。各JSONオブジェ�
 
 - 受付時の認証を通過した要求で全履歴を取得する。取得障害時は履歴を返さない。固定HTTPS・ホスト検証・no-storeなど共通HTTP境界を適用する。
 - 履歴は全家計簿で共有し、アカウントによって履歴の集合を変えない。取得操作は税率履歴・家計簿・保存済み取引を変更しない。
-- 税率履歴の取得結果は保存可否の保証ではない。レシート保存時の最新税率履歴による検証と保存済み実税率の扱いは[レシートAPI](../../../ledger-receipt-api.md)に従う。
+- 税率履歴の取得結果は保存可否の保証ではない。レシート保存時の最新税率履歴による検証と保存済み実税率の扱いは[レシートAPI](receipts.md)に従う。

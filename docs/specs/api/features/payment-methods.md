@@ -6,7 +6,7 @@
 
 - 対象：家計簿に属する支払方法の5操作。全パスは `/ledgers/{ledgerId}` の下。
 - 対象外：人物・参加者の管理、レシート・振替・残高・支払メモの固有操作。
-- 関連契約：[支払方法DB・評価額](../../../ledger-core-schema.md)、[人物API](persons.md)、[レシートAPI](../../../ledger-receipt-api.md)、[振替API](../../../ledger-transfer-api.md)、[残高API](../../../ledger-balance-api.md)。
+- 関連契約：[支払方法DB・評価額](../../../ledger-core-schema.md)、[人物API](persons.md)、[レシートAPI](receipts.md)、[振替API](../../../ledger-transfer-api.md)、[残高API](../../../ledger-balance-api.md)。
 - 共通契約：[認証API](../../../auth-api-contract.md)、[セッション保護](../../../auth-session-security.md)、[Windows認証](../../../auth-windows-oauth.md)、[共通HTTP境界・回数制限](../../../ledger-core-api.md)、[共通再送](../../../ledger-operation-retries.md)。
 
 ## 2. エンドポイントと権限
