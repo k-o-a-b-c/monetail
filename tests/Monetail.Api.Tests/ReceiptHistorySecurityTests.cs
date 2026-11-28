@@ -8,10 +8,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptSuggestionsApiTests
 {
     [Theory]
     [InlineData("Admin", "person", "payment", 200)] [InlineData("Editor", "unmap", "payment", 200)]
@@ -21,7 +22,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("Editor", "member", "payment", 404)] [InlineData("Editor", "expire", "payment", 401)] [InlineData("Editor", "revoke", "tax", 401)]
     public async Task HistoryAutofillClearsPaymentAfterMappingOrRoleChangeAndPreservesTax(string role, string change, string phase, int status)
     {
-        await using var f = await Fixture.Create(); f.Role(role == "unmapped" ? "Editor" : role, role == "unmapped" ? null : f.Owner);
+        await using var f = await RecordApiFixture.Create(); f.Role(role == "unmapped" ? "Editor" : role, role == "unmapped" ? null : f.Owner);
         HistoryReceipt(f, 1, "店舗"); HistoryReceipt(f, 2, "店舗", f.OtherPayment, inclusion: 1, rounding: "half_up");
         var interception = new HistoryReadMutation(f.App.Time, change, phase, f.Other, f.Owner);
         using var host = HistoryHost(f, interception); using var client = f.App.Client(host); await f.App.LoginAsync(client); interception.Armed = true;
@@ -39,7 +40,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("member", 404)] [InlineData("expire", 401)] [InlineData("Viewer", 200)]
     public async Task HistorySuggestionsRecheckAccessAfterQuery(string change, int status)
     {
-        await using var f = await Fixture.Create(); HistoryReceipt(f, 1, "店舗");
+        await using var f = await RecordApiFixture.Create(); HistoryReceipt(f, 1, "店舗");
         var interception = new HistoryReadMutation(f.App.Time, change, "suggestions", f.Other, f.Owner);
         using var host = HistoryHost(f, interception); using var client = f.App.Client(host); await f.App.LoginAsync(client); interception.Armed = true;
         var result = await HistoryGet(f, "suggestions", "kind=shopName", status, client); Assert.False(interception.Armed);
@@ -50,7 +51,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("suggestions")] [InlineData("autofill")]
     public async Task HistoryUsesCommonStoreFailureAndDoesNotWrite(string operation)
     {
-        await using var f = await Fixture.Create(); f.Role("Editor", f.Owner); HistoryReceipt(f, 1, "店舗");
+        await using var f = await RecordApiFixture.Create(); f.Role("Editor", f.Owner); HistoryReceipt(f, 1, "店舗");
         var interception = new HistoryReadMutation(f.App.Time, "store", operation == "suggestions" ? "suggestions" : "tax", f.Other, f.Owner);
         using var host = HistoryHost(f, interception); using var client = f.App.Client(host); await f.App.LoginAsync(client); interception.Armed = true;
         var before = f.Snapshot(); var error = await HistoryGet(f, operation, operation == "suggestions" ? "kind=shopName" : AutofillQuery(), 503, client);
@@ -61,14 +62,14 @@ public sealed partial class ReceiptApiTests
     [InlineData("Admin")] [InlineData("Editor")] [InlineData("Viewer")]
     public async Task HistoryAllMembersCanReadCandidatesWithoutAnOwnerMapping(string role)
     {
-        await using var f = await Fixture.Create(); f.Role(role); HistoryReceipt(f, 1, "店舗");
+        await using var f = await RecordApiFixture.Create(); f.Role(role); HistoryReceipt(f, 1, "店舗");
         Assert.Equal(new[] { "店舗" }, Names(await HistoryGet(f, "suggestions", "kind=shopName")));
     }
 
     [Fact]
     public async Task HistoryAnonymousExpiredAndNonmemberCannotReadEitherEndpoint()
     {
-        await using var f = await Fixture.Create(); HistoryReceipt(f, 1, "店舗"); using var anonymous = f.App.Client();
+        await using var f = await RecordApiFixture.Create(); HistoryReceipt(f, 1, "店舗"); using var anonymous = f.App.Client();
         foreach (var suffix in new[] { "receipt-suggestions?kind=shopName", "receipt-autofill?" + AutofillQuery() })
         { using var denied = await anonymous.GetAsync($"/ledgers/{D(f.Ledger)}/" + suffix); Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode); }
         f.App.Database.Execute("DELETE FROM ledger_members");
@@ -80,13 +81,10 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task HistorySharesReadQuotaAcrossSuggestionsAutofillAndList()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         for (var i = 0; i < 60; i++) { await HistoryGet(f, "suggestions", "kind=shopName"); await HistoryGet(f, "autofill", AutofillQuery()); }
         using var response = await f.Client.GetAsync(f.Root + "?month=all"); Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
     }
-
-    private static Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> HistoryHost(Fixture f, DbCommandInterceptor interceptor) =>
-        f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(interceptor))));
 
     private sealed class HistoryReadMutation(LoginTestApp.LoginTime clock, string change, string phase, string other, string owner) : DbCommandInterceptor
     {

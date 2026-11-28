@@ -42,6 +42,9 @@ class FingerprintTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assert_changed(path, "api", "docker", "windows_client", "windows_storage", "winui")
 
+    def test_legacy_comparison_inputs_invalidate_api_proof(self):
+        self.assert_changed("tests/CalculationTests/CalculationTests.vbproj", "api", "calculations")
+
     def test_editorconfig_invalidates_only_csharp_consumers(self):
         self.assert_changed(".editorconfig", "api", "docker", "windows_client", "windows_storage", "winui")
 

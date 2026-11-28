@@ -3,15 +3,16 @@ using System.Diagnostics;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class RecordQueryPerformanceTests
 {
     [Fact]
     public async Task HistoryMeasuresTenThousandReceiptsAndHundredThousandDetailsWithActualPlans()
     {
-        await using var f = await Fixture.Create(); f.Role("Editor", f.Owner); SeedList(f, 10000);
+        await using var f = await RecordApiFixture.Create(); f.Role("Editor", f.Owner); SeedList(f, 10000);
         f.App.Database.Execute($"""
             UPDATE ledger_receipts SET shop_name='店舗'||printf('%03d',rowid%100),shop_location='所在地'||printf('%03d',rowid%200),
               updated_at_utc=strftime('%Y-%m-%d %H:%M:%S','2026-01-01','+'||(rowid%3600)||' seconds');

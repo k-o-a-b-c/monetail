@@ -1,15 +1,16 @@
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptSuggestionsApiTests
 {
     [Fact]
     public async Task HistoryKeepsAllJoinsAndAutofillIsolatedEvenWithSameReceiptIds()
     {
-        await using var f = await Fixture.Create(); f.Role("Admin", f.Owner); var id = HistoryReceipt(f, 1, "店舗", location: "公開所在地"); HistoryDetail(f, id, f.Category, "公開品名");
+        await using var f = await RecordApiFixture.Create(); f.Role("Admin", f.Owner); var id = HistoryReceipt(f, 1, "店舗", location: "公開所在地"); HistoryDetail(f, id, f.Category, "公開品名");
         using var ledger = await f.Client.PostAsJsonAsync("/ledgers", new { requestId = Guid.NewGuid(), name = "別家計簿" });
         var otherLedger = (await ledger.Content.ReadFromJsonAsync<JsonObject>())!["ledgerId"]!.GetValue<string>();
         using var person = await f.Client.PostAsJsonAsync($"/ledgers/{otherLedger}/people", new { requestId = Guid.NewGuid(), name = "別人物" });
@@ -31,7 +32,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task HistoryParallelSearchesAndAutofillDoNotMixQueryState()
     {
-        await using var f = await Fixture.Create(); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); f.Role("Editor", f.Owner);
         for (var i = 1; i <= 8; i++) { var id = HistoryReceipt(f, i, "店舗" + i, location: "所在地" + i); HistoryDetail(f, id, f.Category, "品名" + i); }
         var before = f.Snapshot();
         await Task.WhenAll(Enumerable.Range(1, 8).Select(async i =>

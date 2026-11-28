@@ -7,23 +7,24 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptListApiTests
 {
     [Theory]
     [InlineData("Admin")] [InlineData("Editor")] [InlineData("Viewer")]
     public async Task ListAllowsEveryCurrentMemberWithoutOwnerMapping(string role)
     {
-        await using var f = await Fixture.Create(); SeedList(f, 1); f.Role(role);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 1); f.Role(role);
         Assert.Single((await ListPage(f, "month=all"))["receipts"]!.AsArray());
     }
 
     [Fact]
     public async Task ListDoesNotExposeReceiptsToAnonymousExpiredOrRemovedMembers()
     {
-        await using var f = await Fixture.Create(); SeedList(f, 101); var cursor = (await ListPage(f, "month=all"))["nextCursor"]!.GetValue<string>();
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 101); var cursor = (await ListPage(f, "month=all"))["nextCursor"]!.GetValue<string>();
         using var anonymous = f.App.Client(); using var denied = await anonymous.GetAsync(f.Root + "?month=all"); Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
         // 全体Adminでも家計簿非参加なら404。カーソルの妥当性も先に公開しない。
         f.App.Database.Execute("DELETE FROM ledger_members");
@@ -39,7 +40,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("member", 404)] [InlineData("expire", 401)] [InlineData("viewer", 200)]
     public async Task ListRechecksCurrentAccessAfterExecutingPageQuery(string kind, int status)
     {
-        await using var f = await Fixture.Create(); SeedList(f, 101);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 101);
         var mutation = new ListReadMutation(f.App.Time, kind);
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); mutation.Armed = true; var before = f.Snapshot();
@@ -51,7 +52,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ListSharesReadRateLimitWithExistingLedgerEndpoints()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         for (var i = 0; i < 120; i++) await ListPage(f, "month=all");
         using var response = await f.Client.GetAsync($"/ledgers/{f.Ledger}/people"); Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
     }
@@ -59,7 +60,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ListKeepsSameReceiptIdsAndForeignMasterFiltersIsolatedByLedger()
     {
-        await using var f = await Fixture.Create(); SeedList(f, 1);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 1);
         using var create = await f.Client.PostAsJsonAsync("/ledgers", new { requestId = Guid.NewGuid(), name = "別家計簿" });
         var otherLedger = (await create.Content.ReadFromJsonAsync<System.Text.Json.Nodes.JsonObject>())!["ledgerId"]!.GetValue<string>();
         using var person = await f.Client.PostAsJsonAsync($"/ledgers/{otherLedger}/people", new { requestId = Guid.NewGuid(), name = "別の人物" });

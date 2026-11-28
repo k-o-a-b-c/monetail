@@ -3,16 +3,17 @@ using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptListApiTests
 {
     [Theory]
     [InlineData("month")] [InlineData("owner")] [InlineData("payment")] [InlineData("q")] [InlineData("q-case")]
     public async Task ListCursorCannotBeReusedWithDifferentSearchConditions(string change)
     {
-        await using var f = await Fixture.Create(); SeedList(f, 101, shop: "スーパーABC");
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 101, shop: "スーパーABC");
         var initial = "month=all&ownerPersonId=" + D(f.Owner) + "&paymentMethodId=" + D(f.Payment) + "&q=ABC";
         var cursor = (await ListPage(f, initial))["nextCursor"]!.GetValue<string>();
         var next = change switch
@@ -31,7 +32,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("")] [InlineData("invalid")] [InlineData("%00")] [InlineData("eyJpZCI6MX0")]
     public async Task ListRejectsMalformedCursorWithoutLeakingData(string cursor)
     {
-        await using var f = await Fixture.Create(); SeedList(f, 1);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 1);
         var error = await ListPage(f, "month=all&cursor=" + cursor, 400); Assert.Equal("invalid_cursor", error["code"]!.GetValue<string>()); Assert.False(error.ContainsKey("receipts"));
     }
 
@@ -39,7 +40,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("tamper")] [InlineData("date")] [InlineData("id")] [InlineData("json")] [InlineData("purpose")] [InlineData("keys")]
     public async Task ListRejectsTamperingAndUnverifiableProtectedPayloads(string change)
     {
-        await using var f = await Fixture.Create(); SeedList(f, 101);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 101);
         var cursor = (await ListPage(f, "month=all"))["nextCursor"]!.GetValue<string>();
         var provider = f.App.Factory.Services.GetRequiredService<IDataProtectionProvider>(); var protector = provider.CreateProtector("Monetail.ReceiptList.Cursor.v1");
         if (change == "tamper") cursor = cursor[..(cursor.Length / 2)] + (cursor[cursor.Length / 2] == 'A' ? 'B' : 'A') + cursor[(cursor.Length / 2 + 1)..];
@@ -57,7 +58,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ListCursorSurvivesHostRestartAndBoundaryDeletionWithoutOffset()
     {
-        await using var f = await Fixture.Create(); var ids = SeedList(f, 101); var page = await ListPage(f, "month=all");
+        await using var f = await RecordApiFixture.Create(); var ids = SeedList(f, 101); var page = await ListPage(f, "month=all");
         var cursor = page["nextCursor"]!.GetValue<string>();
         f.App.Database.Execute($"DELETE FROM ledger_receipts WHERE receipt_id='{ids[1]}'"); // 前ページの末尾が消えても、位置自体で続ける。
         using var host = f.App.NewFactory(); using var client = f.App.Client(host); await f.App.LoginAsync(client);
@@ -68,7 +69,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ListCursorIsBoundToLedgerAndDoesNotExposeAnotherLedger()
     {
-        await using var f = await Fixture.Create(); SeedList(f, 101);
+        await using var f = await RecordApiFixture.Create(); SeedList(f, 101);
         var cursor = (await ListPage(f, "month=all"))["nextCursor"]!.GetValue<string>();
         using var create = await f.Client.PostAsJsonAsync("/ledgers", new { requestId = Guid.NewGuid(), name = "別家計簿" });
         var other = (await create.Content.ReadFromJsonAsync<JsonObject>())!["ledgerId"]!.GetValue<string>();

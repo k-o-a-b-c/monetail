@@ -7,14 +7,14 @@
 | 旧版の計算 | 35 |
 | SQLite移行（税端数・更新版） | 10 |
 | 旧版Windowsの実SQLite・画面・起動設定 | 98 |
-| ASP.NET Core API | 2175 |
+| ASP.NET Core API | 2204 |
 | 登録・ログイン・管理・家計簿招待画面のJavaScript（Node・合成DOM/WebAuthn） | 63 |
 | Windows Client（接続・認証・保存・家計簿・人物・参加者・招待・支払方法・科目・税率履歴・レシート読取/書込・補完・編集モデル・共通計算/税率表示・振替読取/書込/編集モデル・スモーク実行制御） | 1210 |
 | Windows Presentation（接続先設定VM・記録ホーム/管理メニューVM・レシート/振替一覧VM・振替編集VM・レシート編集VM・管理4機能VM・投影・Command・共通ページング・復帰） | 205 |
 | Windowsの実DPAPI・保存 | 3 |
 | WinUI 3の製品起動・画面スモーク（専用入力／既存全画面の2プロセス・39シナリオ） | 2 |
-| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 89 |
-| 合計 | 3890 |
+| CIの実行対象選択・成功結果の再利用・配布条件・税率JSON検証・WinUI構造検査（Python） | 90 |
+| 合計 | 3920 |
 
 <a id="record-home-ownership"></a>
 
@@ -883,7 +883,7 @@ Docker NAS配備はソース`3f5bd7d249d70580e5d2de7464b3dcbe7c364a81`の[CI 416
 
 ## 実行方法（リポジトリ直下）
 
-ブラウザーのスクリプト検証はNode.jsで`node --test tests/Monetail.Api.Tests/registration-ui.test.js`を実行する。DOM・WebAuthn・通信だけを合成し、製品のスクリプト本体を実行する。CIではAPIテストと同じ検証入力に含め、Node検証が失敗した場合はAPIの成功記録を保存しない。
+ブラウザーのスクリプト検証はNode.jsで`node --test tests/Monetail.Api.Tests/registration-ui.test.js`を実行する。DOM・WebAuthn・通信だけを合成し、製品のスクリプト本体を実行する。CIではAPIテストと同じ検証入力に含める。API全件・Node検証・旧VB実計算照合と、同じAPI検証ジョブで必要になったDocker/Compose検証の成功後にだけ、api成功記録を保存する。旧VB実計算照合の入力もapiの指紋に含める。
 
 ```sh
 # .NET 10 / LinuxまたはWindows
@@ -898,6 +898,10 @@ python3 -m unittest discover -s tests -p 'test_*migration.py' -v
 # CI選択
 python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 ```
+
+APIのレシート・振替・マスタ期間のHTTPテストは12の機能別クラスで実行する。各ケースが独立した`RecordApiFixture`でDB・ホスト・認証状態を準備する。xUnitはクラス間で最大2並列とし、レシート一覧・履歴の性能計測2件は専用collectionで他のテストと並行させない。
+
+CIの`api-test-results`に標準TRXを保存し、実行概要にクラス別の件数・ケース時間の合計・最遅20ケースを表示する。ローカルでも `--logger "trx;LogFileName=api.trx" --results-directory /tmp/monetail-api-tests` をAPIテストコマンドに追加し、`python3 tests/Monetail.Api.Tests/summarize-trx.py /tmp/monetail-api-tests/api.trx` で集計できる。ケース時間の合計とCI全体の経過時間は別に比較する。
 
 WinUI 3の製品起動と画面スモークは[専用ワークフロー](../.github/workflows/winui.yml)と[run.ps1](Monetail.WinUI.Smoke/run.ps1)で確認する。通常CIでは画像を取らない。撮影はActionsの「WinUI 3 foundation」を手動実行し、対象ブランチと`capture=true`を指定する。撮影専用ブランチへのpushは不要。 参加者の認証復帰だけを5回反復する調査は、Windowsで`run.ps1`へ`-RepeatParticipantRecovery`を指定する（検証用Appの`--repeat-participant-recovery`）。全画面を反復せず、通常CIは1セットとする。`ui-invoke.txt`の同じinvoke番号で`target/create_peer/get_pattern/invoke_provider/returned`を追跡し、ダイアログのOpened/Closing/Closedと照合する。Invoke方式は[公式のButtonAutomationPeer](https://learn.microsoft.com/en-us/windows/windows-app-sdk/api/winrt/microsoft.ui.xaml.automation.peers.buttonautomationpeer?view=windows-app-sdk-1.8)のInvokeパターンを使用する。
 

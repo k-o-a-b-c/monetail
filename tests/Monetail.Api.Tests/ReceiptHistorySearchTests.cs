@@ -1,9 +1,10 @@
 using System.Text;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptSuggestionsApiTests
 {
     [Theory]
     [InlineData("shopName", 0)] [InlineData("shopName", 100)] [InlineData("shopName", 101)]
@@ -11,7 +12,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("itemName", 0)] [InlineData("itemName", 100)] [InlineData("itemName", 101)]
     public async Task HistoryLimitsDistinctCandidatesAfterSearchingAllHistory(string kind, int count)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         for (var i = 1; i <= count; i++) HistoryCandidate(f, kind, i, "候補" + i.ToString("000"));
         var query = HistoryScope(f, kind); var result = await HistoryGet(f, "suggestions", query);
         Assert.Equal(Math.Min(100, count), Names(result).Length); Assert.Equal(count > 100, result["hasMore"]!.GetValue<bool>());
@@ -27,7 +28,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("shopName")] [InlineData("shopLocation")] [InlineData("itemName")]
     public async Task HistoryUsesMaxParentUpdateUtcAndRawUtf8BinaryTieBreakWithoutWriting(string kind)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var values = new[] { "Z", "a", "あ", "\ue000", "😀" };
         for (var i = 0; i < values.Length; i++) HistoryCandidate(f, kind, i + 1, values[i]);
         Assert.Equal(values, Names(await HistoryGet(f, "suggestions", HistoryScope(f, kind))));
@@ -44,7 +45,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("shopName", "は", "は")] [InlineData("shopLocation", "は", "は")] [InlineData("itemName", "は", "は")]
     public async Task HistoryNormalizesSearchOnlyAndPreservesOriginalDuplicateIdentity(string kind, string search, string expected)
     {
-        await using var f = await Fixture.Create(); var values = new[] { "ABC", "ＡＢＣ", "abc", "かな", "カナ", "ｶﾅ", "は", "ば", "A B", "ABC" };
+        await using var f = await RecordApiFixture.Create(); var values = new[] { "ABC", "ＡＢＣ", "abc", "かな", "カナ", "ｶﾅ", "は", "ば", "A B", "ABC" };
         for (var i = 0; i < values.Length; i++) HistoryCandidate(f, kind, i + 1, values[i]);
         Assert.Equal(expected.Split('|'), Names(await HistoryGet(f, "suggestions", HistoryScope(f, kind) + "&q=" + Uri.EscapeDataString(search))));
     }
@@ -53,7 +54,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("shopName")] [InlineData("shopLocation")] [InlineData("itemName")]
     public async Task HistoryDoesNotAdoptBlankCandidateExclusionOrTrim(string kind)
     {
-        await using var f = await Fixture.Create(); var values = new[] { "", "\t", " " };
+        await using var f = await RecordApiFixture.Create(); var values = new[] { "", "\t", " " };
         for (var i = 0; i < values.Length; i++) HistoryCandidate(f, kind, i + 1, values[i]);
         if (kind == "shopLocation") HistoryReceipt(f, 10, "店舗"); // NULLは文字列候補ではない。
         Assert.Equal(values, Names(await HistoryGet(f, "suggestions", HistoryScope(f, kind))));
@@ -64,7 +65,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("shopLocation")] [InlineData("itemName")]
     public async Task HistoryExactScopeDoesNotBroadenToNormalizedOrSubstringShop(string kind)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var stores = new[] { "ABC", "abc", "ＡＢＣ", "ABC支店", " ABC" };
         for (var i = 0; i < stores.Length; i++)
         {
@@ -74,10 +75,10 @@ public sealed partial class ReceiptApiTests
         Assert.Equal(new[] { kind == "itemName" ? "品名0" : "所在地0" }, Names(await HistoryGet(f, "suggestions", query)));
     }
 
-    private static void HistoryCandidate(Fixture f, string kind, int number, string candidate, string updated = "2026-11-10 12:00:00")
+    private static void HistoryCandidate(RecordApiFixture f, string kind, int number, string candidate, string updated = "2026-11-10 12:00:00")
     {
         var receipt = HistoryReceipt(f, number, kind == "shopName" ? candidate : "店舗", location: kind == "shopLocation" ? candidate : null, updated: updated);
         if (kind == "itemName") HistoryDetail(f, receipt, f.Category, candidate);
     }
-    private static string HistoryScope(Fixture f, string kind) => "kind=" + kind + (kind == "shopName" ? "" : "&shopName=" + Uri.EscapeDataString("店舗")) + (kind == "itemName" ? "&categoryId=" + D(f.Category) : "");
+    private static string HistoryScope(RecordApiFixture f, string kind) => "kind=" + kind + (kind == "shopName" ? "" : "&shopName=" + Uri.EscapeDataString("店舗")) + (kind == "itemName" ? "&categoryId=" + D(f.Category) : "");
 }

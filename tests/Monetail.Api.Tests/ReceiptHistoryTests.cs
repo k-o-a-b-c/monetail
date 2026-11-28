@@ -2,15 +2,16 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptSuggestionsApiTests
 {
     [Fact]
     public async Task HistoryShopSuggestionsNormalizeWithoutMergingOriginalSpellings()
     {
-        await using var f = await Fixture.Create(); HistoryReceipt(f, 1, "スーパー"); HistoryReceipt(f, 2, "ｽｰﾊﾟｰ"); HistoryReceipt(f, 3, "スーパー");
+        await using var f = await RecordApiFixture.Create(); HistoryReceipt(f, 1, "スーパー"); HistoryReceipt(f, 2, "ｽｰﾊﾟｰ"); HistoryReceipt(f, 3, "スーパー");
         var before = f.Snapshot(); var result = await HistoryGet(f, "suggestions", "kind=shopName&q=" + Uri.EscapeDataString("すーぱー"));
         Keys(result, "suggestions", "hasMore"); Assert.Equal(new[] { "スーパー", "ｽｰﾊﾟｰ" }, Names(result)); Assert.False(result["hasMore"]!.GetValue<bool>()); Assert.Equal(before, f.Snapshot());
     }
@@ -18,7 +19,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task HistoryLocationAndItemUseExactShopAndCategoryScopes()
     {
-        await using var f = await Fixture.Create(); var id = HistoryReceipt(f, 1, "スーパー", location: "新宿");
+        await using var f = await RecordApiFixture.Create(); var id = HistoryReceipt(f, 1, "スーパー", location: "新宿");
         var other = HistoryReceipt(f, 2, "ｽｰﾊﾟｰ", location: "対象外");
         HistoryDetail(f, id, f.Category, "牛乳"); HistoryDetail(f, id, f.OtherCategory, "別科目"); HistoryDetail(f, other, f.Category, "別店舗");
         Assert.Equal(new[] { "新宿" }, Names(await HistoryGet(f, "suggestions", "kind=shopLocation&shopName=" + Uri.EscapeDataString("スーパー"))));
@@ -28,21 +29,14 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task HistoryAutofillSelectsTaxAndOwnedPaymentIndependentlyAndDoesNotWrite()
     {
-        await using var f = await Fixture.Create(); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); f.Role("Editor", f.Owner);
         HistoryReceipt(f, 1, "店舗", updated: "2026-11-01 00:00:00"); HistoryReceipt(f, 2, "店舗", f.OtherPayment, updated: "2026-11-02 00:00:00", inclusion: 1, rounding: "half_up");
         var before = f.Snapshot(); var result = await HistoryGet(f, "autofill", "shopName=" + Uri.EscapeDataString("店舗") + "&transactionDate=2026-11-10");
         Keys(result, "paymentMethodId", "taxInclusionMode", "taxRoundingMode"); Assert.Equal(D(f.Payment), result["paymentMethodId"]!.GetValue<string>());
         Assert.Equal(1, result["taxInclusionMode"]!.GetValue<int>()); Assert.Equal("half_up", result["taxRoundingMode"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
     }
 
-    private static string[] Names(JsonObject result) => result["suggestions"]!.AsArray().Select(p => p!.GetValue<string>()).ToArray();
-    private static async Task<JsonObject> HistoryGet(Fixture f, string operation, string query, int status = 200, HttpClient? client = null)
-    {
-        using var response = await (client ?? f.Client).GetAsync($"/ledgers/{D(f.Ledger)}/receipt-{operation}?{query}");
-        var text = await response.Content.ReadAsStringAsync(); Assert.True((int)response.StatusCode == status, $"Expected {status}, got {(int)response.StatusCode}: {text}");
-        return JsonNode.Parse(text)!.AsObject();
-    }
-    private static string HistoryReceipt(Fixture f, int number, string shop, string? payment = null, string? location = null,
+    private static string HistoryReceipt(RecordApiFixture f, int number, string shop, string? payment = null, string? location = null,
         string updated = "2026-11-10 12:00:00", int inclusion = 0, string rounding = "floor")
     {
         var id = SeedList(f, 1, payment, shop: shop, start: number - 1)[0];
@@ -51,7 +45,7 @@ public sealed partial class ReceiptApiTests
         foreach (var (key, value) in new (string, object)[] { ("@location", (object?)location ?? DBNull.Value), ("@updated", updated), ("@inclusion", inclusion), ("@rounding", rounding), ("@ledger", f.Ledger), ("@id", id) }) command.Parameters.AddWithValue(key, value);
         command.ExecuteNonQuery(); return id;
     }
-    private static void HistoryDetail(Fixture f, string receipt, string category, string name)
+    private static void HistoryDetail(RecordApiFixture f, string receipt, string category, string name)
     {
         using var connection = f.App.Database.OpenForeignKeyConnection(); using var command = connection.CreateCommand();
         command.CommandText = """

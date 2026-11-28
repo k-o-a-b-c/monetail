@@ -2,15 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferListApiTests
 {
     [Fact]
     public async Task TransferFocusStartsAtTargetAndContinuesWithOrdinaryCursorWithoutChangingData()
     {
-        await using var f = await Fixture.Create(); var ids = SeedTransferList(f, 250, name: "ＡＢＣ振替");
+        await using var f = await RecordApiFixture.Create(); var ids = SeedTransferList(f, 250, name: "ＡＢＣ振替");
         var query = "month=2026-11&ownerPersonId=" + D(f.Owner) + "&paymentMethodId=" + D(f.OtherPayment) + "&q=abc";
         var before = f.Snapshot(); var first = await TransferPage(f, query + "&focusTransferId=" + D(ids[149]));
         Keys(first, "transfers", "nextCursor"); var rows = first["transfers"]!.AsArray(); Assert.Equal(100, rows.Count);
@@ -25,7 +26,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferFocusMissingTargetReturnsCommonNotFoundWithoutChangingData()
     {
-        await using var f = await Fixture.Create(); SeedTransferList(f, 1); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); SeedTransferList(f, 1); var before = f.Snapshot();
         var error = await TransferPage(f, "month=all&focusTransferId=" + Guid.NewGuid().ToString("D"), 404);
         Keys(error, "code", "message", "field", "latest", "permissions"); Assert.Equal("not_found", error["code"]!.GetValue<string>());
         Assert.Null(error["latest"]); Assert.Equal(before, f.Snapshot());
@@ -34,7 +35,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(1)] [InlineData(26)] [InlineData(100)] [InlineData(101)] [InlineData(201)]
     public async Task TransferFocusIncludesEqualTimeTargetAtPageBoundariesAndAcceptsUppercaseD(int number)
     {
-        await using var f = await Fixture.Create(); var ids = SeedTransferList(f, 201); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var ids = SeedTransferList(f, 201); var before = f.Snapshot();
         var page = await TransferPage(f, "month=all&focusTransferId=" + D(ids[number - 1]).ToUpperInvariant());
         var rows = page["transfers"]!.AsArray(); Assert.Equal(Math.Min(100, number), rows.Count);
         Assert.Equal(ids.Take(number).Reverse().Take(100).Select(D), rows.Select(r => r!["transferId"]!.GetValue<string>()));
@@ -44,7 +45,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferFocusUsesTransactionTimeBeforeIdAndNeverReturnsNewerTransfers()
     {
-        await using var f = await Fixture.Create(); var older = SeedTransferList(f, 101, at: "2026-11-01T00:00:00", start: 1000);
+        await using var f = await RecordApiFixture.Create(); var older = SeedTransferList(f, 101, at: "2026-11-01T00:00:00", start: 1000);
         var newer = SeedTransferList(f, 101, at: "2026-11-30T23:59:59"); var before = f.Snapshot();
         var first = await TransferPage(f, "month=2026-11&focusTransferId=" + D(newer[0]));
         var second = await TransferPage(f, "month=2026-11&cursor=" + Uri.EscapeDataString(first["nextCursor"]!.GetValue<string>()));
@@ -57,7 +58,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("whitespace")] [InlineData("duplicate")] [InlineData("cursor")] [InlineData("empty-cursor")]
     public async Task TransferFocusInvalidIdsDuplicatesAndCursorCombinationAreInputErrors(string kind)
     {
-        await using var f = await Fixture.Create(); var id = SeedTransferList(f, 1)[0]; var normal = D(id);
+        await using var f = await RecordApiFixture.Create(); var id = SeedTransferList(f, 1)[0]; var normal = D(id);
         var value = kind switch { "empty" => "", "bad" => "bad", "zero" => Guid.Empty.ToString("D"), "N" => id, "braces" => "{" + normal + "}", "whitespace" => " " + normal + " ", _ => normal };
         var query = "month=all&focusTransferId=" + Uri.EscapeDataString(value);
         if (kind == "duplicate") query += "&focusTransferId=" + Guid.NewGuid().ToString("D");
@@ -72,7 +73,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("month")] [InlineData("owner")] [InlineData("payment")] [InlineData("name")] [InlineData("deleted")]
     public async Task TransferFocusOutOfScopeAndDeletedTargetAreIndistinguishableFromMissing(string kind)
     {
-        await using var f = await Fixture.Create(); var id = SeedTransferList(f, 2, name: "ＡＢＣ振替")[1];
+        await using var f = await RecordApiFixture.Create(); var id = SeedTransferList(f, 2, name: "ＡＢＣ振替")[1];
         var query = kind switch { "month" => "month=2026-12", "owner" => "month=all&ownerPersonId=" + Guid.NewGuid().ToString("D"),
             "payment" => "month=all&paymentMethodId=" + Guid.NewGuid().ToString("D"), "name" => "month=all&q=xyz", _ => "month=all" };
         if (kind == "deleted") f.App.Database.Execute($"DELETE FROM ledger_transfers WHERE transfer_id='{id}'");
@@ -85,7 +86,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferFocusNeverFindsTargetInAnotherLedgerAndReceiptApiStillRejectsFocus()
     {
-        await using var f = await Fixture.Create(); SeedTransferList(f, 1);
+        await using var f = await RecordApiFixture.Create(); SeedTransferList(f, 1);
         using var create = await f.Client.PostAsJsonAsync("/ledgers", new { requestId = Guid.NewGuid(), name = "別家計簿" }); Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         var other = (await create.Content.ReadFromJsonAsync<JsonObject>())!["ledgerId"]!.GetValue<string>();
         f.App.Database.Execute($"INSERT INTO ledger_people(ledger_id,person_id,name,display_order,revision,payment_order_revision) SELECT '{other}',person_id,name,display_order,revision,payment_order_revision FROM ledger_people WHERE ledger_id='{f.Ledger}'");
@@ -101,7 +102,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferFocusKeepsExistingSharedReadLimit()
     {
-        await using var f = await Fixture.Create(); var id = SeedTransferList(f, 1)[0]; var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var id = SeedTransferList(f, 1)[0]; var before = f.Snapshot();
         for (var i = 0; i < 120; i++) await TransferPage(f, "month=all&focusTransferId=" + D(id));
         using var limited = await f.Client.GetAsync(TransferRoot(f) + "?month=all&focusTransferId=" + D(id)); Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
         using var shared = await f.Client.GetAsync($"/ledgers/{D(f.Ledger)}/people"); Assert.Equal(HttpStatusCode.TooManyRequests, shared.StatusCode); Assert.Equal(before, f.Snapshot());
@@ -111,7 +112,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("anonymous")] [InlineData("expired")] [InlineData("removed")]
     public async Task TransferFocusChecksAuthenticationAndMembershipBeforeDisclosingTarget(string kind)
     {
-        await using var f = await Fixture.Create(); var id = SeedTransferList(f, 1)[0]; using var anonymous = f.App.Client();
+        await using var f = await RecordApiFixture.Create(); var id = SeedTransferList(f, 1)[0]; using var anonymous = f.App.Client();
         if (kind == "expired") f.App.Time.Advance(TimeSpan.FromDays(15));
         if (kind == "removed") f.App.Database.Execute("DELETE FROM ledger_members"); var before = f.Snapshot();
         if (kind == "removed")

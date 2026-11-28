@@ -2,17 +2,18 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferUpdateApiTests
 {
     [Theory]
     [InlineData("requestId")] [InlineData("revision")] [InlineData("transactionAt")] [InlineData("name")]
     [InlineData("fromPaymentMethodId")] [InlineData("toPaymentMethodId")] [InlineData("amount")] [InlineData("memo")]
     public async Task TransferUpdateRequiresAllEightProperties(string field)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); input.Remove(field); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); input.Remove(field); var before = f.Snapshot();
         var error = await TransferUpdateError(f, path, input, 400); Assert.Equal("invalid_input", error["code"]!.GetValue<string>()); Assert.Equal(field, error["field"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
     }
 
@@ -28,7 +29,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("name", "\"　 \\t\"")] [InlineData("memo", "\"a\\nb\"")] [InlineData("fromPaymentMethodId", "\"bad\"")]
     public async Task TransferUpdateUsesPostScalarValidationAndV4Revision(string field, string raw)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); input[field] = JsonNode.Parse(raw); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); input[field] = JsonNode.Parse(raw); var before = f.Snapshot();
         var error = await TransferUpdateError(f, path, input, 400); Assert.Equal("invalid_input", error["code"]!.GetValue<string>()); Assert.Equal(field, error["field"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
     }
 
@@ -36,7 +37,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("extra")] [InlineData("duplicate")] [InlineData("array")] [InlineData("malformed")] [InlineData("content-type")]
     public async Task TransferUpdateStrictJsonRejectsUnknownDuplicateAndMalformedBodies(string kind)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var text = (await TransferUpdateInput(f, path)).ToJsonString();
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var text = (await TransferUpdateInput(f, path)).ToJsonString();
         text = kind switch { "extra" => text[..^1] + ",\"transferId\":null}", "duplicate" => text[..^1] + ",\"revision\":null}", "array" => "[]", "malformed" => "{bad", _ => text };
         using var content = new StringContent(text, Encoding.UTF8, kind == "content-type" ? "text/plain" : "application/json"); var before = f.Snapshot();
         using var response = await f.Client.PutAsync(path, content); Assert.Equal(400, (int)response.StatusCode);
@@ -47,7 +48,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("name", 50, true)] [InlineData("name", 51, false)] [InlineData("memo", 50, true)] [InlineData("memo", 51, false)]
     public async Task TransferUpdateCountsUtf16AndPreservesOriginalText(string field, int count, bool valid)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); var value = string.Concat(Enumerable.Repeat("😀", count)); input[field] = value; var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); var value = string.Concat(Enumerable.Repeat("😀", count)); input[field] = value; var before = f.Snapshot();
         if (valid) { await UpdateTransfer(f, path, input); Assert.Equal(value, (await ReadTransfer(f.Client, path))[field]!.GetValue<string>()); }
         else { Assert.Equal(field, (await TransferUpdateError(f, path, input, 400))["field"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot()); }
     }
@@ -55,7 +56,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferUpdateRejectsSamePaymentAndInvalidUrlIds()
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); input["toPaymentMethodId"] = input["fromPaymentMethodId"]!.GetValue<string>(); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); input["toPaymentMethodId"] = input["fromPaymentMethodId"]!.GetValue<string>(); var before = f.Snapshot();
         Assert.Equal("toPaymentMethodId", (await TransferUpdateError(f, path, input, 400))["field"]!.GetValue<string>());
         Assert.Equal("transferId", (await TransferUpdateError(f, TransferRoot(f) + "/bad", input, 400))["field"]!.GetValue<string>());
         Assert.Equal("ledgerId", (await TransferUpdateError(f, "/ledgers/bad/transfers/" + Guid.NewGuid(), input, 400))["field"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());

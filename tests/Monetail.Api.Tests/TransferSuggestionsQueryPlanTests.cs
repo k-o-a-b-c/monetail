@@ -1,14 +1,15 @@
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferSuggestionsApiTests
 {
     [Theory]
     [InlineData(false)] [InlineData(true)]
     public async Task TransferSuggestionsActualSqlFiltersLedgerThenGroupsBeforeLimitUsingExistingIndex(bool search)
     {
-        await using var f = await Fixture.Create(); SeedTransferList(f, 1001); f.App.Database.Execute("UPDATE ledger_transfers SET name=printf('候補%04d',amount)");
+        await using var f = await RecordApiFixture.Create(); SeedTransferList(f, 1001); f.App.Database.Execute("UPDATE ledger_transfers SET name=printf('候補%04d',amount)");
         var capture = new TransferListCommandCapture(); using var host = HistoryHost(f, capture); using var client = f.App.Client(host); await f.App.LoginAsync(client); var before = f.Snapshot();
         var result = await TransferSuggestions(f, search ? "q=" + Uri.EscapeDataString("候補") : null, client: client); Assert.Equal(100, Names(result).Length); Assert.True(result["hasMore"]!.GetValue<bool>());
         Assert.NotNull(capture.Sql); Assert.Contains("GROUP BY t.name COLLATE BINARY", capture.Sql); Assert.Contains("ORDER BY MAX(t.updated_at_utc) DESC, Value COLLATE BINARY ASC LIMIT 101", capture.Sql);

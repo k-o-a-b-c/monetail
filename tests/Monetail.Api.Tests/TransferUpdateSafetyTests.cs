@@ -7,16 +7,17 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferUpdateApiTests
 {
     [Theory]
     [InlineData(false)] [InlineData(true)]
     public async Task TransferUpdateStaleRevisionReturnsExactlyDetailLatestWithoutChangingData(bool unchanged)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var latest = await ReadTransfer(f.Client, path); var input = await TransferUpdateInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); if (!unchanged) input["amount"] = 9;
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var latest = await ReadTransfer(f.Client, path); var input = await TransferUpdateInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); if (!unchanged) input["amount"] = 9;
         var before = f.Snapshot(); var error = await TransferUpdateError(f, path, input, 409); Assert.Equal("revision_conflict", error["code"]!.GetValue<string>());
         Keys(error["latest"]!.AsObject(), "transferId", "transactionAt", "name", "fromPaymentMethodId", "toPaymentMethodId", "amount", "memo", "revision");
         Assert.True(System.Text.Json.Nodes.JsonNode.DeepEquals(latest, error["latest"])); Assert.Equal(before, f.Snapshot());
@@ -26,7 +27,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(false)] [InlineData(true)]
     public async Task TransferUpdateConcurrentRequestsHaveOneWinnerUnlessExactReplay(bool sameRequest)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var a = await TransferUpdateInput(f, path); a["amount"] = 2; var b = a.DeepClone().AsObject(); if (!sameRequest) { b["requestId"] = Guid.NewGuid().ToString("D"); b["amount"] = 3; }
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var a = await TransferUpdateInput(f, path); a["amount"] = 2; var b = a.DeepClone().AsObject(); if (!sameRequest) { b["requestId"] = Guid.NewGuid().ToString("D"); b["amount"] = 3; }
         var responses = await Task.WhenAll(f.Client.PutAsJsonAsync(path, a), f.Client.PutAsJsonAsync(path, b));
         try { Assert.Equal(sameRequest ? new[] { 204, 204 } : [204, 409], responses.Select(r => (int)r.StatusCode).Order()); }
         finally { foreach (var response in responses) response.Dispose(); }
@@ -37,7 +38,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("row")] [InlineData("record")] [InlineData("noop-record")]
     public async Task TransferUpdateFailureAtEitherWriteRollsBackEverything(string where)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); if (where != "noop-record") input["amount"] = 2;
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); if (where != "noop-record") input["amount"] = 2;
         f.App.Database.Execute(where == "row" ? "CREATE TRIGGER fail_transfer BEFORE UPDATE ON ledger_transfers BEGIN SELECT RAISE(ABORT,'synthetic_failure'); END" : "CREATE TRIGGER fail_transfer BEFORE INSERT ON operation_requests BEGIN SELECT RAISE(ABORT,'synthetic_failure'); END");
         var before = f.Snapshot(); Assert.Equal("store_unavailable", (await TransferUpdateError(f, path, input, 503))["code"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
     }
@@ -46,7 +47,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(false)] [InlineData(true)]
     public async Task TransferUpdateConditionallyChecksRevisionAtActualWrite(bool unchanged)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); if (!unchanged) input["amount"] = 2;
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferUpdateInput(f, path); if (!unchanged) input["amount"] = 2;
         var mutation = new TransferUpdateWriteMutation(unchanged ? "INSERT INTO operation_requests" : "UPDATE \"ledger_transfers\"", "UPDATE ledger_transfers SET revision='" + Guid.NewGuid().ToString("N") + "'");
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); await LoginTestApp.CsrfAsync(client); var before = f.Snapshot(); mutation.Armed = true;
@@ -62,7 +63,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(false, "person-from", 400)] [InlineData(true, "person-to", 400)]
     public async Task TransferUpdateRechecksRightsAndPeriodsAfterSuccessRecordAndRollsBack(bool unchanged, string change, int status)
     {
-        await using var f = await Fixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferUpdateInput(f, path); if (!unchanged) input["amount"] = 2; f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferUpdateInput(f, path); if (!unchanged) input["amount"] = 2; f.Role("Editor", f.Owner);
         var sql = change switch
         {
             "role" => "UPDATE ledger_members SET role='Viewer'", "mapping" => $"UPDATE ledger_members SET person_id='{f.Other}'", "member" => "DELETE FROM ledger_members", "session" => "UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc",
@@ -77,7 +78,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("role", 403)] [InlineData("mapping", 403)] [InlineData("member", 404)] [InlineData("session", 401)] [InlineData("owner", 403)]
     public async Task TransferUpdateRechecksAccessBeforeExposingConflictLatest(string change, int status)
     {
-        await using var f = await Fixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferUpdateInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferUpdateInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); f.Role("Editor", f.Owner);
         var sql = change switch
         {
             "role" => "UPDATE ledger_members SET role='Viewer'", "mapping" => $"UPDATE ledger_members SET person_id='{f.Other}'", "member" => "DELETE FROM ledger_members", "session" => "UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc",
@@ -92,32 +93,11 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task TransferUpdateRechecksOwnerAfterRecordInsert()
     {
-        await using var f = await Fixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferUpdateInput(f, path); input["amount"] = 2; f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferUpdateInput(f, path); input["amount"] = 2; f.Role("Editor", f.Owner);
         var mutation = new TransferOwnerMutation(f.Other, f.Payment);
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); await LoginTestApp.CsrfAsync(client); var before = f.Snapshot(); mutation.Armed = true;
         await TransferUpdateError(f, path, input, 403, client); Assert.False(mutation.Armed); Assert.Equal(before, f.Snapshot());
     }
 
-    private sealed class TransferUpdateWriteMutation(string needle, string sql) : DbCommandInterceptor
-    {
-        public bool Armed { get; set; }
-        public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<int> result, CancellationToken token = default)
-        {
-            if (Armed && command.CommandText.Contains(needle, StringComparison.Ordinal)) { Armed = false; using var mutate = command.Connection!.CreateCommand(); mutate.Transaction = command.Transaction; mutate.CommandText = sql; await mutate.ExecuteNonQueryAsync(token); }
-            return result;
-        }
-    }
-
-    private sealed class TransferUpdateReadMutation(string sql) : DbCommandInterceptor
-    {
-        public bool Armed { get; set; }
-        private int reads;
-        public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken token = default)
-        {
-            if (Armed && command.CommandText.Contains("FROM \"ledger_transfers\"", StringComparison.Ordinal) && ++reads == 2)
-            { Armed = false; using var mutate = command.Connection!.CreateCommand(); mutate.Transaction = command.Transaction; mutate.CommandText = sql; await mutate.ExecuteNonQueryAsync(token); }
-            return result;
-        }
-    }
 }

@@ -2,15 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferAutofillApiTests
 {
     [Fact]
     public async Task TransferAutofillSeparatesSameTransferIdsAndDoesNotExposeForeignSpecifiedSources()
     {
-        await using var f = await Fixture.Create(); TransferCandidate(f, 1, "振替");
+        await using var f = await RecordApiFixture.Create(); TransferCandidate(f, 1, "振替");
         using var ledger = await f.Client.PostAsJsonAsync("/ledgers", new { requestId = Guid.NewGuid(), name = "別家計簿" }); Assert.Equal(HttpStatusCode.Created, ledger.StatusCode);
         var other = (await ledger.Content.ReadFromJsonAsync<JsonObject>())!["ledgerId"]!.GetValue<string>();
         using var person = await f.Client.PostAsJsonAsync($"/ledgers/{D(other)}/people", new { requestId = Guid.NewGuid(), name = "別人物" }); Assert.Equal(HttpStatusCode.Created, person.StatusCode);

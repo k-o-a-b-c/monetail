@@ -2,10 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class MasterPeriodApiTests
 {
     [Theory]
     [InlineData("from", "validFrom", false)] [InlineData("to", "validFrom", false)]
@@ -14,7 +15,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("from", "validTo", true)] [InlineData("to", "validTo", true)]
     public async Task PaymentMethodPeriodChangeChecksExistingTransfersOnBothSides(string side, string field, bool boundary)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         await CreateTransfer(f, TransferInput(f));
         var payment = side == "from" ? f.Payment : f.OtherPayment;
         var revision = (string)f.App.Database.Scalar($"SELECT revision FROM ledger_payment_methods WHERE payment_method_id='{payment}'")!;
@@ -41,7 +42,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task PaymentMethodPeriodChangeDoesNotConsiderUnrelatedTransfers()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         await CreateTransfer(f, TransferInput(f));
         var payment = await OwnTransferPayment(f);
         var revision = (string)f.App.Database.Scalar($"SELECT revision FROM ledger_payment_methods WHERE payment_method_id='{Guid.Parse(payment):N}'")!;

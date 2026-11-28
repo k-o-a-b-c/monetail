@@ -5,10 +5,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class ReceiptListApiTests
 {
     [Theory]
     [InlineData("Admin")]
@@ -16,7 +17,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("Viewer")]
     public async Task ReceiptFocusAllowsAllMemberRolesWithoutPersonMapping(string role)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = SeedList(f, 1)[0];
         f.Role(role);
         var before = f.Snapshot();
@@ -32,7 +33,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("store", 503)]
     public async Task ReceiptFocusNeverLeaksRowsAfterTargetLookupWhenAccessOrTargetChanges(string kind, int status)
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = SeedList(f, 3)[1];
         var mutation = new ReceiptFocusReadMutation(f.App.Time, kind, id);
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>
@@ -52,7 +53,7 @@ public sealed partial class ReceiptApiTests
     [Fact]
     public async Task ReceiptFocusUsesInclusiveKeysetBoundaryAndExistingIndexWithoutOffset()
     {
-        await using var f = await Fixture.Create();
+        await using var f = await RecordApiFixture.Create();
         var id = SeedList(f, 1001)[500];
         var capture = new ReceiptFocusCommandCapture();
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services =>

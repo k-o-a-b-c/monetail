@@ -5,15 +5,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Monetail.Api.Persistence;
 using Xunit;
+using static Monetail.Api.Tests.RecordApiTestData;
 
 namespace Monetail.Api.Tests;
 
-public sealed partial class ReceiptApiTests
+public sealed partial class TransferDeleteApiTests
 {
     [Fact]
     public async Task TransferDeleteStaleRevisionReturnsSameEightFieldsAsDetailAndLeavesDatabaseUntouched()
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var latest = await ReadTransfer(f.Client, path); var input = await TransferDeleteInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); var before = f.Snapshot();
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var latest = await ReadTransfer(f.Client, path); var input = await TransferDeleteInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); var before = f.Snapshot();
         var error = await TransferDeleteError(f, path, input, 409); Assert.Equal("revision_conflict", error["code"]!.GetValue<string>()); Assert.True(JsonNode.DeepEquals(latest, error["latest"]));
         Keys(error["latest"]!.AsObject(), "transferId", "transactionAt", "name", "fromPaymentMethodId", "toPaymentMethodId", "amount", "memo", "revision"); Assert.Equal(before, f.Snapshot());
     }
@@ -22,7 +23,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("revision", 409)] [InlineData("removed", 404)]
     public async Task TransferDeleteMatchesRevisionAtActualDeleteAndRollsBackOnZeroAffectedRows(string kind, int status)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferDeleteInput(f, path);
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferDeleteInput(f, path);
         var mutation = new TransferUpdateWriteMutation("DELETE FROM \"ledger_transfers\"", kind == "revision" ? $"UPDATE ledger_transfers SET revision='{Guid.NewGuid():N}'" : "DELETE FROM ledger_transfers");
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); await LoginTestApp.CsrfAsync(client); var before = f.Snapshot(); mutation.Armed = true;
@@ -33,7 +34,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("row")] [InlineData("record")]
     public async Task TransferDeleteFailureAtEitherWriteRollsBackDeleteAndSuccessRecord(string where)
     {
-        await using var f = await Fixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferDeleteInput(f, path);
+        await using var f = await RecordApiFixture.Create(); var path = await CreateTransfer(f, TransferInput(f)); var input = await TransferDeleteInput(f, path);
         f.App.Database.Execute(where == "row" ? "CREATE TRIGGER fail_transfer_delete BEFORE DELETE ON ledger_transfers BEGIN SELECT RAISE(ABORT,'synthetic_failure'); END" : "CREATE TRIGGER fail_transfer_delete BEFORE INSERT ON operation_requests BEGIN SELECT RAISE(ABORT,'synthetic_failure'); END"); var before = f.Snapshot();
         Assert.Equal("store_unavailable", (await TransferDeleteError(f, path, input, 503))["code"]!.GetValue<string>()); Assert.Equal(before, f.Snapshot());
     }
@@ -45,7 +46,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("row", "session", 401)] [InlineData("record", "session", 401)]
     public async Task TransferDeleteRechecksCurrentRightsAtBothWritesAndRollsBack(string where, string change, int status)
     {
-        await using var f = await Fixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferDeleteInput(f, path); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferDeleteInput(f, path); f.Role("Editor", f.Owner);
         var sql = change switch { "role" => "UPDATE ledger_members SET role='Viewer'", "mapping" => $"UPDATE ledger_members SET person_id='{f.Other}'", "member" => "DELETE FROM ledger_members", _ => "UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc" };
         f.App.Database.Execute($"CREATE TRIGGER change_delete AFTER {(where == "row" ? "DELETE ON ledger_transfers" : "INSERT ON operation_requests WHEN NEW.operation_type='transfer.delete'")} BEGIN {sql}; END"); var before = f.Snapshot();
         var error = await TransferDeleteError(f, path, input, status); Assert.Null(error["latest"]); Assert.Equal(before, f.Snapshot());
@@ -55,7 +56,7 @@ public sealed partial class ReceiptApiTests
     [InlineData(false)] [InlineData(true)]
     public async Task TransferDeleteRechecksBothOwnersAfterOperationRecordInsert(bool toSide)
     {
-        await using var f = await Fixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferDeleteInput(f, path); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferDeleteInput(f, path); f.Role("Editor", f.Owner);
         var mutation = new TransferOwnerMutation(f.Other, toSide ? own : f.Payment);
         using var host = f.App.NewFactory().WithWebHostBuilder(builder => builder.ConfigureServices(services => services.AddDbContext<ApiDbContext>(options => options.AddInterceptors(mutation))));
         using var client = f.App.Client(host); await f.App.LoginAsync(client); await LoginTestApp.CsrfAsync(client); var before = f.Snapshot(); mutation.Armed = true;
@@ -66,7 +67,7 @@ public sealed partial class ReceiptApiTests
     [InlineData("role", 403)] [InlineData("mapping", 403)] [InlineData("member", 404)] [InlineData("session", 401)] [InlineData("owner", 403)]
     public async Task TransferDeleteRechecksAccessBeforeExposingConflictLatest(string change, int status)
     {
-        await using var f = await Fixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferDeleteInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); f.Role("Editor", f.Owner);
+        await using var f = await RecordApiFixture.Create(); var own = await OwnTransferPayment(f); var create = TransferInput(f); create["toPaymentMethodId"] = D(own); var path = await CreateTransfer(f, create); var input = await TransferDeleteInput(f, path); input["revision"] = Guid.NewGuid().ToString("D"); f.Role("Editor", f.Owner);
         var sql = change switch
         {
             "role" => "UPDATE ledger_members SET role='Viewer'", "mapping" => $"UPDATE ledger_members SET person_id='{f.Other}'", "member" => "DELETE FROM ledger_members", "session" => "UPDATE auth_sessions SET RevokedAtUtc=CreatedAtUtc",
