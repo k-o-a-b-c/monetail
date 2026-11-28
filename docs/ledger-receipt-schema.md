@@ -4,7 +4,7 @@
 本書は**承認済みの業務・保存要件**と、**実装前に確認する物理列・索引・制約の設計案**を区別する。表に示す列や索引のうち明示的に確定していない物理仕様は、設計候補のまま扱う（Codexが独断で採用しない）。採用状況は[実装ガイド](ledger-receipt-implementation.md#db実装の判断境界)を参照。
 関連: [科目・税・権限](ledger-core-schema.md#category-receipt-handoff)、[計算・集計](12-calculation-contract.md)、[旧DB](02-database.md)、[既存の再送契約](ledger-operation-retries.md)。
 
-**実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと必要な索引を実装した。`ApiDbContext`から既存の`DatabaseSchema`を通じて新規DBへ作成し、初期化・通常利用時の構造照合にも含める。既存DBの自動更新・Migration追加は行わない。[工程2の共通計算・検証](ledger-receipt-api.md#工程2の実装と工程3への接続)も実装済み。詳細GET/書込APIと、保存トランザクション内のマスタ照会・有効期間/所属・使用済み科目の収支変更拒否への接続も実装済み。一覧GETも既存索引を利用して実装済み。履歴候補・自動補完もAPI実装済み。WinUIは後続工程。本工程ではDBスキーマ・初期化方式を変更しない。
+**DBの実装状態：** 4表のEF Coreモデル、複合PK/FK、RESTRICT、科目グループのUNIQUE、行内CHECKと索引を実装済み。現行4表は新規DB作成・既存DB構造照合に含まれる。DEC-369の税設定の文字列列挙値への統一とDEC-371の仮登録列追加は未実装であり、対応・検証は[API実装台帳](specs/api/README.md)で管理する。既存DBの自動更新・Migration追加は行わない。APIの外部契約は[レシートAPI](specs/api/features/receipts.md)・[履歴API](specs/api/features/receipt-history.md)、APIの実装状況は[API実装台帳](specs/api/README.md)、画面の実装状況は[画面台帳](screen-inventory.md)を参照する。
 
 実装上の選択は、取引日時を`DateTime`と固定書式のTEXT変換（読込時は`Unspecified`）で保持し、監査日時は既存家計簿と同じUTC用`DateTime`とした。FKは親子もRESTRICTとし、必要なFK列索引はEFの規約と複合PK/索引の先頭列を利用する。一覧の必須索引は昇順B-treeの逆走査で日時・IDのBINARY降順を処理できることを実行計画で検証した。追加候補の支払方法・日時複合索引は今回追加していない。
 
@@ -17,7 +17,7 @@
 | `ledger_receipt_details` | 購入・収支明細1行 | (`ledger_id`, `detail_id`) | グループ |
 | `ledger_receipt_detail_people` | 明細に対応する人物1人 | (`ledger_id`, `detail_id`, `person_id`) | 明細・人物 |
 
-- **確定方針:** 家計簿をまたぐ参照は禁止。業務IDはサーバー発行の**UUID v7**（32文字N形式）、更新版・クライアントの作成`requestId`はUUID v4。IDの採番順を一覧表示順に流用しない。現在のマスタAPIはv7化前のため、業務ID全体の切り替えは既存データ・既存認証との整合性を別途確認する。
+- **確定方針:** 家計簿をまたぐ参照は禁止。業務IDはサーバー発行の**UUID v7**（32文字N形式）、更新版はUUID v4。要求IDの発行・再送は[レシートAPI第7節](specs/api/features/receipts.md#書込の再送)に従う。IDの採番順を一覧表示順に流用しない。現在のマスタAPIはv7化前のため、業務ID全体の切り替えは既存データ・既存認証との整合性を別途確認する。
 - **確定方針:** 既存マスタと同じく**`ledger_id`を含む複合PK**とし、レシート・グループ・明細の**ID単独にUNIQUE索引を追加しない**。UUID v7はサーバーが発行するが、DBで保証する一意性は各家計簿内の複合キー単位。これは既存の科目・人物・支払方法と同じ設計であり、家計簿をまたぐID単独の一意性をDB要件にしない。グループの「同じレシート内に同科目を重複させない」複合UNIQUE索引は別途設ける。
 - 子テーブルには`ledger_id`を必ず持ち、すべてのFKは**同一家計簿内の複合FK**とする。参照中のマスタ・認証アカウントの削除はRESTRICT。**レシート削除は、子の対象人物→明細→グループ→親を単一トランザクションで削除する**保存契約に従う。SQLite FKのCASCADEに頼ることを必須としない。
 - 新規レシートのヘッダーから明細・対象人物まで一括確定する。部分保存や親だけのコミットは行わない。
@@ -32,10 +32,11 @@
 | `receipt_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `transaction_at` | TEXT NOT NULL | **取引日時を時刻まで保持**。旧版のローカル日時をUTCへ読み替えず、日付部分を税率履歴・有効期間の照合に使う。**日時TEXTは`yyyy-MM-ddTHH:mm:ss`（ISO 8601、タイムゾーンなし、秒精度、小数秒なし）とし、APIの`transactionAt`も同じ文字列（DEC-253）** |
 | `shop_name` | TEXT NOT NULL | 店名。マスタFKは設けず、自由入力。**上限100 UTF-16コード単位（DEC-211）** |
-| `shop_location` | TEXT NULL | 店舗所在地。**上限100 UTF-16コード単位（DEC-211）** |
+| `shop_location` | TEXT NULL | 店舗所在地。未入力は`NULL`で保存する。**上限100 UTF-16コード単位（DEC-211）** |
 | `payment_method_id` | TEXT NOT NULL | `(ledger_id, payment_method_id)`で支払方法FK |
-| `tax_inclusion_mode` | INTEGER NOT NULL | 0=税込、1=税抜（旧版`tax_type`の値と計算契約は維持） |
-| `tax_rounding_mode` | TEXT NOT NULL | `floor` / `half_up` |
+| `tax_inclusion_mode` | TEXT NOT NULL | `Inclusive` / `Exclusive` |
+| `tax_rounding_mode` | TEXT NOT NULL | `Floor` / `HalfUp` |
+| `is_provisional` | INTEGER NOT NULL | レシート単位の仮登録フラグ。0=false、1=true。業務上の意味は[レシートAPI](specs/api/features/receipts.md#3-レシートの値業務制約)に従う |
 | `recurrence_interval` | INTEGER NULL | 周期間隔。設定時は整数、1〜2,147,483,647（Int32） |
 | `recurrence_unit` | TEXT NULL | `Week` / `Month` / `Year` |
 | `total_amount` | INTEGER NOT NULL（確定） | 保存時に計算した合計を必ず保持。符号付きInt32範囲内。旧版のNULL値は移行時に個別対応 |
@@ -49,7 +50,8 @@
 **業務上必要な制約と検索用索引候補**
 
 - `FK(ledger_id)→ledgers(id)`、`FK(ledger_id,payment_method_id)→ledger_payment_methods(ledger_id,payment_method_id)`を設ける。**作成者・更新者の両IDはそれぞれ`AspNetUsers(Id)`へのRESTRICT FKを設定する（確定）**。レシート監査情報に参照されている認証アカウントは物理削除不可とし、無効化しても履歴と認証IDを残す。アカウント退会・削除機能は現時点で未実装であり、将来の退会仕様は別途検討する。
-- `CHECK(tax_inclusion_mode IN (0,1))`、`CHECK(tax_rounding_mode IN ('floor','half_up'))`、`total_amount`はNOT NULLかつ符号付きInt32範囲内。
+- `CHECK(is_provisional IN (0, 1))`。
+- `CHECK(tax_inclusion_mode IN ('Inclusive','Exclusive'))`、`CHECK(tax_rounding_mode IN ('Floor','HalfUp'))`、`total_amount`はNOT NULLかつ符号付きInt32範囲内。
 - 周期は**両列NULL（初期値：なし）または両列非NULL**。非NULL時は`typeof(recurrence_interval) = 'integer'`かつ`recurrence_interval BETWEEN 1 AND 2147483647`、`recurrence_unit IN ('Week','Month','Year')`をDBで検証し、APIでも同じ値域を検証する。隔週は2+Week、3か月ごとは3+Month。曜日・営業日などの規則列は持たない。
 - 周期がある場合、レシート内に`occurrence_type='Regular'`の明細が**1件以上必須**。周期なしでも定期明細を認める。これは行をまたぐためAPIの一括保存トランザクションで検証する。
 - **一覧GETのキーセットページングに用いる索引**：`(ledger_id, transaction_at, receipt_id)`はDEC-231で参照する検索順序に合わせて整備する（時刻降順・IDのBINARY降順を検証）。**追加最適化の候補**：支払方法絞り込み用の`(ledger_id, payment_method_id, transaction_at, receipt_id)`は、検索の実行計画・計測で必要性を確認して採否を判断する。両者を無条件に「確定済み索引2本」と扱わない。日時TEXTは**DEC-253の`yyyy-MM-ddTHH:mm:ss`（小数秒なし・オフセットなし）**に統一し、字句順が時系列順と一致する。
@@ -64,8 +66,8 @@
 | `ledger_id` | TEXT NOT NULL | 家計簿ID、PKの一部 |
 | `group_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `receipt_id` | TEXT NOT NULL | 同一家計簿レシートへのFK |
-| `category_id` | TEXT NOT NULL | 同一家計簿科目へのFK |
-| `memo` | TEXT NULL | グループ自由記述。空欄は`null`、長さ上限は未決定 |
+| `category_id` | TEXT NOT NULL | 同一家計簿科目へのFK。既存グループでは変更不可（[レシートAPI](specs/api/features/receipts.md)） |
+| `memo` | TEXT NULL | グループ自由記述。空欄は`null`、上限100 UTF-16コード単位 |
 
 - **同一レシート・同一科目のグループは1件**。率が異なってもグループを分割しない。
 - 重複禁止は通常の複合UNIQUE索引1本。`category_id`はNOT NULLであり、税率がグループにないため、税率NULL用の部分UNIQUE索引は不要。
@@ -89,7 +91,7 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 | `detail_id` | TEXT NOT NULL | UUID v7、PKの一部 |
 | `group_id` | TEXT NOT NULL | 同一家計簿グループへのFK |
 | `display_order` | INTEGER NOT NULL | グループ内の並び順。`typeof()`で整数かつ0〜2,147,483,647（Int32）を検証 |
-| `name` | TEXT NOT NULL | 明細名。**上限100 UTF-16コード単位（DEC-211）** |
+| `name` | TEXT NOT NULL | 明細名。空文字不可。**上限100 UTF-16コード単位（DEC-211）** |
 | `unit_price` | INTEGER NOT NULL | 単価、符号付きInt32（旧版`fee`） |
 | `quantity` | INTEGER NOT NULL | 数量、1以上・Int32上限以下 |
 | `unit_discount_amount` | INTEGER NOT NULL | 1単位の値引額、符号付きInt32（旧版`discount_fee`） |
@@ -97,25 +99,25 @@ CREATE UNIQUE INDEX ux_ledger_receipt_groups_category
 | `tax_rate` | TEXT NULL | **実税率（%）、Decimal。NULL=非課税、'0'=課税0%** |
 | `expense_type` | TEXT NOT NULL | `Fixed` / `Variable` / `Excluded` |
 | `occurrence_type` | TEXT NOT NULL | `Regular` / `Irregular` / `Temporary` |
-| `memo` | TEXT NULL | 明細自由記述。空欄は`null`、長さ上限は未決定 |
+| `memo` | TEXT NULL | 明細自由記述。空欄は`null`、上限100 UTF-16コード単位 |
 
-- 明細金額：`x=(unit_price-unit_discount_amount)*quantity`、`discount_by_rate=Ceiling(x*discount_rate/100)`、`net=x-discount_by_rate`。**Decimalで計算し、従来の値引と税端数の規則を維持**。単価・値引額・数量・合計等はInt32範囲を検証し、超過ならAPIで保存拒否。入力値の0・100への自動補正は行わない。
-- `discount_rate`と`tax_rate`はDecimal文字列のTEXT保存。APIはInvariantCultureで解析・正規化して数値を比較し、`8`・`8.0`・`08`を同じ値として扱う。非課税NULLと課税0%は別物。形式・数値範囲をAPIで検証する。TEXTの辞書順で税率を比較しない。
-- **明細の税率候補は取引日に有効な全税区分履歴から数値重複を除いたもの＋非課税**。新規明細では科目の`tax_category_code`と取引日から得た税率を初期選択する。履歴がなければ別区分・別日付から代用せず明示選択を要求。明細ごとに変更可能。同じグループに非課税・課税0%・複数税率を混在させられる。
-- **保存時は新規・更新・流用による新規登録のいずれでも、全明細の税率を取引日の有効な候補と照合**する。候補外の率がある場合は保存を拒否し、利用者による再選択を要求する。取引日・税率・明細が未変更の更新でも例外を設けないため、税率履歴が後から変更された場合はメモなど他項目のみの編集でも保存できないことがある。保存済みの税率を自動変更しない。
-- **税込・税抜と端数方式はレシート単位のまま**。レシート合計は科目・グループをまたいで同じ数値税率の課税明細を合算・丸め、非課税分は別計上。課税0%と非課税は区別する。グループ・明細・人物の参考額の合計とレシート合計に差が生じ得る。**複数税率グループの参考額は[API・計算契約](ledger-receipt-api.md)のDEC-156・157**に従う。
-- **費用区分の初期値・選択肢は科目収支区分に依存**：収入科目は`Excluded`のみ、支出科目は`Fixed`/`Variable`/`Excluded`（初期値`Variable`）。`net`の正負に関係なくAPIでも検証する。
-- 発生区分は`Regular`/`Irregular`/`Temporary`、初期値`Irregular`。レシート周期ありなら少なくとも1明細がRegular。
+- 明細・レシート合計の計算は[計算契約](12-calculation-contract.md)、入力値の検証は[レシートAPI](specs/api/features/receipts.md)を正本とする。
+- `discount_rate` と `tax_rate` はDecimal文字列のTEXT保存。非課税NULLと課税0%を区別し、TEXTの辞書順で税率を比較しない。APIの形式・同値判定は[レシートAPI](specs/api/features/receipts.md)に従う。
+- 税率は明細ごとに保存し、同じグループに非課税・課税0%・複数税率を混在させられる。税率の候補・初期選択は[画面仕様](ledger-receipt-ui.md)（非課税科目は履歴なしでも非課税）、保存時の有効性検証は[レシートAPI](specs/api/features/receipts.md)に従う。
+- 税込・税抜と端数方式はレシート単位に保持する。合計・参考額の計算規則は[計算契約](12-calculation-contract.md)に従う。
+- 費用区分・発生区分・周期の業務制約は[レシートAPI](specs/api/features/receipts.md)、初期値は[画面仕様](ledger-receipt-ui.md)に従う。
 - 明細は`display_order ASC, detail_id ASC`で表示。順序は非負、同順序は許容しIDで安定ソートする。
-- 明細名の上限は**100 UTF-16コード単位（DEC-211）**。**レシート親メモのみ100 UTF-16コード単位**とし、**科目グループ・明細メモの長さ上限は未決定**。これら2種に100制限を転用しない。
+- 名称・メモの文字数制約は[レシートAPI](specs/api/features/receipts.md)に従う。
 
 レシート書込・読取の詳細なHTTP/JSON契約は[レシートAPI](ledger-receipt-api.md)、画面・履歴候補は[WinUI](ledger-receipt-ui.md)・[候補](ledger-receipt-suggestions.md)を参照。
 
-### メモの共通NULL正規化（親・科目グループ・明細）
+<a id="メモの共通null正規化親科目グループ明細"></a>
 
-- **空欄はすべて`null`**。親／グループ／明細の`memo`に対し、APIのPOST/PUTで`null`と空文字`""`を受け付け、空文字は**検証・同値判定・保存の前に`null`へ正規化**する。GETの一覧・詳細・競合`latest`でも旧空文字を`null`として返す。JSONの`memo`キーを省略する契約には変えない。空白のみの文字列（`" "`など）は元のまま保持し、Trim・Unicode正規化・改行除去は新規に行わない。
-- **DBの補助制約**：親／グループ／明細の各`memo`は`TEXT NULL`を維持し、`CHECK (memo IS NULL OR length(memo) > 0)`を備える。親には100文字の補助CHECKも設ける場合、SQLiteの`length(TEXT)`はUTF-16コード単位ではなくコードポイントを数えるため、**厳密な100 UTF-16単位検証はAPI/Clientで実施**する。科目・明細メモには未承認の長さ上限を設けない。
-- **旧データ・無変更保存**：既存DBの空文字はGETで`null`扱い、無変更判定でも`null`と同値として扱う。読み取りだけでDBを自動更新せず、同じ業務値のPUTでは既存の更新版・監査列を変えない。保存済み空文字の物理的な是正は、既存DBを確認したうえで別途明示的に実施する。正式リリース前はMigrationを追加せず、新規`initialize-db`に最新の制約を適用する。
+### 所在地・メモのNULL正規化
+
+- 所在地・親・グループ・明細のメモは未入力（空文字を含む）を`null`で保存し、空白のみの文字列は保持する。入力・応答・同値判定の契約は[レシートAPI](specs/api/features/receipts.md)に従う。
+- **DBの補助制約**：親／グループ／明細の各`memo`は`TEXT NULL`を維持し、`CHECK (memo IS NULL OR length(memo) > 0)`を備える。100文字の補助CHECKを設ける場合、SQLiteの`length(TEXT)`はUTF-16コード単位ではなくコードポイントを数えるため、**厳密な100 UTF-16単位検証はAPI/Clientで実施**する。
+- **旧データ**：読み取りだけでDBを自動更新しない。保存済み空文字の物理的な是正は既存DB確認後に別途明示的に実施する。正式リリース前はMigrationを追加せず、新規`initialize-db`に最新の制約を適用する。
 
 ## 5. `ledger_receipt_detail_people`（対象人物）
 
